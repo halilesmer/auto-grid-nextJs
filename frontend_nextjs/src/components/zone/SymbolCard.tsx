@@ -5,14 +5,13 @@ import { AlertTriangle, ChevronDown, Plus } from 'lucide-react';
 import SymbolAutoComplete from '@/components/SymbolAutoComplete';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { InputField } from '@/components/ui/InputField';
-import { Tooltip } from '@/components/ui/tooltip';
+import { FieldLabel, Tooltip } from '@/components/ui/tooltip';
 import { useFormat, useT } from '@/i18n';
 import { useSettingsStore } from '@/store';
 import type { LiveData, SymbolDetail } from '@/store/types';
 import { cn } from '@/lib/utils';
 import { getSymbolConfig } from '@/utils/zoneHelpers';
-import { SymbolLogs } from './SymbolLogs';
+import { SymbolLogsContext, type SymbolLogsContextValue } from './SymbolLogs';
 
 interface SymbolCardProps {
   symbol: string;
@@ -80,15 +79,22 @@ function SymbolField({ symbol, symbolDetails, validateSymbol, onRenameSymbol }: 
   };
 
   return (
-    <InputField label={symbolLabel} hint={t('zone.field.symbol.hint')} error={fieldError}>
-      <SymbolAutoComplete
-        value={symbol}
-        onChange={setDraft}
-        onCommit={commit}
-        symbolDetails={symbolDetails}
-        hasError={hasError}
-      />
-    </InputField>
+    // Etiket input'un solunda, aynı satırda (1108-A5 K1); hata/uyarı altında kalır
+    <div className="flex min-w-0 flex-col gap-1">
+      <label className="flex min-w-0 items-center gap-2">
+        <FieldLabel label={symbolLabel} hint={t('zone.field.symbol.hint')} className="shrink-0 text-xs font-medium text-muted-foreground" />
+        <span className="w-[118px] shrink-0">
+          <SymbolAutoComplete
+            value={symbol}
+            onChange={setDraft}
+            onCommit={commit}
+            symbolDetails={symbolDetails}
+            hasError={hasError}
+          />
+        </span>
+      </label>
+      {fieldError}
+    </div>
   );
 }
 
@@ -159,7 +165,7 @@ function isControl(target: EventTarget | null, header: Element) {
   return hit !== null && header.contains(hit);
 }
 
-/** Symbol mit seinen Setups (ZON-20): Kopf mit Symbol, Zahl der Setups, Preis und Markt; darunter die Setups und die Symbol-Logs (LOG-07). */
+/** Symbol mit seinen Setups (ZON-20): Kopf mit Symbol, Zahl der Setups, Preis und Markt; darunter die Setups. Die Symbol-Logs (LOG-07) öffnen über das ⋯-Menü eines Setups. */
 export function SymbolCard({
   symbol,
   setupIds,
@@ -181,6 +187,17 @@ export function SymbolCard({
   const collapsedRaw = useSyncExternalStore(subscribeCollapsed, readCollapsedRaw, () => null);
   const collapsed = parseCollapsed(collapsedRaw).includes(key);
   const toggle = () => writeCollapsed(key, !collapsed);
+
+  // Symbol-Log-Panel: ein Zustand je Symbolkarte, alle Setup-Menüs öffnen dasselbe Panel (LOG-07)
+  const [logsOpenFor, setLogsOpenFor] = useState<string | null>(null);
+  const logsCtx: SymbolLogsContextValue = {
+    symbol,
+    setupIds,
+    // Eingeklappte Karte: Panel zu (sonst läuft die Abfrage unsichtbar weiter)
+    openFor: collapsed ? null : logsOpenFor,
+    show: setLogsOpenFor,
+    close: () => setLogsOpenFor(null),
+  };
   const onHeaderClick = (e: MouseEvent<HTMLDivElement>) => {
     if (!isControl(e.target, e.currentTarget)) toggle();
   };
@@ -202,80 +219,69 @@ export function SymbolCard({
     : t('zone.market.hint');
 
   return (
-    <section data-testid="symbol-card" className="rounded-xl border border-border bg-muted/40">
-      {/* Dar ekranda (375 px) buton alt satıra iner; boş alana tıklamak kartı açar/kapatır (V1) */}
+    <section data-testid="symbol-card" className="rounded-xl border border-border bg-muted/40 shadow-[var(--shadow-symbol)]">
+      {/* Tek satır: ok · "Sembol" + input · n setup · fiyat · durum · boşluk · Setup Ekle. Dar ekranda satır kırılır; boş alana tıklamak kartı açar/kapatır */}
       <div
         data-testid="symbol-card-header"
         onClick={onHeaderClick}
         className={cn(
-          'flex cursor-pointer flex-wrap items-end justify-between gap-2 px-2.5 pt-3 sm:gap-3 sm:px-4 sm:pt-4',
+          'flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-2 px-2.5 pt-3 sm:px-4 sm:pt-4',
           collapsed ? 'pb-3 sm:pb-4' : 'pb-2 sm:pb-3',
         )}
       >
-        <div className="flex min-w-0 flex-wrap items-end gap-x-4 gap-y-2">
-          <div className="flex w-full min-w-0 items-end gap-1.5 sm:w-auto">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="self-end"
-            onClick={toggle}
-            aria-expanded={!collapsed}
-            aria-controls={bodyId}
-            aria-label={t(collapsed ? 'zone.symbol.expand' : 'zone.symbol.collapse', { symbol: key })}
-            hint={t('zone.symbol.toggle.hint')}
-            data-testid="symbol-card-toggle"
-          >
-            <ChevronDown size={16} aria-hidden className={cn('transition-transform', collapsed && '-rotate-90')} />
-          </Button>
-          <div className="min-w-0 flex-1 sm:w-56 sm:flex-none">
-            <SymbolField
-              key={symbol}
-              symbol={symbol}
-              symbolDetails={symbolDetails}
-              validateSymbol={validateSymbol}
-              onRenameSymbol={onRenameSymbol}
-            />
-          </div>
-          </div>
-          <div className="flex min-h-9 flex-wrap items-center gap-2">
-            <Badge tone="neutral" hint={t('zone.symbol.setupCount.hint')} data-testid="setup-count">
-              {t('zone.symbol.setupCount', { count: setupIds.length })}
-            </Badge>
-            <Tooltip content={t('zone.header.price.hint')}>
-              <p className="font-mono text-xs text-muted-foreground" tabIndex={0}>
-                {t('zone.header.price')}:{' '}
-                <span data-testid="zone-price" className="tabular-nums text-foreground">
-                  {typeof price === 'number' && price > 0 ? fmt.price(price, getSymbolConfig(symbol, symbolDetails).precision) : '--'}
-                </span>
-              </p>
-            </Tooltip>
-            {isGlobalRunning && marketOpen !== undefined && (
-              <Badge tone={marketOpen ? 'success' : 'danger'} hint={marketHint} data-testid="zone-market">
-                {marketOpen ? t('zone.market.open') : t('zone.market.closed')}
-              </Badge>
-            )}
-            <Badge tone={STATUS_TONE[status]} hint={t('zone.symbol.status.hint')} data-testid="symbol-status">
-              {t(`zone.symbol.status.${status}`)}
-            </Badge>
-            {pnl !== undefined && (
-              <Tooltip content={t('zone.symbol.pnl.hint')}>
-                <p className="font-mono text-xs text-muted-foreground" tabIndex={0}>
-                  {t('zone.symbol.pnl')}:{' '}
-                  <span
-                    data-testid="symbol-pnl"
-                    className={cn('tabular-nums', pnlClass(pnl))}
-                  >
-                    {fmt.money(pnl, true)}
-                  </span>
-                </p>
-              </Tooltip>
-            )}
-          </div>
-        </div>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={toggle}
+          aria-expanded={!collapsed}
+          aria-controls={bodyId}
+          aria-label={t(collapsed ? 'zone.symbol.expand' : 'zone.symbol.collapse', { symbol: key })}
+          hint={t('zone.symbol.toggle.hint')}
+          data-testid="symbol-card-toggle"
+        >
+          <ChevronDown size={16} aria-hidden className={cn('transition-transform', collapsed && '-rotate-90')} />
+        </Button>
+        <SymbolField
+          key={symbol}
+          symbol={symbol}
+          symbolDetails={symbolDetails}
+          validateSymbol={validateSymbol}
+          onRenameSymbol={onRenameSymbol}
+        />
+        <Badge tone="neutral" hint={t('zone.symbol.setupCount.hint')} data-testid="setup-count">
+          {t('zone.symbol.setupCount', { count: setupIds.length })}
+        </Badge>
+        <Tooltip content={t('zone.header.price.hint')}>
+          <p className="font-mono text-xs text-muted-foreground" tabIndex={0}>
+            {t('zone.header.price')}:{' '}
+            <span data-testid="zone-price" className="tabular-nums text-foreground">
+              {typeof price === 'number' && price > 0 ? fmt.price(price, getSymbolConfig(symbol, symbolDetails).precision) : '--'}
+            </span>
+          </p>
+        </Tooltip>
+        {isGlobalRunning && marketOpen !== undefined && (
+          <Badge tone={marketOpen ? 'success' : 'danger'} hint={marketHint} data-testid="zone-market">
+            {marketOpen ? t('zone.market.open') : t('zone.market.closed')}
+          </Badge>
+        )}
+        <Badge tone={STATUS_TONE[status]} hint={t('zone.symbol.status.hint')} data-testid="symbol-status">
+          {t(`zone.symbol.status.${status}`)}
+        </Badge>
+        {pnl !== undefined && (
+          <Tooltip content={t('zone.symbol.pnl.hint')}>
+            <p className="font-mono text-xs text-muted-foreground" tabIndex={0}>
+              {t('zone.symbol.pnl')}:{' '}
+              <span data-testid="symbol-pnl" className={cn('tabular-nums', pnlClass(pnl))}>
+                {fmt.money(pnl, true)}
+              </span>
+            </p>
+          </Tooltip>
+        )}
+        {/* Button sitzt in einem Tooltip-Wrapper: ml-auto muss am Flex-Kind (Wrapper) stehen */}
+        <div className="ml-auto">
         <Button
           variant="outline"
           size="sm"
-          className="ml-auto"
           onClick={() => {
             // Neues Setup soll sichtbar sein: eingeklappte Karte öffnen
             if (collapsed) writeCollapsed(key, false);
@@ -287,10 +293,10 @@ export function SymbolCard({
           <Plus size={14} />
           {t('zone.symbol.addSetup')}
         </Button>
+        </div>
       </div>
       <div id={bodyId} hidden={collapsed} className="space-y-2 px-1.5 pb-1.5 sm:space-y-3 sm:px-4 sm:pb-4">
-        {children}
-        <SymbolLogs setupIds={setupIds} />
+        <SymbolLogsContext.Provider value={logsCtx}>{children}</SymbolLogsContext.Provider>
       </div>
     </section>
   );

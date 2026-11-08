@@ -58,8 +58,13 @@ async function expectZoneAreaInViewport(dashboard: Dashboard, lang: AppLocale) {
   const zone = dashboard.zone();
   await expectInViewport(page, dashboard.symbolCard().getByRole('button', { name: msg('zone.symbol.addSetup', undefined, lang) }), 'Setup Ekle');
   await expectInViewport(page, zone.getByTestId('zone-save'), 'Zone speichern');
-  await expectInViewport(page, zone.getByRole('link', { name: msg('zone.header.test', undefined, lang) }), 'Test-Link');
   await expectInViewport(page, zone.getByRole('button', { name: msg('zone.header.menu', undefined, lang) }), 'Zonenmenü');
+  // Bei 375 px steht „Test“ im ⋯-Menü, nicht im Kopf (1108-A5 K1)
+  await expect(zone.getByRole('link', { name: msg('zone.header.test', undefined, lang) })).toBeHidden();
+  await zone.getByRole('button', { name: msg('zone.header.menu', undefined, lang) }).click();
+  await expectInViewport(page, zone.getByRole('link', { name: msg('zone.header.test', undefined, lang) }), 'Test-Link im Menü');
+  await expectInViewport(page, zone.getByRole('button', { name: msg('zone.logs.toggle', undefined, lang) }), 'Sembol logları im Menü');
+  await page.keyboard.press('Escape');
 }
 
 /**
@@ -161,6 +166,19 @@ for (const lang of LOCALES) {
       await expect(zone.getByRole('button', { name: msg('zone.header.restart', undefined, lang) })).toBeVisible();
 
       await expectZoneAreaInViewport(dashboard, lang);
+      await expectNoPageOverflow(page);
+    });
+
+    test('Symbol-Log-Panel läuft nicht über und liegt in der Karte', { tag: ['@UI-08', '@LOG-07'] }, async ({ page, dashboard }) => {
+      await dashboard.open(DEMO_ID);
+      await dashboard.openSymbolLogs(0, lang);
+      const panel = dashboard.symbolCard().getByTestId('symbol-logs-panel');
+      await expectInViewport(page, panel, 'Log-Panel');
+      await expectInViewport(page, panel.getByRole('button', { name: msg('zone.logs.close', undefined, lang) }), 'Panel schließen');
+      const card = (await dashboard.zone().boundingBox())!;
+      const box = (await panel.boundingBox())!;
+      expect(box.x, 'Panel links außerhalb der Setup-Karte').toBeGreaterThanOrEqual(card.x);
+      expect(box.x + box.width, 'Panel rechts außerhalb der Setup-Karte').toBeLessThanOrEqual(card.x + card.width + 0.5);
       await expectNoPageOverflow(page);
     });
 

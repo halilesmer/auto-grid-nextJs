@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { FlaskConical, MoreHorizontal, Trash2, Pause, Play, RotateCcw, Save } from 'lucide-react';
+import { FlaskConical, MoreHorizontal, Trash2, Pause, Play, RotateCcw, Save, ScrollText } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { useT, type MessageKey } from '@/i18n';
 import { useAccountStore } from '@/store';
 import { useBacktestHandoffStore } from '@/store/useBacktestHandoffStore';
 import type { ZoneHeaderProps } from './types';
+import { useSymbolLogs } from './SymbolLogs';
 
 const ORDER_TONE = { BUY: 'success', SELL: 'danger', BOTH: 'primary' } as const;
 const ORDER_HINT: Record<keyof typeof ORDER_TONE, MessageKey> = {
@@ -33,6 +34,9 @@ function engineStopReason({
   if (engineState === 'PAUSE') return 'pause' as const;
   return null;
 }
+
+const TEST_LINK_CLASS =
+  'inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-3 text-xs font-semibold text-foreground transition hover:bg-accent active:scale-[0.97]';
 
 export function ZoneHeader({
   zone,
@@ -55,14 +59,30 @@ export function ZoneHeader({
   const backtestHref = `/backtest?${new URLSearchParams({ ...(selectedAccount ? { account: selectedAccount } : {}), zone: zone.id })}`;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const symbolLogs = useSymbolLogs();
+
+  // Nur ein einfacher Klick öffnet die Seite im selben Tab; Strg/Cmd-Klick lässt eine Übergabe liegen
+  const onTestClick = (event: ReactMouseEvent<HTMLAnchorElement>) => {
+    const plain = event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
+    if (plain && selectedAccount) {
+      useBacktestHandoffStore.getState().setHandoff({ accountId: selectedAccount, zoneId: zone.id, zone, unsaved: modified, at: Date.now() });
+    }
+  };
 
   useEffect(() => {
     if (!menuOpen) return;
     const onDown = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
     };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
     document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
   }, [menuOpen]);
 
   let btnClass = '';
@@ -125,8 +145,9 @@ export function ZoneHeader({
   const tone = ORDER_TONE[zone.order_type as keyof typeof ORDER_TONE] ?? 'neutral';
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex min-w-0 items-center gap-3">
+    // Telefon: 1. satır nokta · başlık · ⋯, 2. satır motor butonu + Kaydet; masaüstünde tek satır (ZON-20, UI-08)
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <div className="flex min-w-0 flex-1 basis-40 items-center gap-3">
         <StatusDot tone={dotTone} pulse={dotTone === 'success'} />
         <div className="min-w-0">
           <div className="flex items-center gap-2">
@@ -152,7 +173,7 @@ export function ZoneHeader({
       </div>
 
       {/* flex-wrap: bei 375 px ist die Gruppe breiter als die Karte (DE noch mehr) und bricht um statt zu überlaufen */}
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div className="order-3 flex w-full flex-wrap items-center gap-1.5 sm:order-2 sm:w-auto">
         <Tooltip content={btnHint}>
           <button
             onClick={handleMainClick}
@@ -178,26 +199,20 @@ export function ZoneHeader({
           {!saving && <Save size={13} />}
           {t('common.save')}
         </Button>
-        <Tooltip content={t('zone.header.test.hint')}>
-          <Link
-            href={backtestHref}
-            onClick={(event) => {
-              // Nur ein einfacher Klick öffnet die Seite im selben Tab; Strg/Cmd-Klick lässt eine Übergabe liegen
-              const plain = event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
-              if (plain && selectedAccount) {
-                useBacktestHandoffStore.getState().setHandoff({ accountId: selectedAccount, zoneId: zone.id, zone, unsaved: modified, at: Date.now() });
-              }
-            }}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-3 text-xs font-semibold text-foreground transition hover:bg-accent active:scale-[0.97]"
-          >
+        <Tooltip content={t('zone.header.test.hint')} className="hidden sm:inline-flex">
+          <Link href={backtestHref} onClick={onTestClick} className={TEST_LINK_CLASS}>
             <FlaskConical size={13} />
             {t('zone.header.test')}
           </Link>
         </Tooltip>
-        <div className="relative" ref={menuRef}>
+      </div>
+      <div className="relative order-2 sm:order-3" ref={menuRef}>
           <Tooltip content={t('zone.header.menu.hint')}>
             <button
               onClick={() => setMenuOpen(!menuOpen)}
+              data-zone-menu-trigger
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
               className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-foreground"
               aria-label={t('zone.header.menu')}
             >
@@ -213,6 +228,35 @@ export function ZoneHeader({
                 transition={{ duration: 0.12 }}
                 className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-border bg-popover p-1 shadow-xl shadow-black/10 dark:shadow-black/50"
               >
+                {/* 640 px altında „Test“ im Kopf fehlt: erster Menüpunkt */}
+                <Tooltip content={t('zone.header.test.hint')} className="w-full sm:hidden">
+                  <Link
+                    href={backtestHref}
+                    onClick={(e) => {
+                      onTestClick(e);
+                      setMenuOpen(false);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-accent"
+                  >
+                    <FlaskConical size={14} />
+                    <span>{t('zone.header.test')}</span>
+                  </Link>
+                </Tooltip>
+                {symbolLogs && (
+                  <Tooltip content={t('zone.logs.toggle.hint')} className="w-full">
+                    <button
+                      onClick={() => {
+                        symbolLogs.show(zone.id);
+                        setMenuOpen(false);
+                      }}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-accent"
+                    >
+                      <ScrollText size={14} />
+                      <span>{t('zone.logs.toggle')}</span>
+                    </button>
+                  </Tooltip>
+                )}
+                <div role="separator" className="my-1 h-px bg-border" />
                 <Tooltip
                   content={disableButtons ? t('zone.header.delete.off.hint') : t('zone.header.delete.hint')}
                   className="w-full"
@@ -233,7 +277,6 @@ export function ZoneHeader({
             )}
           </AnimatePresence>
         </div>
-      </div>
     </div>
   );
 }
