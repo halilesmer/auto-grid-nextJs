@@ -81,6 +81,7 @@ Each step is one PR. The steps run in sequence because they change the same file
 | U2b | Button "Layers" next to Trend, one menu on each chart. Entry: `2026-11-03-chart-u2b-layers-menu.md`. | Done, PR 332 |
 | U3a | The formation page moves to `/chart` as the mode Formation; one menu item "Chart"; redirect `/formasyon`. Entry: `2026-11-03-chart-u3a-one-page.md`. | Done, PR 333 |
 | U3b | Remove the gear `analysis-settings`; its switches go to the legend and the menu "Layers". Entry: `2026-11-03-chart-u3b-gear.md`. | Done, PR 334 |
+| U4 | Remove the modes: one chart, nine timeframes, one floating card (plan 1107-A21, approved on 2026-11-08). Steps U4-1 to U4-6. Entry: `2026-11-08-one-chart-no-modes-plan.md`. | Open |
 
 ## Why
 - `FormationChart` and `ChartCore` repeat the chart lifecycle. Two engines drift apart, and each new chart feature needs two implementations.
