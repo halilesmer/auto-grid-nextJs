@@ -24,7 +24,7 @@ const handle = (page: Page, id: string) => page.getByTestId(`dock-handle-${id}`)
 const row = (page: Page, zone: 'row1' | 'row2' | 'bottom') => page.getByTestId(`dock-row-${zone}`);
 const stored = (page: Page) => page.evaluate(key => JSON.parse(localStorage.getItem(key) || '{}').dockLayout ?? null, storageKey);
 const wrapOrder = (page: Page, zone: 'row1' | 'row2') => row(page, zone).locator('> [data-dock-wrap]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.dockWrap));
-const DEFAULT_LAYOUT = { row1: ['mode', 'symbol', 'account', 'actions'], row2: ['timeframes', 'formations'], bottom: ['view', 'indicators', 'edit', 'window'], free: {}, pos: {} };
+const DEFAULT_LAYOUT = { row1: ['symbol', 'account', 'actions'], row2: ['timeframes', 'formations'], bottom: ['view', 'indicators', 'edit', 'window'], free: {}, pos: {} };
 const handles = (page: Page) => page.locator('[data-dock-handle]').count();
 async function go(page: Page, url: string) {
   await page.goto(url);
@@ -52,8 +52,7 @@ for (const [w, h] of [[375, 812], [280, 640]] as const) {
     await page.mouse.move(start.x + 30, start.y + 4, { steps: 5 });
     await page.mouse.move(r1.x + r1.width - 6, r1.y + r1.height / 2, { steps: 10 });
     await page.mouse.up();
-    // Kayıtlı listede çizilmeyen 'mode' (U4-5'e kadar) başta durur
-    await expect.poll(async () => (await stored(page))?.row1).toEqual(['mode', 'account', 'actions', 'symbol']);
+    await expect.poll(async () => (await stored(page))?.row1).toEqual(['account', 'actions', 'symbol']);
     const custom = await stored(page);
     expect(Object.keys(custom.free)).toEqual(['view']);
     const raw = await page.evaluate(key => localStorage.getItem(key), storageKey);
@@ -279,7 +278,7 @@ test.describe('dokunmatik', () => {
     await go(page, FORMATION);
     const from = await center(page, 'view'), r1 = (await row(page, 'row1').boundingBox())!;
     await touch(cdp, line(from, { x: r1.x + r1.width - 6, y: r1.y + r1.height / 2 }, 14));
-    await expect.poll(async () => (await stored(page))?.row1).toEqual(['mode', 'symbol', 'account', 'actions', 'view']);
+    await expect.poll(async () => (await stored(page))?.row1).toEqual(['symbol', 'account', 'actions', 'view']);
     await page.reload();
     await expect(page.getByTestId('chart-topbar')).toBeVisible();
     await expect.poll(() => wrapOrder(page, 'row1')).toEqual(['symbol', 'account', 'actions', 'view']);

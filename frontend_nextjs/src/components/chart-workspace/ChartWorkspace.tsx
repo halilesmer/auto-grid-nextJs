@@ -68,7 +68,7 @@ interface Props {
   className?: string;
   /**
    * Werkzeugleiste und Zeichenleiste schweben über dem Chart (Modus Formation von /chart). Die Leiste sitzt oben in der Kopfleiste der Seite,
-   * sobald der Container `formation-main` breit genug ist (Schwelle in FormationToolbar.tsx), sonst schwebt sie unten.
+   * sobald der Container `formation-main` breit genug ist (Schwelle: Containerbreite `formation-main`), sonst schwebt sie unten.
    * Oben ist sie 1 px + 37 px hoch, in px wie die 38 px hohe Kopfleiste, damit sie bei größerer Browser-Schrift nicht in die Formationszeile ragt.
    * Rechts endet die schwebende Leiste 5rem vom Rand (die Seitenleiste vom Modus Formation von /chart schiebt den Chart, sie überdeckt ihn ab lg nicht).
    * Stapelung im Modus Formation von /chart: oben z-60 über der Kopfleiste (z-50), unten z-53 über den Chart-Overlays und der Infokarte (z-52, unter lg).

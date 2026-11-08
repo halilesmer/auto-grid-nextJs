@@ -2,12 +2,12 @@ import { toRatio, type Box, type ToolbarLayout } from './toolbar';
 
 /*
  * Serbest paket yerleşimi (UI-17, plan 1106-A1). Saf fonksiyonlar, React yok.
- * Dokuz paket dört yere konur: row1 (başlık), row2, bottom (sıralı listeler) ve free (grafik üstü, x/y oranı 0–1).
+ * Sekiz paket dört yere konur: row1 (başlık), row2, bottom (sıralı listeler) ve free (grafik üstü, x/y oranı 0–1).
  * `account` (hesap + DEMO) paket değildir: sürüklenmez, row1'de tam bir kez durur ve sırada yer tutar.
  * Satır içi serbest konum `pos[id]`: paketin sol kenarı, satır genişliğinin oranı (1 = sağ uca yaslı).
  * `pos` yoksa paket komşusunun yanına dizilir. Kendiliğinden boşluk yoktur.
  */
-export const DOCK_PACKAGES = ['mode', 'symbol', 'actions', 'timeframes', 'formations', 'view', 'indicators', 'edit', 'window'] as const;
+export const DOCK_PACKAGES = ['symbol', 'actions', 'timeframes', 'formations', 'view', 'indicators', 'edit', 'window'] as const;
 export type PackageId = typeof DOCK_PACKAGES[number];
 export const ACCOUNT = 'account' as const;
 export type DockItem = PackageId | typeof ACCOUNT;
@@ -23,7 +23,7 @@ export interface DockLayout {
 }
 
 /** Satır sığmayınca önce küçülen paket önde. */
-export const SHRINK_ORDER: readonly PackageId[] = ['formations', 'timeframes', 'actions', 'indicators', 'view', 'edit', 'window', 'mode', 'symbol'];
+export const SHRINK_ORDER: readonly PackageId[] = ['formations', 'timeframes', 'actions', 'indicators', 'view', 'edit', 'window', 'symbol'];
 /** Komşuya ya da sağ uca yapışma payı (px). */
 export const DOCK_SNAP = 14;
 
@@ -32,7 +32,7 @@ const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFin
 const isPackage = (v: unknown): v is PackageId => typeof v === 'string' && (DOCK_PACKAGES as readonly string[]).includes(v);
 
 export const defaultDockLayout = (): DockLayout => ({
-  row1: ['mode', 'symbol', ACCOUNT, 'actions'],
+  row1: ['symbol', ACCOUNT, 'actions'],
   row2: ['timeframes', 'formations'],
   bottom: ['view', 'indicators', 'edit', 'window'],
   free: {},

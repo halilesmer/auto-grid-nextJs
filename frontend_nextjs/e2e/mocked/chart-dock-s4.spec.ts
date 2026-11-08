@@ -47,8 +47,7 @@ test('(a) Ürün paketini Satır 1\'de aksiyonların sağına sürükle, yeniden
   await page.mouse.move(start.x + 30, start.y + 4, { steps: 5 });
   await page.mouse.move(r1.x + r1.width - 6, r1.y + r1.height / 2, { steps: 10 });
   await page.mouse.up();
-  // Kayıtlı listede çizilmeyen 'mode' (U4-5'e kadar) başta durur; görünen sıra ondan etkilenmez
-  await expect.poll(async () => (await stored(page))?.row1).toEqual(['mode', 'account', 'actions', 'symbol']);
+  await expect.poll(async () => (await stored(page))?.row1).toEqual(['account', 'actions', 'symbol']);
   expect(await wrapOrder(page, 'row1')).toEqual(['account', 'actions', 'symbol']);
   await page.reload();
   await expect(pkg(page, 'symbol')).toBeVisible();

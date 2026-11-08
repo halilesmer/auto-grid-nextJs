@@ -38,7 +38,7 @@ export function parseToolbar(value: unknown): ToolbarPreferences {
 
 /*
  * Taşınabilir araç grupları (UI-16, 1105-A5.8). Yerleşim tarayıcı başına saklanır (useChartWorkspaceStore.toolbarLayout).
- * Kayıt olmayan grup "oto"dur: geniş kapta (71rem, FormationToolbar.tsx) üst şeritte, dar kapta alt şeritte, yani bugünkü gibi.
+ * Kayıt olmayan grup "oto"dur: geniş kapta üst şeritte, dar kapta alt şeritte, yani bugünkü gibi.
  * Serbest konum grafik alanının oranıdır (0–1), piksel değildir; çizimde kenarlara yaslanır, sığmazsa alt şeride düşer.
  * Düşme yalnız çizimdedir: kayıt değişmez, pencere büyüyünce grup yerine döner.
  */

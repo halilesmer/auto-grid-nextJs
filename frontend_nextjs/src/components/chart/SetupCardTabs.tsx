@@ -3,7 +3,6 @@
 import type { MessageKey } from '@/i18n';
 import { useT } from '@/i18n';
 import { TradesTable } from '@/components/analysis/TradesTable';
-import { FloatingCard } from '@/components/chart-page/FloatingCard';
 import { LiveStats } from '@/components/chart/LiveStats';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -139,7 +138,7 @@ export function SetupSwitches({ idPrefix, legendLayers, prefs }: { idPrefix: str
   );
 }
 
-interface SetupCardTabsProps {
+interface CardPartsProps {
   accountId: string;
   zone: ZoneSettings;
   timeframe: ChartTimeframe;
@@ -150,11 +149,9 @@ interface SetupCardTabsProps {
   /** All setups of the symbol: with more than one, the tab "Overview" has a select (1107-A21.2) */
   setups?: ZoneSettings[];
   onSetup?: (zoneId: string) => void;
-  /** Flips to true once a formation is drawn: the card closes (it would cover the drawing) */
-  collapseSignal?: boolean;
 }
 
-type CardParts = Pick<SetupCardTabsProps, 'accountId' | 'zone' | 'timeframe' | 'onTimeframe' | 'prefs' | 'data' | 'layers' | 'setups' | 'onSetup'>;
+type CardParts = Pick<CardPartsProps, 'accountId' | 'zone' | 'timeframe' | 'onTimeframe' | 'prefs' | 'data' | 'layers' | 'setups' | 'onSetup'>;
 
 /** Inhalt des Reiters „Genel bakış“ (Live-Werte, Zone, Hinweise); der eine Chart zeigt ihn in `ChartCard` */
 export function SetupOverview({ zone, timeframe, onTimeframe, prefs, data, layers, setups, onSetup }: CardParts) {
@@ -227,22 +224,6 @@ export function SetupTrades({ accountId, data, layers }: Pick<CardParts, 'accoun
       missing={deals.data?.missing ?? []}
       setupLabel={setupLabel}
       onFocus={focusTrade}
-    />
-  );
-}
-
-/** Schwebende Setup-Karte der alten Seiten (Setup-Modus, bis U4-5): Reiter „Genel bakış“ und „İşlemler“ */
-export function SetupCardTabs({ collapseSignal, ...parts }: SetupCardTabsProps) {
-  const t = useT();
-  const { zone, layers } = parts;
-  return (
-    <FloatingCard
-      collapseSignal={collapseSignal}
-      title={t('chart.zone.title', { n: layers.setupNo, symbol: zone.symbol || '—' })}
-      tabs={[
-        { id: 'overview', label: t('chart.card.overview'), hint: t('chart.card.overview.hint'), content: <SetupOverview {...parts} /> },
-        { id: 'trades', label: t('chart.card.trades'), hint: t('chart.card.trades.hint'), wide: true, content: <SetupTrades accountId={parts.accountId} data={parts.data} layers={layers} /> },
-      ]}
     />
   );
 }

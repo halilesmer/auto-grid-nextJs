@@ -20,7 +20,7 @@ interface Props {
 
 /**
  * ChartWorkspace'in paket yüzeyi (UI-17): dört araç grubu paket olur (DockPackage), alt çubuk ve serbest alan burada durur.
- * Satır 1 başlıktadır (FormationToolbar, ChartTopBar); paketleri DockProvider oraya taşır.
+ * Satır 1 başlıktadır (ChartTopBar); paketleri DockProvider oraya taşır.
  */
 export function DockSurface({ host, symbol, groups, movable, bottomRef }: Props) {
   const dock = useDock();

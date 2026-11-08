@@ -7,7 +7,7 @@ import { useDock, type DockRowZone } from './DockProvider';
 /**
  * Bir satırın paket bölgesi (UI-17). Boş bir kutudur; paket kutularını DockProvider kayıtlı sırayla içine koyar ve `margin-left` ile
  * boşluk verir. Boş alan tıklamayı grafiğe geçirir (başlık grafiğin üstüne biner): satır pointer-events-none, yalnız paket kutuları ve çapa auto; sürüklerken satır bırakma yeri olarak olay alır (plan 1106-A4.6). Satırda paket yokken gizlidir, sürüklerken bırakma yeri olarak görünür. Satır 1 başlıkta kalan genişliği kaplar
- * (FormationToolbar, ChartTopBar), alt çubuk `DockSurface`'in kartındadır. Provider yoksa hiçbir şey çizmez.
+ * (ChartTopBar), alt çubuk `DockSurface`'in kartındadır. Provider yoksa hiçbir şey çizmez.
  */
 export function DockRow({ zone, className }: { zone: DockRowZone; className?: string }) {
   const dock = useDock();

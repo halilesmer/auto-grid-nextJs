@@ -16,7 +16,7 @@ interface ChartPageProps {
   notices: ReactNode;
   /** Schwebende Karte über dem Chart */
   floating: ReactNode;
-  /** Seitenpanel (`ChartPanel`), ohne Konto null */
+  /** Seitenpanel (zur Zeit immer null; die eine Karte schwebt in `floating`) */
   panel: ReactNode;
   /** Das Panel ist offen: ab lg rückt der Chart zur Seite */
   panelShown: boolean;
