@@ -26,6 +26,17 @@ const eslintConfig = defineConfig([
       }] }],
     },
   },
+  // crypto.randomUUID fehlt im unsicheren Kontext (http im LAN): nur randomId() aus src/lib/randomId.ts benutzen (SYS-13)
+  {
+    files: ["src/**"],
+    rules: {
+      "no-restricted-properties": ["error", {
+        object: "crypto",
+        property: "randomUUID",
+        message: "crypto.randomUUID fehlt über http im LAN. Benutze randomId() aus '@/lib/randomId' (SYS-13).",
+      }],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

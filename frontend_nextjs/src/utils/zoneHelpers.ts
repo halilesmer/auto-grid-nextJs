@@ -1,9 +1,10 @@
 import { distanceUnitOf } from '@/lib/symbolDistance';
 import type { ZoneSettings, SymbolDetail } from '@/store/types';
+import { randomId } from '@/lib/randomId';
 
 export function defaultZone(): ZoneSettings {
   return {
-    id: crypto.randomUUID(),
+    id: randomId(),
     is_active: false,
     symbol: '',
     order_type: 'BUY',

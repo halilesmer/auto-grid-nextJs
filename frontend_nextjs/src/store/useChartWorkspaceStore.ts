@@ -9,6 +9,7 @@ import { SYSTEM_RSI_ID, systemRsiIndicator, type Indicator } from '@/lib/chart-w
 import { defaultsOf } from '@/lib/chart-workspace/indicatorStyle';
 import { parseIndicatorDefaults, parseIndicators } from '@/lib/chart-workspace/indicatorStorage';
 import { parsePaneOrder, parseSystemPanes, type SystemPaneStates } from '@/lib/chart-workspace/paneOrder';
+import { randomId } from '@/lib/randomId';
 
 /** Sichtbarer Zeitbereich als Kerzenzeit in Sekunden; fehlt er, zeigt der Chart alle Kerzen */
 export interface VisibleTime { from: number; to: number }
@@ -175,7 +176,7 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
       const images = { ...own.images }, ownDrawings = parseDrawings(own.drawings);
       for (const [name, bytes] of Object.entries(own.images)) {
         if (!shared.images[name] || shared.images[name] === bytes) continue;
-        const alias = crypto.randomUUID(); images[alias] = bytes; delete images[name];
+        const alias = randomId(); images[alias] = bytes; delete images[name];
         for (const drawing of ownDrawings) if (drawing.image?.name === name) drawing.image = { ...drawing.image, name: alias };
       }
       const drawings = mergeDrawings(shared.drawings, JSON.stringify(ownDrawings));

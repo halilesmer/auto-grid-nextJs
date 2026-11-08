@@ -14,6 +14,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useConnectionStore } from '@/store/useConnectionStore';
 import { MAX_SETUPS, useBacktestStore, type BacktestSetup } from '@/store/useBacktestStore';
 import type { ZoneSettings } from '@/store/types';
+import { randomId } from '@/lib/randomId';
 
 export function PresetPanel({ saveSetup, onClose, onTransfer }: {
   saveSetup: BacktestSetup | null; onClose: () => void; onTransfer: (zone: ZoneSettings) => void;
@@ -85,7 +86,7 @@ export function PresetPanel({ saveSetup, onClose, onTransfer }: {
             } else if (saveSetup) {
               const data = dataForPreset(saveSetup);
               const fingerprint = JSON.stringify({ scope, name: name.trim(), data });
-              if (creation.current?.fingerprint !== fingerprint) creation.current = { fingerprint, requestId: crypto.randomUUID() };
+              if (creation.current?.fingerprint !== fingerprint) creation.current = { fingerprint, requestId: randomId() };
               await api.savePreset({ name: name.trim(), data, requestId: creation.current.requestId });
               if (current()) setSaved(true);
             }
