@@ -20,6 +20,8 @@ export interface SummaryItem {
   /** Çevrilmiş etiket (`zone.summary.<id>`) */
   label: string;
   value: string;
+  /** Uzun ad (ipucu ve aria için); yalnız kısa çipi olan öğelerde dolu */
+  full?: string;
   /** Kapalı seçenek: çip soluk ve kesik çizgili gösterilir */
   off: boolean;
 }
@@ -126,14 +128,17 @@ export function buildSetupSummary(zone: ZoneSettings, ctx: SummaryContext): Summ
   // --- Bölgeden çıkış ---
   if (zone.clear_on_exit) {
     const pick = (map: Record<string, MessageKey>, raw: string) => (map[raw] ? t(map[raw]) : raw);
+    const short = (map: Record<string, MessageKey>, raw: string) => (map[raw] ? t(map[raw].replace('zone.exit.', 'zone.summary.exit.') as MessageKey) : raw);
     const candle = zone.exit_condition === 'Mum Kapanışı';
-    const trigger = pick(EXIT_TRIGGER, zone.exit_condition);
-    add('exit', 'exit', [
-      pick(EXIT_SIDE, zone.clear_exit_side),
-      pick(EXIT_TARGET, zone.clear_target_side),
-      pick(EXIT_SCOPE, zone.clear_scope),
-      candle ? `${trigger} ${zone.exit_timeframe}` : trigger,
-    ].join(' · '));
+    const parts = (f: typeof pick) => [
+      f(EXIT_SIDE, zone.clear_exit_side),
+      f(EXIT_TARGET, zone.clear_target_side),
+      f(EXIT_SCOPE, zone.clear_scope),
+      candle ? `${f(EXIT_TRIGGER, zone.exit_condition)} ${zone.exit_timeframe}` : f(EXIT_TRIGGER, zone.exit_condition),
+    ].join(' · ');
+    items.push({
+      id: 'exit', box: 'exit', label: t('zone.summary.exit'), value: parts(short), full: parts(pick), off: false,
+    });
   } else {
     add('exit', 'exit', t('zone.summary.value.off'), true);
   }
