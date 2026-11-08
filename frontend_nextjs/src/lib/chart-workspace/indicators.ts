@@ -1,4 +1,5 @@
 import type { Bar, MissingRange } from '@/lib/analysis/candles';
+import { randomId } from '@/lib/randomId';
 
 /** The gray swatch of the line menu: stays a CSS variable in the document, so the line follows the theme (runtime resolves it) */
 export const INDICATOR_GRAY = 'var(--muted-foreground)';
@@ -80,7 +81,7 @@ export interface IndicatorResult { main: Value[]; extra: Value[][]; divergences:
 export function newIndicator(kind: IndicatorKind, color = ''): Indicator {
   let period = 20;
   if (kind === 'EWO') period = 5; else if (kind === 'MACD') period = 12; else if (kind === 'RSI' || kind === 'ATR') period = 14;
-  const id = crypto.randomUUID();
+  const id = randomId();
   return {
     id, kind, paneId: id, paneCollapsed: false, scaleSide: 'auto', visible: true,
     period,

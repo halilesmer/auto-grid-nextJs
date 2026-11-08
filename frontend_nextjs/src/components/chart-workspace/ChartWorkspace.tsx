@@ -33,6 +33,7 @@ import { DockSurface } from './dock/DockSurface';
 import { DrawingPriorityContext } from './drawingPriority';
 import { defaultToolbar, toolGroup, type ChartGesture } from '@/lib/chart-workspace/toolbar';
 import { linkedDrawingKey, type DrawingIdentity } from '@/lib/chart-workspace/linkedDrawings';
+import { randomId } from '@/lib/randomId';
 
 const removalLabels = {
   selected: { title: 'cw.rail.removeSelected', message: 'cw.rail.confirmSelected', hint: 'cw.rail.removeSelected.hint' },
@@ -404,14 +405,14 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     update: (indicator, change) => changeIndicator(indicator.id, change),
     openSettings: indicator => { setSettingsFocus(indicator.id); setIndicatorsOpen(true); },
     switchScale: indicator => changeIndicator(indicator.id, { scaleSide: sideOf(indicator) === 'left' ? 'right' : 'left' }),
-    moveToPane: (indicator, paneId) => changeIndicator(indicator.id, { paneId: paneId ?? crypto.randomUUID(), paneCollapsed: paneId ? doc.indicators.some(item => item.paneId === paneId && item.paneCollapsed) : false }),
+    moveToPane: (indicator, paneId) => changeIndicator(indicator.id, { paneId: paneId ?? randomId(), paneCollapsed: paneId ? doc.indicators.some(item => item.paneId === paneId && item.paneCollapsed) : false }),
     openAlarm: indicator => { setAlarmTarget(indicator); setAlarmValue(''); },
     toggleFavorite: indicator => state.setFavorites(state.favorites.includes(indicator.kind) ? state.favorites.filter(kind => kind !== indicator.kind) : [...state.favorites, indicator.kind]),
-    copy: indicator => { const id = crypto.randomUUID(); patchIndicators(indicators => [...indicators, { ...indicator, id, paneId: id, paneCollapsed: false }]); },
+    copy: indicator => { const id = randomId(); patchIndicators(indicators => [...indicators, { ...indicator, id, paneId: id, paneCollapsed: false }]); },
     openInfo: (indicator, formula) => setIndicatorInfo({ indicator, formula }),
     remove: indicator => removeIndicators(new Set([indicator.id])),
   };
-  const addAlarm = () => { if (!alarmTarget || !Number.isFinite(Number(alarmValue))) return; saveDocument({ ...documentRef.current, alarms: [...documentRef.current.alarms, { id: crypto.randomUUID(), indicatorId: alarmTarget.id, direction: alarmDirection, value: Number(alarmValue), armed: true }].slice(-50) }); setAlarmTarget(null); };
+  const addAlarm = () => { if (!alarmTarget || !Number.isFinite(Number(alarmValue))) return; saveDocument({ ...documentRef.current, alarms: [...documentRef.current.alarms, { id: randomId(), indicatorId: alarmTarget.id, direction: alarmDirection, value: Number(alarmValue), armed: true }].slice(-50) }); setAlarmTarget(null); };
   const changeImage = async (file: File | undefined) => {
     const targetManager = manager.current;
     if (!file || !targetManager) return;
@@ -421,7 +422,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
       const img = await decodeImage(url);
       if (manager.current !== targetManager) return;
       if (img.width > 2000 || img.height > 2000) { setError('cw.imageError'); return; }
-      const name = crypto.randomUUID(); cacheImage(name, img); saveDocument({ ...documentRef.current, images: { ...documentRef.current.images, [name]: url } }); manager.current?.addImage({ name, width: img.width, height: img.height }); checkpoint();
+      const name = randomId(); cacheImage(name, img); saveDocument({ ...documentRef.current, images: { ...documentRef.current.images, [name]: url } }); manager.current?.addImage({ name, width: img.width, height: img.height }); checkpoint();
     } catch { setError('cw.imageError'); }
   };
   const removeDrawings = (all: boolean, ids = selected) => {
@@ -452,7 +453,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
       {typeof active.style.fillBackground === 'boolean' && <><Toggle name="cw.fill" checked={active.style.fillBackground} onChange={fillBackground => updateDrawing({ ...active, style: { ...active.style, fillBackground } })} /><ColorField name="cw.fillColor" value={active.style.backgroundColor || active.style.color} onChange={backgroundColor => updateDrawing({ ...active, style: { ...active.style, backgroundColor } })} /><Numeric name="cw.opacity" min={0} max={100} value={100 - (active.style.transparency ?? 92)} onChange={v => updateDrawing({ ...active, style: { ...active.style, transparency: 100 - v } })} /></>}
       {OVERLAY_SPECS[active.kind].textEditable && <><Numeric name="cw.objectTextSize" value={active.style.fontSize ?? 14} min={8} max={72} onChange={fontSize => updateDrawing({ ...active, style: { ...active.style, fontSize } })} /><Toggle name="cw.bold" checked={active.style.bold ?? false} onChange={bold => updateDrawing({ ...active, style: { ...active.style, bold } })} /><Toggle name="cw.italic" checked={active.style.italic ?? false} onChange={italic => updateDrawing({ ...active, style: { ...active.style, italic } })} /></>}
       {active.style.levels && <InputField label={t('cw.levels')} hint={t('cw.levels.hint')}><input key={active.id} className={fieldClass} defaultValue={active.style.levels.map(v => v.coeff).join(', ')} onBlur={e => { const coeffs = e.target.value.split(',').map(v => Number(v.trim())); if (coeffs.length && coeffs.length <= 40 && coeffs.every(Number.isFinite)) updateDrawing({ ...active, style: { ...active.style, levels: coeffs.map(coeff => ({ coeff, color: active.style.color, visible: true })) } }); }} /></InputField>}
-      <div className="flex flex-wrap gap-2 sm:col-span-2"><Button size="sm" hint={t('cw.duplicate.hint')} onClick={() => { manager.current?.add({ ...active, id: crypto.randomUUID() }); checkpoint(); }}>{t('cw.duplicate')}</Button><Button size="sm" hint={t('cw.front.hint')} onClick={() => { manager.current?.bringToFront(active.id); checkpoint(); }}>{t('cw.front')}</Button><Button size="sm" hint={t('cw.back.hint')} onClick={() => { manager.current?.sendToBack(active.id); checkpoint(); }}>{t('cw.back')}</Button><Button size="sm" variant="danger" hint={t(active.locked ? 'cw.lockedRemove.hint' : 'cw.remove.hint')} disabled={locked || active.locked} onClick={() => { manager.current?.remove(active.id); checkpoint(); }}>{t('cw.remove')}</Button>
+      <div className="flex flex-wrap gap-2 sm:col-span-2"><Button size="sm" hint={t('cw.duplicate.hint')} onClick={() => { manager.current?.add({ ...active, id: randomId() }); checkpoint(); }}>{t('cw.duplicate')}</Button><Button size="sm" hint={t('cw.front.hint')} onClick={() => { manager.current?.bringToFront(active.id); checkpoint(); }}>{t('cw.front')}</Button><Button size="sm" hint={t('cw.back.hint')} onClick={() => { manager.current?.sendToBack(active.id); checkpoint(); }}>{t('cw.back')}</Button><Button size="sm" variant="danger" hint={t(active.locked ? 'cw.lockedRemove.hint' : 'cw.remove.hint')} disabled={locked || active.locked} onClick={() => { manager.current?.remove(active.id); checkpoint(); }}>{t('cw.remove')}</Button>
       {active.kind === 'table' && <><Button size="sm" hint={t('cw.tableRow.hint')} onClick={() => { manager.current?.tableOp(active.id, 'insert-row'); checkpoint(); }}>{t('cw.tableRow')}</Button><Button size="sm" hint={t('cw.tableColumn.hint')} onClick={() => { manager.current?.tableOp(active.id, 'insert-column'); checkpoint(); }}>{t('cw.tableColumn')}</Button></>}</div>
     </fieldset>}
   </div>;

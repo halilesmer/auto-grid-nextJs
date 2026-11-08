@@ -10,6 +10,7 @@ import { transferZone } from '@/lib/backtest/transferZone';
 import { normalizeZoneLots } from '@/utils/zoneHelpers';
 import { toast } from '@/components/ui/animated-toast';
 import { t } from '@/i18n';
+import { randomId } from '@/lib/randomId';
 
 /** Wartet auf den gespeicherten Dashboard-Vergleichsstand; erst danach wird der Entwurf geändert. */
 export function useZoneTransfer(accountId: string | null, savedSettingsStr: string | null) {
@@ -49,7 +50,7 @@ export function useZoneTransfer(accountId: string | null, savedSettingsStr: stri
       toast.error(t('backtest.transfer.targetMissing'));
       return;
     }
-    const zone = normalizeZoneLots(transferZone({ ...pending.zone, symbol: previous?.symbol ?? pending.zone.symbol, id: previous?.id ?? crypto.randomUUID(),
+    const zone = normalizeZoneLots(transferZone({ ...pending.zone, symbol: previous?.symbol ?? pending.zone.symbol, id: previous?.id ?? randomId(),
       ...(previous?.magic !== undefined ? { magic: previous.magic } : {}), is_active: previous ? previous.is_active : false }, previous), details);
     // Vor dem Schreiben konsumieren: Strict Mode und weitere Store-Updates wenden die Kopie nicht zweimal an.
     useZoneTransferStore.getState().complete({ accountId: pending.accountId, zoneId: zone.id });

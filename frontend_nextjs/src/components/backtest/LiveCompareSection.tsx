@@ -21,6 +21,7 @@ import { useConnectionStore } from '@/store/useConnectionStore';
 import { useBacktestStore } from '@/store/useBacktestStore';
 import { useLiveCompareStore } from '@/store/useLiveCompareStore';
 import { ReportTable } from './ReportTable';
+import { randomId } from '@/lib/randomId';
 
 /** Fertige Läufe der Setups dieses Kontos, die der Vergleich verwenden kann; `skipped`: Läufe, die er nicht verwendet */
 function collectable(accountId: string) {
@@ -229,7 +230,7 @@ export function LiveCompareSection({ accountId, offsetSec }: { accountId: string
       archiveGaps: (deals.data?.missing ?? []).map((gap) => ({ start: gap.from, end: gap.to, reason: gap.reason.slice(0, 40) })),
     };
     const fingerprint = JSON.stringify({ accountId, name: name.trim(), note, period, content });
-    if (creation.current?.fingerprint !== fingerprint) creation.current = { fingerprint, requestId: crypto.randomUUID() };
+    if (creation.current?.fingerprint !== fingerprint) creation.current = { fingerprint, requestId: randomId() };
     setSaving(true);
     setSaveError(null);
     try {
