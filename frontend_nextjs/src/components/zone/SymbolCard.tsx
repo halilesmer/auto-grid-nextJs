@@ -279,20 +279,20 @@ export function SymbolCard({
         )}
         {/* Button sitzt in einem Tooltip-Wrapper: ml-auto muss am Flex-Kind (Wrapper) stehen */}
         <div className="ml-auto">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            // Neues Setup soll sichtbar sein: eingeklappte Karte öffnen
-            if (collapsed) writeCollapsed(key, false);
-            onAddSetup();
-          }}
-          disabled={disableAddSetup}
-          hint={disableAddSetup ? t('zone.symbol.addSetup.off.hint') : t('zone.symbol.addSetup.hint')}
-        >
-          <Plus size={14} />
-          {t('zone.symbol.addSetup')}
-        </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              // Neues Setup soll sichtbar sein: eingeklappte Karte öffnen
+              if (collapsed) writeCollapsed(key, false);
+              onAddSetup();
+            }}
+            disabled={disableAddSetup}
+            hint={disableAddSetup ? t('zone.symbol.addSetup.off.hint') : t('zone.symbol.addSetup.hint')}
+          >
+            <Plus size={14} />
+            {t('zone.symbol.addSetup')}
+          </Button>
         </div>
       </div>
       <div id={bodyId} hidden={collapsed} className="space-y-2 px-1.5 pb-1.5 sm:space-y-3 sm:px-4 sm:pb-4">

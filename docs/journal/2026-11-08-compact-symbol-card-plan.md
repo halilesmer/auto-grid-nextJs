@@ -123,6 +123,6 @@ DEMO account, read-only (`hooks/RULES.md` §3): summary and edit, logs panel, ph
 
 ## Open points
 - [x] K1 header and logs
-- [ ] K2 fields
+- [x] K2 fields
 - [ ] K3 summary state
 - [ ] K4 check and signatures

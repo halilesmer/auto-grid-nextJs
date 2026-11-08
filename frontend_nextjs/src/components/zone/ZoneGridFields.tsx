@@ -6,8 +6,7 @@ import { NumberInput } from '@/components/ui/NumberInput';
 import { useT } from '@/i18n';
 import { useGuidedHints } from './useGuidedHints';
 import { LossPreview } from './LossPreview';
-import { FieldSwitch } from './FieldSwitch';
-import { Switch } from '@/components/ui/switch';
+import { SwitchToggle } from '@/components/ui/switch';
 import { distanceConfig } from '@/utils/zoneHelpers';
 
 export function ZoneGridFields({
@@ -31,40 +30,40 @@ export function ZoneGridFields({
 
   return (
     <div className="flex flex-wrap items-start gap-3">
-      {/* Mobil: Grid-Block mit Verlust-Vorschau in eigener Zeile (UI-08), unabhängig von der Kartenbreite */}
-      <div className="flex min-w-0 flex-col items-start gap-2 max-sm:basis-full">
-        <InputField
-          label={
-            byLoss
-              ? t(split ? 'zone.field.buyGridLoss' : 'zone.field.gridStepLoss')
-              : t(split ? 'zone.field.buyGrid' : 'zone.field.gridStep')
-          }
-          hint={
-            byLoss
-              ? t(split ? 'zone.field.buyGridLoss.hint' : 'zone.field.gridStepLoss.hint')
-              : guided.step(t(split ? 'zone.field.buyGrid.hint' : 'zone.field.gridStep.hint'))
-          }
-          error={byLoss && <LossPreview amount={zone.grid_step} lot={zone.lot_size} symbolConfig={symbolConfig} />}
-        >
-          <NumberInput
-            min={stepCfg.min}
-            step={stepCfg.step}
-            maxDecimals={stepCfg.precision}
-            value={zone.grid_step}
-            onChange={(e) => handleChange('grid_step', e.target.value, zone, stepCfg, update)}
-            onBlur={() => handleBlur('grid_step', zone.grid_step, stepCfg.step, stepCfg.precision, update)}
-            className="input-s w-28"
+      {/* „Zarara göre“ (1108-A5): Feldspalte vor dem Grid-Schritt, Beschriftung oben, Schalter auf Höhe der Eingabefelder */}
+      <InputField label={t('zone.stepByLoss.short')} hint={t('zone.stepByLoss.hint')}>
+        <div className="flex h-7 items-center max-sm:h-8">
+          <SwitchToggle
+            id={`step-by-loss-${zone.id}`}
+            checked={byLoss}
+            onChange={onStepByLoss}
+            ariaLabel={t('zone.stepByLoss')}
           />
-        </InputField>
-        <Switch
-          className="min-h-9"
-          id={`step-by-loss-${zone.id}`}
-          checked={byLoss}
-          onChange={onStepByLoss}
-          label={<span className="text-xs text-muted-foreground">{t('zone.stepByLoss')}</span>}
-          hint={t('zone.stepByLoss.hint')}
+        </div>
+      </InputField>
+      <InputField
+        label={
+          byLoss
+            ? t(split ? 'zone.field.buyGridLoss' : 'zone.field.gridStepLoss')
+            : t(split ? 'zone.field.buyGrid' : 'zone.field.gridStep')
+        }
+        hint={
+          byLoss
+            ? t(split ? 'zone.field.buyGridLoss.hint' : 'zone.field.gridStepLoss.hint')
+            : guided.step(t(split ? 'zone.field.buyGrid.hint' : 'zone.field.gridStep.hint'))
+        }
+        error={byLoss && <LossPreview amount={zone.grid_step} lot={zone.lot_size} symbolConfig={symbolConfig} />}
+      >
+        <NumberInput
+          min={stepCfg.min}
+          step={stepCfg.step}
+          maxDecimals={stepCfg.precision}
+          value={zone.grid_step}
+          onChange={(e) => handleChange('grid_step', e.target.value, zone, stepCfg, update)}
+          onBlur={() => handleBlur('grid_step', zone.grid_step, stepCfg.step, stepCfg.precision, update)}
+          className="input-s w-28"
         />
-      </div>
+      </InputField>
       <InputField
         label={isBoth && !sync ? t('zone.field.buyLot') : t('zone.field.lot')}
         hint={isBoth && !sync ? t('zone.field.buyLot.hint') : t('zone.field.lot.hint')}
@@ -126,13 +125,6 @@ export function ZoneGridFields({
           className="input-s w-28"
         />
       </InputField>
-      <FieldSwitch
-        id={`instant-entry-${zone.id}`}
-        checked={!!zone.instant_entry}
-        onChange={(checked) => update('instant_entry', checked)}
-        label={<span className="text-xs text-muted-foreground">{t('zone.instantEntry')}</span>}
-        hint={t('zone.instantEntry.hint')}
-      />
     </div>
   );
 }

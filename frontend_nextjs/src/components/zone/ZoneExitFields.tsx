@@ -9,24 +9,34 @@ import { FieldSwitch } from './FieldSwitch';
 export function ZoneExitFields({
   zone,
   update,
-}: ZoneExitFieldsProps) {
+  plain,
+}: ZoneExitFieldsProps & { plain?: boolean }) {
   const t = useT();
+  let fieldsClass = 'flex flex-wrap items-start gap-3';
+  if (plain) fieldsClass = zone.clear_on_exit ? 'grid grid-cols-1 gap-3 @[24rem]:grid-cols-2' : 'hidden';
+
+  const clearSwitch = (
+    <FieldSwitch
+      checked={zone.clear_on_exit}
+      onChange={(checked) => update('clear_on_exit', checked)}
+      label={t('zone.exit.clearOnExit')}
+      hint={t('zone.exit.clearOnExit.tip')}
+    />
+  );
+
   return (
-    <section className="rounded-lg border border-border bg-muted/30 p-3">
-      <div className="flex flex-wrap items-start gap-3">
-        <FieldSwitch
-          checked={zone.clear_on_exit}
-          onChange={(checked) => update('clear_on_exit', checked)}
-          label={t('zone.exit.clearOnExit')}
-          hint={t('zone.exit.clearOnExit.tip')}
-        />
+    <section className={plain ? 'space-y-3' : 'rounded-lg border border-border bg-muted/30 p-3'}>
+      {/* Kutu (plain): Schalter in eigener Zeile, die vier Auswahlfelder paarweise darunter */}
+      {plain && <div>{clearSwitch}</div>}
+      <div className={fieldsClass}>
+        {!plain && clearSwitch}
         {zone.clear_on_exit && (
           <>
             <InputField label={t('zone.exit.side')} hint={t('zone.exit.side.hint')}>
               <select
                 value={zone.clear_exit_side}
                 onChange={(e) => update('clear_exit_side', e.target.value)}
-                className="input-s w-auto"
+                className="input-s w-auto max-w-full"
               >
                 <option value="Farketmez">{t('zone.exit.side.any')}</option>
                 <option value="BUY (Yukarı)">{t('zone.exit.side.up')}</option>
@@ -37,7 +47,7 @@ export function ZoneExitFields({
               <select
                 value={zone.clear_target_side}
                 onChange={(e) => update('clear_target_side', e.target.value)}
-                className="input-s w-auto"
+                className="input-s w-auto max-w-full"
               >
                 <option value="Farketmez (Hepsi)">{t('zone.exit.target.all')}</option>
                 <option value="Sadece BUY İşlemleri">{t('zone.exit.target.buy')}</option>
@@ -48,7 +58,7 @@ export function ZoneExitFields({
               <select
                 value={zone.clear_scope}
                 onChange={(e) => update('clear_scope', e.target.value)}
-                className="input-s w-auto"
+                className="input-s w-auto max-w-full"
               >
                 <option value="Sadece Bekleyen Emirler">{t('zone.exit.scope.pending')}</option>
                 <option value="Tüm İşlemler">{t('zone.exit.scope.all')}</option>
@@ -58,7 +68,7 @@ export function ZoneExitFields({
               <select
                 value={zone.exit_condition}
                 onChange={(e) => update('exit_condition', e.target.value)}
-                className="input-s w-auto"
+                className="input-s w-auto max-w-full"
               >
                 <option value="Anlık Fiyat">{t('zone.exit.trigger.price')}</option>
                 <option value="Mum Kapanışı">{t('zone.exit.trigger.candle')}</option>
@@ -69,7 +79,7 @@ export function ZoneExitFields({
                 <select
                   value={zone.exit_timeframe}
                   onChange={(e) => update('exit_timeframe', e.target.value)}
-                  className="input-s w-auto"
+                  className="input-s w-auto max-w-full"
                 >
                   {TIMEFRAMES.map((tf) => (
                     <option key={tf} value={tf}>{tf}</option>

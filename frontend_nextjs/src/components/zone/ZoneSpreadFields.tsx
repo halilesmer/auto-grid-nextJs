@@ -11,7 +11,9 @@ import { SectionLabel } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useFormat, useT } from '@/i18n';
 
-export function ZoneSpreadFields({ zone, update, status, connected }: {
+export function ZoneSpreadFields({ zone, update, status, connected, plain }: {
+  /** Im Kasten (columns-Layout): Trennlinie oben statt eigenem Rahmen */
+  plain?: boolean;
   zone: ZoneSettings;
   update: FieldUpdateFn;
   status?: SpreadGuardStatus;
@@ -34,6 +36,8 @@ export function ZoneSpreadFields({ zone, update, status, connected }: {
         onChange={(e) => set({ [field]: e.target.value === '' ? undefined : Number(e.target.value) })} />
     </InputField>
   );
+  const divider = plain && zone.entry_mode !== 'fractal';
+  const sectionClass = divider ? 'min-w-0 space-y-3 border-t border-border pt-3' : 'min-w-0 space-y-3';
   const modes = zone.entry_mode === 'fractal' ? ['fixed', 'relative'] as const : ['fixed', 'relative', 'grid'] as const;
   const stale = !connected || !status || (now > 0 && now - status.updated_at > 60);
   let tone: 'neutral' | 'warning' | 'success' = 'neutral';
@@ -41,12 +45,12 @@ export function ZoneSpreadFields({ zone, update, status, connected }: {
   const reason = stale ? 'unavailable' : status.reason;
   const value = (v: number | null | undefined) => v == null || stale ? '—' : fmt.number(v, { maximumFractionDigits: 8 });
   return (
-    <section className="min-w-0 space-y-3" data-testid="spread-guard" data-tooltip-scope>
+    <section className={sectionClass} data-testid="spread-guard" data-tooltip-scope>
       <SectionLabel>{t('spread.title')}</SectionLabel>
       <Switch checked={cfg.enabled} onChange={(enabled) => set({ enabled })}
         label={t('spread.enabled')} hint={t('spread.enabled.hint')} />
       {cfg.enabled && <>
-        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className={plain ? 'grid min-w-0 grid-cols-1 gap-3 @[24rem]:grid-cols-2' : 'grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2'}>
           <InputField label={t('spread.mode')} hint={t('spread.mode.hint')}>
             <select value={cfg.mode} data-testid="spread-mode" onChange={(e) => {
               const mode = modes.find((m) => m === e.target.value);
