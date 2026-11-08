@@ -7,6 +7,7 @@ import { isDayString, isTimeString, RANGE_PRESETS } from '@/lib/serverTime';
 import type { ZoneSettings } from '@/store/types';
 import type { BacktestSetup } from './setupTypes';
 import { defaultZone } from '@/utils/zoneHelpers';
+import { randomId } from '@/lib/randomId';
 
 export type PresetZone = Omit<ZoneSettings, 'id' | 'magic' | 'is_active'>;
 export interface PresetData {
@@ -110,5 +111,5 @@ export function dataForPreset(setup: BacktestSetup): PresetData {
 }
 
 export function setupFromPreset(preset: PresetData): Omit<BacktestSetup, 'id'> {
-  return { zone: { ...preset.zone, id: crypto.randomUUID(), is_active: false }, form: { ...preset.form, csvImportId: null }, range: preset.range, unsaved: true };
+  return { zone: { ...preset.zone, id: randomId(), is_active: false }, form: { ...preset.form, csvImportId: null }, range: preset.range, unsaved: true };
 }

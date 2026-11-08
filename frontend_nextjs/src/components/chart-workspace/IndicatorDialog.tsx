@@ -10,6 +10,7 @@ import { INDICATOR_KINDS, newIndicator, resetIndicator, type Indicator } from '@
 import { readChartColors } from '@/lib/chartTheme';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
 import { InputsTab, StyleTab, VisibilityTab } from './IndicatorTabs';
+import { randomId } from '@/lib/randomId';
 
 type TabId = 'inputs' | 'style' | 'visibility';
 type Section = 'indicators' | 'drawings';
@@ -38,7 +39,7 @@ export function IndicatorDialog({ values, favorites, focusId = null, onChange, o
   const open = (id: string) => { snapshot.current = values; setTab('inputs'); setEditing(id); };
   const add = (kind: Indicator['kind']) => {
     if (values.length >= LIMIT) return;
-    const created = { ...newIndicator(kind), ...defaults[kind] }, id = crypto.randomUUID();
+    const created = { ...newIndicator(kind), ...defaults[kind] }, id = randomId();
     const item = { ...created, id, paneId: id, paneCollapsed: false, visible: true };
     // Adding is its own step in the list: Cancel in the settings keeps the new indicator with its default look
     snapshot.current = [...values, item]; setTab('inputs'); setEditing(id); onChange([...values, item]);

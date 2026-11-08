@@ -1,4 +1,5 @@
 import type { Drawing } from 'lightweight-charts-drawing';
+import { randomId } from '@/lib/randomId';
 
 export interface DrawingIdentity { source: string; account: string; symbol: string }
 export const linkedDrawingKey = (identity: DrawingIdentity) => `@linked:${JSON.stringify([identity.source, identity.account, identity.symbol])}`;
@@ -19,7 +20,7 @@ export function mergeDrawings(shared: string, own: string): string {
     const previous = drawings.find(d => d.id === drawing.id);
     if (!previous) { drawings.push(drawing); known.add(canonical({ ...drawing, id: '' })); continue; }
     if (canonical(previous) === canonical(drawing) || known.has(canonical({ ...drawing, id: '' }))) continue;
-    drawings.push({ ...drawing, id: crypto.randomUUID() }); known.add(canonical({ ...drawing, id: '' }));
+    drawings.push({ ...drawing, id: randomId() }); known.add(canonical({ ...drawing, id: '' }));
   }
   return JSON.stringify(drawings);
 }
@@ -34,7 +35,7 @@ export function rebaseDrawings(base: string, next: string, remote: string): stri
   }
   for (const [id, drawing] of after) if (!before.has(id)) {
     const existing = result.get(id);
-    if (existing && canonical(existing) !== canonical(drawing)) { const newId = crypto.randomUUID(); result.set(newId, { ...drawing, id: newId }); }
+    if (existing && canonical(existing) !== canonical(drawing)) { const newId = randomId(); result.set(newId, { ...drawing, id: newId }); }
     else result.set(id, drawing);
   }
   return JSON.stringify([...result.values()]);

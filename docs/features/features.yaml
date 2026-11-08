@@ -139,6 +139,15 @@ kategorien:
           - Denselben Dev-Server ohne ALLOWED_DEV_ORIGINS starten und dieselbe Adresse auf dem Telefon öffnen.
         erwartet: Mit dem Eintrag lädt die Seite auf dem Telefon vollständig und reagiert. Ohne ihn liefert der Dev-Server die Dev-Dateien nicht (403), und im Terminal steht der Hinweis, den Host in allowedDevOrigins einzutragen.
 
+      - id: SYS-13
+        titel: IDs im unsicheren Kontext (http im LAN)
+        beschreibung: "`crypto.randomUUID` gibt es nur in sicheren Kontexten (https, localhost). Öffnet das Telefon den Dev-Server über http im LAN (SYS-12), ist es nicht definiert, und die Seite stürzt beim Wählen eines Kontos ab (gespeicherte Indikatoren bekommen neue IDs). Alle neuen IDs (Setups, Indikatoren, Zeichnungen, Backtest-Anfragen) kommen deshalb aus randomId() in src/lib/randomId.ts: ohne randomUUID erzeugt es mit crypto.getRandomValues eine UUID v4 im selben Format (kein Math.random). ESLint verbietet crypto.randomUUID in src/ (no-restricted-properties); erlaubt ist nur der eine Aufruf in randomId(). Die sichtbare Oberfläche ändert sich nicht."
+        code: [frontend_nextjs/src/lib/randomId.ts, frontend_nextjs/eslint.config.mjs]
+        tiers: [e2e]
+        pruefung:
+          - Die App im Telefon-Browser über http://<Hostname des Mac>:3000 öffnen (SYS-12), ein Konto wählen und „Setup Ekle“ drücken.
+        erwartet: Die Seite lädt, das Konto lässt sich wählen, ein neues Setup erscheint, und /chart zeigt die Indikatoren ohne Fehlerseite.
+
       - id: SYS-06
         titel: MT5-Verbindung (Kaltstart, Zeitbudget, Python-Integration)
         beschreibung: Worker (/start, Symbolabfrage) und bot_runner verbinden sich über connect_to_mt5_with_timeout. Das Timeout ist ein Gesamtbudget (Warten auf die MT5-Sperre, initialize-Versuche, Neustart eines hängenden Terminals); danach wird nicht weiter versucht, /start antwortet also nach rund 120 s (+ Login). Bei IPC-Fehlern wird nur ein terminal64.exe desselben Pfads beendet, das älter als 180 s ist; ein startendes Terminal wird abgewartet. Die kurze Symbolabfrage (15 s) beendet nie ein Terminal. -10004 bei initialize heißt „keine IPC-Verbindung“, nicht „falsches Passwort“. Vor initialize wird der Python-Kanal des Terminals geprüft (named pipe MT5.Terminal.<SHA-256 des Pfads>). Ist das Terminal älter als 30 s und hat keinen Kanal, ist in MT5 unter Optionen → Community „Python integration“ abgewählt; dann kommt sofort eine klare Meldung statt 60 s Warten pro Versuch, und kein Terminal wird beendet. Auf einem VPS mit mehreren Terminals zählt der Worker die Kanäle. Fehlt der eigene Kanal und gibt es weniger Terminal-Kanäle als Terminals, die älter als 30 s sind, kommt dieselbe Meldung; hat jedes alte Terminal einen Kanal (Namensberechnung passt nicht), wird wie bisher verbunden. Ohne Python-Kanal wartet initialize fest 60 s, egal welches Timeout; ein weiterer Versuch oder ein Terminal-Neustart startet deshalb nur, wenn noch so viel Budget übrig ist. Der WebSocket-Stream ruft MT5 nicht auf, solange eine Verbindung die MT5-Sperre hält, und zeigt dann die Bot-Metriken.

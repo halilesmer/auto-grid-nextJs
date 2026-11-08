@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-09 · **223/249** abgehakt · ❌ 6 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-09 · **223/250** abgehakt · ❌ 6 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -14,7 +14,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 | # | Kategorie | Stand |
 |---|---|---|
-| 1 | **SYS** – Verbindung & Infrastruktur | 10/12 |
+| 1 | **SYS** – Verbindung & Infrastruktur | 10/13 |
 | 2 | **ACC** – Konten | 11/12 |
 | 3 | **USR** – Benutzer & Zugriff | 8/8 |
 | 4 | **SET** – Allgemeine Einstellungen | 6/6 |
@@ -82,6 +82,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - `next dev` liefert Dev-Dateien (/_next/…) nur an localhost; jede andere Origin, auch die LAN-Adresse des Mac, bekommt 403, und die Seite bleibt auf dem Telefon leer. ALLOWED_DEV_ORIGINS (Komma oder Leerraum getrennt, in der Umgebung des Dev-Servers, nie im Repository) wird in next.config.ts zu allowedDevOrigins. src/lib/devOrigins.ts macht aus dem Wert eine Liste von Hostnamen: Schema, Benutzerkennung, Port und Pfad fallen weg, die Schreibweise wird klein, Doppelte entfallen, eine IPv6-Adresse bekommt eckige Klammern (so vergleicht Next den Hostnamen). Ein Platzhalter wie *.beispiel.test bleibt, öffnet aber jeden Host dieses Musters. Ohne Wert bleibt alles wie bisher (keine fremde Origin erlaubt). Die Einstellung gilt nur für `next dev`; Produktions-Build und Vercel sind nicht betroffen. Der Dev-Server muss im Netzwerk lauschen (Standard von next dev), und die macOS-Firewall muss node eingehende Verbindungen erlauben. Achtung: Die NEXT_PUBLIC_*-Werte aus .env.local stehen im ausgelieferten JavaScript; jedes Gerät im selben Netzwerk kann sie lesen.
   - **Prüfung:** Den Dev-Server mit ALLOWED_DEV_ORIGINS=<Hostname des Mac, z. B. mein-mac.local> starten und http://<Hostname des Mac>:3000 auf dem Telefon im selben WLAN öffnen. → Denselben Dev-Server ohne ALLOWED_DEV_ORIGINS starten und dieselbe Adresse auf dem Telefon öffnen.
   - **Erwartet:** Mit dem Eintrag lädt die Seite auf dem Telefon vollständig und reagiert. Ohne ihn liefert der Dev-Server die Dev-Dateien nicht (403), und im Terminal steht der Hinweis, den Host in allowedDevOrigins einzutragen.
+- [ ] **SYS-13** IDs im unsicheren Kontext (http im LAN) — 🖥️ e2e ⏳
+  - `crypto.randomUUID` gibt es nur in sicheren Kontexten (https, localhost). Öffnet das Telefon den Dev-Server über http im LAN (SYS-12), ist es nicht definiert, und die Seite stürzt beim Wählen eines Kontos ab (gespeicherte Indikatoren bekommen neue IDs). Alle neuen IDs (Setups, Indikatoren, Zeichnungen, Backtest-Anfragen) kommen deshalb aus randomId() in src/lib/randomId.ts: ohne randomUUID erzeugt es mit crypto.getRandomValues eine UUID v4 im selben Format (kein Math.random). ESLint verbietet crypto.randomUUID in src/ (no-restricted-properties); erlaubt ist nur der eine Aufruf in randomId(). Die sichtbare Oberfläche ändert sich nicht.
+  - **Prüfung:** Die App im Telefon-Browser über http://<Hostname des Mac>:3000 öffnen (SYS-12), ein Konto wählen und „Setup Ekle“ drücken.
+  - **Erwartet:** Die Seite lädt, das Konto lässt sich wählen, ein neues Setup erscheint, und /chart zeigt die Indikatoren ohne Fehlerseite.
 - [x] **SYS-06** MT5-Verbindung (Kaltstart, Zeitbudget, Python-Integration) — 🧪 unit ✅ 2026-11-03 · 🔌 api ✅ 2026-11-03 · 👤 manuell ✅ 2026-10-16
   - Worker (/start, Symbolabfrage) und bot_runner verbinden sich über connect_to_mt5_with_timeout. Das Timeout ist ein Gesamtbudget (Warten auf die MT5-Sperre, initialize-Versuche, Neustart eines hängenden Terminals); danach wird nicht weiter versucht, /start antwortet also nach rund 120 s (+ Login). Bei IPC-Fehlern wird nur ein terminal64.exe desselben Pfads beendet, das älter als 180 s ist; ein startendes Terminal wird abgewartet. Die kurze Symbolabfrage (15 s) beendet nie ein Terminal. -10004 bei initialize heißt „keine IPC-Verbindung“, nicht „falsches Passwort“. Vor initialize wird der Python-Kanal des Terminals geprüft (named pipe MT5.Terminal.<SHA-256 des Pfads>). Ist das Terminal älter als 30 s und hat keinen Kanal, ist in MT5 unter Optionen → Community „Python integration“ abgewählt; dann kommt sofort eine klare Meldung statt 60 s Warten pro Versuch, und kein Terminal wird beendet. Auf einem VPS mit mehreren Terminals zählt der Worker die Kanäle. Fehlt der eigene Kanal und gibt es weniger Terminal-Kanäle als Terminals, die älter als 30 s sind, kommt dieselbe Meldung; hat jedes alte Terminal einen Kanal (Namensberechnung passt nicht), wird wie bisher verbunden. Ohne Python-Kanal wartet initialize fest 60 s, egal welches Timeout; ein weiterer Versuch oder ein Terminal-Neustart startet deshalb nur, wenn noch so viel Budget übrig ist. Der WebSocket-Stream ruft MT5 nicht auf, solange eine Verbindung die MT5-Sperre hält, und zeigt dann die Bot-Metriken.
   - **Prüfung:** Auf der Seite „VPS“ den VPS neu starten, MT5 nicht von Hand öffnen. → Sobald der Worker erreichbar ist, Konto wählen, eine Zone öffnen (Symbolliste) und sofort „Start Bot“ klicken. → Nur DEMO, Bot vorher stoppen: Per RDP in MT5 Extras → Optionen → Community „Python-Integration“ abwählen, MT5 beenden und neu starten, „Start Bot“ klicken. Weitere Terminals anderer Konten laufen dabei weiter (Fehler trat nur mit mehreren Terminals auf). Danach den Haken wieder setzen und MT5 neu starten.

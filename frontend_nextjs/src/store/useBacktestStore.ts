@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import type { WorkerMessage } from '@/lib/backtest/protocol';
 import type { RunResult } from '@/lib/backtest/runner';
 import type { MissingRange, Timeframe } from '@/lib/analysis/candles';
+import { randomId } from '@/lib/randomId';
 
 export type RunFailure = Extract<WorkerMessage, { type: 'error' }>;
 
@@ -57,7 +58,7 @@ export const useBacktestStore = create<BacktestState>()((set, get) => ({
   accountId: null, sequence: 0, setups: [], activeId: null, runs: {},
   add: (draft) => {
     if (get().setups.length >= MAX_SETUPS) return null;
-    const id = crypto.randomUUID();
+    const id = randomId();
     set((s) => ({ setups: [...s.setups, { ...structuredClone(draft), id }], activeId: id }));
     return id;
   },
