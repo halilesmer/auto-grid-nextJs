@@ -13,7 +13,6 @@ import {
   weeklyFromDaily,
 } from '../../src/lib/analysis/calendarBars';
 import { CHART_TIMEFRAMES, dataTimeframeOf, isChartTimeframe, TIMEFRAMES } from '../../src/lib/analysis/candles';
-import { timeframeAllowed, timeframeParam } from '../../src/lib/chart/mode';
 import { weeklyFromDaily as formationWeekly } from '../../src/lib/formation/weekly';
 
 const ana = (name: string, fn: () => void) => test(name, { tag: '@ANA-26' }, fn);
@@ -21,22 +20,13 @@ const DAY = 86400;
 const utc = (y: number, m: number, d: number) => Date.UTC(y, m - 1, d) / 1000;
 const bar = (time: number, o: number, h: number, l: number, c: number) => ({ time, open: o, high: h, low: l, close: c });
 
-ana('Zeitrahmenlisten: Frei kennt W1 und MN, Setup nicht; beide holen D1', () => {
+ana('Zeitrahmenlisten: W1 und MN sind Zeitrahmen des Charts; beide holen D1', () => {
   expect(CHART_TIMEFRAMES).toEqual([...TIMEFRAMES, 'W1', 'MN']);
   expect(isChartTimeframe('MN')).toBe(true);
   expect(isChartTimeframe('M2')).toBe(false);
   expect(dataTimeframeOf('W1')).toBe('D1');
   expect(dataTimeframeOf('MN')).toBe('D1');
   expect(dataTimeframeOf('H4')).toBe('H4');
-});
-
-ana('Adresse: ?tf=W1|MN gilt nur im freien Modus', () => {
-  expect(timeframeParam('free', 'W1')).toBe('W1');
-  expect(timeframeParam('free', 'MN')).toBe('MN');
-  expect(timeframeParam('setup', 'MN')).toBe('M15');
-  expect(timeframeParam('formation', 'W1')).toBe('H4');
-  expect(timeframeAllowed('free', 'W1')).toBe(true);
-  expect(timeframeAllowed('setup', 'W1')).toBe(false);
 });
 
 ana('Wochenbeginn Sonntag 00:00, Monatsbeginn am 1. um 00:00', () => {

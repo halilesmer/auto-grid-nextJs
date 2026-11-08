@@ -49,6 +49,13 @@ Approved design: https://claude.ai/artifact/8o5LE8S3KAEGtJpQvgaXDG ("Tek Grafik 
 | 1107-A21.9 | With a past moment (`?at=`) open, a change to a timeframe without formations removes `at`. The chart shows live data. |
 | 1107-A21.10 | On W1 and MN, the trade markers of a setup sit on the period start (`periodStart`). See 1107-A4.1. |
 | 1107-A21.11 | A symbol without a setup has an empty setup layer. The tab "Overview" says that the symbol has no setup. The tab "Trades" shows the trades of the selected setup (by magic, as now). |
+| 1107-A21.12 | The data quality note (range "All", older candles load on scroll) is a one-line chip at the top left of the chart. A tap or click opens the full text. Reason: the full note covers the candles at 375 px and at 1440 px. |
+| 1107-A21.13 | The user EWO pane is not a default pane of the one chart. The system Wave pane shows EWO. |
+| 1107-A21.14 | Closed. At 375 × 812 the formation row is one line (measured in U4-4b). |
+| 1107-A21.15 | Measure why FRM-27 needs about 42 s (the chart loads candles for each 15-minute step of the past moment). If the load is not necessary, read the candles from a cache. |
+| 1107-A21.16 | The first open copies the linked drawings (`links`) of the old keys to the key `chart`. |
+| 1107-A21.17 | At 720 px the range control can go into the arrow menu. The formation actions stay in the row. Accepted for now. |
+| 1107-A21.18 | From 1024 px the open card stands next to the chart, and the chart becomes narrower by the card width. Below 1024 px the card floats over the chart. Reason: the open card covered the formation at the right edge. |
 | Range of `/backtest` | `/backtest` keeps `last30`. The default "All" is a separate constant for the chart and Statistics. |
 
 ## Steps
@@ -63,6 +70,7 @@ Structure comes before behavior. U4-1, U4-2 and U4-3 touch different files and c
 | U4-4a | Switch: one chart, top bar, nine timeframes, both layers, groups in "Layers", range "All". The side bar and the setup card stay for one step. | Sonnet | high |
 | U4-4b | One card: side bar and setup card become Conditions, Favorites, Overview, Trades. | Sonnet | medium |
 | U4-5 | Remove the old shells and every trace of `mode`. Clean the catalog. | Sonnet | medium |
+| U4-5b | Fixes: A21.12, A21.15, A21.16, A21.18. | Sonnet | medium |
 | U4-6 | Live check on the DEMO account (read-only), phone check by the owner, sign UI-22. | Sonnet | low |
 
 U4-4a has the level high: it changes 29 spec files and moves the formation drawing onto a long candle series (view alignment, FRM-20 and ANA-27).
@@ -173,5 +181,6 @@ DEMO account, read-only (`hooks/RULES.md` §3): formation and setup on H4, empty
 - [x] U4-3 URL model (PR 450)
 - [x] U4-4a switch (`2026-11-08-chart-u4-4a-switch.md`)
 - [x] U4-4b one card (`2026-11-08-chart-u4-4b-one-card.md`; open point: the open card covers the formation from 1024 px)
-- [ ] U4-5 remove the old shells
+- [x] U4-5 remove the old shells (`2026-11-08-chart-u4-5-remove-shells.md`)
+- [ ] U4-5b fixes
 - [ ] U4-6 live check and signature of UI-22

@@ -4,7 +4,7 @@
  */
 import { expect, test } from '@playwright/test';
 import { CHART_TIMEFRAMES } from '../../src/lib/analysis/candles';
-import { DEFAULT_CHART_RANGE, DEFAULT_CHART_TF, buildChartUrl, parseChartUrl } from '../../src/lib/chart/chartUrl';
+import { DEFAULT_CHART_RANGE, DEFAULT_CHART_TF, buildChartUrl, hasFormations, parseChartUrl } from '../../src/lib/chart/chartUrl';
 
 const ui = (name: string, fn: () => void) => test(name, { tag: '@UI-22' }, fn);
 const p = (q: string) => new URLSearchParams(q);
@@ -26,6 +26,18 @@ ui('Invalid tf falls back to H4', () => {
   expect(parseChartUrl(p('tf=M2')).tf).toBe('H4');
   expect(parseChartUrl(p('tf=h1')).tf).toBe('H4');
   expect(parseChartUrl(p('tf=')).tf).toBe('H4');
+});
+
+// Moved from analysis-calendar-lib.spec.ts (ANA-26, `timeframeParam` / `timeframeAllowed` of the removed lib/chart/mode.ts)
+ui('W1 and MN are valid for every old mode link; only D1, H4, H1, M15 have formations', () => {
+  for (const mode of ['formation', 'setup', 'free']) {
+    expect(parseChartUrl(p(`mode=${mode}&tf=W1`)).tf).toBe('W1');
+    expect(parseChartUrl(p(`mode=${mode}&tf=MN`)).tf).toBe('MN');
+    expect(parseChartUrl(p(`mode=${mode}&tf=M2`)).tf).toBe('H4');
+  }
+  expect(hasFormations('W1')).toBe(false);
+  expect(hasFormations('M5')).toBe(false);
+  expect(hasFormations('H4')).toBe(true);
 });
 
 ui('Old links: mode is ignored (formation, setup, free)', () => {

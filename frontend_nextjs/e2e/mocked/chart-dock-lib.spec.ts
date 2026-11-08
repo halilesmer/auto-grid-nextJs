@@ -4,7 +4,7 @@ import { defaultDockLayout, dropPosition, migrateToolbarLayout, moveToFree, move
 // Serbest paket yerleşimi veri modeli (UI-17, plan 1106-A1)
 test('Varsayılan yerleşim: hesap row1\'de, free ve pos boş', { tag: '@UI-17' }, () => {
   const d = defaultDockLayout();
-  expect(d.row1).toEqual(['mode', 'symbol', 'account', 'actions']);
+  expect(d.row1).toEqual(['symbol', 'account', 'actions']);
   expect(d.row2).toEqual(['timeframes', 'formations']);
   expect(d.bottom).toEqual(['view', 'indicators', 'edit', 'window']);
   expect(d.free).toEqual({}); expect(d.pos).toEqual({});
@@ -21,6 +21,9 @@ test('Bozuk kayıt onarılır', { tag: '@UI-17' }, () => {
     free: { view: { x: 2, y: -1 }, mode: { x: 0.5, y: 0.5 }, edit: { x: 'a', y: 0 }, bogus: { x: 0, y: 0 } },
     pos: { formations: 5, mode: 0.3, view: 0.4, edit: 'z' },
   });
+  // 1107-A21 U4-5: the removed package `mode` of a stored layout is dropped from rows, free and pos
+  expect(JSON.stringify(p)).not.toContain('mode');
+  expect(DOCK_PACKAGES as readonly string[]).not.toContain('mode');
   expect(p.row1.filter(x => x === 'account')).toEqual(['account']);
   expect(p.row2).not.toContain('account');
   const all = [...p.row1, ...p.row2, ...p.bottom, ...Object.keys(p.free)];
@@ -28,15 +31,15 @@ test('Bozuk kayıt onarılır', { tag: '@UI-17' }, () => {
   expect(new Set(all).size).toBe(all.length);
   expect(all).not.toContain('ghost');
   expect(p.free).toEqual({ view: { x: 1, y: 0 } });
-  expect(p.pos).toEqual({ formations: 1, mode: 0.3 });
-  expect(p.row1[0]).toBe('mode');
+  expect(p.pos).toEqual({ formations: 1 });
+  expect(p.row1[0]).toBe('account');
   expect(p.row2).toEqual(['timeframes', 'formations', 'symbol']); // symbol row2'de kalır, eksik timeframes varsayılan yerine girer
   expect(p.bottom).toEqual(expect.arrayContaining(['indicators', 'edit', 'window']));
 });
 
 test('v1 kaydından geçiş', { tag: '@UI-17' }, () => {
   const m = migrateToolbarLayout({ view: { zone: 'top' }, edit: { zone: 'free', x: 0.4, y: 0.2 }, window: { zone: 'bottom' } });
-  expect(m.row1).toEqual(['mode', 'symbol', 'account', 'actions', 'view']);
+  expect(m.row1).toEqual(['symbol', 'account', 'actions', 'view']);
   expect(m.bottom).toEqual(['indicators', 'window']);
   expect(m.free).toEqual({ edit: { x: 0.4, y: 0.2 } });
   expect(migrateToolbarLayout({})).toEqual(defaultDockLayout());
@@ -47,11 +50,11 @@ test('Satıra taşıma sırayı ve kayıtları günceller', { tag: '@UI-17' }, (
   d = moveToRow(d, 'view', 'row2', 1);
   expect(d.row2).toEqual(['timeframes', 'view', 'formations']);
   expect(d.free).toEqual({}); expect(d.bottom).not.toContain('view');
-  d = moveToRow(d, 'mode', 'row2', 0, 0.5);
-  expect(d.row1).toEqual(['symbol', 'account', 'actions']);
-  expect(d.row2[0]).toBe('mode'); expect(d.pos.mode).toBe(0.5);
-  d = moveToRow(d, 'mode', 'row1', 99);
-  expect(d.row1.at(-1)).toBe('mode'); expect(d.pos.mode).toBeUndefined();
+  d = moveToRow(d, 'actions', 'row2', 0, 0.5);
+  expect(d.row1).toEqual(['symbol', 'account']);
+  expect(d.row2[0]).toBe('actions'); expect(d.pos.actions).toBe(0.5);
+  d = moveToRow(d, 'actions', 'row1', 99);
+  expect(d.row1.at(-1)).toBe('actions'); expect(d.pos.actions).toBeUndefined();
   d = moveToRow(d, 'edit', 'row1', 0, 1);
   expect(d.pos.edit).toBe(1);
   expect(packPackage(d, 'edit').pos.edit).toBeUndefined();

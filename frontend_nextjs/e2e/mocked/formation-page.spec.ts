@@ -2043,7 +2043,7 @@ test.describe('FRM-23 Werkzeugleiste des Charts liegt obenauf', () => {
         await expect.poll(() => onTop(page, trend)).toBe(true);
         // Alle Bedienelemente der Kopfleiste bleiben links der Werkzeugleiste oder liegen in einer anderen Zeile
         const box = (await tools.boundingBox())!;
-        const controls = page.getByTestId('formation-topbar').locator('button, [role="combobox"], input');
+        const controls = page.getByTestId('chart-topbar').locator('button, [role="combobox"], input');
         for (const control of await controls.all()) {
           const c = await control.boundingBox();
           if (!c || c.width === 0) continue;
@@ -2099,7 +2099,7 @@ test.describe('FRM-23 Werkzeugleiste des Charts liegt obenauf', () => {
         return box.y >= bar.y + bar.height ? 'unten' : 'dazwischen';
       }).toBe(tools);
       await expect.poll(() => page.evaluate(() => {
-        const controls = [...document.querySelectorAll('[data-testid="formation-topbar"] :is(button, [role="combobox"], input), [data-testid="workspace-toolbar"] button')]
+        const controls = [...document.querySelectorAll('[data-testid="chart-topbar"] :is(button, [role="combobox"], input), [data-testid="workspace-toolbar"] button')]
           // Die Favoriten-Fahne liegt absichtlich im Produktfeld (FormationSelectors.tsx, absolute right-2.5)
           .filter((el) => el.getBoundingClientRect().width > 0 && el.getAttribute('data-testid') !== 'favorite-flag');
         const overlaps: string[] = [];
@@ -2134,7 +2134,7 @@ test.describe('FRM-23 Werkzeugleiste des Charts liegt obenauf', () => {
       await expect(row).toBeVisible();
       await expect(page.locator('[data-testid="workspace-toolbar"]')).toHaveCount(0);
       await expect.poll(() => page.evaluate(() => {
-        const controls = [...document.querySelectorAll('[data-testid="formation-topbar"] :is(button, [role="combobox"], input), [data-testid="dock-row-row1"] button')]
+        const controls = [...document.querySelectorAll('[data-testid="chart-topbar"] :is(button, [role="combobox"], input), [data-testid="dock-row-row1"] button')]
           .filter((el) => el.getBoundingClientRect().width > 0 && el.getAttribute('data-testid') !== 'favorite-flag');
         const overlaps: string[] = [];
         for (const [i, a] of controls.entries()) {

@@ -44,7 +44,7 @@ export function parseChartUrl(params: URLSearchParams, zoneSymbol?: (zoneId: str
     symbol,
     zone,
     tf: isChartTimeframe(tfParam) ? tfParam : DEFAULT_CHART_TF,
-    // Not validated here: the caller checks `form` against the known formations (as useFormationParams does)
+    // Not validated here: the caller checks `form` against the known formations (the caller checks it against the scan hits)
     form: params.get('form') || null,
     at: params.get('at') || null,
     range: parseRange(params),
