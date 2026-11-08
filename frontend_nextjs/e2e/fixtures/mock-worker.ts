@@ -197,6 +197,13 @@ export class MockWorker {
   readonly unhandled: string[] = [];
   /** Speichern mit der alten Form ZONES; die Oberfläche schickt seit ZON-19 Teil B nur SYMBOLS. */
   readonly zonesPayloads: string[] = [];
+  /** NWS-01: Ereignisse von GET /news/events (Zeiten UTC, wie econ_calendar.py) */
+  newsEvents: Json[] = [
+    { id: 1, event_id: 10, event_code: 'cpi-mm', title: 'CPI m/m', country: 'US', currency: 'USD', importance: 'high', time: '2026-11-10T13:30:00Z', time_mode: 'datetime', sector: 'price', unit: 'percentage', multiplier: 'none', actual: null, forecast: 0.5, prev: 0.6, revised_prev: null, impact_type: 'none', forecast_direction: 'down' },
+    { id: 3, event_id: 30, event_code: 'unemployment-rate', title: 'Unemployment Rate', country: 'DE', currency: 'EUR', importance: 'moderate', time: '2026-11-10T14:00:00Z', time_mode: 'datetime', sector: 'jobs', unit: 'percentage', multiplier: 'none', actual: null, forecast: 3.1, prev: 3.0, revised_prev: null, impact_type: 'none', forecast_direction: 'down' },
+  ];
+  newsStale = false;
+  newsAvailable = true;
   /** Worker nicht erreichbar: REST-Anfragen scheitern mit Netzwerkfehler. */
   offline = false;
   /** Erzwungene Antwort je "METHODE /api/pfad" (z. B. Fehler 500 für /system/scan-mt5). */
@@ -931,6 +938,17 @@ export class MockWorker {
       }
       if (method === 'GET') return ok({ account_id: id, states: s.uiState[id] ?? {} });
     }
+    // NWS-01: Spiegel von worker_python/src/api/news.py (jede Rolle, nicht an ein Konto gebunden)
+    if (seg[0] === 'news' && seg[1] === 'events' && method === 'GET') {
+      const levels = (url.searchParams.get('impact') ?? '').split(',').map((v) => v.trim()).filter(Boolean);
+      const codes = (url.searchParams.get('currencies') ?? '').split(',').map((v) => v.trim().toUpperCase()).filter(Boolean);
+      const events = this.newsEvents
+        .filter((e) => (levels.length ? levels.includes(String(e.importance)) : true))
+        .filter((e) => (codes.length ? codes.includes(String(e.currency)) : true))
+        .sort((a, b) => String(a.time).localeCompare(String(b.time)));
+      return ok({ events, stale: this.newsStale, available: this.newsAvailable, source: 'mt5', generated_at: '2026-11-10T12:00:00Z' });
+    }
+
     if (seg[0] === 'favorites') {
       // Wie favorites.py: GET liefert die Liste, PUT ersetzt sie (Tippfehler im Inhalt = 422)
       const id = seg[1];
