@@ -77,6 +77,7 @@ for (const viewport of VIEWPORTS) {
       await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
       const expand = card.getByRole('button', { name: msg('chart.card.expand') });
       if (await expand.count()) await expand.click();
+      await card.getByTestId('chart-card-tab-overview').click();
       await expect(card.getByText('90 – 110')).toBeVisible();
       await expect(card.getByTestId('chart-stat-price')).toBeVisible();
       await card.getByRole('tab', { name: msg('chart.card.trades') }).click();
@@ -99,6 +100,7 @@ for (const viewport of VIEWPORTS) {
       await expect(noSetupCard).toBeVisible();
       const expandCard = noSetupCard.getByRole('button', { name: msg('chart.card.expand') });
       if (await expandCard.count()) await expandCard.click();
+      await noSetupCard.getByTestId('chart-card-tab-overview').click();
       await expect(noSetupCard.getByTestId('chart-card-no-setup')).toBeVisible();
       await expect(page.getByTestId('chart-stat-price')).toHaveCount(0);
       await noOverflow(page);

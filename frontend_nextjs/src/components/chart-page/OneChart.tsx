@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Bookmark, ListChecks, Loader2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Loader2, PanelRight } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 
 import { TimeframeSelect } from '@/components/analysis/chart/TimeframeSelect';
@@ -10,10 +10,10 @@ import { DataQualityBanner } from '@/components/analysis/DataQualityBanner';
 import { LicenseInfo } from '@/components/analysis/LicenseInfo';
 import { ChartPage } from '@/components/chart-page/ChartPage';
 import { ChartNotice, ChartOverlays } from '@/components/chart-page/ChartOverlays';
-import { ChartPanel } from '@/components/chart-page/ChartPanel';
+import { ChartCard } from '@/components/chart-page/ChartCard';
 import { ChartTopBar, type ChartChrome } from '@/components/chart-page/ChartTopBar';
 import { ChartView } from '@/components/chart-page/ChartView';
-import { NoSetupCard, SetupCardTabs, SetupSwitches } from '@/components/chart/SetupCardTabs';
+import { NoSetupNote, SetupOverview, SetupSwitches, SetupTrades } from '@/components/chart/SetupCardTabs';
 import { useChartOverlays } from '@/components/chart-workspace/ContextOverlays';
 import { FormationDrawingsToggle } from '@/components/chart-workspace/FormationDrawingsToggle';
 import { TrendToggle } from '@/components/chart-workspace/TrendToggle';
@@ -25,16 +25,15 @@ import { FavoritesForms, FavoritesTimeframes } from '@/components/formation/Form
 import { FormationForms } from '@/components/formation/FormationForms';
 import { FormationLayer } from '@/components/formation/FormationLayer';
 import { FormationLineTable } from '@/components/formation/FormationLineTable';
-import { FormationSidebarTabs } from '@/components/formation/FormationSidebarTabs';
 import { FormationSymbolSelect } from '@/components/formation/FormationSelectors';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip } from '@/components/ui/tooltip';
+import { Button } from '@/components/ui/button';
 import { useChartParams } from '@/hooks/useChartParams';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useFormationAlarm } from '@/hooks/useFormationAlarm';
 import { useFormationScan } from '@/hooks/useFormationScan';
-import { useFormationSidebar, type SidebarTab } from '@/hooks/useFormationSidebar';
+import { useFormationSidebar } from '@/hooks/useFormationSidebar';
 import { useMarketRates } from '@/hooks/useMarketRates';
 import { useSetupLayers } from '@/hooks/useSetupLayers';
 import { useSignalBars } from '@/hooks/useSignalBars';
@@ -249,15 +248,6 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
     const config = s.documents[contextKey]?.indicators.find(isSystemRsi);
     return !config || matchesFormationRsi(config, tfSec, RSI_PARAMS.period);
   });
-  // The setup card closes once a formation is drawn on this symbol and timeframe (the open card would cover the drawing); it stays as the user leaves it
-  const hitKey = `${urlSymbol}|${timeframe}`;
-  const [hitSeen, setHitSeen] = useState<string | null>(null);
-  useEffect(() => {
-    if (!hit) return;
-    const frame = requestAnimationFrame(() => setHitSeen(hitKey));
-    return () => cancelAnimationFrame(frame);
-  }, [hit, hitKey]);
-  const collapseCard = !!hit || hitSeen === hitKey;
   const others = useMemo(() => (hit ? scan.hits.filter((h) => h.tf === hit.tf) : []), [scan.hits, hit]);
   const atr = useMemo(() => {
     const view = hit && scan.context && scan.scanAt !== null ? scan.context.view(hit.tf, scan.scanAt) : null;
@@ -297,7 +287,7 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
     setSymbol(next);
     const nextForm = filter ?? results[next]?.find((h) => h.tf === favTf)?.form;
     if (contextTf && nextForm) setView({ form: nextForm, tf: contextTf });
-    // Unter 1024 px liegt die Leiste über dem Chart
+    // Unter 1024 px liegt die Karte über dem Chart
     if (window.innerWidth < 1024) sidebar.close();
   };
   const favoriteViews = hasFavorites
@@ -328,23 +318,6 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
   };
   const tfCounts = useMemo(() => Object.fromEntries(CONTEXT_TIMEFRAMES.map((x) => [x, hitsCount(scan.hits, { tf: x })])) as Partial<Record<ChartTimeframe, number>>, [scan.hits]);
 
-  const stripButton = (tab: SidebarTab, label: string, hint: string, icon: ReactNode) => {
-    const on = sidebar.open && sidebar.tab === tab;
-    return (
-      <Tooltip content={hint} role="presentation" className={tab === 'favorites' ? 'mt-0.5' : undefined}>
-        <button
-          type="button"
-          aria-pressed={on}
-          aria-label={label}
-          data-testid={`${tab}-toggle`}
-          onClick={() => sidebar.toggle(tab)}
-          className={cn('inline-flex size-8 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', on ? 'bg-accent text-primary' : 'text-muted-foreground hover:text-foreground')}
-        >
-          {icon}
-        </button>
-      </Tooltip>
-    );
-  };
 
   const symbolSelect = (
     <FormationSymbolSelect
@@ -463,13 +436,49 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
     </>
   );
 
-  let card: ReactNode = null;
-  if (zone) card = <SetupCardTabs collapseSignal={collapseCard} accountId={accountId} zone={zone} timeframe={timeframe} onTimeframe={onTimeframe} prefs={prefs} data={ratesData} layers={layers} setups={setups} onSetup={setZone} />;
-  else if (symbolKey && zones) card = <NoSetupCard symbol={symbolKey} />;
+  const cardTitle = zone ? t('chart.zone.title', { n: layers.setupNo, symbol: zone.symbol || '—' }) : (symbolKey ?? t('nav.chart'));
+  const noSetup = symbolKey && zones ? <NoSetupNote symbol={symbolKey} /> : null;
+  const card = (
+    <ChartCard
+      title={cardTitle}
+      open={sidebar.open}
+      onOpenChange={sidebar.setOpen}
+      tab={sidebar.tab}
+      onTab={sidebar.selectTab}
+      conditions={
+        formationTf ? (
+          <FormationConditions list={list} hit={hit} loading={scan.loading} tf={favTf} digits={scan.digits} active={active} onSelect={(h) => setPicked(`${h.form}-${h.tf}`)} onActive={setActive} />
+        ) : (
+          <p className="px-3 py-2 text-xs text-muted-foreground" data-testid="conditions-off-tf">{t('chart.formation.offTf')}</p>
+        )
+      }
+      favorites={
+        <>
+          <div className="flex shrink-0 justify-end px-1.5 pt-1.5">
+            <FavoritesAddButton onAdd={() => document.querySelector<HTMLInputElement>('[data-testid="formation-symbol"] input')?.focus()} />
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col" data-testid="favorites-panel">
+            <FavoritesSidebar
+              accountId={accountId}
+              favorites={favorites.symbols}
+              rows={rows}
+              activeSymbol={urlSymbol}
+              timeframes={favoriteViews?.timeframes}
+              forms={favoriteViews?.forms}
+              asOfPast={pastAt !== null}
+              onPick={openFavorite}
+              onToggle={favorites.toggle}
+            />
+          </div>
+        </>
+      }
+      overview={zone ? <SetupOverview accountId={accountId} zone={zone} timeframe={timeframe} onTimeframe={onTimeframe} prefs={prefs} data={ratesData} layers={layers} setups={setups} onSetup={setZone} /> : noSetup}
+      trades={zone ? <SetupTrades accountId={accountId} data={ratesData} layers={layers} /> : noSetup}
+    />
+  );
 
   // Floating group: on the phone only with a past moment, else up to 106 rem container (in the band with the switch)
   const floatingGroup = compact ? (pastAt !== null && 'flex') || 'hidden' : 'flex @min-[106rem]/formation-main:hidden';
-  const sidebarShown = sidebar.open;
   const shownData = shown ?? data;
   let finalPoint = 'none';
   if (hit) finalPoint = hit.candidate.points[FINAL_POINT[hit.form]] ? 'done' : 'open';
@@ -479,7 +488,7 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
       title={t('nav.chart')}
       testId="chart-page"
       pageProps={{ 'data-scan-ms': scan.scanMs ?? '', 'data-scan-runs': scan.scanRuns, 'data-favorites-scan-ms': favoritesScanMs ?? '' }}
-      panelShown={sidebarShown}
+      panelShown={false}
       topBar={
         <ChartTopBar
           account={chrome.account}
@@ -540,6 +549,8 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
       floating={
         <>
           <ChartOverlays notices={notices}>{card}</ChartOverlays>
+          {/* Phone: the card starts closed; this button opens it (board 4). It sits outside the dock, so it does not take room from the tool packages */}
+          <div className="pointer-events-auto absolute right-3 top-[calc(var(--chart-top,0px)+0.5rem)] z-[51] lg:hidden"><Button size="icon-sm" variant="outline" className="bg-background" hint={t('chart.card.open.hint')} aria-label={t('chart.card.open')} aria-expanded={sidebar.open} data-testid="chart-card-open" onClick={() => sidebar.setOpen(!sidebar.open)}><PanelRight size={15} aria-hidden="true" /></Button></div>
           {formationTf && (
             // Schwebende Gruppe: unter 106 rem Container (und auf dem Handy) die Schritte, im Band 91 bis 106 rem auch der Schalter (UI-15)
             <div className={cn('pointer-events-none absolute bottom-3 right-16 z-20 items-center gap-1', floatingGroup)} data-testid="formation-asof-floating">
@@ -559,44 +570,7 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
           )}
         </>
       }
-      panel={
-        <ChartPanel
-          open={sidebar.open}
-          strip={
-            <>
-              {stripButton('favorites', t('formation.fav.toggle'), t('formation.fav.toggle.hint'), <Bookmark size={16} aria-hidden="true" className={cn(sidebar.open && sidebar.tab === 'favorites' && 'fill-primary')} />)}
-              {stripButton('conditions', t('formation.conditions'), t('formation.conditions.hint'), <ListChecks size={16} aria-hidden="true" />)}
-            </>
-          }
-        >
-          <div className="flex h-full min-h-0 flex-col">
-            <FormationSidebarTabs
-              tab={sidebar.tab}
-              onTab={sidebar.show}
-              trailing={sidebar.tab === 'favorites' && <FavoritesAddButton onAdd={() => document.querySelector<HTMLInputElement>('[data-testid="formation-symbol"] input')?.focus()} />}
-            />
-            <div role="tabpanel" id="formation-tabpanel" aria-labelledby={`formation-tab-${sidebar.tab}`} className="flex min-h-0 flex-1 flex-col">
-              {sidebar.tab === 'conditions' ? (
-                <FormationConditions list={list} hit={hit} loading={scan.loading} tf={favTf} digits={scan.digits} active={active} onSelect={(h) => setPicked(`${h.form}-${h.tf}`)} onActive={setActive} />
-              ) : (
-                <div className="min-h-0 flex-1" data-testid="favorites-panel">
-                  <FavoritesSidebar
-                    accountId={accountId}
-                    favorites={favorites.symbols}
-                    rows={rows}
-                    activeSymbol={urlSymbol}
-                    timeframes={favoriteViews?.timeframes}
-                    forms={favoriteViews?.forms}
-                    asOfPast={pastAt !== null}
-                    onPick={openFavorite}
-                    onToggle={favorites.toggle}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        </ChartPanel>
-      }
+      panel={null}
     />
   );
 }

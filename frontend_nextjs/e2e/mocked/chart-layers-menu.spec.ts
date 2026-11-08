@@ -31,11 +31,12 @@ async function open(page: Page, worker: MockWorker, name: string, url: string) {
   await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-bars', /^[1-9]\d*$/);
 }
 
-/** Die Karte startet zu, solange eine Formation gezeichnet wird, und unter 1024 px (UI-22): nach dem Scan aufklappen */
+/** Die Karte ist unter 1024 px zu (UI-10): bei Bedarf aufklappen und „Übersicht“ wählen */
 async function openCard(page: Page) {
   await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
   const expand = page.getByTestId('chart-floating-card').getByRole('button', { name: msg('chart.card.expand'), exact: true });
   if (await expand.count()) await expand.click();
+  await page.getByTestId('chart-card-tab-overview').click();
   await expect(page.getByTestId('chart-card-overview')).toBeVisible();
 }
 

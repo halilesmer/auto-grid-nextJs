@@ -1,6 +1,9 @@
 import { useSyncExternalStore } from 'react';
 
-export type SidebarTab = 'conditions' | 'favorites';
+/** Reiter der einen Karte (1107-A21.4); die alte Seitenleiste kannte nur die ersten beiden */
+export type CardTab = 'conditions' | 'favorites' | 'overview' | 'trades';
+export type SidebarTab = CardTab;
+export const CARD_TABS: readonly CardTab[] = ['conditions', 'favorites', 'overview', 'trades'];
 
 const STORAGE_KEY = 'grid-robot-formation-sidebar';
 /** Ab dieser Breite (Tailwind `lg`) schiebt die offene Leiste den Chart; darunter läge kein Chart mehr daneben */
@@ -26,7 +29,7 @@ function readRaw(): string | null {
 function parse(raw: string | null): Stored {
   try {
     const value = JSON.parse(raw ?? 'null') as Partial<Stored> | null;
-    if (value && typeof value.open === 'boolean' && (value.tab === 'conditions' || value.tab === 'favorites')) return { open: value.open, tab: value.tab };
+    if (value && typeof value.open === 'boolean' && CARD_TABS.includes(value.tab as CardTab)) return { open: value.open, tab: value.tab as CardTab };
   } catch {
     // Beschädigter Eintrag: es gilt der Startwert
   }
@@ -68,9 +71,12 @@ function change(next: Stored) {
 /** Seitenleiste vom Modus Formation von /chart (Reiter Bedingungen und Favoriten): offen/zu und gewählter Reiter bleiben im Browser. */
 export function useFormationSidebar() {
   const state = useSyncExternalStore(subscribe, getSnapshot, () => SERVER_SNAPSHOT);
-  /** Ein Klick auf das Symbol des aktiven Reiters schließt die Leiste, sonst öffnet er sie auf diesem Reiter */
+  /** Ein Klick (Statuschip) auf den aktiven Reiter klappt die Karte zu, sonst öffnet er sie auf diesem Reiter */
   const toggle = (tab: SidebarTab) => change(state.open && state.tab === tab ? { ...state, open: false } : { open: true, tab });
   const show = (tab: SidebarTab) => change({ open: true, tab });
+  /** Ohne den Reiter zu ändern auf- oder zuklappen (Kopfzeile der Karte, Taste „Karte“) */
+  const setOpen = (open: boolean) => change({ ...state, open });
+  const selectTab = (tab: SidebarTab) => change({ ...state, tab });
   const close = () => change({ ...state, open: false });
-  return { ...state, toggle, show, close };
+  return { ...state, toggle, show, close, setOpen, selectTab };
 }

@@ -171,7 +171,7 @@ const visibleItems = (page: Page, id: string) => page.locator(`[data-dock-pkg="$
   return { items: items.length, keptVisible: items.every(i => i.hasAttribute('data-keep') || i.querySelector('[data-keep]') !== null), arrow: !(content.querySelector<HTMLElement>('[data-dock-more]')?.hidden ?? true) };
 });
 
-test('620 × 375 Formation: Satır 1 taşmaz, Ürün kutusu açığı kadar daralır, çapa 812 px ile aynı genişlikte', { tag: BOTH }, async ({ page }) => {
+test('580 × 375 Formation: Satır 1 taşmaz, Ürün kutusu açığı kadar daralır, çapa 812 px ile aynı genişlikte', { tag: BOTH }, async ({ page }) => {
   const loops: string[] = [];
   page.on('console', m => { if (m.text().includes('ResizeObserver loop')) loops.push(m.text()); });
   page.on('pageerror', e => { if (e.message.includes('ResizeObserver loop')) loops.push(e.message); });
@@ -179,8 +179,8 @@ test('620 × 375 Formation: Satır 1 taşmaz, Ürün kutusu açığı kadar dara
   await go(page, FORMATION);
   const anchor812 = (await page.getByTestId('dock-account').boundingBox())!.width;
   expect(await boxWidth(page)).toBe(176);
-  // 40 px'lik Seitenleiste şeridi yüzünden satır 667 px'te hâlâ sığıyor (kutu 176): Ürün kutusu 620 px'te daralır
-  await page.setViewportSize({ width: 620, height: 375 });
+  // Seitenleiste şeridi U4-4b'de kalktı (40 px): satır 627 px'te hâlâ sığıyor (kutu 176), Ürün kutusu 580 px'te daralır (eskiden 620)
+  await page.setViewportSize({ width: 580, height: 375 });
   await expect.poll(async () => (await boxWidth(page)) < 176).toBe(true);
   const measure = () => row(page, 'row1').evaluate(r => ({ scroll: r.scrollWidth, client: r.clientWidth, row: r.getBoundingClientRect().width, sum: [...r.querySelectorAll(':scope > [data-dock-wrap]')].reduce((s, w) => s + w.getBoundingClientRect().width, 0), n: r.querySelectorAll(':scope > [data-dock-wrap]').length }));
   // Yerleşim yaklaşık bir saniyede oturur (kutu önce 158, sonra 174 px): oturmuş durum ölçülür

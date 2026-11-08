@@ -154,13 +154,15 @@ interface SetupCardTabsProps {
   collapseSignal?: boolean;
 }
 
-/** Schwebende Setup-Karte: Reiter „Genel bakış“ (Live-Werte, Zone, Hinweise) und „İşlemler“ (Trade-Archiv) */
-export function SetupCardTabs({ accountId, zone, timeframe, onTimeframe, prefs, data, layers, setups, onSetup, collapseSignal }: SetupCardTabsProps) {
-  const t = useT();
-  const { history, dealsRequest, deals, positions, orders, levels, marketHours, botRunning, streamMatches, symbolMismatch, streamSymbol } = layers;
-  const { isFractalZone, fractalTf, setupLabel, focusTrade } = layers;
+type CardParts = Pick<SetupCardTabsProps, 'accountId' | 'zone' | 'timeframe' | 'onTimeframe' | 'prefs' | 'data' | 'layers' | 'setups' | 'onSetup'>;
 
-  const overview = (
+/** Inhalt des Reiters „Genel bakış“ (Live-Werte, Zone, Hinweise); der eine Chart zeigt ihn in `ChartCard` */
+export function SetupOverview({ zone, timeframe, onTimeframe, prefs, data, layers, setups, onSetup }: CardParts) {
+  const t = useT();
+  const { positions, orders, levels, marketHours, botRunning, streamMatches, symbolMismatch, streamSymbol } = layers;
+  const { isFractalZone, fractalTf } = layers;
+
+  return (
     <div className="space-y-3" data-testid="chart-card-overview">
       {setups && setups.length > 1 && onSetup && (
         <div className="space-y-1" data-testid="chart-card-setup-select">
@@ -204,50 +206,49 @@ export function SetupCardTabs({ accountId, zone, timeframe, onTimeframe, prefs, 
       )}
     </div>
   );
+}
 
+/** Inhalt des Reiters „İşlemler“ (Trade-Archiv des Setups) */
+export function SetupTrades({ accountId, data, layers }: Pick<CardParts, 'accountId' | 'data' | 'layers'>) {
+  const { history, dealsRequest, deals, setupLabel, focusTrade } = layers;
+  if (!dealsRequest) return null;
+  return (
+    <TradesTable
+      accountId={accountId}
+      variant="zone"
+      trades={history?.trades ?? []}
+      openEntries={history?.openEntries ?? 0}
+      otherTrades={history?.otherTrades ?? 0}
+      from={dealsRequest.from}
+      digits={data?.digits ?? null}
+      currency={deals.data?.account?.currency ?? null}
+      loading={deals.loading}
+      error={deals.error}
+      missing={deals.data?.missing ?? []}
+      setupLabel={setupLabel}
+      onFocus={focusTrade}
+    />
+  );
+}
+
+/** Schwebende Setup-Karte der alten Seiten (Setup-Modus, bis U4-5): Reiter „Genel bakış“ und „İşlemler“ */
+export function SetupCardTabs({ collapseSignal, ...parts }: SetupCardTabsProps) {
+  const t = useT();
+  const { zone, layers } = parts;
   return (
     <FloatingCard
       collapseSignal={collapseSignal}
       title={t('chart.zone.title', { n: layers.setupNo, symbol: zone.symbol || '—' })}
       tabs={[
-        { id: 'overview', label: t('chart.card.overview'), hint: t('chart.card.overview.hint'), content: overview },
-        {
-          id: 'trades',
-          label: t('chart.card.trades'),
-          hint: t('chart.card.trades.hint'),
-          wide: true,
-          content: dealsRequest && (
-            <TradesTable
-              accountId={accountId}
-              variant="zone"
-              trades={history?.trades ?? []}
-              openEntries={history?.openEntries ?? 0}
-              otherTrades={history?.otherTrades ?? 0}
-              from={dealsRequest.from}
-              digits={data?.digits ?? null}
-              currency={deals.data?.account?.currency ?? null}
-              loading={deals.loading}
-              error={deals.error}
-              missing={deals.data?.missing ?? []}
-              setupLabel={setupLabel}
-              onFocus={focusTrade}
-            />
-          ),
-        },
+        { id: 'overview', label: t('chart.card.overview'), hint: t('chart.card.overview.hint'), content: <SetupOverview {...parts} /> },
+        { id: 'trades', label: t('chart.card.trades'), hint: t('chart.card.trades.hint'), wide: true, content: <SetupTrades accountId={parts.accountId} data={parts.data} layers={layers} /> },
       ]}
     />
   );
 }
 
-/** The card of a symbol without a setup (1107-A21.11): the tab "Overview" says so; the tab "Trades" has nothing to show */
-export function NoSetupCard({ symbol }: { symbol: string }) {
+/** Text der Karte eines Produkts ohne Setup (1107-A21.11) */
+export function NoSetupNote({ symbol }: { symbol: string }) {
   const t = useT();
-  return (
-    <FloatingCard
-      // Only a note: it starts closed, so it does not cover the chart
-      defaultOpen={false}
-      title={symbol}
-      tabs={[{ id: 'overview', label: t('chart.card.overview'), hint: t('chart.card.overview.hint'), content: <p className="text-xs text-muted-foreground" data-testid="chart-card-no-setup">{t('chart.card.noSetup', { symbol })}</p> }]}
-    />
-  );
+  return <p className="text-xs text-muted-foreground" data-testid="chart-card-no-setup">{t('chart.card.noSetup', { symbol })}</p>;
 }

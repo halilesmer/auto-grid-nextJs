@@ -20,6 +20,8 @@ async function openPage(page: Page, worker: MockWorker) {
   const last = rows[rows.length - 1];
   worker.state.ratesSeries = { D1: [], H4: rows, H1: [], M15: [[FORMING_NOW - 900, last[4], last[4], last[4], last[4]]] };
   await seedFixtureTrend(page, trendOf(bars), true);
+  // The open card (from lg) lies over the right edge, where the formation is drawn: these tests click the drawing, so the card starts closed (open point of U4-4b)
+  await page.addInitScript(() => localStorage.setItem('grid-robot-formation-sidebar', JSON.stringify({ open: false, tab: 'conditions' })));
   await page.goto(URL);
   await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
 }
@@ -175,7 +177,7 @@ test('375 px: Menü und Tabelle laufen nicht über', { tag: '@FRM-47' }, async (
   await openPage(page, worker);
   const chip = page.getByTestId('formation-status-chip');
   if ((await chip.getAttribute('aria-expanded')) === 'true') await chip.press('Enter');
-  await expect(page.getByTestId('formation-sidebar')).toHaveCount(0);
+  await expect(page.getByTestId('chart-card-tab-conditions')).toHaveCount(0);
   await rightClick(page);
   await expect(menu(page)).toBeVisible();
   const box = (await menu(page).boundingBox())!;

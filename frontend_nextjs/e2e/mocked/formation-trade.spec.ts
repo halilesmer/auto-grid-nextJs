@@ -27,8 +27,9 @@ async function openPage(page: Page, worker: MockWorker, file: string, now: numbe
   worker.state.ratesSeries = { D1: [], H4: rows, H1: [], M15: [[now - 900, last[4], last[4], last[4], last[4]]] };
   await page.goto(`${URL}&form=${form}`);
   await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
-  // Unter 640 px ist die Seitenleiste zu und öffnet über dem Chart
-  if (narrow) await page.getByTestId('conditions-toggle').click();
+  // Unter 1024 px ist die Karte zu: die Taste „Karte“ öffnet sie über dem Chart, dann der Reiter Bedingungen
+  if (narrow) await page.getByTestId('chart-card-open').click();
+  await page.getByTestId('chart-card-tab-conditions').click();
   await expect(page.getByTestId('candidate-item').first()).toBeVisible();
 }
 

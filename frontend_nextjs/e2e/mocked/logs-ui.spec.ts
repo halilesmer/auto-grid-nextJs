@@ -12,6 +12,7 @@ async function openCard(page: Page) {
   const card = page.getByTestId('chart-floating-card');
   const expand = card.getByRole('button', { name: msg('chart.card.expand'), exact: true });
   if (await expand.count()) await expand.click();
+  await card.getByTestId('chart-card-tab-overview').click();
   await expect(card.getByTestId('chart-card-overview')).toBeVisible();
 }
 

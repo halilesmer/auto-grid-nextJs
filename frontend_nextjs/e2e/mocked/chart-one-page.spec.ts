@@ -118,13 +118,10 @@ test.describe('UI-14 Eine Seite Chart', () => {
       test(`${name}, ${width} px: rechts bleibt kein leerer Streifen`, { tag: '@UI-14' }, async ({ page, worker }) => {
         await page.setViewportSize({ width, height: 900 });
         await open(page, worker, name, url);
-        // Rechts neben der Chartfläche stehen bis U4-4b die Leiste (immer) und die Seitenleiste (wenn offen): dazwischen und danach bleibt kein leerer Streifen
+        // Es gibt weder Leiste noch Seitenleiste mehr (U4-4b): die Chartfläche reicht bis zum rechten Fensterrand
         const box = await page.getByTestId('formation-main').boundingBox();
-        const strip = await page.getByTestId('favorites-strip').boundingBox();
-        const sidebar = page.getByTestId('formation-sidebar');
-        const next = (await sidebar.count()) > 0 ? (await sidebar.boundingBox())! : strip!;
-        expect(box!.x + box!.width, 'rechte Kante der Chartfläche = linke Kante der Seitenleiste').toBeCloseTo(next.x, 0);
-        expect(strip!.x + strip!.width, 'rechte Kante der Leiste').toBeCloseTo(width, 0);
+        await expect(page.locator('[data-testid="favorites-strip"], [data-testid="formation-sidebar"]')).toHaveCount(0);
+        expect(box!.x + box!.width, 'rechte Kante der Chartfläche = Fensterrand').toBeCloseTo(width, 0);
       });
     }
   }
