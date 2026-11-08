@@ -3,7 +3,7 @@ date: 2026-11-08
 author: Claude
 type: decision
 status: open
-pr: []
+pr: [461]
 features: [ZON-22, ZON-20, UI-07, UI-08]
 areas: [frontend, tests, docs]
 ---
@@ -64,7 +64,7 @@ Edit:
 - The affected existing specs and the new specs: two runs found the missing `openSetup` calls (30 failures in the first run, 3 in the second). The third run (`spread-guard`, `tooltips`, `setup-summary`) passed, 39 of 39.
 - Reviewer, round 2: the test "Dashboard (Bot läuft)" of UI-07 would no longer scan the forms (now opens both setups); the chip of the next-order loss and the revert after a rename got small fixes; the opened forms are forgotten when the account changes.
 - Reviewer, round 1: found the missing `openSetup` calls after a reload or save (the specs above), the wrong lot label in the new 375 px test, the load-time open of all forms (second guard `isGlobalDirty !== false`), the unit of the next-order loss, hints without tap or focus, and the partial revert after a symbol rename. All fixed.
-- Result of `scripts/features/precheck.sh`: see the pull request. The first run had one failure in `heavy-lock-lib.spec.ts` (R3-03, the test of the machine lock itself; it passes alone). It is not related to this change.
+- `scripts/features/precheck.sh` did not reach "OK" on this Mac. Catalog, worker tests, lint and tsc passed in both runs, and 3268 of 3271 e2e tests passed in the second run. The failures were `heavy-lock-lib.spec.ts` (R3-03, R3-10; tests of the machine lock itself) and one time-out in `chart-workspace.spec.ts`. The machine load was about 155 (many sessions). `chart-workspace` passes alone; `heavy-lock-lib` passed 24 of 24 in a quiet moment. The change does not touch `scripts/` or `hooks/`. CI on the pull request is the gate.
 - Not verified: DEMO account and the real phone (K4).
 
 ## Open points
