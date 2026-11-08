@@ -22,6 +22,7 @@ async function openCard(page: Page) {
   const card = page.getByTestId('chart-floating-card');
   const expand = card.getByRole('button', { name: msg('chart.card.expand'), exact: true });
   if (await expand.count()) await expand.click();
+  await card.getByTestId('chart-card-tab-overview').click();
   await expect(card.getByTestId('chart-card-overview')).toBeVisible();
 }
 
@@ -30,7 +31,7 @@ async function inTopbar(page: Page, find: (scope: Locator) => Locator): Promise<
   const topbar = page.getByTestId('chart-topbar');
   const direct = find(topbar);
   const more = topbar.locator('[data-dock-pkg="actions"]').getByTestId('dock-more');
-  await expect(direct.or(more)).toBeVisible();
+  await expect(direct.or(more).first()).toBeVisible();
   if (await direct.isVisible()) return direct;
   await more.click();
   return find(page.getByTestId('dock-more-menu'));
@@ -148,9 +149,9 @@ test.describe('ANA Analyse-Seite', () => {
     await chooseAccount(page, LIVE_ID);
     await expect(page).toHaveURL(`/chart?account=${LIVE_ID}&tf=M15`);
     await expect(page.getByText('90 – 110')).toBeHidden();
-    // Das neue Konto hat kein Setup: kein Symbol, keine Karte des alten Kontos
+    // Das neue Konto hat kein Setup: kein Symbol, keine Setup-Karte des alten Kontos (die eine Karte bleibt: Bedingungen und Favoriten gehören keinem Setup)
     await expect(page.getByTestId('formation-symbol').locator('input')).not.toHaveValue(/USOUSD/);
-    await expect(page.getByTestId('chart-floating-card')).toHaveCount(0);
+    await expect(page.getByTestId('chart-floating-card')).not.toContainText('USOUSD');
     await expect(page.getByText(msg('formation.noSymbol.text'))).toBeVisible();
     // Stream und Dashboard folgen dem Konto der Analyse-Seite
     await expect.poll(() => worker.socketAccounts).toEqual([LIVE_ID]);
@@ -168,7 +169,7 @@ test.describe('ANA Analyse-Seite', () => {
     expect(new URL(page.url()).searchParams.get('symbol')).toBeNull();
     // Das LIVE-Konto hat kein Setup: der Chart sagt, dass ein Produkt zu wählen ist, und es gibt keine Setup-Karte
     await expect(page.getByText(msg('formation.noSymbol.text'))).toBeVisible();
-    await expect(page.getByTestId('chart-floating-card')).toHaveCount(0);
+    await expect(page.getByTestId('chart-floating-card')).not.toContainText('USOUSD');
   });
 
   test('Direkt aufgerufenes Konto: Dashboard kennt LIVE/DEMO, unbekanntes Konto wird nicht gewählt', { tag: '@ANA-02' }, async ({ page, worker }) => {
@@ -205,7 +206,7 @@ test.describe('ANA Analyse-Seite', () => {
     });
     await chooseAccount(page, LIVE_ID);
     // Solange die Setups des neuen Kontos laden, steht keine Karte des alten Kontos da
-    await expect(page.getByTestId('chart-floating-card')).toHaveCount(0);
+    await expect(page.getByTestId('chart-floating-card')).not.toContainText('USOUSD');
     await chooseAccount(page, DEMO_ID);
     await expect(page.getByTestId('chart-floating-card')).toContainText(msg('analysis.zone.option', { symbol: 'USOUSD', n: 1 }));
     releaseLive();

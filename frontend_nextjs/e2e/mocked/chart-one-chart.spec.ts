@@ -35,6 +35,7 @@ async function open(page: Page, worker: MockWorker, query: string) {
 }
 
 const noOverflow = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
+const cardTab = (page: Page, id: string) => page.getByTestId(`chart-card-tab-${id}`);
 const param = (page: Page, key: string) => new globalThis.URL(page.url()).searchParams.get(key);
 
 test.describe('UI-22 Ein Chart ohne Modi', () => {
@@ -77,10 +78,9 @@ test.describe('UI-22 Ein Chart ohne Modi', () => {
   test('Auf H4 stehen die Formationszeichnung und die Setup-Ebenen auf demselben Chart', { tag: '@UI-22' }, async ({ page, worker }) => {
     await open(page, worker, '&symbol=EURUSD&form=GAR');
     await expect(page.getByTestId('formation-overlay')).toBeAttached();
-    // While a formation is drawn the setup card starts closed (it would cover the drawing); a click opens it
+    // One card (U4-4b): open from lg, its tab "Overview" holds the setup of the symbol
     await expect(page.getByTestId('chart-floating-card')).toContainText('EURUSD');
-    await expect(page.getByTestId('chart-card-overview')).toHaveCount(0);
-    await page.getByTestId('chart-floating-card').getByRole('button', { name: msg('chart.card.expand') }).click();
+    await cardTab(page, 'overview').click();
     await expect(page.getByTestId('chart-card-overview')).toBeVisible();
     await expect(page.getByTestId('formation-off-tf')).toHaveCount(0);
     await expect(page.getByTestId('formation-asof')).toBeEnabled();
@@ -166,5 +166,72 @@ test.describe('UI-22 Ein Chart ohne Modi', () => {
     await expect.poll(merged).toEqual(['a', 'b', 'c', 'shared']);
     const keys = await page.evaluate((storageKey) => Object.keys(JSON.parse(localStorage.getItem(storageKey) ?? '{}').documents).length, WORKSPACE_KEY);
     expect(keys).toBeGreaterThanOrEqual(4);
+  });
+  // U4-4b: one card instead of side bar + setup card (decision 1107-A21.4)
+  const CARD_TABS = ['conditions', 'favorites', 'overview', 'trades'] as const;
+
+  test('Es gibt eine Karte mit vier Reitern; Seitenleiste und Favoritenstreifen sind weg', { tag: '@UI-22' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await open(page, worker, '&symbol=EURUSD');
+    await expect(page.getByTestId('chart-floating-card')).toHaveCount(1);
+    for (const id of CARD_TABS) await expect(cardTab(page, id)).toBeVisible();
+    await expect(page.locator('[data-testid="formation-sidebar"], [data-testid="favorites-strip"], [data-testid^="sidebar-tab-"]')).toHaveCount(0);
+  });
+
+  test('Die Karte ist beim ersten Besuch ab 1024 px offen, darunter zu', { tag: '@UI-22' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await open(page, worker, '&symbol=EURUSD');
+    await expect(cardTab(page, 'conditions')).toBeVisible();
+    await page.setViewportSize({ width: 1023, height: 768 });
+    await page.evaluate(() => localStorage.removeItem('grid-robot-formation-sidebar'));
+    await page.reload();
+    await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-bars', /^[1-9]\d*$/);
+    await expect(page.getByTestId('chart-floating-card')).toBeVisible();
+    await expect(cardTab(page, 'conditions')).toHaveCount(0);
+  });
+
+  test('Jeder Reiter zeigt seinen Inhalt; der gewählte Reiter bleibt im Browser', { tag: '@UI-22' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await open(page, worker, '&symbol=EURUSD&form=GAR');
+    await expect(page.getByTestId('conditions-panel')).toBeVisible();
+    await cardTab(page, 'favorites').click();
+    await expect(page.getByTestId('favorites-panel')).toBeVisible();
+    await cardTab(page, 'overview').click();
+    await expect(page.getByTestId('chart-card-overview')).toBeVisible();
+    await cardTab(page, 'trades').click();
+    await expect(page.getByTestId('chart-card-overview')).toHaveCount(0);
+    await expect(cardTab(page, 'trades')).toHaveAttribute('aria-selected', 'true');
+    expect(JSON.parse(await page.evaluate(() => localStorage.getItem('grid-robot-formation-sidebar') ?? 'null')).tab).toBe('trades');
+    await page.reload();
+    await expect(cardTab(page, 'trades')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  test('Der Statuschip öffnet die zugeklappte Karte auf Bedingungen', { tag: '@UI-22' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.addInitScript(() => localStorage.setItem('grid-robot-formation-sidebar', JSON.stringify({ open: false, tab: 'overview' })));
+    await open(page, worker, '&symbol=EURUSD&form=GAR');
+    await expect(cardTab(page, 'conditions')).toHaveCount(0);
+    await page.getByTestId('formation-status-chip').click();
+    await expect(cardTab(page, 'conditions')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('conditions-panel')).toBeVisible();
+  });
+
+  test('Auf M5 sagt der Reiter Bedingungen, dass es hier keine Formationen gibt', { tag: '@UI-22' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await open(page, worker, '&symbol=EURUSD&tf=M5');
+    await expect(page.getByTestId('conditions-off-tf')).toHaveText(msg('chart.formation.offTf'));
+  });
+
+  test('Auf dem Handy öffnet die Taste „Karte“ die Karte; ab lg gibt es sie nicht', { tag: '@UI-22' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await open(page, worker, '&symbol=EURUSD');
+    await expect(cardTab(page, 'overview')).toHaveCount(0);
+    await page.getByTestId('chart-card-open').click();
+    await expect(cardTab(page, 'overview')).toBeVisible();
+    await cardTab(page, 'overview').click();
+    await expect(page.getByTestId('chart-card-overview')).toBeVisible();
+    expect(await noOverflow(page)).toBe(true);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(page.getByTestId('chart-card-open')).toBeHidden();
   });
 });

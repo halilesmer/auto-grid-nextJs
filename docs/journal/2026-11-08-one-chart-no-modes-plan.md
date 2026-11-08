@@ -172,6 +172,6 @@ DEMO account, read-only (`hooks/RULES.md` §3): formation and setup on H4, empty
 - [x] U4-2 formation layer (PR 452)
 - [x] U4-3 URL model (PR 450)
 - [x] U4-4a switch (`2026-11-08-chart-u4-4a-switch.md`)
-- [ ] U4-4b one card
+- [x] U4-4b one card (`2026-11-08-chart-u4-4b-one-card.md`; open point: the open card covers the formation from 1024 px)
 - [ ] U4-5 remove the old shells
 - [ ] U4-6 live check and signature of UI-22

@@ -23,13 +23,15 @@ export interface FloatingCardTab {
  * eigenen Streifen über den Werkzeugen: ihre Höhe steht als `--floating-card` auf `formation-main`, die Chartfläche endet darüber (ChartCore),
  * damit sie den untersten Bereich (EWO) nicht verdeckt. Aufgeklappt liegt sie über dem Chart.
  */
-export function FloatingCard({ title, tabs, defaultOpen = true, collapseSignal = false }: { title: string; tabs: FloatingCardTab[]; /** Ab lg zunächst aufgeklappt; mit false zunächst zu */ defaultOpen?: boolean; /** Wechselt auf true: die Karte klappt zu (der eine Chart: die offene Karte würde die Formationszeichnung rechts überdecken); danach gilt wieder die Wahl des Nutzers */ collapseSignal?: boolean }) {
+export function FloatingCard({ title, tabs, defaultOpen = true, collapseSignal = false, open: openProp, onOpenChange, tab: tabProp, onTabChange }: { title: string; tabs: FloatingCardTab[]; /** Gesteuert (ChartCard): Auf/Zu und Reiter kommen von außen und bleiben im Browser */ open?: boolean; onOpenChange?: (open: boolean) => void; tab?: string; onTabChange?: (id: string) => void; /** Ab lg zunächst aufgeklappt; mit false zunächst zu */ defaultOpen?: boolean; /** Wechselt auf true: die Karte klappt zu (der eine Chart: die offene Karte würde die Formationszeichnung rechts überdecken); danach gilt wieder die Wahl des Nutzers */ collapseSignal?: boolean }) {
   const t = useT();
   // The user's click wins; until then the card follows the defaults (open from lg) and the signal (closed while a formation is drawn)
   const [userOpen, setUserOpen] = useState<boolean | null>(null);
-  const open = userOpen ?? (defaultOpen && !collapseSignal && (typeof window === 'undefined' || window.innerWidth >= 1024));
-  const setOpen = setUserOpen;
-  const [tabId, setTabId] = useState(tabs[0].id);
+  const open = openProp ?? userOpen ?? (defaultOpen && !collapseSignal && (typeof window === 'undefined' || window.innerWidth >= 1024));
+  const setOpen = onOpenChange ?? setUserOpen;
+  const [ownTabId, setOwnTabId] = useState(tabs[0].id);
+  const tabId = tabProp ?? ownTabId;
+  const setTabId = onTabChange ?? setOwnTabId;
   const tab = tabs.find((x) => x.id === tabId) ?? tabs[0];
   const base = useId();
   const card = useRef<HTMLElement>(null);
@@ -89,6 +91,7 @@ export function FloatingCard({ title, tabs, defaultOpen = true, collapseSignal =
                     id={`${base}-tab-${x.id}`}
                     aria-controls={`${base}-panel`}
                     aria-selected={x.id === tab.id}
+                    data-testid={`chart-card-tab-${x.id}`}
                     tabIndex={x.id === tab.id ? 0 : -1}
                     onKeyDown={(event) => moveTab(event, index)}
                     onClick={() => setTabId(x.id)}
