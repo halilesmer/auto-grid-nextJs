@@ -6,7 +6,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { startDisconnected } from '../fixtures/connection';
 import { E2E_API_KEY, MOCK_API } from '../fixtures/env';
-import { DEMO_ID, RUNNING_METRICS, ZONE_ID, expect, makeZone, test, type Dashboard } from '../fixtures/test';
+import { DEMO_ID, RUNNING_METRICS, ZONE_ID, expect, makeZone, openSetup, test, type Dashboard } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 import { openConnectionDialog, openHeaderMenu, openPageMenu } from '../fixtures/header';
 
@@ -87,6 +87,7 @@ test.describe('UI-07 Hinweise: Abdeckung', () => {
   test('Dashboard (Bot gestoppt): jedes Bedienelement erklärt sich', { tag: '@UI-07' }, async ({ page, worker, dashboard }) => {
     worker.setZones(DEMO_ID, [fullZone()]);
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     // Ungespeicherte Änderung: schwebende Leiste und „Kaydet“ der Zone erscheinen
     await dashboard.zoneField(msg('zone.field.minPrice')).fill('91');
     await expect(page.getByTestId('unsaved-bar')).toBeVisible();
@@ -102,6 +103,8 @@ test.describe('UI-07 Hinweise: Abdeckung', () => {
     worker.setBotRunning(DEMO_ID);
     await dashboard.open(DEMO_ID);
     await expect(dashboard.botStatus).toHaveText(msg('bot.status.running'));
+    await openSetup(dashboard.zone(0));
+    await openSetup(dashboard.zone(1));
 
     expect(await unhinted(page)).toEqual([]);
   });
@@ -272,6 +275,7 @@ test.describe('UI-07 Hinweise: Abdeckung', () => {
 test.describe('UI-07 Hinweise: Verhalten', () => {
   test('(i) zeigt beim Hovern den Text, Escape schließt ihn', { tag: '@UI-07' }, async ({ page, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     const hint = fieldHint(dashboard.zone(), msg('zone.field.gridStep'));
     const tooltip = page.getByRole('tooltip');
     await expect(tooltip).toHaveCount(0);
@@ -291,6 +295,7 @@ test.describe('UI-07 Hinweise: Verhalten', () => {
 
   test('Tastaturfokus zeigt den Hinweis', { tag: '@UI-07' }, async ({ page, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     await dashboard.zoneField(msg('zone.field.minPrice')).focus();
     await page.keyboard.press('Tab'); // → (i) des nächsten Feldes „Max Fiyat“
     await expect(page.getByRole('tooltip')).toHaveText(msg('zone.field.maxPrice.hint'));
@@ -299,6 +304,7 @@ test.describe('UI-07 Hinweise: Verhalten', () => {
   test('Klick auf (i) verändert das Feld nicht', { tag: '@UI-07' }, async ({ page, worker, dashboard }) => {
     worker.setZones(DEMO_ID, [fullZone()]);
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     const sw = dashboard.zoneSwitch(msg('zone.breakout.trendOnly'));
     await expect(sw).toBeChecked();
     // Das (i) sitzt im <label> des Schalters: ein Klick darf ihn nicht umschalten
@@ -348,6 +354,7 @@ test.describe('UI-07 Hinweise: Verhalten', () => {
 
   test('Der Hinweis öffnet auch, wenn Chromium pointerover ohne pointerout sendet', { tag: '@UI-07' }, async ({ page, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     const zone = dashboard.zone();
     const hint = fieldHint(zone, msg('zone.field.gridStep'));
     // Nach dem Schließen der Kontoliste meldet Chromium mitunter nur pointerover (relatedTarget liegt im
@@ -364,6 +371,7 @@ test.describe('UI-07 Hinweise: Verhalten', () => {
   for (const closeBy of ['Klick', 'Escape'] as const) {
     test(`Ein weiteres pointerover öffnet den geschlossenen Hinweis nicht neu (${closeBy})`, { tag: '@UI-07' }, async ({ page, dashboard }) => {
       await dashboard.open(DEMO_ID);
+      await openSetup(dashboard.zone());
       const hint = fieldHint(dashboard.zone(), msg('zone.field.gridStep'));
       const tooltip = page.getByRole('tooltip');
       await hint.hover();
@@ -381,6 +389,7 @@ test.describe('UI-07 Hinweise: Verhalten', () => {
 
   test('Nicht abgeschnitten in der Zonenkarte (overflow-hidden)', { tag: '@UI-07' }, async ({ page, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     const zone = dashboard.zone();
     await fieldHint(zone, msg('zone.field.orderType')).hover();
     const tooltip = page.getByRole('tooltip');
@@ -408,6 +417,7 @@ test.describe('UI-07 Hinweise: Sprache', () => {
 
   test('Der Hinweis folgt der gewählten Sprache', { tag: '@UI-07' }, async ({ page, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     await fieldHint(dashboard.zone(), msg('zone.field.gridStep', undefined, 'de')).hover();
     await expect(page.getByRole('tooltip')).toContainText(msg('zone.field.gridStep.hint', undefined, 'de'));
   });

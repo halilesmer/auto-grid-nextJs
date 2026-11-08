@@ -4,7 +4,7 @@
  * zeigt die Setups nach Symbol gruppiert (ZON-20) und speichert nur SYMBOLS.
  */
 import { msg } from '../fixtures/i18n';
-import { DEMO_ID, expect, makeZone, test, type MockWorker } from '../fixtures/test';
+import { DEMO_ID, expect, makeZone, openSetup, test, type MockWorker } from '../fixtures/test';
 
 /** Alte Datei (ZONES, noch nicht gespeichert) mit gemischten Symbolen: Engine-Reihenfolge A, B, C. */
 function seedLegacyFile(worker: MockWorker) {
@@ -25,6 +25,7 @@ test.describe('ZON-19 Symbol mit Setups', () => {
     worker.setBotRunning(DEMO_ID);
     worker.setMetrics(DEMO_ID, { zone_states: { '1': 'AUTO_CLEAR' } });
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone(1));
 
     // Anzeige nach Symbol gruppiert (ZON-20): USOUSD mit A und C, dann XAUUSD mit B
     await expect(dashboard.symbolInput(0)).toHaveValue('USOUSD');
@@ -40,6 +41,7 @@ test.describe('ZON-19 Symbol mit Setups', () => {
   test('Speichern schickt nur SYMBOLS; die Datei wird nach Symbol gruppiert, Magics bleiben', { tag: '@ZON-19' }, async ({ worker, dashboard }) => {
     seedLegacyFile(worker);
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone(2));
     // Zone B (XAUUSD) ist die dritte Setup-Karte: erst USOUSD (A, C), dann XAUUSD
     await dashboard.zoneField(msg('zone.field.maxPrice'), 2).fill('2100');
     await dashboard.saveAllSettings();

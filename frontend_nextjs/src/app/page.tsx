@@ -2,8 +2,9 @@
 
 import { Pin, PinOff, Plus, Save, Undo2, UserRound } from 'lucide-react';
 import { useAccountStore, useSettingsStore, useBotRuntimeStore, useSystemStore, useWebSocketManager } from '@/store';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useZoneTransfer } from '@/hooks/useZoneTransfer';
+import { closeAllSetupForms } from '@/hooks/useSetupEditState';
 import { usePinnedMetrics } from '@/hooks/usePinnedMetrics';
 import { Alert } from '@/components/ui/alert';
 import { useDashboard } from '@/app/hooks/useDashboard';
@@ -49,6 +50,16 @@ export default function Home() {
     mergeAndSaveSettings: () => mergeAndSaveSettings(selectedAccount || ''),
     setUpdateInfo,
   });
+
+  // „Kaydet“ ve „İptal“ bütün setup formlarını kapatır (ZON-22, 1108-A6.3); değişmiş setup'lar yine de açık kalır
+  const saveAllAndClose = useCallback(async () => {
+    await handleSaveAll();
+    closeAllSetupForms();
+  }, [handleSaveAll]);
+  const discardAndClose = useCallback(() => {
+    handleDiscard();
+    closeAllSetupForms();
+  }, [handleDiscard]);
 
   const transfer = useZoneTransfer(selectedAccount, savedSettingsStr);
   const [metricsPinned, setMetricsPinned] = usePinnedMetrics();
@@ -142,7 +153,7 @@ export default function Home() {
                   <Undo2 size={14} />
                   {t('saveBar.discard')}
                 </Button>
-                <Button variant="primary" size="sm" onClick={handleSaveAll} loading={saveAllLoading} hint={t('saveBar.saveAll.hint')}>
+                <Button variant="primary" size="sm" onClick={saveAllAndClose} loading={saveAllLoading} hint={t('saveBar.saveAll.hint')}>
                   {!saveAllLoading && <Save size={14} />}
                   {t('common.save')}
                 </Button>
@@ -171,7 +182,7 @@ export default function Home() {
         onClose={() => setDiscardOpen(false)}
         onConfirm={() => {
           // Während des Speicherns würde das Verwerfen den Referenzstand verfälschen
-          if (!saveAllLoading) handleDiscard();
+          if (!saveAllLoading) discardAndClose();
         }}
         title={t('saveBar.discardConfirm.title')}
         message={t('saveBar.discardConfirm.message')}
@@ -199,8 +210,8 @@ export default function Home() {
                   isDirty={isDirty}
                   isLoading={saveAllLoading}
                   hasSettings={!!settings}
-                  onSave={handleSaveAll}
-                  onDiscard={handleDiscard}
+                  onSave={saveAllAndClose}
+                  onDiscard={discardAndClose}
                 />
               }
             />

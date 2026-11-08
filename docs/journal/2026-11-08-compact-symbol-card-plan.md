@@ -124,5 +124,5 @@ DEMO account, read-only (`hooks/RULES.md` §3): summary and edit, logs panel, ph
 ## Open points
 - [x] K1 header and logs
 - [x] K2 fields
-- [ ] K3 summary state
+- [x] K3 summary state (entry `2026-11-08-compact-symbol-card-k3.md`)
 - [ ] K4 check and signatures

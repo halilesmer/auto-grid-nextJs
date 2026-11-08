@@ -3,7 +3,7 @@
  * gestartet oder gestoppt; die Tests öffnen nur Seiten und lesen die API.
  */
 import type { Page } from '@playwright/test';
-import { expect, test } from './live';
+import { expect, openSetup, test } from './live';
 import { msg } from '../fixtures/i18n';
 
 /** Sammelt METRICS-Nachrichten des echten Streams, bis `count` erreicht ist. */
@@ -102,6 +102,7 @@ test.describe('Live (nur lesend)', () => {
     const shown = [...new Set(zones.map((z) => z.symbol))].flatMap((symbol) => zones.filter((z) => z.symbol === symbol));
     for (const [i, zone] of shown.entries()) {
       await expect(dashboard.symbolInput(i)).toHaveValue(zone.symbol);
+      await openSetup(dashboard.zone(i));
       await expect(dashboard.zoneField(msg('zone.field.orderType'), i)).toHaveValue(zone.order_type);
       await expect(dashboard.zoneField(msg('zone.field.minPrice'), i)).toHaveValue(String(zone.min_price));
       await expect(dashboard.zoneField(msg('zone.field.maxPrice'), i)).toHaveValue(String(zone.max_price));

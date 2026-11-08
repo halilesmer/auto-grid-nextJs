@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { Page } from '@playwright/test';
-import { DEMO_ID, ZONE_ID, expect, makeZone, test } from '../fixtures/test';
+import { DEMO_ID, ZONE_ID, expect, makeZone, openSetup, test } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 import { openHeaderMenu, openPageMenu } from '../fixtures/header';
 
@@ -34,6 +34,7 @@ test.describe('LOG Logs', () => {
 
   test('Symbol-Logs zeigen nur das eigene Symbol', { tag: '@LOG-07' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     const card = dashboard.symbolCard(0);
     // Der Streifen unter den Setups ist weg: das Panel öffnet nur über das ⋯-Menü des Setups
     await expect(card.getByRole('button', { name: msg('zone.logs.toggle') })).toHaveCount(0);

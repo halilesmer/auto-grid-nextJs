@@ -4,6 +4,22 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { msg, type Lang } from './i18n';
 
+/**
+ * Öffnet die Felder eines Setups (ZON-22): ein gespeichertes Setup steht als Zusammenfassung da, „Güncelle“ öffnet das
+ * Formular. Ein neues oder geändertes Setup ist schon offen; dann klickt der Aufruf nichts. Wartet, bis die Kästen da sind.
+ */
+export async function openSetup(card: Locator) {
+  const edit = card.getByTestId('zone-edit');
+  const entry = card.getByTestId('zone-entry-column');
+  await expect(edit.or(entry)).toBeVisible();
+  if (await edit.count()) {
+    await edit.click();
+    // Der Zeiger bleibt sonst über dem Formular stehen und öffnet dort einen Hinweis, der Tooltip-Tests stört
+    await card.page().mouse.move(0, 0);
+  }
+  await expect(entry).toBeVisible();
+}
+
 export class Dashboard {
   constructor(
     readonly page: Page,

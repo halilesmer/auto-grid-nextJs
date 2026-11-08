@@ -12,9 +12,9 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { test as base, expect, type APIRequestContext } from '@playwright/test';
 import { loadEnvConfig } from '@next/env';
-import { Dashboard } from '../fixtures/dashboard';
+import { Dashboard, openSetup } from '../fixtures/dashboard';
 
-export { expect, Dashboard };
+export { expect, Dashboard, openSetup };
 
 const FRONTEND_DIR = path.resolve(__dirname, '../..');
 const ACCOUNT_FILE =

@@ -1,5 +1,5 @@
 /** ZON · Zonen-Konfiguration: jedes Feld wird angezeigt, gespeichert und nach dem Neuladen wieder gelesen. */
-import { DEMO_ID, RUNNING_METRICS, ZONE_ID, expect, makeZone, test, type Dashboard } from '../fixtures/test';
+import { DEMO_ID, RUNNING_METRICS, ZONE_ID, expect, makeZone, openSetup, test, type Dashboard } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 
 /** Speichern, Seite neu laden, Konto wieder wählen (prüft den Rundweg über den Worker). */
@@ -7,6 +7,8 @@ async function saveAndReload(dashboard: Dashboard) {
   await dashboard.saveAllSettings();
   await dashboard.page.reload();
   await dashboard.selectAccount(DEMO_ID);
+  // Nach dem Neuladen steht jedes Setup als Zusammenfassung da (ZON-22): das erste wieder öffnen
+  await openSetup(dashboard.zone());
 }
 
 test.describe('ZON Zonen', () => {
@@ -46,6 +48,7 @@ test.describe('ZON Zonen', () => {
 
   test('Basisfelder: Symbol, Emir Tipi, Min/Max Fiyat', { tag: '@ZON-03' }, async ({ worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     const zone = dashboard.zone();
     const symbol = dashboard.symbolInput();
     await symbol.fill('XAUUSD');
@@ -68,6 +71,7 @@ test.describe('ZON Zonen', () => {
 
   test('Grid-Felder: Grid Adımı, Lot, Kar Al, Zarar Durdur', { tag: '@ZON-04' }, async ({ worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     const values = { [msg('zone.field.gridStep')]: '0.25', Lot: '0.02', [msg('zone.field.takeProfit')]: '0.75', [msg('zone.field.stopLoss')]: '1.5' };
     for (const [label, value] of Object.entries(values)) {
       await dashboard.zoneField(label).fill(value);
@@ -83,6 +87,7 @@ test.describe('ZON Zonen', () => {
 
   test('Zahlenfelder nehmen nur so viele Nachkommastellen an wie das Symbol', { tag: '@ZON-04' }, async ({ dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     const grid = dashboard.zoneField(msg('zone.field.gridStep'));
     await grid.clear();
     await grid.pressSequentially('0.123456');
@@ -96,6 +101,7 @@ test.describe('ZON Zonen', () => {
 
   test('Lot bleibt nie 0: leer oder „0“ fällt auf den letzten gültigen Lot zurück', { tag: '@ZON-04' }, async ({ worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     const lot = dashboard.zoneField(msg('zone.field.lot')); // USOUSD: kleinster Lot 0.01
 
     // Startwert ist schon das Minimum: Leeren oder „0“ kann ihn nicht darunter drücken
@@ -119,6 +125,7 @@ test.describe('ZON Zonen', () => {
   test('Gespeicherter Lot 0 wird beim Laden und Speichern auf das Minimum gebracht', { tag: '@ZON-04' }, async ({ worker, dashboard }) => {
     worker.setZones(DEMO_ID, [makeZone({ lot_size: 0, sell_lot_size: 0 })]);
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     await expect(dashboard.zoneField(msg('zone.field.lot'))).toHaveValue('0.01');
 
     await dashboard.saveAllSettings();
@@ -127,6 +134,7 @@ test.describe('ZON Zonen', () => {
 
   test('Symbolwechsel auf größeres Minimum hebt den Lot an, Speichern schickt kein 0', { tag: '@ZON-04' }, async ({ worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     const symbol = dashboard.symbolInput();
     await symbol.fill('EURUSD'); // Broker: volume_min/step 0.1, Zone hat 0.01
     await symbol.press('Escape');
@@ -147,6 +155,7 @@ test.describe('ZON Zonen', () => {
 
   test('SELL-Felder nur bei BOTH ohne Sync', { tag: '@ZON-05' }, async ({ worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     const zone = dashboard.zone();
     const sync = dashboard.zoneSwitch(msg('zone.sync'));
     await expect(sync).toBeHidden();
@@ -176,6 +185,7 @@ test.describe('ZON Zonen', () => {
 
   test('Breakout-Felder', { tag: '@ZON-06' }, async ({ worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     const pullback = dashboard.zoneField(msg('zone.breakout.minPullback'));
     await expect(pullback).toBeDisabled();
 
@@ -198,6 +208,7 @@ test.describe('ZON Zonen', () => {
 
   test('Exit-Felder erscheinen mit dem Schalter', { tag: '@ZON-07' }, async ({ worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     const zone = dashboard.zone();
     await expect(zone.getByText(msg('zone.exit.side'))).toBeHidden();
 
@@ -254,6 +265,8 @@ test.describe('ZON Zonen', () => {
 
   test('Start/Pause: Bot aus, ungespeicherte Zone, ungültiges Symbol', { tag: '@ZON-08' }, async ({ worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    // Offenes Formular: das Symbol umbenennen öffnet sonst Setup 1 und verschiebt den Knopf zwischen Maus unten und oben
+    await openSetup(dashboard.zone());
     await expect(dashboard.zone().getByRole('button', { name: msg('zone.header.ready') })).toBeVisible();
 
     await dashboard.symbolCard().getByRole('button', { name: msg('zone.symbol.addSetup') }).click();
@@ -294,6 +307,7 @@ test.describe('ZON Zonen', () => {
 
   test('„Kaydedilmedi“-Badge', { tag: '@ZON-09' }, async ({ dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     const badge = dashboard.zone().getByText(msg('zone.header.unsaved'), { exact: true });
     await expect(badge).toBeHidden();
 
@@ -307,6 +321,7 @@ test.describe('ZON Zonen', () => {
   });
   test('Einzelne Zone speichern', { tag: '@ZON-11' }, async ({ worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     await dashboard.zoneField(msg('zone.field.lot')).fill('0.05');
     await dashboard.symbolCard().getByRole('button', { name: msg('zone.symbol.addSetup') }).click();
     const first = dashboard.zone(0);
@@ -317,6 +332,7 @@ test.describe('ZON Zonen', () => {
     // Nur die neue Zone speichern: Zone 1 und der globale Zustand bleiben ungespeichert
     await second.getByTestId('zone-save').click();
     await expect(badge(second)).toBeHidden();
+    await openSetup(second); // Speichern schließt das Formular (ZON-22)
     await expect(second.getByTestId('zone-save')).toBeDisabled();
     expect(worker.zonesOf(DEMO_ID)).toHaveLength(2);
     expect(worker.zonesOf(DEMO_ID)[0]).not.toMatchObject({ lot_size: 0.05 });
@@ -331,6 +347,7 @@ test.describe('ZON Zonen', () => {
 
   test('Zahlenfelder lassen sich leeren und neu tippen', { tag: '@ZON-10' }, async ({ dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     const min = dashboard.zoneField(msg('zone.field.minPrice'));
     await min.click();
     await min.press('ControlOrMeta+a');
@@ -352,6 +369,8 @@ test.describe('ZON Zonen', () => {
       makeZone({ id: 'zone-e2e-2', symbol: 'FOOBAR', min_price: 1, max_price: 2 }),
     ]);
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone(0));
+    await openSetup(dashboard.zone(1));
     const tooltip = page.getByRole('tooltip');
     const hintOf = (zone: number, label: string) =>
       dashboard
@@ -373,6 +392,7 @@ test.describe('ZON Zonen', () => {
   });
   test('Abstand nach Verlust ($): Grid und Pullback als Betrag', { tag: '@ZON-13' }, async ({ worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     const zone = dashboard.zone();
     const byLoss = dashboard.zoneSwitch(msg('zone.stepByLoss.short'));
     await expect(byLoss).toHaveAttribute('aria-checked', 'false');
@@ -415,6 +435,7 @@ test.describe('ZON Zonen', () => {
       makeZone({ symbol: 'EURUSD', min_price: 1.05, max_price: 1.2, grid_step: 0.001, lot_size: 0.1, pullback_distance: 0.0005 }),
     ]);
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     await dashboard.zoneSwitch(msg('zone.stepByLoss.short')).click();
     // Mehr Nachkommastellen (0.001) als ein $-Betrag (2) darf die Umrechnung nicht auf 0.00 kürzen
     await expect(dashboard.zoneField(msg('zone.field.gridStepLoss'))).toHaveValue('10');
@@ -425,6 +446,7 @@ test.describe('ZON Zonen', () => {
 
   test('Sofort erste Position: eigener Schalter je Zone', { tag: '@ZON-14' }, async ({ worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     const instant = dashboard.zoneSwitch(msg('zone.instantEntry'));
     await expect(instant).toHaveAttribute('aria-checked', 'false');
     await instant.click();
@@ -440,6 +462,7 @@ test.describe('ZON Zonen', () => {
 
   test('Einstiegsmodus Fraktal: eigene Felder statt Grid', { tag: ['@ZON-15', '@ZON-21'] }, async ({ worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     const zone = dashboard.zone();
     const mode = zone.getByTestId('entry-mode');
     await expect(mode).toHaveValue('grid');
@@ -505,6 +528,7 @@ test.describe('ZON Zonen', () => {
   test('Fraktal: Schalter Mit SL', { tag: '@ZON-17' }, async ({ worker, dashboard }) => {
     worker.setZones(DEMO_ID, [makeZone({ entry_mode: 'fractal', order_type: 'BUY' })]);
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     await expect(dashboard.zoneField(msg('zone.fractal.slMode'))).toBeVisible();
     await expect(dashboard.zoneField(msg('zone.fractal.rr'))).toBeVisible();
 
@@ -521,6 +545,7 @@ test.describe('ZON Zonen', () => {
   test('Fraktal: Anzahl Orders je Richtung', { tag: '@ZON-16' }, async ({ worker, dashboard }) => {
     worker.setZones(DEMO_ID, [makeZone({ entry_mode: 'fractal', order_type: 'BUY' })]);
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     const buy = dashboard.zoneField(msg('zone.fractal.buyOrderCount'));
     const sell = dashboard.zoneField(msg('zone.fractal.sellOrderCount'));
     const both = dashboard.zoneField(msg('zone.fractal.orderCount'));
@@ -566,6 +591,7 @@ test.describe('ZON Zonen', () => {
 test('EURUSD: alter Preisabstand wird zu echten Pips und bleibt beim Speichern erhalten', { tag: '@ZON-21' }, async ({ worker, dashboard }) => {
   worker.setZones(DEMO_ID, [makeZone({ symbol: 'EURUSD', entry_mode: 'fractal', fractal_next_loss: 0.001, fractal_next_loss_mode: 'pips' })]);
   await dashboard.open(DEMO_ID);
+  await openSetup(dashboard.zone());
   await expect(dashboard.zoneField(msg('zone.fractal.nextLossPips'))).toHaveValue('10');
   await expect(dashboard.zone().getByTestId('fractal-distance-preview')).toContainText('0,0001');
   expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ fractal_next_loss: 0.001 });
@@ -585,6 +611,7 @@ test('Broker-Ticks: Tick-Größe statt Nachkommastellen, Speichern einer Zone', 
   symbol.distance_unit_size = 0.25;
   worker.setZones(DEMO_ID, [makeZone({ symbol: 'XAUUSD', entry_mode: 'fractal', fractal_next_loss: 2.5, fractal_next_loss_mode: 'pips' })]);
   await dashboard.open(DEMO_ID);
+  await openSetup(dashboard.zone());
   await expect(dashboard.zoneField(msg('zone.fractal.nextLossTicks'))).toHaveValue('10');
   await expect(dashboard.zone().getByTestId('fractal-distance-preview')).toContainText('0,25');
   await dashboard.zoneField(msg('zone.fractal.nextLossTicks')).fill('12');
@@ -599,6 +626,7 @@ test('Fehlende Tick-Größe: Abstandseingabe gesperrt und Ursache sichtbar', { t
   symbol.distance_unit_size = null;
   worker.setZones(DEMO_ID, [makeZone({ symbol: 'XAUUSD', entry_mode: 'fractal', fractal_next_loss: 10, fractal_next_loss_mode: 'pips', fractal_next_loss_unit_version: 1 })]);
   await dashboard.open(DEMO_ID);
+  await openSetup(dashboard.zone());
   await expect(dashboard.zoneField(msg('zone.fractal.nextLossTicks'))).toBeDisabled();
   await expect(dashboard.zone().getByTestId('fractal-distance-preview')).toHaveText(msg('zone.fractal.distanceMissing'));
   expect(worker.zonesOf(DEMO_ID)[0].fractal_next_loss).toBe(10);

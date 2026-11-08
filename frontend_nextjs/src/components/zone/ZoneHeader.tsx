@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { FlaskConical, MoreHorizontal, Trash2, Pause, Play, RotateCcw, Save, ScrollText } from 'lucide-react';
+import { FlaskConical, MoreHorizontal, Pencil, Trash2, Pause, Play, RotateCcw, ScrollText } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { useAccountStore } from '@/store';
 import { useBacktestHandoffStore } from '@/store/useBacktestHandoffStore';
 import type { ZoneHeaderProps } from './types';
 import { useSymbolLogs } from './SymbolLogs';
+import { ZoneEditActions } from './ZoneEditActions';
 
 const ORDER_TONE = { BUY: 'success', SELL: 'danger', BOTH: 'primary' } as const;
 const ORDER_HINT: Record<keyof typeof ORDER_TONE, MessageKey> = {
@@ -52,6 +53,11 @@ export function ZoneHeader({
   onDelete,
   onSave,
   saving,
+  editing,
+  isNew,
+  onEdit,
+  onCancel,
+  actionsInFooter,
 }: ZoneHeaderProps) {
   const t = useT();
   // Backtest-Seite mit Konto und Zone; der Klick übergibt eine Kopie der Zone mit ungespeicherten Änderungen (BKT-06)
@@ -145,7 +151,7 @@ export function ZoneHeader({
   const tone = ORDER_TONE[zone.order_type as keyof typeof ORDER_TONE] ?? 'neutral';
 
   return (
-    // Telefon: 1. satır nokta · başlık · ⋯, 2. satır motor butonu + Kaydet; masaüstünde tek satır (ZON-20, UI-08)
+    // Telefon: 1. satır nokta · başlık · ⋯, 2. satır motor butonu + Güncelle; masaüstünde tek satır (ZON-20, ZON-22, UI-08)
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       <div className="flex min-w-0 flex-1 basis-40 items-center gap-3">
         <StatusDot tone={dotTone} pulse={dotTone === 'success'} />
@@ -187,18 +193,16 @@ export function ZoneHeader({
             <span>{btnText}</span>
           </button>
         </Tooltip>
-        <Button
-          size="sm"
-          variant={modified ? 'primary' : 'secondary'}
-          onClick={onSave}
-          loading={saving}
-          disabled={!modified}
-          hint={modified ? t('zone.header.save.hint') : t('zone.header.save.off.hint')}
-          data-testid="zone-save"
-        >
-          {!saving && <Save size={13} />}
-          {t('common.save')}
-        </Button>
+        {/* Özet hâli: "Güncelle"; düzenleme hâli: "Vazgeç" + "Kaydet" (telefonda formun altında, ZoneCard) */}
+        {!editing && (
+          <Button size="sm" variant="secondary" onClick={onEdit} hint={t('zone.header.edit.hint')} data-testid="zone-edit">
+            <Pencil size={13} />
+            {t('zone.header.edit')}
+          </Button>
+        )}
+        {editing && !actionsInFooter && (
+          <ZoneEditActions modified={modified} isNew={isNew} saving={saving} onCancel={onCancel} onSave={onSave} />
+        )}
         <Tooltip content={t('zone.header.test.hint')} className="hidden sm:inline-flex">
           <Link href={backtestHref} onClick={onTestClick} className={TEST_LINK_CLASS}>
             <FlaskConical size={13} />

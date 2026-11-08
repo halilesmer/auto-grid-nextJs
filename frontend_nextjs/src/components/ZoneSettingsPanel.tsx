@@ -11,6 +11,7 @@ import { useT } from '@/i18n';
 
 import { useSymbolDetails } from '@/hooks/useSymbolDetails';
 import { useZoneDirtyTracking } from '@/hooks/useZoneDirtyTracking';
+import { useSetupEditState } from '@/hooks/useSetupEditState';
 import { useZoneActions } from '@/hooks/useZoneActions';
 import { useZoneFieldHandlers } from '@/hooks/useZoneFieldHandlers';
 import { groupBySymbol } from '@/lib/symbolSetups';
@@ -61,17 +62,20 @@ export default function ZoneSettingsPanel({
   const groups = useMemo(() => groupBySymbol(zones), [zones]);
 
   const symbolDetails = useSymbolDetails(selectedAccount);
-  const { modified, setOriginalZones } = useZoneDirtyTracking(zones, isGlobalDirty, selectedAccount);
+  const { modified, ready, original, revertedZone, setOriginalZones } = useZoneDirtyTracking(zones, isGlobalDirty, selectedAccount);
+  // Setup başına düzenleme hâli (ZON-22): sayfa açılınca hepsi özet; değişmiş ya da yeni setup açık kalır (1108-A6.3)
+  const edit = useSetupEditState(selectedAccount);
 
   const handleZoneSaved = useCallback(
     (zone: ZoneSettings) => {
       const saved = { ...zone };
+      edit.close(zone.id);
       setOriginalZones((prev) =>
         prev.some((z) => z.id === saved.id) ? prev.map((z) => (z.id === saved.id ? saved : z)) : [...prev, saved]
       );
       onZoneSaved?.(zone);
     },
-    [setOriginalZones, onZoneSaved]
+    [setOriginalZones, onZoneSaved, edit]
   );
 
   const { toggleActive, restartZone, saveZone, savingZoneId, addSetup, deleteZone, renameSymbol, updateZone } = useZoneActions(
@@ -80,6 +84,22 @@ export default function ZoneSettingsPanel({
     handleZoneSaved
   );
   const { handleChange, handleBlur, syncZonePrecision, validateSymbol } = useZoneFieldHandlers(symbolDetails);
+
+  // „Vazgeç“ (1108-A6.1, A7.2): Setup auf den gespeicherten Stand zurück und schließen; nie gespeichert → löschen
+  const cancelEdit = (zone: ZoneSettings) => {
+    const reverted = revertedZone(zone);
+    if (reverted) {
+      // Symbolwechsel gilt für alle Setups des Symbols (Symbolkarte): die Geschwister gehen mit zurück, sonst teilt sich die Karte
+      setZones((prev) =>
+        prev.map((z) => {
+          if (z.id === zone.id) return reverted;
+          const orig = original(z.id);
+          return orig && z.symbol === zone.symbol && orig.symbol === reverted.symbol && z.symbol !== orig.symbol ? { ...z, symbol: orig.symbol } : z;
+        })
+      );
+    } else deleteZone(zone.id);
+    edit.close(zone.id);
+  };
 
   // Letztes Setup seines Symbols: Löschen nimmt auch das Symbol aus der Liste
   const askDelete = (zone: ZoneSettings) => {
@@ -172,12 +192,19 @@ export default function ZoneSettingsPanel({
           onAddSetup={() => addSetup(group.symbol)}
           onRenameSymbol={(symbol) => renameSymbol(group.symbol, symbol)}
         >
-          {group.zones.map((zone, setupIndex) => (
+          {group.zones.map((zone, setupIndex) => {
+            const isNew = !original(zone.id);
+            const isModified = modified(zone);
+            return (
             <ZoneCard
               key={zone.id}
               zone={zone}
               title={t('zone.setup.title', { n: setupIndex + 1 })}
-              modified={modified(zone)}
+              modified={isModified}
+              editing={edit.isEditing(zone.id, ready && isGlobalDirty !== false && isModified)}
+              isNew={ready && isNew}
+              onEdit={edit.open}
+              onCancel={() => cancelEdit(zone)}
               disableButtons={disableActionButtons}
               onUpdate={updateZone}
               onToggleActive={toggleActive}
@@ -193,7 +220,8 @@ export default function ZoneSettingsPanel({
               handleBlur={handleBlur}
               syncZonePrecision={syncZonePrecision}
             />
-          ))}
+            );
+          })}
         </SymbolCard>
       ))}
 

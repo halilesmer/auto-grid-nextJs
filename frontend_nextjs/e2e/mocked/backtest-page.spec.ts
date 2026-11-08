@@ -10,7 +10,7 @@ import type { Page } from '@playwright/test';
 import { de, en, tr } from '../../src/i18n/messages';
 import type { CsvImportRow } from '../fixtures/data';
 import { msg } from '../fixtures/i18n';
-import { DEMO_ID, LIVE_ID, ZONE_ID, expect, makeZone, test } from '../fixtures/test';
+import { DEMO_ID, LIVE_ID, ZONE_ID, expect, makeZone, openSetup, test } from '../fixtures/test';
 
 const URL = `/backtest?account=${DEMO_ID}&zone=${ZONE_ID}&range=last7`;
 
@@ -79,6 +79,7 @@ test.describe('BKT Backtest-Seite', () => {
 
   test('ungespeicherte Änderung der Zone läuft mit, ohne gespeichert zu werden', { tag: '@BKT-06' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     await dashboard.zoneField(msg('zone.field.gridStep')).fill('0.05');
     await expect(dashboard.zone().getByTestId('zone-save')).toBeEnabled();
     await dashboard.zone().getByRole('link', { name: msg('zone.header.test') }).click();
@@ -115,6 +116,7 @@ test.describe('BKT Backtest-Seite', () => {
 
   test('über das Menü ohne Test-Knopf gilt die gespeicherte Zone, nicht die ungespeicherte Änderung', { tag: '@BKT-06' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     await dashboard.zoneField(msg('zone.field.gridStep')).fill('0.05');
     await expect(dashboard.zone().getByTestId('zone-save')).toBeEnabled();
     await page.getByRole('navigation').getByRole('link', { name: msg('nav.backtest') }).click();

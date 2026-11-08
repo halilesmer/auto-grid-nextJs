@@ -5,7 +5,7 @@
  */
 import type { Locator, Page } from '@playwright/test';
 import { msg } from '../fixtures/i18n';
-import { DEMO_ID, ZONE_ID, expect, makeZone, test } from '../fixtures/test';
+import { DEMO_ID, ZONE_ID, expect, makeZone, openSetup, test } from '../fixtures/test';
 
 async function boxOf(locator: Locator, name: string) {
   await expect(locator, name).toBeVisible();
@@ -32,6 +32,7 @@ test.describe('ZON-20 Drei Kästen', () => {
     test(`${width} px: Kästen in einer Reihe, Reihenfolge Giriş, Schutz, Ausstieg`, { tag: '@ZON-20' }, async ({ page, dashboard }) => {
       await page.setViewportSize({ width, height: 900 });
       await dashboard.open(DEMO_ID);
+      await openSetup(dashboard.zone());
       const c = columns(page);
       const [e, g, x] = [await boxOf(c.entry, 'Giriş'), await boxOf(c.guard, 'Kırılım'), await boxOf(c.exit, 'Çıkış')];
       expect(e.x, 'Giriş links von Schutz').toBeLessThan(g.x);
@@ -52,6 +53,7 @@ test.describe('ZON-20 Drei Kästen', () => {
 
   test('Schalter: „Sofort erste Position“ unter Temel, „Zarara göre“ vor Grid-Schritt', { tag: '@ZON-20' }, async ({ dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     const orderType = await boxOf(dashboard.zoneField(msg('zone.field.orderType')), 'Ordertyp');
     const minPrice = dashboard.zoneField(msg('zone.field.minPrice'));
     await expect(minPrice).toBeVisible();
@@ -71,12 +73,14 @@ test.describe('ZON-20 Drei Kästen', () => {
   test('Fraktal-Modus: kein „Sofort erste Position“, kein „Zarara göre“', { tag: '@ZON-20' }, async ({ worker, dashboard }) => {
     worker.setZones(DEMO_ID, [makeZone({ entry_mode: 'fractal' })]);
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     await expect(dashboard.zoneSwitch(msg('zone.instantEntry'))).toHaveCount(0);
     await expect(dashboard.zoneSwitch(msg('zone.stepByLoss.short'))).toHaveCount(0);
   });
 
   test('Eingaben sind 28 px hoch und ohne Spin-Knöpfe', { tag: '@ZON-20' }, async ({ dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     const input = dashboard.zoneField(msg('zone.field.gridStep'));
     const box = await boxOf(input, 'Grid-Schritt');
     expect(box.height).toBeGreaterThanOrEqual(27.5);
@@ -126,6 +130,7 @@ test.describe('UI-08 Kästen bei 375 px', () => {
     test(`Kästen untereinander, kein Überlauf: ${s.name}`, { tag: ['@ZON-20', '@UI-08'] }, async ({ page, worker, dashboard }) => {
       worker.setZones(DEMO_ID, [makeZone(s.zone)]);
       await dashboard.open(DEMO_ID);
+      await openSetup(dashboard.zone());
       const c = columns(page);
       const [e, g, x] = [await boxOf(c.entry, 'Giriş'), await boxOf(c.guard, 'Kırılım'), await boxOf(c.exit, 'Çıkış')];
       expect(Math.abs(e.x - g.x), 'gleiche linke Kante').toBeLessThanOrEqual(1);

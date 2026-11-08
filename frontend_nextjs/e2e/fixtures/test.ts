@@ -9,10 +9,10 @@
  * überschreibt aber keine Auswahl, die ein Test selbst getroffen hat (Reload behält sie).
  */
 import { test as base, expect } from '@playwright/test';
-import { Dashboard } from './dashboard';
+import { Dashboard, openSetup } from './dashboard';
 import { MockWorker } from './mock-worker';
 
-export { expect, Dashboard };
+export { expect, Dashboard, openSetup };
 export * from './data';
 export type { MockWorker };
 

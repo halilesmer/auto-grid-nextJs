@@ -42,6 +42,14 @@ export interface ZoneHeaderProps {
   onDelete: () => void;
   onSave: () => void;
   saving: boolean;
+  /** Düzenleme hâli (ZON-22): açıksa "Vazgeç" + "Kaydet", değilse "Güncelle" */
+  editing: boolean;
+  /** Hiç kaydedilmemiş setup: "Vazgeç" onu siler */
+  isNew: boolean;
+  onEdit: () => void;
+  onCancel: () => void;
+  /** 640 px altında "Vazgeç"/"Kaydet" başlıkta değil, formun altındaki footer'da durur */
+  actionsInFooter: boolean;
 }
 
 export interface ZoneBasicFieldsProps {
@@ -110,6 +118,13 @@ export interface ZoneCardProps {
   /** Sadece bu bölgeyi kaydeder */
   onSave: (zoneId: string) => Promise<void>;
   saving: boolean;
+  /** Düzenleme hâli (ZON-22): form açık; kapalıyken özet çipleri gösterilir */
+  editing: boolean;
+  /** Hiç kaydedilmemiş setup */
+  isNew: boolean;
+  onEdit: (zoneId: string) => void;
+  /** "Vazgeç": setup'ı kaydedilmiş hâline döndürür ve kapatır; yeni setup'ta siler */
+  onCancel: (zoneId: string) => void;
   /** Engine-Platz der Zone (zuletzt gespeicherte Reihenfolge, engineOrder); -1 = noch nicht gespeichert */
   zoneIndex: number;
   liveData: LiveData;

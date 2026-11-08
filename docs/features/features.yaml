@@ -646,6 +646,16 @@ kategorien:
           - Pending Orders und Bot-Log beobachten, während die Position ins Minus läuft.
         erwartet: Solange die letzte BUY-Position weniger als 1 $ im Minus ist, liegt keine BUY-Order und das Log meldet „Sonraki emir … zarara geçince konacak“; ab −1 $ kommen die BUY-Orders auf die jüngsten Fraktale zurück.
 
+      - id: ZON-22
+        titel: Setup – Zusammenfassung und Bearbeiten
+        beschreibung: "Auf dem Dashboard steht jedes gespeicherte Setup als Zusammenfassung da: eine Zeile aus Chips (Beschriftung grau, Wert in Mono; ausgeschaltete Optionen kleiner und gestrichelt), in der Reihenfolge der drei Kästen (Giriş → Kırılım/Pullback mit Spread → Bölgeden çıkış). Grid zeigt Modus, „İlk poz. hemen“, „Zarara göre“, Grid-Abstand, Lot, Kar al, Zarar durdur (bei „Zarara göre“ in $), Trend, Pullback (nur bei Trend), Level unten/oben, Max. Positionen, Spread-Schutz und Ausstieg; bei BOTH ohne Sync steht je Chip „BUY a / SELL b“. Fraktal zeigt Modus, Ordertyp, Zeitrahmen, Lot, Anzahl Orders, Max. Positionen, Verlustgrenze, SL, TP, Spread-Schutz und Ausstieg. Jeder Chip hat einen Hinweis. „Güncelle“ im Kopf öffnet das Formular (die drei Kästen); dort stehen „Vazgeç“ und „Kaydet“; unter 640 px stehen beide als Fußleiste unter dem Formular. „Kaydet“ ist nur mit Änderung aktiv. „Vazgeç“ stellt das Setup auf den gespeicherten Stand (Aktivstatus bleibt) und schließt das Formular; ein nie gespeichertes Setup löscht es. Die Seite öffnet mit allen Setups in der Zusammenfassung; ein neues Setup („Setup Ekle“) und ein Setup mit ungespeicherten Änderungen bleiben offen. Erfolgreiches Speichern eines Setups schließt sein Formular; „Tüm Ayarları Kaydet“/„Kaydet“ und „İptal“ der Leiste schließen alle Formulare (geänderte bleiben offen). Der Backtest-Editor behält sein Layout ohne Zusammenfassung."
+        code: [frontend_nextjs/src/lib/setupSummary.ts, frontend_nextjs/src/components/zone/SetupSummary.tsx, frontend_nextjs/src/components/zone/ZoneEditActions.tsx, frontend_nextjs/src/components/zone/ZoneCard.tsx, frontend_nextjs/src/components/zone/ZoneHeader.tsx, frontend_nextjs/src/components/ZoneSettingsPanel.tsx, frontend_nextjs/src/hooks/useSetupEditState.ts, frontend_nextjs/src/hooks/useZoneDirtyTracking.ts, frontend_nextjs/src/hooks/useMediaQuery.ts, frontend_nextjs/src/app/page.tsx]
+        tiers: [e2e, manuell]
+        pruefung:
+          - DEMO-Konto, Dashboard öffnen. Alle Setups stehen als Chip-Zeile da; „Güncelle“ eines Setups öffnet die Felder, „Vazgeç“ schließt sie wieder.
+          - Lot ändern, „Kaydet“ des Setups klicken; ein zweites Setup mit „Setup Ekle“ anlegen und „Vazgeç“ klicken; bei 390 px wiederholen (Fußleiste unter dem Formular).
+        erwartet: Zusammenfassung nach dem Laden; „Kaydet“ erst mit Änderung; „Vazgeç“ macht die Änderung rückgängig und schließt (neues Setup verschwindet); Speichern schließt das Formular und die Chips zeigen den neuen Wert; bei 390 px stehen „Vazgeç“ und „Kaydet“ unter dem Formular, die Seite scrollt nicht horizontal.
+
   # ---------------------------------------------------------------------------
   - id: BOT
     titel: Bot-Steuerung
