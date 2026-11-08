@@ -167,6 +167,50 @@ test.describe('UI-22 Ein Chart ohne Modi', () => {
     const keys = await page.evaluate((storageKey) => Object.keys(JSON.parse(localStorage.getItem(storageKey) ?? '{}').documents).length, WORKSPACE_KEY);
     expect(keys).toBeGreaterThanOrEqual(4);
   });
+  test('Der verknüpfte Zeichnungssatz eines alten Schlüssels geht auf den neuen Schlüssel über; ein vorhandener Link bleibt', { tag: '@UI-22' }, async ({ page, worker }) => {
+    serve(worker);
+    await page.addInitScript(([storageKey, account, source]) => {
+      if (localStorage.getItem(storageKey)) return;
+      const doc = { drawings: '[]', indicators: [], images: {}, overlays: {}, alarms: [] };
+      const k = (view: string, mode: string, symbol: string) => JSON.stringify([source, view, mode, account, symbol, '']);
+      localStorage.setItem(storageKey, JSON.stringify({
+        version: 3,
+        links: { [k('analysis', 'setup', 'EURUSD')]: '@linked:e2e-set', [k('formation', '', 'EURUSD')]: '@linked:e2e-form', [k('analysis', 'free', 'GBPUSD')]: '@linked:e2e-other' },
+        documents: { [k('analysis', 'setup', 'EURUSD')]: doc, [k('formation', '', 'EURUSD')]: doc },
+      }));
+    }, [WORKSPACE_KEY, DEMO_ID, MOCK_API]);
+    await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD`);
+    await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-bars', /^[1-9]\d*$/);
+    const linksOf = () => page.evaluate((storageKey) => {
+      const links = (JSON.parse(localStorage.getItem(storageKey) ?? '{}').links ?? {}) as Record<string, string>;
+      return Object.entries(links).filter(([key]) => JSON.parse(key)[1] === 'chart').map(([key, value]) => [JSON.parse(key)[4], value]);
+    }, WORKSPACE_KEY);
+    // Setup comes before Formation in the order of the old keys; the other symbol is not touched
+    await expect.poll(linksOf).toEqual([['EURUSD', '@linked:e2e-set']]);
+    // A second open does not change it (the new key exists now)
+    await page.reload();
+    await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-bars', /^[1-9]\d*$/);
+    expect(await linksOf()).toEqual([['EURUSD', '@linked:e2e-set']]);
+  });
+
+  for (const width of [1024, 1100]) {
+    test(`Bei offener Karte (${width} px) ist „Statistik“ erreichbar, auch im Pfeilmenü`, { tag: '@UI-22' }, async ({ page, worker }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await open(page, worker, '&symbol=EURUSD');
+      await expect(cardTab(page, 'conditions')).toBeVisible();
+      const topbar = page.getByTestId('chart-topbar');
+      const direct = topbar.getByRole('tab', { name: msg('analysis.tab.stats') });
+      const more = topbar.locator('[data-dock-pkg="actions"]').getByTestId('dock-more');
+      await expect(direct.or(more).first()).toBeVisible();
+      if (await direct.isVisible()) await direct.click();
+      else {
+        await more.click();
+        await page.getByTestId('dock-more-menu').getByRole('tab', { name: msg('analysis.tab.stats') }).click();
+      }
+      await expect(page).toHaveURL(/tab=stats/);
+    });
+  }
+
   // U4-4b: one card instead of side bar + setup card (decision 1107-A21.4)
   const CARD_TABS = ['conditions', 'favorites', 'overview', 'trades'] as const;
 
@@ -234,4 +278,29 @@ test.describe('UI-22 Ein Chart ohne Modi', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await expect(page.getByTestId('chart-card-open')).toBeHidden();
   });
+
+  for (const [name, size] of [['375 px', { width: 375, height: 812 }], ['1440 px', { width: 1440, height: 900 }]] as const) {
+    test(`Der Datenhinweis ist ein Einzeilen-Chip links oben; Klick öffnet den Text, Escape schließt (${name})`, { tag: '@UI-22' }, async ({ page, worker }) => {
+      await page.setViewportSize(size);
+      await open(page, worker, '&symbol=EURUSD');
+      const chip = page.getByTestId('data-quality-chip');
+      await expect(chip).toBeVisible();
+      await expect(chip).toContainText(msg('analysis.data.scroll.title'));
+      await expect(chip).toHaveAttribute('aria-expanded', 'false');
+      const box = (await chip.boundingBox())!;
+      // One line: a pill of at most 24 px, at the top left of the chart (right of the drawing rail)
+      expect(box.height).toBeLessThanOrEqual(24);
+      expect(box.x).toBeGreaterThanOrEqual(52);
+      await expect(page.getByTestId('data-quality-chip-text')).toHaveCount(0);
+      await chip.click();
+      await expect(chip).toHaveAttribute('aria-expanded', 'true');
+      // The full text follows the date (the date itself depends on the clock)
+      await expect(page.getByTestId('data-quality-chip-text')).toContainText(msg('analysis.data.scroll.textAll', { from: '@@' }).split('@@')[1].trim())
+      await expect(page.getByTestId('data-quality-chip-text')).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(page.getByTestId('data-quality-chip-text')).toHaveCount(0);
+      await expect(chip).toHaveAttribute('aria-expanded', 'false');
+      expect(await noOverflow(page)).toBe(true);
+    });
+  }
 });

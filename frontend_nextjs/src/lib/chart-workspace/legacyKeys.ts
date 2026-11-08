@@ -75,3 +75,21 @@ export function mergeLegacyDocuments(docs: readonly ChartDocument[]): ChartDocum
     ...(source.systemPanes === undefined ? {} : { systemPanes: source.systemPanes }),
   };
 }
+
+/**
+ * The shared drawing set (`@linked:…`, `links` of the store) for the new key (plan 1107-A21.16). The first old key that has a link wins
+ * (order Free, Setup, Formation). An existing link of the new key stays: this returns null then, and also when no old key has one.
+ */
+export function legacyLinkFor(links: Readonly<Record<string, string>>, newKey: string, oldKeys: readonly string[]): string | null {
+  if (links[newKey]) return null;
+  for (const key of oldKeys) if (links[key]) return links[key];
+  return null;
+}
+
+/**
+ * The own documents of the old keys for the merge. A key with a link keeps its live drawings in the shared set; its own copy is the state
+ * from the time of linking and would bring back deleted drawings. So its own drawings are dropped here (the shared set is joined by `setLinked`).
+ */
+export function legacyDocumentsForMerge(documents: Readonly<Record<string, ChartDocument>>, links: Readonly<Record<string, string>>, oldKeys: readonly string[]): ChartDocument[] {
+  return oldKeys.flatMap((key) => (documents[key] ? [links[key] ? { ...documents[key], drawings: '[]' } : documents[key]] : []));
+}

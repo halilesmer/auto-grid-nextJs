@@ -1127,9 +1127,9 @@
   },
   "FRM-47": {
     "e2e": {
-      "datum": "2026-11-05",
-      "status": "passed",
-      "tests": 9
+      "datum": "2026-11-08",
+      "status": "failed",
+      "tests": 20
     }
   },
   "LOG-01": {

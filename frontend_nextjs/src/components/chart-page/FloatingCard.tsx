@@ -13,15 +13,14 @@ export interface FloatingCardTab {
   label: string;
   hint: HintContent;
   content: ReactNode;
-  /** Breite der Karte auf diesem Reiter (Tailwind-Klasse ab lg); Standard w-80 */
-  wide?: boolean;
 }
 
 /**
- * Schwebende Karte auf dem Chart mit Titel, Reitern und Einklappen. Ab lg rechts unter der Kopfleiste (`--chart-top`, ChartOverlays),
+ * Karte des Charts mit Titel, Reitern und Einklappen. Ab lg steht sie offen neben dem Chart (320 px; `OneChart` macht den Chart um ihre Breite schmaler, 1107-A21.18),
+ * zugeklappt ist sie ein kleiner Kopf rechts über dem Chart, unter der Kopfleiste (`--chart-top`, ChartOverlays),
  * darunter unten über den Werkzeugen (zwei Zeilen hoch) des Charts und dort zunächst eingeklappt. Eingeklappt unter lg steht sie in einem
  * eigenen Streifen über den Werkzeugen: ihre Höhe steht als `--floating-card` auf `formation-main`, die Chartfläche endet darüber (ChartCore),
- * damit sie den untersten Bereich (EWO) nicht verdeckt. Aufgeklappt liegt sie über dem Chart.
+ * damit sie den untersten Bereich (EWO) nicht verdeckt. Unter lg liegt sie aufgeklappt über dem Chart.
  */
 export function FloatingCard({ title, tabs, defaultOpen = true, collapseSignal = false, open: openProp, onOpenChange, tab: tabProp, onTabChange }: { title: string; tabs: FloatingCardTab[]; /** Gesteuert (ChartCard): Auf/Zu und Reiter kommen von außen und bleiben im Browser */ open?: boolean; onOpenChange?: (open: boolean) => void; tab?: string; onTabChange?: (id: string) => void; /** Ab lg zunächst aufgeklappt; mit false zunächst zu */ defaultOpen?: boolean; /** Wechselt auf true: die Karte klappt zu (der eine Chart: die offene Karte würde die Formationszeichnung rechts überdecken); danach gilt wieder die Wahl des Nutzers */ collapseSignal?: boolean }) {
   const t = useT();
@@ -61,9 +60,11 @@ export function FloatingCard({ title, tabs, defaultOpen = true, collapseSignal =
       data-testid="chart-floating-card"
       className={cn(
         'pointer-events-auto absolute max-lg:z-[52] flex max-h-[calc(100dvh-var(--chart-top,0px)-8rem)] max-lg:max-h-[calc(100dvh-var(--chart-top,0px)-9.5rem)] flex-col overflow-hidden rounded-xl border border-border bg-background/97 shadow-lg',
-        'max-lg:left-[64px] max-lg:right-3 lg:right-[84px] lg:top-[calc(var(--chart-top,0px)+0.5rem)]',
+        'max-lg:left-[64px] max-lg:right-3 lg:top-[calc(var(--chart-top,0px)+0.5rem)]',
+        // Open from lg: the card stands next to the chart (the chart is 320 px narrower, OneChart); closed it is a small header over the chart (1107-A21.18)
+        open ? 'lg:left-full lg:right-auto' : 'lg:right-[84px]',
         open ? 'max-lg:bottom-[8.5rem]' : 'max-lg:bottom-[calc(var(--workspace-card,6.5rem)+0.25rem)]',
-        open && tab.wide ? 'lg:w-[min(46rem,calc(100%-9rem))]' : 'lg:w-80',
+        'lg:w-80',
       )}
     >
       <div className="flex items-center justify-between gap-2 px-3 py-1.5">
@@ -106,7 +107,7 @@ export function FloatingCard({ title, tabs, defaultOpen = true, collapseSignal =
               ))}
             </div>
           )}
-          <div role="tabpanel" id={`${base}-panel`} aria-labelledby={`${base}-tab-${tab.id}`} className="min-h-0 overflow-y-auto border-t border-border p-3">
+          <div role="tabpanel" id={`${base}-panel`} aria-labelledby={`${base}-tab-${tab.id}`} className="min-h-0 overflow-auto border-t border-border p-3">
             {tab.content}
           </div>
         </>

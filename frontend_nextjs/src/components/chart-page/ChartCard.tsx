@@ -35,7 +35,7 @@ export function ChartCard({ title, open, onOpenChange, tab, onTab, conditions, f
         { id: 'conditions', label: t('chart.card.conditions'), hint: t('chart.card.conditions.hint'), content: <div className="-m-3 flex max-h-[min(50dvh,30rem)] min-h-0 flex-col">{conditions}</div> },
         { id: 'favorites', label: t('chart.card.favorites'), hint: t('chart.card.favorites.hint'), content: <div className="-m-3 flex max-h-[min(50dvh,30rem)] min-h-0 flex-col">{favorites}</div> },
         { id: 'overview', label: t('chart.card.overview'), hint: t('chart.card.overview.hint'), content: overview },
-        { id: 'trades', label: t('chart.card.trades'), hint: t('chart.card.trades.hint'), wide: true, content: trades },
+        { id: 'trades', label: t('chart.card.trades'), hint: t('chart.card.trades.hint'), content: trades },
       ]}
     />
   );

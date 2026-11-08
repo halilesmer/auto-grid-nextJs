@@ -11,7 +11,7 @@ export function ChartOverlays({ notices, children }: { notices: ReactNode; child
   return (
     <div className="pointer-events-none absolute inset-0">
       {children}
-      {/* Nach der Karte: die Datenqualitäts-Warnung bleibt sichtbar, auch wenn die breite Karte (Reiter Trades) ihren Platz berührt */}
+      {/* Nach der Karte: die Datenqualitäts-Warnung bleibt sichtbar, auch wenn die Karte neben dem Chart steht */}
       <div className="pointer-events-none absolute z-30 left-[64px] right-3 top-[calc(var(--chart-top,0px)+0.5rem)] flex min-w-0 flex-col items-start gap-2 sm:right-20">{notices}</div>
     </div>
   );

@@ -44,7 +44,7 @@ import { barEnd, calendarFromDaily, isCalendarTimeframe, liveCalendarBar, period
 import { buildChartData, CHART_TIMEFRAME_SEC, CHART_TIMEFRAMES, dataTimeframeOf, type Bar, type ChartTimeframe } from '@/lib/analysis/candles';
 import { hasFormations } from '@/lib/chart/chartUrl';
 import { isSystemRsi, matchesFormationRsi } from '@/lib/chart-workspace/indicators';
-import { chartWorkspaceKey, legacyWorkspaceKeys, mergeLegacyDocuments } from '@/lib/chart-workspace/legacyKeys';
+import { chartWorkspaceKey, legacyDocumentsForMerge, legacyLinkFor, legacyWorkspaceKeys, mergeLegacyDocuments } from '@/lib/chart-workspace/legacyKeys';
 import { resolveAsOf } from '@/lib/formation/asOf';
 import { drawingPriceRange, drawsZigzag } from '@/lib/formation/drawingLayout';
 import { CONTEXT_TIMEFRAMES, RSI_PARAMS, type ContextTimeframe } from '@/lib/formation/params';
@@ -234,9 +234,14 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
     if (!hydrated || !accepted) return;
     const store = useChartWorkspaceStore.getState();
     if (!store.documents[contextKey]) {
-      const old = legacyWorkspaceKeys({ source, account: accountId, symbol: accepted }).flatMap((key) => (store.documents[key] ? [store.documents[key]] : []));
-      const merged = mergeLegacyDocuments(old);
+      const oldKeys = legacyWorkspaceKeys({ source, account: accountId, symbol: accepted });
+      const merged = mergeLegacyDocuments(legacyDocumentsForMerge(store.documents, store.links, oldKeys));
       if (merged) store.setDocument(contextKey, merged);
+      // The linked drawing set of the old keys (1107-A21.16): the new key joins it, its own drawings merge into the shared set
+      const link = legacyLinkFor(store.links, contextKey, oldKeys);
+      if (link) {
+        try { store.setLinked(contextKey, link); } catch { /* A damaged drawing document in the old set: the new key keeps its own drawings, unlinked */ }
+      }
     }
     const frame = requestAnimationFrame(() => setMergedKey(contextKey));
     return () => cancelAnimationFrame(frame);
@@ -422,9 +427,9 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
         </ChartNotice>
       )}
       {ratesData && data && (
-        // Text only, no control: it lets clicks through to the chart (with the range "All" it sits over the formation drawing)
+        // The note is a one-line chip (1107-A21.12); the area around it lets clicks through to the chart
         <div className="pointer-events-none w-full max-w-md">
-          <DataQualityBanner missing={dailyMissing ?? data.missing} clipped={ratesData.clipped} dbFull={ratesData.dbFull} loadedFrom={ratesData.from} calendar={calendar !== null} scroll allHistory={range.from === null} limit={d1.data?.older === 'limit'} />
+          <DataQualityBanner missing={dailyMissing ?? data.missing} clipped={ratesData.clipped} dbFull={ratesData.dbFull} loadedFrom={ratesData.from} calendar={calendar !== null} scroll chip allHistory={range.from === null} limit={d1.data?.older === 'limit'} />
         </div>
       )}
       {scan.loading && formationTf && (
@@ -488,7 +493,7 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
       title={t('nav.chart')}
       testId="chart-page"
       pageProps={{ 'data-scan-ms': scan.scanMs ?? '', 'data-scan-runs': scan.scanRuns, 'data-favorites-scan-ms': favoritesScanMs ?? '' }}
-      panelShown={false}
+      panelShown={sidebar.open}
       topBar={
         <ChartTopBar
           account={chrome.account}
