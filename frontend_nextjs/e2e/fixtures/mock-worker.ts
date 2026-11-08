@@ -199,8 +199,8 @@ export class MockWorker {
   readonly zonesPayloads: string[] = [];
   /** NWS-01: Ereignisse von GET /news/events (Zeiten UTC, wie econ_calendar.py) */
   newsEvents: Json[] = [
-    { id: 1, event_id: 10, event_code: 'cpi-mm', title: 'CPI m/m', country: 'US', currency: 'USD', importance: 'high', time: '2026-11-10T13:30:00Z', time_mode: 'datetime', sector: 'price', unit: 'percentage', multiplier: 'none', actual: null, forecast: 0.5, prev: 0.6, revised_prev: null, impact_type: 'none', forecast_direction: 'down' },
-    { id: 3, event_id: 30, event_code: 'unemployment-rate', title: 'Unemployment Rate', country: 'DE', currency: 'EUR', importance: 'moderate', time: '2026-11-10T14:00:00Z', time_mode: 'datetime', sector: 'jobs', unit: 'percentage', multiplier: 'none', actual: null, forecast: 3.1, prev: 3.0, revised_prev: null, impact_type: 'none', forecast_direction: 'down' },
+    { id: 1, event_id: 10, event_code: 'cpi-mm', title: 'CPI m/m', titles: { de: 'Verbraucherpreise m/m', en: 'CPI m/m', tr: 'TÜFE a/a' }, country: 'US', currency: 'USD', importance: 'high', time: '2026-11-10T13:30:00Z', time_mode: 'datetime', sector: 'price', unit: 'percentage', multiplier: 'none', actual: null, forecast: 0.5, prev: 0.6, revised_prev: null, impact_type: 'none', forecast_direction: 'down' },
+    { id: 3, event_id: 30, event_code: 'unemployment-rate', title: 'Unemployment Rate', titles: { de: 'Arbeitslosenquote', en: 'Unemployment Rate', tr: 'İşsizlik Oranı' }, country: 'DE', currency: 'EUR', importance: 'moderate', time: '2026-11-10T14:00:00Z', time_mode: 'datetime', sector: 'jobs', unit: 'percentage', multiplier: 'none', actual: null, forecast: 3.1, prev: 3.0, revised_prev: null, impact_type: 'none', forecast_direction: 'down' },
   ];
   newsStale = false;
   newsAvailable = true;
@@ -942,11 +942,16 @@ export class MockWorker {
     if (seg[0] === 'news' && seg[1] === 'events' && method === 'GET') {
       const levels = (url.searchParams.get('impact') ?? '').split(',').map((v) => v.trim()).filter(Boolean);
       const codes = (url.searchParams.get('currencies') ?? '').split(',').map((v) => v.trim().toUpperCase()).filter(Boolean);
+      const lang = url.searchParams.get('lang') ?? '';
       const events = this.newsEvents
+        .map((e) => {
+          const titles = (e.titles ?? {}) as Record<string, string>;
+          return { ...e, title: titles[lang] ?? titles.en ?? Object.values(titles)[0] ?? e.title };
+        })
         .filter((e) => (levels.length ? levels.includes(String(e.importance)) : true))
         .filter((e) => (codes.length ? codes.includes(String(e.currency)) : true))
         .sort((a, b) => String(a.time).localeCompare(String(b.time)));
-      return ok({ events, stale: this.newsStale, available: this.newsAvailable, source: 'mt5', generated_at: '2026-11-10T12:00:00Z' });
+      return ok({ events, languages: ['de', 'en', 'tr'], stale: this.newsStale, available: this.newsAvailable, source: 'mt5', generated_at: '2026-11-10T12:00:00Z' });
     }
 
     if (seg[0] === 'favorites') {

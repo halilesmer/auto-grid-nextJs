@@ -1,8 +1,8 @@
 """Ekonomik takvim (NWS-01): MQL5 servisinin yazdığı dosyadan okunur.
 
 MT5 Python API'si takvimi vermez. `ops/mt5/AutoGridCalendar.mq5` bir servis olarak her dakika
-`Common\\Files\\autogrid_calendar.json` dosyasını yeniden yazar (UTF-8, atomik). Burada dosya
-okunur, zamanlar UTC'ye çevrilir, olaylar sıralanır ve yayın öncesi beklenti yönü hesaplanır.
+`Common\\Files\\autogrid_calendar_<dil>.json` dosyasını yeniden yazar (UTF-8, atomik); MT5 olay adını yalnız terminalin dilinde verir, bu yüzden bir dil için bir
+terminal gerekir. Burada bütün dil dosyaları okunur, başlıklar birleştirilir, zamanlar UTC'ye çevrilir, olaylar sıralanır ve yayın öncesi beklenti yönü hesaplanır.
 
 Saat: olay zamanları sunucu saatindedir. Fark = `time_trade_server - time_gmt`, 15 dakikaya
 yuvarlanır. Yaz saati geçişine denk gelen bir olayda (olay ile dosya yazımı arasında geçiş
@@ -15,8 +15,10 @@ import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-FILE_NAME = "autogrid_calendar.json"
-ENV_FILE = "AUTOGRID_CALENDAR_FILE"
+FILE_GLOB = "autogrid_calendar_*.json"
+FILE_PREFIX = "autogrid_calendar_"
+ENV_DIR = "AUTOGRID_CALENDAR_DIR"
+FALLBACK_LANG = "en"
 STALE_SECONDS = 300
 OFFSET_STEP = 900
 
@@ -27,13 +29,14 @@ INVERSE_KEYWORDS = ("unemployment", "jobless", "claimant", "unemployed", "initia
 log = logging.getLogger(__name__)
 
 
-def default_path() -> Path | None:
-    env = os.environ.get(ENV_FILE)
+def default_dir() -> Path | None:
+    """Ortam değişkeni, yoksa %APPDATA%\\MetaQuotes\\Terminal\\Common\\Files; ikisi de yoksa None."""
+    env = os.environ.get(ENV_DIR)
     if env:
         return Path(env)
     appdata = os.environ.get("APPDATA")
     if appdata:
-        return Path(appdata) / "MetaQuotes" / "Terminal" / "Common" / "Files" / FILE_NAME
+        return Path(appdata) / "MetaQuotes" / "Terminal" / "Common" / "Files"
     return None
 
 
@@ -95,18 +98,18 @@ def forecast_direction(forecast, prev, inverse: bool = False) -> str | None:
     return "up" if up else "down"
 
 
-def _to_event(raw: dict, offset: int) -> dict | None:
+def _to_event(raw: dict, offset: int, titles: dict[str, str]) -> dict | None:
     local = _parse_server_time(raw.get("time"))
     if local is None:
         return None
     when = (local - timedelta(seconds=offset)).replace(tzinfo=timezone.utc)
     code = raw.get("event_code")
-    title = raw.get("title")
     return {
         "id": raw.get("value_id"),
         "event_id": raw.get("event_id"),
         "event_code": code,
-        "title": title,
+        "title": raw.get("title"),
+        "titles": titles,
         "country": raw.get("country"),
         "currency": raw.get("currency"),
         "importance": raw.get("importance"),
@@ -120,36 +123,92 @@ def _to_event(raw: dict, offset: int) -> dict | None:
         "prev": raw.get("prev"),
         "revised_prev": raw.get("revised_prev"),
         "impact_type": raw.get("impact_type"),
-        "forecast_direction": forecast_direction(raw.get("forecast"), raw.get("prev"), is_inverse(code, title)),
+        "forecast_direction": forecast_direction(
+            raw.get("forecast"), raw.get("prev"), is_inverse(code, " ".join(titles.values()))
+        ),
     }
 
 
+def _key(raw: dict):
+    return raw.get("value_id") if raw.get("value_id") is not None else ("e", raw.get("event_id"))
+
+
+def _lang_of(doc: dict, path: Path) -> str:
+    lang = doc.get("lang")
+    if isinstance(lang, str) and lang.strip():
+        return lang.strip().lower()
+    return path.stem[len(FILE_PREFIX):].lower() or FALLBACK_LANG
+
+
+def _pick_title(titles: dict[str, str], lang: str | None, order: list[str]) -> str | None:
+    for code in (lang, FALLBACK_LANG, *order):
+        if code and titles.get(code):
+            return titles[code]
+    return None
+
+
 def load_events(
-    path: Path | None = None,
+    directory: Path | None = None,
     *,
+    lang: str | None = None,
     time_from: datetime | None = None,
     time_to: datetime | None = None,
     importance: set[str] | None = None,
     currencies: set[str] | None = None,
     now: float | None = None,
 ) -> dict:
-    """{events, stale, available, source, generated_at}; Dosya yoksa ya da bozuksa available=False."""
-    path = path if path is not None else default_path()
-    result = {"events": [], "stale": True, "available": False, "source": "mt5", "generated_at": None}
-    if path is None:
+    """{events, languages, stale, available, source, generated_at}; Dosya yoksa available=False.
+
+    Zaman ve değerler en taze, bayat olmayan dosyadan gelir (hepsi bayatsa en tazeden, stale=True).
+    Başlıklar bütün dil dosyalarından `value_id` ile birleşir (bayat dosyanın başlığı da kullanılır).
+    """
+    directory = directory if directory is not None else default_dir()
+    result = {"events": [], "languages": [], "stale": True, "available": False, "source": "mt5", "generated_at": None}
+    if directory is None:
         return result
+    docs = []  # (mtime, lang, doc)
     try:
-        mtime = Path(path).stat().st_mtime
+        paths = sorted(Path(directory).glob(FILE_GLOB))
     except OSError:
         return result
-    doc = _read_doc(Path(path))
-    if doc is None:
+    for path in paths:
+        try:
+            mtime = path.stat().st_mtime
+        except OSError:
+            continue
+        doc = _read_doc(path)
+        if doc is None or server_offset_seconds(doc) is None:
+            continue
+        docs.append((mtime, _lang_of(doc, path), doc))
+    if not docs:
         return result
-    offset = server_offset_seconds(doc)
-    if offset is None:
-        return result
+    docs.sort(key=lambda d: d[0], reverse=True)
+    clock = now if now is not None else time.time()
+    fresh = [d for d in docs if clock - d[0] <= STALE_SECONDS]
+    primary = (fresh or docs)[0]
+    mtime, _, pdoc = primary
+    offset = server_offset_seconds(pdoc)
 
-    events = [e for e in (_to_event(r, offset) for r in doc["events"] if isinstance(r, dict)) if e]
+    # Başlıklar: en taze dosya önce (dil sırası), aynı dil iki dosyadaysa tazesi kazanır
+    titles_by_key: dict = {}
+    order: list[str] = []
+    for _, dlang, doc in docs:
+        if dlang not in order:
+            order.append(dlang)
+        for raw in doc["events"]:
+            if isinstance(raw, dict) and isinstance(raw.get("title"), str):
+                titles_by_key.setdefault(_key(raw), {}).setdefault(dlang, raw["title"])
+
+    events = []
+    for raw in pdoc["events"]:
+        if not isinstance(raw, dict):
+            continue
+        titles = titles_by_key.get(_key(raw), {})
+        event = _to_event(raw, offset, titles)
+        if event is None:
+            continue
+        event["title"] = _pick_title(titles, lang, order) or raw.get("title")
+        events.append(event)
     if importance:
         events = [e for e in events if e["importance"] in importance]
     if currencies:
@@ -162,11 +221,11 @@ def load_events(
         events = [e for e in events if e["time"] <= hi]
     events.sort(key=lambda e: (e["time"], e["id"] or 0))
 
-    age = (now if now is not None else time.time()) - mtime
     result.update(
         events=events,
+        languages=sorted(set(order)),
         available=True,
-        stale=age > STALE_SECONDS,
+        stale=clock - mtime > STALE_SECONDS,
         generated_at=datetime.fromtimestamp(mtime, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     )
     return result

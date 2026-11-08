@@ -7,6 +7,7 @@ from src.utils import econ_calendar
 
 router = APIRouter(tags=["News"])
 
+LANGS = {"tr", "en", "de"}
 IMPORTANCE = {"none", "low", "moderate", "high"}
 
 
@@ -26,6 +27,7 @@ def news_events(
     to: str | None = None,
     impact: str | None = None,
     currencies: str | None = None,
+    lang: str | None = None,
 ):
     time_from = _parse_time(from_, "from")
     time_to = _parse_time(to, "to")
@@ -33,7 +35,11 @@ def news_events(
     if levels - IMPORTANCE:
         raise HTTPException(status_code=422, detail="invalid impact")
     codes = {c.strip().upper() for c in (currencies or "").split(",") if c.strip()}
+    code = (lang or "").strip().lower()
+    if code and code not in LANGS:
+        raise HTTPException(status_code=422, detail="invalid lang")
     return econ_calendar.load_events(
+        lang=code or None,
         time_from=time_from.astimezone(timezone.utc) if time_from else None,
         time_to=time_to.astimezone(timezone.utc) if time_to else None,
         importance=levels or None,

@@ -1,8 +1,10 @@
 //+------------------------------------------------------------------+
 //| AutoGridCalendar.mq5  (NWS-01, plan 1107-A16 S1)                 |
 //| Dienst (service): schreibt jede Minute den MT5-Wirtschaftskalender|
-//| nach Common\Files\autogrid_calendar.json (UTF-8).                |
-//| Der Worker (src/utils/econ_calendar.py) liest die Datei.         |
+//| nach Common\Files\autogrid_calendar_<lang>.json (UTF-8).                |
+//| <lang> = Terminalsprache (de, en, tr). MT5 liefert den Titel nur |
+//| in dieser Sprache: je Sprache ein Terminal mit eigenem Dienst.   |
+//| Der Worker (src/utils/econ_calendar.py) liest alle Dateien.      |
 //|  - Fenster: Monatsanfang -1 Tag bis Monatsende, mindestens       |
 //|    jetzt + 7 Tage                                                 |
 //|  - Kopf: Server, Zeiten (Server/GMT), written_at, change_id,     |
@@ -19,7 +21,7 @@
 #property service
 #property strict
 
-input string FileName = "autogrid_calendar.json";
+input string FilePrefix = "autogrid_calendar_";
 input int    IntervalSeconds = 60;
 
 string Q(const string s)
@@ -62,8 +64,31 @@ string Tail(const string s, const string prefix)
    return r;
   }
 
+// TERMINAL_LANGUAGE ("German") -> "de"; andere: kleingeschriebener Name ohne Sonderzeichen
+string LangCode()
+  {
+   string name = TerminalInfoString(TERMINAL_LANGUAGE);
+   if(name == "German")
+      return "de";
+   if(name == "English")
+      return "en";
+   if(name == "Turkish")
+      return "tr";
+   StringToLower(name);
+   string r = "";
+   for(int i = 0; i < StringLen(name); i++)
+     {
+      ushort c = StringGetCharacter(name, i);
+      if((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))
+         r += ShortToString(c);
+     }
+   return r == "" ? "xx" : r;
+  }
+
 void Export()
   {
+   string lang = LangCode();
+   string FileName = FilePrefix + lang + ".json";
    datetime now_srv = TimeTradeServer();
    datetime now_gmt = TimeGMT();
 
@@ -151,7 +176,7 @@ void Export()
       written++;
      }
 
-   string doc = "{\"version\":2,\"service\":true" +
+   string doc = "{\"version\":2,\"service\":true,\"lang\":" + Q(lang) +
                 ",\"server\":" + Q(AccountInfoString(ACCOUNT_SERVER)) +
                 ",\"time_trade_server\":" + Q(TimeToString(now_srv, TIME_DATE | TIME_SECONDS)) +
                 ",\"time_gmt\":" + Q(TimeToString(now_gmt, TIME_DATE | TIME_SECONDS)) +
@@ -188,7 +213,7 @@ void Export()
 
 void OnStart()
   {
-   Print("AutoGridCalendar: Dienst gestartet, Datei Common\\Files\\", FileName);
+   Print("AutoGridCalendar: Dienst gestartet, Datei Common\\Files\\", FilePrefix, LangCode(), ".json");
    int sleep_ms = MathMax(IntervalSeconds, 10) * 1000;
    while(!IsStopped())
      {

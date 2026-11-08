@@ -28,11 +28,30 @@ DOC = {
 }
 
 
+def with_lang(lang, titles=None, **head):
+    """Kopie von DOC für eine Terminalsprache; titles: {value_id: Titel}."""
+    doc = json.loads(json.dumps(DOC))
+    doc["lang"] = lang
+    doc.update(head)
+    for ev in doc["events"]:
+        if titles and ev["value_id"] in titles:
+            ev["title"] = titles[ev["value_id"]]
+    return doc
+
+
+def put(directory, lang, doc, age=0):
+    path = directory / f"autogrid_calendar_{lang}.json"
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    if age:
+        t = os.path.getmtime(path) - age
+        os.utime(path, (t, t))
+    return path
+
+
 @pytest.fixture
 def cal(tmp_path):
-    path = tmp_path / "cal.json"
-    path.write_text(json.dumps(DOC), encoding="utf-8")
-    return path
+    put(tmp_path, "de", DOC)
+    return tmp_path
 
 
 @pytest.mark.feature("NWS-01")
@@ -60,9 +79,58 @@ def test_filter(cal):
 
 @pytest.mark.feature("NWS-01")
 def test_stale_nach_fuenf_minuten(cal):
-    now = os.path.getmtime(cal)
+    now = os.path.getmtime(cal / "autogrid_calendar_de.json")
     assert ec.load_events(cal, now=now + 60)["stale"] is False
     assert ec.load_events(cal, now=now + 301)["stale"] is True
+
+
+@pytest.mark.feature("NWS-01")
+def test_zwei_sprachen_werden_zusammengefuehrt(tmp_path):
+    put(tmp_path, "de", with_lang("de"))
+    put(tmp_path, "en", with_lang("en", {1: "CPI m/m", 3: "Unemployment Rate"}), age=10)
+    res = ec.load_events(tmp_path)
+    assert res["languages"] == ["de", "en"] and res["stale"] is False
+    ev = {e["id"]: e for e in res["events"]}
+    assert ev[3]["titles"] == {"de": "Arbeitslosenquote", "en": "Unemployment Rate"}
+    # Wunschsprache -> en -> erste vorhandene
+    assert ec.load_events(tmp_path, lang="de")["events"][2]["title"] == "Arbeitslosenquote"
+    assert {e["id"]: e["title"] for e in ec.load_events(tmp_path, lang="en")["events"]}[3] == "Unemployment Rate"
+    assert {e["id"]: e["title"] for e in ec.load_events(tmp_path, lang="tr")["events"]}[3] == "Unemployment Rate"
+
+
+@pytest.mark.feature("NWS-01")
+def test_nur_deutsch_ist_ersatz_fuer_alle_sprachen(tmp_path):
+    put(tmp_path, "de", with_lang("de"))
+    res = ec.load_events(tmp_path, lang="tr")
+    assert res["languages"] == ["de"]
+    assert {e["id"]: e["title"] for e in res["events"]}[3] == "Arbeitslosenquote"
+
+
+@pytest.mark.feature("NWS-01")
+def test_werte_kommen_aus_frischer_datei_titel_auch_aus_bayater(tmp_path):
+    old = with_lang("en", {3: "Unemployment Rate"})
+    old["events"][1]["actual"] = 9.9  # veralteter Wert
+    put(tmp_path, "en", old, age=3600)
+    put(tmp_path, "de", with_lang("de"))
+    res = ec.load_events(tmp_path, lang="en")
+    assert res["stale"] is False
+    ev = {e["id"]: e for e in res["events"]}
+    assert ev[1]["actual"] == 0.4
+    assert ev[3]["title"] == "Unemployment Rate"
+
+
+@pytest.mark.feature("NWS-01")
+def test_alle_dateien_bayat_stale_true(tmp_path):
+    put(tmp_path, "de", with_lang("de"), age=3600)
+    put(tmp_path, "en", with_lang("en"), age=7200)
+    res = ec.load_events(tmp_path)
+    assert res["available"] and res["stale"] is True
+
+
+@pytest.mark.feature("NWS-01")
+def test_sprache_aus_dateiname_ohne_lang_feld(tmp_path):
+    put(tmp_path, "tr", DOC)
+    assert ec.load_events(tmp_path)["languages"] == ["tr"]
 
 
 @pytest.mark.feature("NWS-01")
@@ -70,17 +138,15 @@ def test_cp1252_und_steuerzeichen(tmp_path):
     doc = json.loads(json.dumps(DOC))
     doc["events"][0]["title"] = "Erstanträge\nauf Hilfe"
     text = json.dumps(doc, ensure_ascii=False).replace("\\n", "\n")  # rohes Zeilenende im String
-    path = tmp_path / "cal.json"
-    path.write_bytes(text.encode("cp1252"))
-    res = ec.load_events(path)
+    (tmp_path / "autogrid_calendar_de.json").write_bytes(text.encode("cp1252"))
+    res = ec.load_events(tmp_path)
     assert res["available"]
     assert any(e["title"] == "Erstanträge\nauf Hilfe" for e in res["events"])
 
 
 @pytest.mark.feature("NWS-01")
 def test_datei_fehlt_oder_kaputt(tmp_path):
-    assert ec.load_events(tmp_path / "nein.json") == {
-        "events": [], "stale": True, "available": False, "source": "mt5", "generated_at": None}
-    bad = tmp_path / "bad.json"
-    bad.write_text("{halb", encoding="utf-8")
-    assert ec.load_events(bad)["available"] is False
+    assert ec.load_events(tmp_path / "nein") == {
+        "events": [], "languages": [], "stale": True, "available": False, "source": "mt5", "generated_at": None}
+    (tmp_path / "autogrid_calendar_de.json").write_text("{halb", encoding="utf-8")
+    assert ec.load_events(tmp_path)["available"] is False
