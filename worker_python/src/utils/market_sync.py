@@ -42,6 +42,18 @@ MAX_ENTRY_LOOKUPS = 200
 # terminal geçmişi henüz indiriyor olabilir: "mevcut değil" (24 saat sonra yeniden denenir), çünkü
 # onaylanmış ara bir daha hiç sorulmaz
 MAX_PAUSE_SEC = 4 * 86400
+# Boş ama hatasız yanıt "MT5'te yok" demek değildir: terminal o zaman diliminin geçmişini henüz yüklememiş olabilir
+# (MT5, geçmişi arka planda indirir/üretir; ilk istek boş döner). Boş yanıtta sembol yeniden seçilir ve
+# kısa aralıkla birkaç kez daha sorulur; yine boşsa küçük zaman dilimi kontrolü (LOWER_TF) karar verir
+EMPTY_RETRIES = 2
+EMPTY_RETRY_PAUSE_SEC = 1
+# Bir zaman diliminde mum yok görünüyorsa, bir alt zaman diliminde aynı aralıkta mum var mı diye bakılır:
+# varsa üst zaman dilimi henüz yüklenmemiştir ("syncing", kaydedilmez, bir dahaki istekte yeniden sorulur)
+LOWER_TF = {
+    "TIMEFRAME_D1": "TIMEFRAME_H1", "TIMEFRAME_H4": "TIMEFRAME_H1", "TIMEFRAME_H1": "TIMEFRAME_M15",
+    "TIMEFRAME_M30": "TIMEFRAME_M5", "TIMEFRAME_M15": "TIMEFRAME_M5", "TIMEFRAME_M5": "TIMEFRAME_M1",
+}
+_TF_SEC_BY_NAME = {name: sec for name, sec in TIMEFRAMES.values()}
 ENTRY_IN = 0
 # BKT-19: Minuten-Spread aus Ticks. Ein Tagesstück je Abruf; ein Aufruf rechnet höchstens TICK_BUDGET_SEC (unter dem
 # 120-s-Timeout des Browsers), der Rest kommt als `budget` und wird beim nächsten Aufruf fortgesetzt.
@@ -110,6 +122,24 @@ def classify(bars: list[dict], a: int, b: int, tf_sec: int, latest: dict | None,
     return stored, segments, live
 
 
+def _syncing_holes(mt5, symbol: str, tf_name: str, bars: list[dict], a: int, b: int, latest, has_before: bool):
+    """Mumsuz görünen aralıklardan, bir alt zaman diliminde mum bulunanlar (üst zaman dilimi yüklenmemiş)."""
+    lower = LOWER_TF.get(tf_name)
+    if lower is None or latest is None:
+        return []
+    _, segments, _ = classify(bars, a, b, _TF_SEC_BY_NAME[tf_name], latest, has_before)
+    low_tf = getattr(mt5, lower)
+    holes = []
+    for x, y, state in segments:
+        if state == db.STATE_COMPLETE:
+            continue
+        # En yeni alt dilim mumu (≤ y−1) aralığın içindeyse aralıkta mum var demektir (ucuz: tek mum istenir)
+        probe = mt5.copy_rates_from(symbol, low_tf, y - 1, 1)
+        if probe is not None and len(probe) and x <= int(probe[-1]["time"]) < y:
+            holes.append((x, y))
+    return holes
+
+
 def _fetch_chunk(account: dict, symbol: str, tf_name: str, a: int, b: int) -> dict:
     """Tek bağlantı/kilit altında: [a, b) mumları, en yeni mum ve a'dan önce mum var mı."""
 
@@ -125,6 +155,14 @@ def _fetch_chunk(account: dict, symbol: str, tf_name: str, a: int, b: int) -> di
         rates = mt5.copy_rates_range(symbol, tf, a, b - 1)  # MT5: bitiş dahil
         if mm._mt5_error(mt5, "copy_rates_range", rates, errors):
             raise mm.MarketDataError(f"[RATES] {errors[0]}")
+        for _ in range(EMPTY_RETRIES):
+            if rates is not None and len(rates):
+                break
+            time.sleep(EMPTY_RETRY_PAUSE_SEC)
+            mt5.symbol_select(symbol, True)
+            rates = mt5.copy_rates_range(symbol, tf, a, b - 1)
+            if mm._mt5_error(mt5, "copy_rates_range", rates, errors):
+                raise mm.MarketDataError(f"[RATES] {errors[0]}")
         newest = mt5.copy_rates_from_pos(symbol, tf, 0, 1)
         latest = mm._bar(newest[-1]) if newest is not None and len(newest) else None
         bars = [mm._bar(r) for r in rates] if rates is not None else []
@@ -132,10 +170,11 @@ def _fetch_chunk(account: dict, symbol: str, tf_name: str, a: int, b: int) -> di
         if not bars or bars[0]["time"] > a:
             before = mt5.copy_rates_from(symbol, tf, a - 1, 1)
             has_before = before is not None and len(before) > 0 and int(before[-1]["time"]) < a
+        syncing = _syncing_holes(mt5, symbol, tf_name, bars, a, b, latest, has_before)
         tick, utc_at = mm._offset_reading(mt5, symbol)
         offset = mm.broker_offset(tick.time, utc_at) if tick is not None and tick.time else None
         return {
-            "bars": bars, "latest": latest, "has_before": has_before,
+            "bars": bars, "latest": latest, "has_before": has_before, "syncing": syncing,
             "digits": mm._plain(getattr(info, "digits", None)), "point": mm._plain(getattr(info, "point", None)),
             "server": getattr(acc, "server", None), "offset": offset, "utc": utc_at,
         }
@@ -436,7 +475,7 @@ def get_rates(account: dict, symbol: str, timeframe: str, a: int, b: int, busy: 
         for k in [k for k, (at, _) in _tail_cache.items() if now - at >= TAIL_CACHE_SEC]:
             del _tail_cache[k]
         # Geçici sorun (meşgul, MT5 hatası) önbellekte kalmasın: bir dahaki istek yeniden denesin
-        transient = any(m["reason"] in ("busy", "error") for m in result["missing"]) or any(
+        transient = any(m["reason"] in ("busy", "error", "syncing") for m in result["missing"]) or any(
             m["reason"] in ("busy", "error", "budget", "syncing") for m in result.get("tick_missing", []))
         if result["live_from"] is not None and not transient:
             _tail_cache[key] = (now, result)
@@ -471,6 +510,10 @@ def _get_rates(account: dict, source: str, symbol: str, timeframe: str, a: int, 
                     stored, segments, part_live = classify(part["bars"], x, y, tf_sec, part["latest"],
                                                            part["has_before"])
                     live = part_live or live
+                    # Üst zaman dilimi yüklenmemiş (alt dilimde mum var): "yok" diye kaydetme, sonra yeniden sor
+                    held = set(part["syncing"])
+                    segments = [seg for seg in segments if seg[:2] not in held]
+                    missing += [{"from": s, "to": t, "reason": "syncing", "checked_at": None} for s, t in sorted(held)]
                     for r in stored:
                         fetched[r["time"]] = r
                     if not db.store_rates(source, symbol, tf_sec, stored, segments):

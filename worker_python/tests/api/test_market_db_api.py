@@ -63,6 +63,7 @@ def broker(client, seed_accounts, monkeypatch):
     monkeypatch.setattr(mc, "mt5", fake, raising=False)
     monkeypatch.setattr(mc, "connect_to_mt5_with_timeout", fake_connect)
     monkeypatch.setattr(market_sync, "CHUNK_PAUSE_SEC", 0)
+    monkeypatch.setattr(market_sync, "EMPTY_RETRY_PAUSE_SEC", 0, raising=False)
     fake.connects = connects
     fake.range_calls = range_calls
     return fake
@@ -131,6 +132,77 @@ def test_luecke_zwischen_kerzen_ist_pause_vor_der_ersten_nicht_verfuegbar(client
     assert body["missing"] == [{"from": early, "to": FRI_20, "reason": "unavailable",
                                 "checked_at": body["missing"][0]["checked_at"]}]
     assert (early, FRI_20, "unavailable") in coverage_rows()
+
+
+DAY = 86400
+
+
+def _hide_range(fake, tf, a, b, calls_until_visible=None):
+    """copy_rates_range liefert für [a, b) nichts (Terminal hat die Historie dieses Zeitrahmens noch nicht geladen).
+    `calls_until_visible`: nach so vielen leeren Antworten ist die Historie da; None = bleibt leer, bis `fake.synced`."""
+    inner = fake.copy_rates_range
+    fake.synced = False
+    fake.hidden_calls = 0
+
+    def copy_rates_range(symbol, timeframe, date_from, date_to):
+        rows = inner(symbol, timeframe, date_from, date_to)
+        if timeframe != tf or fake.synced or rows is None:
+            return rows
+        hidden = [r for r in rows if not a <= r["time"] < b]
+        if len(hidden) == len(rows) or not any(a <= r["time"] < b for r in rows):
+            return rows
+        fake.hidden_calls += 1
+        if calls_until_visible is not None and fake.hidden_calls > calls_until_visible:
+            return rows
+        return hidden or None
+
+    fake.copy_rates_range = copy_rates_range
+
+
+@pytest.mark.feature("ANA-04")
+def test_leere_antwort_wird_sofort_wiederholt_statt_als_pause_gespeichert(client, broker):
+    # Das Terminal hat die Historie beim ersten Abruf noch nicht geladen (leer ohne Fehler), beim zweiten ist sie da.
+    # Früher: leer + Kerze davor + kurzer Bereich = "bestätigte Pause", die nie wieder gefragt wird.
+    _hide_range(broker, broker.TIMEFRAME_M1, MON, MON + 3600, calls_until_visible=1)
+    body = get_rates(client, MON, MON + 3600)
+    assert body["t"] == list(range(MON, MON + 3600, 60))
+    assert body["missing"] == []
+    assert coverage_rows() == [(MON, MON + 3600, "complete")]
+
+
+@pytest.mark.feature("ANA-04")
+def test_kleinerer_zeitrahmen_hat_kerzen_dann_nicht_als_nicht_verfuegbar_speichern(client, broker):
+    # D1: 8 Tage leer, obwohl H1 für dieselben Tage Kerzen hat (Terminal baut D1 noch). Früher: 24 h "nicht verfügbar".
+    start = MON - 8 * DAY
+    broker.set_rates(SYMBOL, broker.TIMEFRAME_D1, [
+        {"time": t, "open": 1.0, "high": 2.0, "low": 0.5, "close": 1.5, "tick_volume": 5, "spread": 3}
+        for t in range(MON - 20 * DAY, MON + 3 * DAY, DAY)])
+    broker.set_rates(SYMBOL, broker.TIMEFRAME_H1, _bars(start, MON, 3600))
+    _hide_range(broker, broker.TIMEFRAME_D1, start, MON)
+
+    body = get_rates(client, start, MON, tf="D1")
+    assert body["t"] == []
+    assert [m["reason"] for m in body["missing"]] == ["syncing"]
+    assert not any(state in ("unavailable", "gap_confirmed") for _, _, state in coverage_rows())
+
+    broker.synced = True  # das Terminal hat D1 inzwischen geladen: gleich die nächste Anfrage holt es, ohne 24 h
+    body = get_rates(client, start, MON, tf="D1")
+    assert body["t"] == list(range(start, MON, DAY))
+    assert body["missing"] == []
+    assert coverage_rows() == [(start, MON, "complete")]
+
+
+@pytest.mark.feature("ANA-04")
+def test_ohne_kerzen_im_kleineren_zeitrahmen_bleibt_es_nicht_verfuegbar(client, broker):
+    start = MON - 8 * DAY
+    broker.set_rates(SYMBOL, broker.TIMEFRAME_D1, [
+        {"time": t, "open": 1.0, "high": 2.0, "low": 0.5, "close": 1.5, "tick_volume": 5, "spread": 3}
+        for t in range(MON - 20 * DAY, MON + 3 * DAY, DAY)])
+    _hide_range(broker, broker.TIMEFRAME_D1, start, MON)  # H1 hat nichts im Bereich
+
+    body = get_rates(client, start, MON, tf="D1")
+    assert [m["reason"] for m in body["missing"]] == ["unavailable"]
+    assert (start, MON, "unavailable") in coverage_rows()
 
 
 @pytest.mark.feature("ANA-04")
