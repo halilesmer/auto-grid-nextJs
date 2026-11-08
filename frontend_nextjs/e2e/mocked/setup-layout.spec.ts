@@ -4,7 +4,7 @@
  */
 import type { Locator } from '@playwright/test';
 import { msg } from '../fixtures/i18n';
-import { DEMO_ID, expect, makeZone, test, type Dashboard, type MockWorker } from '../fixtures/test';
+import { DEMO_ID, expect, makeZone, openSetup, test, type Dashboard, type MockWorker } from '../fixtures/test';
 
 test.use({ viewport: { width: 1440, height: 900 } });
 
@@ -59,6 +59,8 @@ test.describe('ZON-20 Kompaktes Setup', () => {
     seedFullSetups(worker);
     await dashboard.open(DEMO_ID);
     await expect(page.getByTestId('zone-card')).toHaveCount(2);
+    await openSetup(dashboard.zone(0));
+    await openSetup(dashboard.zone(1));
 
     const widths = await page
       .getByTestId('zone-card')
@@ -71,6 +73,8 @@ test.describe('ZON-20 Kompaktes Setup', () => {
   test('Schalter stehen neben oder (Nur Trend, Bereinigen) in eigener Zeile über ihrem Feld', { tag: '@ZON-20' }, async ({ worker, dashboard }) => {
     seedFullSetups(worker);
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone(0));
+    await openSetup(dashboard.zone(1));
 
     // Grid-Setup
     await expectSwitchNextTo(switchOf(dashboard, msg('zone.sync'), 0), dashboard.zoneField(msg('zone.field.orderType'), 0), 'BUY/SELL gleich');
@@ -91,6 +95,7 @@ test.describe('ZON-20 Kompaktes Setup', () => {
   test('Schalter allein in seiner Zeile hat keinen Platz für eine Beschriftung über sich', { tag: '@ZON-20' }, async ({ worker, dashboard }) => {
     worker.setZones(DEMO_ID, [makeZone({ clear_on_exit: false })]);
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
 
     // „Bereinigen“ aus: der Schalter steht allein im Kasten, direkt unter dem Innenabstand (12 px + Rahmen)
     const sw = switchOf(dashboard, msg('zone.exit.clearOnExit'), 0);
@@ -118,6 +123,7 @@ for (const width of [1440, 375]) {
               localStorage.setItem('grid-robot-theme', JSON.stringify({ state: { theme: selectedTheme }, version: 0 }));
             }, theme);
             await dashboard.open(DEMO_ID);
+            await openSetup(dashboard.zone());
             await expect(page.locator('html')).toHaveClass(theme === 'dark' ? /dark/ : /^(?!.*\bdark\b)/);
             const split = setup.order_type === 'BOTH' && !setup.sync_buy_sell;
             const sw = switchOf(dashboard, msg('zone.stepByLoss.short', undefined, 'de'), 0);

@@ -1,4 +1,4 @@
-import { DEMO_ID, expect, makeZone, test } from '../fixtures/test';
+import { DEMO_ID, expect, makeZone, openSetup, test } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 
 test.use({ appLocale: 'de' });
@@ -6,6 +6,7 @@ test.use({ appLocale: 'de' });
 test('Pip-Grenze: Vorschau bei Desktop und 375 px in beiden Themes lesbar', { tag: ['@ZON-21', '@UI-08'] }, async ({ page, worker, dashboard }, testInfo) => {
   worker.setZones(DEMO_ID, [makeZone({ symbol: 'EURUSD', entry_mode: 'fractal', fractal_next_loss: 10, fractal_next_loss_mode: 'pips', fractal_next_loss_unit_version: 1 })]);
   await dashboard.open(DEMO_ID);
+  await openSetup(dashboard.zone());
   for (const width of [1440, 375]) {
     await page.setViewportSize({ width, height: 1000 });
     for (const dark of [false, true]) {

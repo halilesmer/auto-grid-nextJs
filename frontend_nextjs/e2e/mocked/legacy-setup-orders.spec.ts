@@ -4,7 +4,7 @@
  */
 import type { LiveOrder } from '../../src/store/types';
 import { msg } from '../fixtures/i18n';
-import { DEMO_ID, expect, makeZone, test, type Dashboard, type MockWorker } from '../fixtures/test';
+import { DEMO_ID, expect, makeZone, openSetup, test, type Dashboard, type MockWorker } from '../fixtures/test';
 
 const LEGACY_ORDER: LiveOrder = {
   ticket: 9001,
@@ -80,6 +80,7 @@ test.describe('ENG-29 Orders entfernter Fraktal-Setups', () => {
     await expect(dashboard.zone()).toBeVisible();
     await expect(dialogOf(dashboard)).toHaveCount(0);
 
+    await openSetup(dashboard.zone());
     await dashboard.zone().getByTestId('fractal-timeframe').selectOption('H1');
     await dashboard.saveAllSettings();
     await expect.poll(() => worker.zonesOf(DEMO_ID)[0].fractal_timeframe).toBe('H1');

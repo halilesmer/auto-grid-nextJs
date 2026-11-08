@@ -4,7 +4,7 @@
  * liegt im Kopf-Menü (UI-01), nicht mehr in der Leiste.
  */
 import type { Locator, Page } from '@playwright/test';
-import { DEMO_ID, expect, test, type AppLocale } from '../fixtures/test';
+import { DEMO_ID, expect, openSetup, test, type AppLocale } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 
 async function expectInViewport(page: Page, locator: Locator, name: string) {
@@ -219,6 +219,7 @@ for (const size of [{ width: 1440, height: 600 }, { width: 375, height: 600 }]) 
 
     test('Speichern-Hinweis erscheint nur bei Änderungen', { tag: '@UI-09' }, async ({ page, worker, dashboard }) => {
       await dashboard.open(DEMO_ID);
+      await openSetup(dashboard.zone());
       const hint = page.getByTestId('bar-unsaved');
       await expect(hint).toBeHidden();
       await dashboard.zoneField(msg('zone.field.maxPrice')).fill('135');
@@ -232,6 +233,7 @@ for (const size of [{ width: 1440, height: 600 }, { width: 375, height: 600 }]) 
 
     test('Verwerfen in der Leiste fragt nach und stellt den gespeicherten Stand wieder her', { tag: '@UI-09' }, async ({ page, dashboard }) => {
       await dashboard.open(DEMO_ID);
+      await openSetup(dashboard.zone());
       const hint = page.getByTestId('bar-unsaved');
       const field = dashboard.zoneField(msg('zone.field.maxPrice'));
       const before = await field.inputValue();
@@ -247,6 +249,7 @@ for (const size of [{ width: 1440, height: 600 }, { width: 375, height: 600 }]) 
 
       await discard.click();
       await dialog.getByRole('button', { name: msg('saveBar.discardConfirm.confirm') }).click();
+      await openSetup(dashboard.zone()); // Verwerfen schließt alle Formulare (ZON-22)
       await expect(field).toHaveValue(before);
       await expect(hint).toBeHidden();
       await expect(page.getByTestId('control-bar')).not.toContainText(msg('saveBar.unsaved.short'));

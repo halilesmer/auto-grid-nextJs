@@ -5,7 +5,7 @@
  * jeder Tab ist erreichbar, auch wenn die Leiste breiter ist als die Karte. Deutsch hat die längsten Beschriftungen.
  */
 import type { Locator, Page, Route } from '@playwright/test';
-import { DEMO_ID, RUNNING_METRICS, ZONE_ID, expect, makeZone, test, type AppLocale, type Dashboard } from '../fixtures/test';
+import { DEMO_ID, RUNNING_METRICS, ZONE_ID, expect, makeZone, openSetup, test, type AppLocale, type Dashboard } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 import { openPageMenu } from '../fixtures/header';
 
@@ -150,6 +150,7 @@ for (const lang of LOCALES) {
 
     test('Ruhezustand läuft nicht über', { tag: '@UI-08' }, async ({ page, dashboard }) => {
       await dashboard.open(DEMO_ID);
+      await openSetup(dashboard.zone());
       await expectZoneAreaInViewport(dashboard, lang);
       await expectNoPageOverflow(page);
     });
@@ -158,6 +159,7 @@ for (const lang of LOCALES) {
       worker.setBotRunning(DEMO_ID);
       worker.setMetrics(DEMO_ID, { ...RUNNING_METRICS, zone_states: { '0': 'AUTO_CLEAR' } });
       await dashboard.open(DEMO_ID);
+      await openSetup(dashboard.zone());
       await dashboard.zoneField(msg('zone.field.minPrice', undefined, lang)).fill('91');
       // Alle Abzeichen und die längste Beschriftung des Statusbuttons sind sichtbar
       const zone = dashboard.zone();
@@ -192,6 +194,7 @@ for (const lang of LOCALES) {
       await dashboard.open(DEMO_ID);
       await expect(page.getByTestId('symbol-card')).toHaveCount(2);
       await expect(dashboard.symbolCard().getByTestId('zone-market')).toBeVisible();
+      for (const index of [0, 1, 2]) await openSetup(dashboard.zone(index));
       for (const index of [0, 1]) {
         await expectInViewport(page, dashboard.symbolCard(index).getByTestId('setup-count'), `Setup-Zahl ${index}`);
         await expectInViewport(
@@ -220,6 +223,8 @@ for (const lang of LOCALES) {
       ]);
       await dashboard.open(DEMO_ID);
       await expect(page.getByTestId('zone-card')).toHaveCount(2);
+      await openSetup(dashboard.zone(0));
+      await openSetup(dashboard.zone(1));
 
       // „Zarara göre“ steht als Feldspalte vor dem Grid-Schritt; die Zahlenfelder bleiben kurz.
       const stepField = dashboard.zoneField(msg('zone.field.buyGridLoss', undefined, lang));

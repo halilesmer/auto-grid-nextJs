@@ -1,5 +1,5 @@
 /** SET · Allgemeine Einstellungen · SYM · Symbole (Autocomplete, Schrittweiten aus den Symboldetails, Abruffehler). */
-import { DEMO_ID, expect, makeZone, test } from '../fixtures/test';
+import { DEMO_ID, expect, makeZone, openSetup, test } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 
 test.describe('SET Einstellungen', () => {
@@ -7,6 +7,7 @@ test.describe('SET Einstellungen', () => {
     worker.state.settings[DEMO_ID] = { LOOP_INTERVAL_SECONDS: 4.5 };
     worker.setZones(DEMO_ID, [makeZone({ min_price: 80, max_price: 95.5, order_type: 'SELL' })]);
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     await expect(page.getByLabel(msg('settings.interval'))).toHaveValue('4.5');
     await expect(dashboard.zoneField(msg('zone.field.minPrice'))).toHaveValue('80');
     await expect(dashboard.zoneField(msg('zone.field.maxPrice'))).toHaveValue('95.5');
@@ -50,6 +51,7 @@ test.describe('SET Einstellungen', () => {
 
   test('Cmd/Strg+Enter speichert', { tag: '@SET-03' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     // Ohne Änderungen passiert nichts
     await page.keyboard.press('ControlOrMeta+Enter');
     await expect(dashboard.saveAll).toHaveText(msg('common.saved'));
@@ -64,6 +66,7 @@ test.describe('SET Einstellungen', () => {
 
   test('„Alle speichern“ + Dirty-Tracking', { tag: '@SET-03' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     const bar = page.getByTestId('unsaved-bar');
     await expect(dashboard.saveAll).toHaveText(msg('common.saved'));
     await expect(dashboard.saveAll).toBeDisabled();
@@ -82,6 +85,7 @@ test.describe('SET Einstellungen', () => {
 
   test('Abbrechen verwirft ungespeicherte Änderungen', { tag: '@SET-03' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     const bar = page.getByTestId('unsaved-bar');
     const maxPrice = dashboard.zoneField(msg('zone.field.maxPrice'));
     const before = await maxPrice.inputValue();
@@ -91,6 +95,7 @@ test.describe('SET Einstellungen', () => {
     await bar.getByRole('button', { name: msg('common.cancel') }).click();
 
     await expect(bar).toBeHidden();
+    await openSetup(dashboard.zone()); // „İptal“ schließt alle Formulare (ZON-22)
     await expect(maxPrice).toHaveValue(before);
     await expect(dashboard.saveAll).toHaveText(msg('common.saved'));
     expect(worker.callsTo('POST', `/api/settings/${DEMO_ID}`)).toHaveLength(0);
@@ -98,6 +103,7 @@ test.describe('SET Einstellungen', () => {
 
   test('Speicherfehler wird angezeigt, Änderung bleibt ungespeichert', { tag: '@SET-03' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     worker.overrides.set(`POST /api/settings/${DEMO_ID}`, { status: 500, body: { detail: 'Disk voll' } });
     await dashboard.zoneField(msg('zone.field.maxPrice')).fill('120');
     await page.getByRole('button', { name: msg('saveBar.saveAll') }).click();
@@ -131,6 +137,7 @@ test.describe('SYM Symbole', () => {
 
   test('Schrittweiten aus den Symboldetails, unbekanntes Symbol', { tag: '@SYM-03' }, async ({ dashboard }) => {
     await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
     // USOUSD: 3 Digits → point 0.001, Lot-Schritt 0.01
     await expect(dashboard.zoneField(msg('zone.field.minPrice'))).toHaveAttribute('step', '0.001');
     await expect(dashboard.zoneField(msg('chart.zone.lot'))).toHaveAttribute('step', '0.01');
