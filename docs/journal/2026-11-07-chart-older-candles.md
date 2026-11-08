@@ -117,3 +117,8 @@ Method: temporary `minBarSpacing` option, 100 000 M1 candles, chart 1 228 px wid
   - The other page tests use the window "all" (about 4 000 candles at the start) and no longer load 100 000 candles twice.
   - No timeout was raised and no expectation was relaxed. The wait for the left edge (`panToFirstCandle`) stays at 60 s as before. Its poll interval is 50 ms instead of 100 ms, which means more tries, not more time. The first version of the helper had 120 s by mistake. The review of the branch found it and it is back at 60 s.
 - Result with the real clock, `heavy_lock.sh scripts/features/run.sh e2e ANA-27`: 9 of 9 passed in 3 runs (50 to 54 s, before: 2.2 min and failures). A run with eight busy loops (load 15) also passed 9 of 9 (1.1 min).
+
+## Decision: `minBarSpacing` 0.2 (1107-A9.3, 2026-11-08)
+- Decision (owner): option (3) only. No "go to start" control, no `Home` key.
+- Why: the cheap step halves the drags for 100 000 M1 candles (about 122 to about 49). The frame time does not change (median 16.7 ms, p95 27 ms). It adds no visible UI element.
+- Change: `MIN_BAR_SPACING_PX` in `chart-workspace/runtime.ts` is 0.2 and `ChartCore` passes it as `timeScale.minBarSpacing`. The check "chart shows all candles" in `rememberChartView` uses the same constant, so the saved zoom stays correct.
