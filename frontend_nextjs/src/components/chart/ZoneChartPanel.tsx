@@ -1,154 +1,33 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 
-import {
-  type FractalPoint,
-  type LineTone,
-  type OverlayLine,
-  type TradeLinkLine,
-  type TradeMarker,
-} from '@/components/analysis/chart/ChartCore';
 import { ChartView } from '@/components/chart-page/ChartView';
 import { TimeframeSelect } from '@/components/analysis/chart/TimeframeSelect';
 import { formatOffset } from '@/components/analysis/BrokerClockNotice';
 import { ChartPage } from '@/components/chart-page/ChartPage';
 import { ChartNotice, ChartOverlays } from '@/components/chart-page/ChartOverlays';
 import { ChartTopBar, type ChartChrome } from '@/components/chart-page/ChartTopBar';
-import { FloatingCard } from '@/components/chart-page/FloatingCard';
 import { LicenseInfo } from '@/components/analysis/LicenseInfo';
 import { DataQualityBanner } from '@/components/analysis/DataQualityBanner';
-import { TradesTable } from '@/components/analysis/TradesTable';
-import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { FieldLabel, InfoHint, Tooltip } from '@/components/ui/tooltip';
-import { LiveStats } from '@/components/chart/LiveStats';
-import { useDealsHistory } from '@/hooks/useDealsHistory';
-import { useSetupLabel } from '@/hooks/useSetupLabel';
-import { useLiveTrades } from '@/hooks/useLiveTrades';
+import { InfoHint, Tooltip } from '@/components/ui/tooltip';
+import { SetupCardTabs, SetupSwitches } from '@/components/chart/SetupCardTabs';
 import { useMarketRates } from '@/hooks/useMarketRates';
+import { useSetupLayers } from '@/hooks/useSetupLayers';
 import { useSignalBars } from '@/hooks/useSignalBars';
 import { useTrendPath } from '@/hooks/useTrendPath';
 import { TrendToggle } from '@/components/chart-workspace/TrendToggle';
-import { useSymbolDetails } from '@/hooks/useSymbolDetails';
-import { buildChartData, isTimeframe, ratesWindow, TIMEFRAMES, TIMEFRAME_SEC, type Timeframe } from '@/lib/analysis/candles';
-import { findFractals } from '@/lib/analysis/fractals';
-import { belongsToZoneView, pairTrades, type Trade } from '@/lib/analysis/tradePairing';
-import { zoneLevels, type LevelsUnavailable, type ZoneLevels } from '@/lib/analysis/levels';
+import { buildChartData, TIMEFRAMES, TIMEFRAME_SEC, type Timeframe } from '@/lib/analysis/candles';
 import { brokerNow } from '@/lib/serverTime';
 import { cn } from '@/lib/utils';
-import { setupNumbers } from '@/lib/symbolSetups';
-import { useBotRuntimeStore, useSettingsStore, useWebSocketManager } from '@/store';
 import { useConnectionStore } from '@/store/useConnectionStore';
 import { workspaceKey } from '@/lib/chart-workspace/settings';
-import { Switch } from '@/components/ui/switch';
 import { useAnalysisPrefsStore, type AnalysisPrefs } from '@/store/useAnalysisPrefsStore';
 import type { ZoneSettings } from '@/store/types';
-import { useFormat, useT, type MessageKey } from '@/i18n';
-
-function Field({ label, hint, value }: { label: string; hint: string; value: string | number }) {
-  return (
-    <div className="rounded-md border border-border bg-muted/50 px-3 py-2">
-      <FieldLabel label={label} hint={hint} className="text-[11px] font-medium text-muted-foreground" />
-      <div className="font-mono text-sm font-semibold tabular-nums text-foreground">{value}</div>
-    </div>
-  );
-}
-
-const SL_MODE_KEYS: Record<string, MessageKey> = {
-  atr: 'zone.fractal.slMode.atr',
-  sar: 'zone.fractal.slMode.sar',
-  opposite_fractal: 'zone.fractal.slMode.opposite',
-  buffer: 'zone.fractal.slMode.buffer',
-};
-
-function orderCountKey(orderType: string) {
-  if (orderType === 'BUY') return 'zone.fractal.buyOrderCount' as const;
-  if (orderType === 'SELL') return 'zone.fractal.sellOrderCount' as const;
-  return 'zone.fractal.orderCount' as const;
-}
-
-function zoneKindKey({ isFractal, isBreakout }: { isFractal: boolean; isBreakout: boolean }): MessageKey {
-  if (isFractal) return 'zone.section.fractal';
-  if (isBreakout) return 'chart.zone.breakout';
-  return 'chart.zone.sliding';
-}
-
-/** Fraktal-Zone: Grid-Abstand/TP/SL/Ebenen gelten nicht, stattdessen die Fraktal-Einstellungen */
-function fractalFields(zone: ZoneSettings, t: ReturnType<typeof useT>): [MessageKey, MessageKey, string | number][] {
-  const fields: [MessageKey, MessageKey, string | number][] = [
-    ['chart.zone.priceRange', 'chart.zone.priceRange.hint', `${zone.min_price} – ${zone.max_price}`],
-    ['zone.fractal.timeframe', 'zone.fractal.timeframe.hint', zone.fractal_timeframe ?? 'H4'],
-    [
-      'zone.fractal.orderMode',
-      'zone.fractal.orderMode.hint',
-      t(zone.fractal_order_mode === 'rebound' ? 'zone.fractal.orderMode.rebound' : 'zone.fractal.orderMode.breakout'),
-    ],
-    ['chart.zone.lot', 'zone.field.lot.hint', zone.lot_size],
-    ['zone.fractal.slMode', 'zone.fractal.slMode.hint', t(SL_MODE_KEYS[zone.fractal_sl_mode ?? 'atr'] ?? SL_MODE_KEYS.atr)],
-    zone.fractal_tp_by_money || zone.fractal_use_sl === false
-      ? ['zone.fractal.tpMoney', 'zone.fractal.tpMoney.hint', t('chart.zone.profitValue', { value: zone.fractal_tp_money ?? 10 })]
-      : ['zone.fractal.rr', 'zone.fractal.rr.hint', zone.fractal_rr ?? 2],
-    ['chart.zone.maxPositions', 'zone.fractal.maxPositions.hint', zone.max_positions],
-  ];
-  const count = zone.fractal_order_count ?? 1;
-  if (zone.order_type === 'BOTH' && !zone.sync_buy_sell) {
-    fields.push(['chart.zone.sellLot', 'zone.field.sellLot.hint', zone.sell_lot_size]);
-    // Getrennt: BUY / SELL
-    fields.push(['zone.fractal.orderCount', 'zone.fractal.orderCount.hint', `${count} / ${zone.sell_fractal_order_count ?? count}`]);
-  } else {
-    const key = orderCountKey(zone.order_type);
-    fields.push([key, `${key}.hint`, count]);
-  }
-  return fields;
-}
-
-function ZoneInfo({ zone }: { zone: ZoneSettings }) {
-  const t = useT();
-  const isFractal = zone.entry_mode === 'fractal';
-  const showSell = zone.order_type === 'BOTH' && !zone.sync_buy_sell;
-  // „Abstand nach Verlust“: Grid-Abstände, TP und SL sind $-Beträge
-  const dist = (v: number) => (zone.step_by_loss ? t('chart.zone.lossValue', { value: v }) : v);
-  // [Label, Hinweis, Wert]: die Hinweise sind dieselben wie in den Feldern der Zonenkarte
-  const fields: [MessageKey, MessageKey, string | number][] = isFractal ? fractalFields(zone, t) : [
-    ['chart.zone.priceRange', 'chart.zone.priceRange.hint', `${zone.min_price} – ${zone.max_price}`],
-    ['chart.zone.gridStep', zone.step_by_loss ? 'zone.field.gridStepLoss.hint' : 'zone.field.gridStep.hint', dist(zone.grid_step)],
-    ['chart.zone.lot', 'zone.field.lot.hint', zone.lot_size],
-    ['chart.zone.takeProfit', zone.step_by_loss ? 'zone.field.takeProfitLoss.hint' : 'zone.field.takeProfit.hint', dist(zone.take_profit)],
-    ['chart.zone.stopLoss', zone.step_by_loss ? 'zone.field.stopLossLoss.hint' : 'zone.field.stopLoss.hint', dist(zone.stop_loss)],
-    ['chart.zone.levels', 'chart.zone.levels.hint', `${zone.levels_below} / ${zone.levels_above}`],
-    ['chart.zone.maxPositions', 'zone.breakout.maxPositions.hint', zone.max_positions],
-  ];
-  if (showSell && !isFractal) {
-    fields.push(
-      ['chart.zone.sellGrid', zone.step_by_loss ? 'zone.field.sellGridLoss.hint' : 'zone.field.sellGrid.hint', dist(zone.sell_grid_step)],
-      ['chart.zone.sellLot', 'zone.field.sellLot.hint', zone.sell_lot_size],
-      ['chart.zone.sellTakeProfit', zone.step_by_loss ? 'zone.field.sellTakeProfitLoss.hint' : 'zone.field.sellTakeProfit.hint', dist(zone.sell_take_profit)],
-      ['chart.zone.sellStopLoss', zone.step_by_loss ? 'zone.field.sellStopLossLoss.hint' : 'zone.field.sellStopLoss.hint', dist(zone.sell_stop_loss)],
-    );
-  }
-
-  return (
-    <div className="space-y-2" data-testid="zone-info">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-xs text-muted-foreground">{t(zoneKindKey({ isFractal, isBreakout: zone.is_breakout }))}</span>
-        <div className="flex gap-2">
-          <Badge tone="info" hint={t('zone.field.orderType.hint')}>{zone.order_type}</Badge>
-          <Badge tone={zone.is_active ? 'success' : 'neutral'} hint={zone.is_active ? t('chart.zone.active.hint') : t('chart.zone.inactive.hint')}>
-            {zone.is_active ? t('chart.zone.active') : t('chart.zone.inactive')}
-          </Badge>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        {fields.map(([labelKey, hintKey, value]) => (
-          <Field key={labelKey} label={t(labelKey)} hint={t(hintKey)} value={value} />
-        ))}
-      </div>
-    </div>
-  );
-}
+import { useT } from '@/i18n';
 
 interface ZoneChartPanelProps {
   accountId: string;
@@ -167,35 +46,6 @@ interface ZoneChartPanelProps {
   prefs: AnalysisPrefs;
   chrome: ChartChrome;
 }
-
-/** MT5 ORDER_TYPE_* → Kurzname wie im Terminal */
-const ORDER_TYPES: Record<number, string> = {
-  0: 'BUY',
-  1: 'SELL',
-  2: 'BUY LIMIT',
-  3: 'SELL LIMIT',
-  4: 'BUY STOP',
-  5: 'SELL STOP',
-  6: 'BUY STOP LIMIT',
-  7: 'SELL STOP LIMIT',
-};
-const isBuyOrder = (type: number) => type % 2 === 0;
-/** Bis zu so vielen Positionen + Orders mit Beschriftung an der Preisachse */
-const MAX_LABELED_TRADES = 20;
-/** Bis zu so vielen Trades im Chart mit Text an den Pfeilen (Lot, Ergebnis); mehr würde sich überdecken */
-const MAX_LABELED_HISTORY = 30;
-
-function netTone(net: number): LineTone {
-  if (net > 0) return 'up';
-  if (net < 0) return 'down';
-  return 'muted';
-}
-
-const LEVELS_UNAVAILABLE: Record<LevelsUnavailable, MessageKey> = {
-  fractal: 'analysis.chart.levels.fractal',
-  noSymbolInfo: 'analysis.chart.levels.noSymbolInfo',
-  noPrice: 'analysis.chart.levels.noPrice',
-};
 
 /** Legendeneintrag als Schalter: blendet sein Element im Chart ein/aus (dieselben Werte wie im Menü „Ebenen“) */
 function LegendToggle({
@@ -238,8 +88,8 @@ function LegendToggle({
 
 /**
  * Chart-Tab der Analyse-Seite (ANA-05/06/11): MT5-Kerzen der Zone im gewählten Zeitraum und
- * Zeitrahmen, fehlende Bereiche markiert, Marktpausen, Zonenband, Stufen, offene Positionen und
- * Orders des laufenden Bots, RSI. Die Zonen kommen von der Seite (nur die des gewählten Kontos).
+ * Zeitrahmen, fehlende Bereiche markiert, Marktpausen. Die Setup-Ebenen kommen aus `useSetupLayers`,
+ * der Karteninhalt aus `SetupCardTabs`; dieses Panel holt nur die Kerzen und setzt die Seite zusammen.
  */
 export default function ZoneChartPanel({
   accountId,
@@ -259,14 +109,6 @@ export default function ZoneChartPanel({
   const zone = index >= 0 && zones ? zones[index] : null;
   const symbol = zone?.symbol?.toUpperCase().trim() || null;
   const tfSec = TIMEFRAME_SEC[timeframe];
-
-  // Live-Preis (laufende Kerze) und Positionen/Orders des laufenden Bots
-  const { isConnected } = useWebSocketManager(accountId);
-  useLiveTrades(accountId);
-  const symbolDetails = useSymbolDetails(zone?.step_by_loss ? accountId : null);
-  const metrics = useBotRuntimeStore((s) => s.metrics);
-  const liveData = useBotRuntimeStore((s) => s.liveData);
-  const engineOrder = useSettingsStore((s) => s.engineOrder);
 
   const nowSec = useCallback(
     () => (offsetSec !== null ? brokerNow(offsetSec) : Date.now() / 1000),
@@ -293,271 +135,9 @@ export default function ZoneChartPanel({
     return buildChartData(data.bars, data.missing, tfSec, clipAt);
   }, [data, tfSec, offsetSec]);
 
-  // Trade-Archiv: derselbe Zeitraum wie die Kerzen (bei „alles“ bzw. gekürztem Zeitraum ab dem geladenen Beginn)
-  const dealsRequest = useMemo(() => {
-    if (!symbol || !clockReady) return null;
-    const win = ratesWindow(range.from, range.to, tfSec);
-    return { accountId, from: win.clipped || range.from === null ? win.from : range.from, to: range.to };
-  }, [accountId, symbol, clockReady, range.from, range.to, tfSec]);
-  const dealsLive = range.to > nowSec();
-  const deals = useDealsHistory(dealsRequest, dealsLive);
-  const setupLabel = useSetupLabel(zones, deals.data?.zones);
-  const pairing = useMemo(
-    () => (deals.data ? pairTrades(deals.data.deals, deals.data.zones, offsetSec) : null),
-    [deals.data, offsetSec],
-  );
-  const zoneMagic = zone?.magic;
-  const history = useMemo(() => {
-    if (!pairing || !symbol || !dealsRequest) return null;
-    // Der Worker liefert ältere Deals offener Positionen mit (für Einstiegspreis und Zone); gezeigt wird nur,
-    // was im Zeitraum liegt: Trades nach Schließzeit, Einstiege nach Einstiegszeit
-    const inRange = (time: number) => time >= dealsRequest.from && time < dealsRequest.to;
-    const inside = pairing.trades.filter((tr) => inRange(tr.exitTime));
-    const trades = inside.filter((tr) => belongsToZoneView(tr, symbol, zoneMagic));
-    const entries = pairing.entries.filter((e) => inRange(e.time) && belongsToZoneView(e, symbol, zoneMagic));
-    return {
-      trades,
-      entries,
-      openEntries: entries.filter((e) => !e.closed).length,
-      otherTrades: inside.length - trades.length,
-    };
-  }, [pairing, symbol, zoneMagic, dealsRequest]);
-  const [focus, setFocus] = useState<{ time: number; seq: number; view: string } | null>(null);
-  const focusTrade = useCallback(
-    (tr: Trade) => {
-      setFocus((f) => ({ time: Math.floor((tr.entryTime ?? tr.exitTime) / tfSec) * tfSec, seq: (f?.seq ?? 0) + 1, view: viewKey }));
-    },
-    [tfSec, viewKey],
-  );
-
-  // Live-Preis nur für dieses Konto und Symbol, bei offenem Markt und sicherer Uhr
-  const streamMatches = Boolean(
-    symbol &&
-      metrics.symbol?.toUpperCase() === symbol &&
-      (!metrics.account_id || String(metrics.account_id) === accountId),
-  );
-  const lastClose = data && data.bars.length > 0 ? data.bars[data.bars.length - 1].close : null;
-  // Zusätzliche Sicherung: ein Preis weit weg vom letzten Schlusskurs gehört zu einem anderen Symbol
-  const plausible = lastClose !== null && metrics.price > 0 && Math.abs(metrics.price / lastClose - 1) < 0.2;
-  const live = useMemo(
-    () =>
-      isConnected && streamMatches && plausible && offsetSec !== null && data?.liveFrom != null && metrics.market_open !== false
-        ? { price: metrics.price, nowSec: brokerNow(offsetSec) }
-        : null,
-    [isConnected, streamMatches, plausible, offsetSec, data?.liveFrom, metrics.market_open, metrics.price],
-  );
-  // Der Stream zeigt die erste Zone des Kontos: bei anderem Symbol gehören die Live-Werte nicht zu dieser Zone
-  const symbolMismatch = Boolean(symbol && metrics.symbol && metrics.symbol.toUpperCase() !== symbol);
-  // Stufen gelten für den aktuellen Kurs: Live-Preis, sonst der Schluss der laufenden Kerze; bei einem
-  // Zeitraum in der Vergangenheit keine Stufen (sie lägen um einen alten Kurs)
-  const candleClose = data?.liveFrom != null ? lastClose : null;
-  const currentPrice = streamMatches && plausible ? metrics.price : candleClose;
-
-  const botRunning = liveData.bot_running === true;
-  const positions = useMemo(
-    () => (botRunning && zone ? (liveData.positions ?? []).filter((p) => p.magic === zone.magic && p.symbol.toUpperCase() === symbol) : []),
-    [botRunning, zone, symbol, liveData.positions],
-  );
-  const orders = useMemo(
-    () => (botRunning && zone ? (liveData.orders ?? []).filter((o) => o.magic === zone.magic && o.symbol.toUpperCase() === symbol) : []),
-    [botRunning, zone, symbol, liveData.orders],
-  );
-
-  const pricePoint = data?.point && data.digits != null ? { point: data.point, digits: data.digits } : null;
-  // Stufen ändern sich nur, wenn der Preis den Anker verschiebt: als Text vergleichen, sonst würden alle
-  // Linien bei jedem Tick neu gezeichnet
-  const levelsJson = JSON.stringify(zone ? zoneLevels(zone, currentPrice, positions, symbolDetails, pricePoint) : null);
-  const levels = useMemo(() => JSON.parse(levelsJson) as ZoneLevels | null, [levelsJson]);
-
-  const rawLines = useMemo<OverlayLine[]>(() => {
-    if (!zone) return [];
-    const out: OverlayLine[] = [];
-    if (prefs.showZoneLines) {
-      out.push(
-        { key: 'zone-max', price: zone.max_price, title: t('chart.zone.lineMax'), tone: 'primary', style: 'dashed', axisLabel: true },
-        { key: 'zone-min', price: zone.min_price, title: t('chart.zone.lineMin'), tone: 'primary', style: 'dashed', axisLabel: true },
-      );
-    }
-    if (prefs.showLevels && levels) {
-      levels.buy.forEach((p, i) => out.push({ key: `lvl-b-${i}`, price: p, title: '', tone: 'up', style: 'dotted' }));
-      levels.sell.forEach((p, i) => out.push({ key: `lvl-s-${i}`, price: p, title: '', tone: 'down', style: 'dotted' }));
-    }
-    // Viele Positionen: Beschriftungen an der Preisachse würden sich überdecken, die Linien bleiben
-    const shownTrades = (prefs.showTrades ? positions.length : 0) + (prefs.showOrders ? orders.length : 0);
-    const labels = shownTrades <= MAX_LABELED_TRADES;
-    if (prefs.showTrades) {
-      for (const p of positions) {
-        if (p.price_open === null) continue;
-        const buy = p.type === 0;
-        const tone = buy ? 'up' : 'down';
-        out.push({ key: `pos-${p.ticket}`, price: p.price_open, title: `${buy ? 'BUY' : 'SELL'} ${p.volume ?? ''}`.trim(), tone, style: 'solid', width: 2, axisLabel: labels });
-        if (p.tp > 0) out.push({ key: `pos-tp-${p.ticket}`, price: p.tp, title: 'TP', tone: 'up', style: 'dotted' });
-        if (p.sl > 0) out.push({ key: `pos-sl-${p.ticket}`, price: p.sl, title: 'SL', tone: 'down', style: 'dotted' });
-      }
-    }
-    if (prefs.showOrders) {
-      for (const o of orders) {
-        if (o.price_open === null) continue;
-        const name = ORDER_TYPES[o.type] ?? String(o.type);
-        out.push({ key: `ord-${o.ticket}`, price: o.price_open, title: `${name} ${o.volume ?? ''}`.trim(), tone: isBuyOrder(o.type) ? 'up' : 'down', style: 'dashed', axisLabel: labels });
-      }
-    }
-    return out;
-  }, [zone, levels, positions, orders, prefs.showZoneLines, prefs.showLevels, prefs.showTrades, prefs.showOrders, t]);
-  // Positionen/Orders kommen alle 5 s als neue Liste: nur bei echter Änderung neu zeichnen
-  const linesJson = JSON.stringify(rawLines);
-  const lines = useMemo(() => JSON.parse(linesJson) as OverlayLine[], [linesJson]);
-
-  // Trades im Chart: Pfeil am Einstieg, Punkt am Ausstieg, gepunktete Verbindung. „Zone unbekannt“ grau mit „?“
-  const fmt = useFormat();
-  const overlays = useMemo(() => {
-    const out = { markers: [] as TradeMarker[], links: [] as TradeLinkLine[], notes: new Map<number, string[]>() };
-    if (!history || !prefs.showHistory) return out;
-    const bar = (time: number) => Math.floor(time / tfSec) * tfSec;
-    // Nur auf geladenen Kerzen: davor oder danach würde lightweight-charts den Punkt an den Rand klemmen
-    const first = chart?.points[0]?.time ?? Infinity;
-    const last = chart?.points[chart.points.length - 1]?.time ?? -Infinity;
-    const onChart = (time: number) => bar(time) >= first && bar(time) <= last;
-    const labels = history.trades.length + history.entries.length <= MAX_LABELED_HISTORY;
-    const digits = data?.digits ?? undefined;
-    const note = (time: number, text: string) => {
-      const list = out.notes.get(time);
-      if (list) list.push(text);
-      else out.notes.set(time, [text]);
-    };
-    for (const e of history.entries) {
-      if (!onChart(e.time)) continue;
-      const unknown = e.zone.kind !== 'zone';
-      const side = e.side === 'buy' ? 'BUY' : 'SELL';
-      const vol = fmt.number(e.volume, { maximumFractionDigits: 3 });
-      const sideTone = e.side === 'buy' ? 'up' : 'down';
-      out.markers.push({
-        key: e.id,
-        time: bar(e.time),
-        price: e.price,
-        kind: e.side === 'buy' ? 'entryBuy' : 'entrySell',
-        tone: unknown ? 'muted' : sideTone,
-        text: labels ? `${unknown ? '? ' : ''}${vol}` : undefined,
-      });
-      note(
-        bar(e.time),
-        t(e.reversal ? 'analysis.trades.note.reversalEntry' : 'analysis.trades.note.entry', {
-          side,
-          volume: vol,
-          price: fmt.price(e.price, digits),
-          zone: unknown ? t('analysis.trades.unknownZone') : '',
-        }).trim(),
-      );
-    }
-    for (const tr of history.trades) {
-      if (!onChart(tr.exitTime)) continue;
-      const unknown = tr.zone.kind !== 'zone';
-      const net = `${tr.net > 0 ? '+' : ''}${fmt.number(tr.net, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-      const tone = unknown ? 'muted' : netTone(tr.net);
-      out.markers.push({ key: tr.id, time: bar(tr.exitTime), price: tr.exitPrice, kind: 'exit', tone, text: labels ? net : undefined });
-      // Einstieg vor dem Chart: keine Verbindung (sie begänne sonst an der ersten Kerze)
-      if (tr.entryTime !== null && tr.entryPrice !== null && onChart(tr.entryTime)) {
-        out.links.push({
-          key: tr.id,
-          from: { time: bar(tr.entryTime), price: tr.entryPrice },
-          to: { time: bar(tr.exitTime), price: tr.exitPrice },
-          tone,
-        });
-      }
-      note(
-        bar(tr.exitTime),
-        t('analysis.trades.note.exit', {
-          side: tr.side === 'buy' ? 'BUY' : 'SELL',
-          volume: fmt.number(tr.volume, { maximumFractionDigits: 3 }),
-          price: fmt.price(tr.exitPrice, digits),
-          net,
-          zone: unknown ? t('analysis.trades.unknownZone') : '',
-        }).trim(),
-      );
-    }
-    return out;
-  }, [history, prefs.showHistory, tfSec, chart, data?.digits, fmt, t]);
-
-  // Fraktale (nur Fraktal-Zonen) aus den geschlossenen Kerzen; die der Bot gehandelt hat, hervorgehoben
-  const isFractalZone = zone?.entry_mode === 'fractal';
-  const fractalTf = zone?.fractal_timeframe && isTimeframe(zone.fractal_timeframe) ? zone.fractal_timeframe : 'H4';
-  const fractals = useMemo<FractalPoint[]>(() => {
-    if (!isFractalZone || !prefs.showFractals || !data) return [];
-    const traded = new Set(
-      timeframe === fractalTf
-        ? (history?.entries ?? []).filter((e) => e.fractal && e.zone.kind === 'zone').map((e) => `${e.fractal!.side}${e.fractal!.time}`)
-        : [],
-    );
-    return findFractals(data.bars, data.missing, data.liveFrom).map((f) => ({ ...f, traded: traded.has(`${f.side}${f.time}`) }));
-  }, [isFractalZone, prefs.showFractals, data, history, timeframe, fractalTf]);
-
-  const band = zone && prefs.showZoneLines ? { min: zone.min_price, max: zone.max_price } : null;
-  // Der Worker zählt nach Engine-Platz (zuletzt gespeicherte Reihenfolge), nicht nach dem Platz in `zones`
-  const engineIndex = zone ? engineOrder.indexOf(zone.id) : -1;
-  const marketHours = engineIndex >= 0 ? liveData.zone_market_hours?.[String(engineIndex)] : undefined;
-  const isChartEmpty = Boolean(chart && data && data.bars.length === 0);
-
+  const layers = useSetupLayers({ accountId, zone, zones, symbol, timeframe, range, offsetSec, clockReady, nowSec, data, chart, viewKey, prefs });
   const setPref = useAnalysisPrefsStore((s) => s.setPref);
-  const legend: { pref: keyof AnalysisPrefs; hint: MessageKey; items: { swatch: string; label: string }[] }[] = [
-    {
-      pref: 'showZoneLines',
-      hint: 'analysis.settings.zoneLines.hint',
-      items: [{ swatch: 'inline-block h-3 w-4 rounded-sm border-y border-dashed border-primary bg-primary/10', label: t('analysis.chart.key.band') }],
-    },
-    {
-      pref: 'showLevels',
-      hint: 'analysis.settings.levels.hint',
-      items: [{ swatch: 'inline-block w-4 border-t border-dotted border-success', label: t('analysis.chart.key.levels') }],
-    },
-    {
-      pref: 'showTrades',
-      hint: 'analysis.settings.trades.hint',
-      items: [{ swatch: 'inline-block w-4 border-t-2 border-success', label: t('analysis.chart.key.positions') }],
-    },
-    {
-      pref: 'showOrders',
-      hint: 'analysis.settings.orders.hint',
-      items: [{ swatch: 'inline-block w-4 border-t border-dashed border-danger', label: t('analysis.chart.key.orders') }],
-    },
-    {
-      pref: 'showHistory',
-      hint: 'analysis.settings.history.hint',
-      items: [
-        { swatch: 'inline-block size-0 border-x-[5px] border-b-[8px] border-x-transparent border-b-success', label: t('analysis.chart.key.entry') },
-        { swatch: 'inline-block size-2 rounded-full bg-danger', label: t('analysis.chart.key.exit') },
-        { swatch: 'inline-block size-2 rounded-full bg-muted-foreground', label: t('analysis.chart.key.unknown') },
-      ],
-    },
-    ...(isFractalZone
-      ? [
-          {
-            pref: 'showFractals' as const,
-            hint: 'analysis.settings.fractals.hint' as const,
-            items: [{ swatch: 'inline-block size-0 border-x-[4px] border-b-[6px] border-x-transparent border-b-primary', label: t('analysis.chart.key.fractal') }],
-          },
-        ]
-      : []),
-  ];
-
-  // Dieselben Schalter wie die Legende, auch im Menü „Ebenen“: die Legende scrollt bei schmalen Fenstern seitlich
-  const legendLayers: { pref: keyof AnalysisPrefs; id: string; label: MessageKey; hint: MessageKey }[] = [
-    { pref: 'showZoneLines', id: 'zone-lines', label: 'analysis.settings.zoneLines', hint: 'analysis.settings.zoneLines.hint' },
-    { pref: 'showLevels', id: 'levels', label: 'analysis.settings.levels', hint: 'analysis.settings.levels.hint' },
-    { pref: 'showTrades', id: 'trades', label: 'analysis.settings.trades', hint: 'analysis.settings.trades.hint' },
-    { pref: 'showOrders', id: 'orders', label: 'analysis.settings.orders', hint: 'analysis.settings.orders.hint' },
-    { pref: 'showHistory', id: 'history', label: 'analysis.settings.history', hint: 'analysis.settings.history.hint' },
-    ...(isFractalZone ? [{ pref: 'showFractals' as const, id: 'fractals', label: 'analysis.settings.fractals' as const, hint: 'analysis.settings.fractals.hint' as const }] : []),
-  ];
-
-  const setupSwitches = (idPrefix: string) => (
-    <>
-      {legendLayers.map(l => <Switch key={l.pref} id={`${idPrefix}-${l.id}`} label={t(l.label)} hint={t(l.hint)} checked={prefs[l.pref]} onChange={v => setPref(l.pref, v)} />)}
-      <Switch id={`${idPrefix}-zone-card`} label={t('analysis.settings.zoneCard')} hint={t('analysis.settings.zoneCard.hint')} checked={prefs.showZoneCard} onChange={v => setPref('showZoneCard', v)} />
-      <p className="border-t border-border pt-2 text-[11px] leading-relaxed text-muted-foreground">{t('analysis.settings.fixed')}</p>
-    </>
-  );
-
-  const setupNo = zone && zones ? (setupNumbers(zones).get(zone.id) ?? 0) : 0;
+  const { legend, isChartEmpty } = layers;
   const zoneMissing = Boolean(zoneId && zones && !zone);
 
   const notices = (
@@ -611,75 +191,8 @@ export default function ZoneChartPanel({
     </>
   );
 
-  const overview = zone && (
-    <div className="space-y-3" data-testid="chart-card-overview">
-      <LiveStats digits={streamMatches ? (data?.digits ?? undefined) : undefined} />
-      {symbolMismatch && (
-        <Alert tone="warning" title={t('chart.zone.mismatch.title')}>
-          {t('chart.zone.mismatch.text', { stream: metrics.symbol ?? '', symbol: zone.symbol })}
-        </Alert>
-      )}
-      {prefs.showZoneCard && <ZoneInfo zone={zone} />}
-      {marketHours && (
-        <Badge hint={t('analysis.chart.hours.hint')} data-testid="market-hours">
-          {t('analysis.chart.hours', { hours: marketHours })}
-        </Badge>
-      )}
-      {prefs.showLevels && levels?.unavailable && (
-        <p className="text-xs text-muted-foreground" data-testid="levels-note">
-          {t(LEVELS_UNAVAILABLE[levels.unavailable])}
-        </p>
-      )}
-      {isFractalZone && prefs.showFractals && timeframe !== fractalTf && (
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground" data-testid="fractal-tf-note">
-          <span>{t('analysis.chart.fractals.otherTf', { tf: fractalTf })}</span>
-          <Button size="sm" variant="outline" hint={t('analysis.chart.fractals.switch.hint', { tf: fractalTf })} onClick={() => onTimeframe(fractalTf)}>
-            {t('analysis.chart.fractals.switch', { tf: fractalTf })}
-          </Button>
-        </div>
-      )}
-      {(prefs.showTrades || prefs.showOrders) && (
-        <p className="text-xs text-muted-foreground" data-testid="trades-note">
-          {!botRunning && t('analysis.chart.trades.botStopped')}
-          {botRunning && zone.magic === undefined && t('analysis.chart.trades.noMagic')}
-          {botRunning &&
-            zone.magic !== undefined &&
-            t('analysis.chart.trades.count', { positions: positions.length, orders: orders.length })}
-        </p>
-      )}
-    </div>
-  );
-
   const card = zone && (
-    <FloatingCard
-      title={t('chart.zone.title', { n: setupNo, symbol: zone.symbol || '—' })}
-      tabs={[
-        { id: 'overview', label: t('chart.card.overview'), hint: t('chart.card.overview.hint'), content: overview },
-        {
-          id: 'trades',
-          label: t('chart.card.trades'),
-          hint: t('chart.card.trades.hint'),
-          wide: true,
-          content: dealsRequest && (
-            <TradesTable
-              accountId={accountId}
-              variant="zone"
-              trades={history?.trades ?? []}
-              openEntries={history?.openEntries ?? 0}
-              otherTrades={history?.otherTrades ?? 0}
-              from={dealsRequest.from}
-              digits={data?.digits ?? null}
-              currency={deals.data?.account?.currency ?? null}
-              loading={deals.loading}
-              error={deals.error}
-              missing={deals.data?.missing ?? []}
-              setupLabel={setupLabel}
-              onFocus={focusTrade}
-            />
-          ),
-        },
-      ]}
-    />
+    <SetupCardTabs accountId={accountId} zone={zone} timeframe={timeframe} onTimeframe={onTimeframe} prefs={prefs} data={data} layers={layers} />
   );
 
   return (
@@ -736,22 +249,22 @@ export default function ZoneChartPanel({
               signalBars={signalBars}
               timeframe={timeframe}
               modeTitle={t('cw.layers.setup')}
-              modeLayers={setupSwitches('layer')}
+              modeLayers={<SetupSwitches idPrefix="layer" legendLayers={layers.legendLayers} prefs={prefs} />}
               clockNow={offsetSec !== null && data?.liveFrom != null ? nowSec() : null}
               data={chart}
               timeframeSec={tfSec}
               digits={data?.digits ?? null}
               viewKey={viewKey}
-              band={band}
-              lines={lines}
-              live={live}
-              markers={overlays.markers}
-              links={overlays.links}
-              fractals={fractals}
+              band={layers.band}
+              lines={layers.lines}
+              live={layers.live}
+              markers={layers.markers}
+              links={layers.links}
+              fractals={layers.fractals}
               trendPath={trend}
               toolbarActions={<TrendToggle timeframe={timeframe} size="xs" />}
-              notes={overlays.notes}
-              focus={focus && focus.view === viewKey ? focus : null}
+              notes={layers.notes}
+              focus={layers.focus}
               fullscreenOfPage
             />
           )}
