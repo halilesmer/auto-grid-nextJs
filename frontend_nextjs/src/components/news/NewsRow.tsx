@@ -23,7 +23,7 @@ export function useDuration() {
   };
 }
 
-export default function NewsRow({ event: e, nowMs }: { event: NewsEvent; nowMs: number }) {
+export default function NewsRow({ event: e, nowMs, focused = false }: { event: NewsEvent; nowMs: number; focused?: boolean }) {
   const t = useT();
   const f = useFormat();
   const dur = useDuration();
@@ -75,7 +75,8 @@ export default function NewsRow({ event: e, nowMs }: { event: NewsEvent; nowMs: 
       data-testid="news-row"
       data-event-id={e.id ?? undefined}
       data-soon={soon ? 'true' : undefined}
-      className={cn('flex flex-col gap-0.5 border-t border-border px-2.5 py-1.5 first:border-t-0', soon && 'bg-warning/10 shadow-[inset_2px_0_0_var(--warning)]')}
+      data-focused={focused ? 'true' : undefined}
+      className={cn('flex flex-col gap-0.5 border-t border-border px-2.5 py-1.5 first:border-t-0', focused && 'ring-2 ring-inset ring-primary', soon && 'bg-warning/10 shadow-[inset_2px_0_0_var(--warning)]')}
     >
       <div className="flex items-center gap-1.5">
         <span className={cn('text-[11px] font-bold tabular-nums', past && 'text-muted-foreground')} data-testid="news-time">{timeText}</span>

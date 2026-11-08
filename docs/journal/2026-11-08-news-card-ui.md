@@ -2,8 +2,8 @@
 date: 2026-11-08
 author: Claude
 type: change
-status: open
-pr: []
+status: done
+pr: [453]
 features: [NWS-02]
 areas: [frontend, worker, tests]
 ---
@@ -30,7 +30,8 @@ Step S2 of plan 1107-A16: the user interface of the news card. The worker part (
 
 ## Open points
 - [x] Decision: store the filter in the worker. Done with `ui_prefs.py` (decision 1107-A16.8).
-- [ ] S3: the notification (30 minutes, path of FRM-30). The row in the card is passive.
-- [ ] Visual check in the browser after the merge (project owner). The real `unit`, `multiplier` and `sector` values from the VPS are not yet seen in the card; the code expects `percent`, `thousands..trillions` and the MT5 sector names in lower case.
+- [x] S3: the notification. Done in `2026-11-08-news-card-alerts.md` (NWS-03).
+- [x] Visual check in the browser after the merge: done on 2026-11-08 (v0.7.495 on the VPS). The `ui-prefs` GET and PUT work on the DEMO account. No overflow at 375 px. (Open: the real `unit`, `multiplier` and `sector` values.)
+- [ ] Visual check of the values (old point): The real `unit`, `multiplier` and `sector` values from the VPS are not yet seen in the card; the code expects `percent`, `thousands..trillions` and the MT5 sector names in lower case.
 - [ ] Not done (review, low risk): the request body is read in full before the size check. Other routes have the same limit. A body limit for all routes would be a separate change.
 - [ ] The default currencies depend on the page: on `/chart` and `/backtest` the card shows all currencies until the settings are loaded. To fix it, the symbols would have to come from a source that needs no settings call (for example the worker could return them with the news filter).

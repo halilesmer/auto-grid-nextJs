@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import ConnectionDialog from "@/components/connection/ConnectionDialog";
 import ConnectionGate from "@/components/connection/ConnectionGate";
@@ -7,6 +8,7 @@ import AppNav from "@/components/layout/AppNav";
 import ConnectionSync from "@/components/layout/ConnectionSync";
 import LocaleSync from "@/components/layout/LocaleSync";
 import ThemeSync from "@/components/layout/ThemeSync";
+import NewsAlertRunner from "@/components/news/NewsAlertRunner";
 import { LOCALE_INIT_SCRIPT } from "@/i18n/config";
 import { Toaster } from "@/components/ui/animated-toast";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
@@ -74,6 +76,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <LocaleSync />
         <ConnectionSync />
         <FormationScanRunner />
+        <Suspense fallback={null}>
+          <NewsAlertRunner />
+        </Suspense>
         <AppNav />
         <main className="flex-1">
           <ConnectionGate>{children}</ConnectionGate>

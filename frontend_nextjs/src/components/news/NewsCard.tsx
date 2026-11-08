@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
-import { BellOff, CircleAlert, Info, WifiOff } from 'lucide-react';
+import { CircleAlert, Info, WifiOff } from 'lucide-react';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useFormat, useT, type MessageKey } from '@/i18n';
 import {
@@ -11,6 +11,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useConnectionDialogStore } from '@/store/useConnectionDialogStore';
 import { useNewsStore } from '@/store/useNewsStore';
+import NewsAlerts from './NewsAlerts';
 import NewsRow from './NewsRow';
 
 function Toggle({ pressed, disabled, hint, label, testid, onClick, dot }: {
@@ -85,13 +86,18 @@ interface Props {
 export default function NewsCard({ nowMs, connected, derivedCurrencies, onRetry }: Props) {
   const t = useT();
   const f = useFormat();
-  const { filter, events, available, stale, loaded, failed, savedVisible, setFilter } = useNewsStore();
+  const { filter, events: filtered, alertEvents, focusRequest, available, stale, loaded, failed, savedVisible, setFilter } = useNewsStore();
   const [ccyOpen, setCcyOpen] = useState(false);
 
   const ccys = effectiveCurrencies(filter, derivedCurrencies);
   const ccyList = Array.from(new Set([...KNOWN_CURRENCIES, ...ccys]));
   const rangeOn = filter.days.some(isRange);
   const noSource = connected && loaded && (failed || !available);
+
+  // Bildirimden gelen haber süzgece uymasa da kartta görünür (gün süzgeci uyarıyı sınırlamaz)
+  const focusId = focusRequest ? String(focusRequest.id) : null;
+  const pinned = focusId && !filtered.some((e) => String(e.id) === focusId) ? alertEvents.find((e) => String(e.id) === focusId) : undefined;
+  const events = pinned ? [...filtered, pinned].sort((a, b) => Date.parse(a.time) - Date.parse(b.time)) : filtered;
 
   const groups: { key: string; label: string; items: NewsEvent[] }[] = [];
   for (const e of events) {
@@ -125,7 +131,7 @@ export default function NewsCard({ nowMs, connected, derivedCurrencies, onRetry 
             {groups.map((g) => (
               <div key={g.key} data-testid="news-day-group">
                 <div className="sticky top-0 z-[1] bg-popover px-2.5 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{g.label}</div>
-                {g.items.map((e) => <NewsRow key={e.id ?? e.time + e.title} event={e} nowMs={nowMs} />)}
+                {g.items.map((e) => <NewsRow key={e.id ?? e.time + e.title} event={e} nowMs={nowMs} focused={focusId !== null && String(e.id) === focusId} />)}
               </div>
             ))}
           </div>
@@ -212,14 +218,7 @@ export default function NewsCard({ nowMs, connected, derivedCurrencies, onRetry 
 
       {body}
 
-      <Tooltip content={t('news.notify.hint')} className="w-full">
-        <div tabIndex={0} data-testid="news-notify" className="flex w-full items-center gap-1.5 border-t border-border px-2.5 py-1.5 text-[10px] text-muted-foreground opacity-80">
-          <BellOff size={11} aria-hidden="true" />
-          <span>{t('news.notify')}</span>
-          <span>30 {t('news.notify.minutes')}</span>
-          <span className="ml-auto rounded-full border border-warning/40 bg-warning/10 px-1.5 text-[9px] text-warning">{t('news.next')}</span>
-        </div>
-      </Tooltip>
+      <NewsAlerts />
     </>
   );
 }
