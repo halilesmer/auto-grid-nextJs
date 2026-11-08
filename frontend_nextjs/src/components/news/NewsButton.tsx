@@ -1,16 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { CalendarClock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLocale, useT } from '@/i18n';
-import { currenciesFromSymbols, effectiveCurrencies, isSoon, minutesUntil, nextEvent } from '@/lib/news';
+import { useNewsCurrencies } from '@/hooks/useNewsCurrencies';
+import { isSoon, minutesUntil, nextEvent } from '@/lib/news';
 import { cn } from '@/lib/utils';
-import { useAccountStore } from '@/store/useAccountStore';
 import { useConnectionStore } from '@/store/useConnectionStore';
 import { useNewsStore } from '@/store/useNewsStore';
-import { useSettingsStore } from '@/store/useSettingsStore';
 import NewsCard from './NewsCard';
 import { useDuration } from './NewsRow';
 
@@ -18,6 +17,8 @@ import { useDuration } from './NewsRow';
 const HIDDEN_PATHS = ['/vps', '/users'];
 const POLL_MS = 60_000;
 const PANEL_WIDTH = 332;
+/** Hesap değişiminde ayarların ve süzgecin oturması için bekleme; tek istek */
+const SETTLE_MS = 700;
 
 function useNow(ms: number) {
   const [now, setNow] = useState(() => Date.now());
@@ -33,36 +34,42 @@ function NewsButtonInner() {
   const locale = useLocale();
   const dur = useDuration();
   const nowMs = useNow(30_000);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => useNewsStore.getState().focusRequest !== null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const selectedAccount = useAccountStore((s) => s.selectedAccount);
   const connected = useConnectionStore((s) => s.status === 'connected');
-  const loadedAccount = useSettingsStore((s) => s.loadedAccount);
-  const zones = useSettingsStore((s) => s.settings?.ZONES);
   const { filter, events, available, stale, failed, accountId } = useNewsStore();
-
-  // Hesabın zone sembolleri (varsayılan para birimleri): yalnız ayarlar başka yerde zaten yüklüyse (Dashboard).
-  // Düğme ayar çağırmaz (ANA-16: serbest grafik /settings istemez); yoksa tüm para birimleri.
-  const symbolsKey = (loadedAccount === selectedAccount ? (zones ?? []) : []).map((z) => z.symbol).join(',');
-  const derived = useMemo(() => currenciesFromSymbols(symbolsKey ? symbolsKey.split(',') : []), [symbolsKey]);
-  const ccys = effectiveCurrencies(filter, derived);
-  const ccyKey = ccys.join(',');
-  const ready = connected && accountId === selectedAccount;
-
-  useEffect(() => {
-    useNewsStore.getState().loadFilter(selectedAccount);
-  }, [selectedAccount]);
+  const { selectedAccount, accountsSettled, derived, currenciesKey: ccyKey } = useNewsCurrencies();
+  // Kontolar gelmeden istek gitmez (hesap seçimi birkaç yüz ms sonra oturur)
+  const ready = connected && accountsSettled && accountId === selectedAccount;
+  // Süzgeç içeriği: kimlik değil değer değişince yeniden istenir (hesap değişiminde GET yanıtı aynı süzgeci yazınca çift istek olmasın)
+  const filterKey = JSON.stringify(filter);
 
   const refresh = useCallback(() => useNewsStore.getState().fetchEvents({ lang: locale, currencies: ccyKey ? ccyKey.split(',') : [] }), [locale, ccyKey]);
 
+  // Hesap değişince önce Para birimleri (ayarlar) ve süzgeç oturur, sonra tek istek gider
   useEffect(() => {
     if (!ready) return;
-    void refresh();
+    const first = setTimeout(() => void refresh(), SETTLE_MS);
     const id = setInterval(() => void refresh(), POLL_MS);
-    return () => clearInterval(id);
-  }, [ready, refresh, filter]);
+    return () => {
+      clearTimeout(first);
+      clearInterval(id);
+    };
+  }, [ready, refresh, filterKey]);
+
+  // Bildirime tıklanınca kart açılır
+  useEffect(
+    () =>
+      useNewsStore.subscribe((state, prev) => {
+        if (state.focusRequest && state.focusRequest !== prev.focusRequest) setOpen(true);
+      }),
+    [],
+  );
+  useEffect(() => {
+    if (!open) useNewsStore.getState().clearFocus();
+  }, [open]);
 
   // Kart: üst-katman (popover) + sabit konum; nav'daki backdrop-filter fixed çocukları kendine bağlar
   useLayoutEffect(() => {

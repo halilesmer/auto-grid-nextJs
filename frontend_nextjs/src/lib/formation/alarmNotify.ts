@@ -64,7 +64,7 @@ function beep() {
   }
 }
 
-async function showSystem(title: string, body: string, tag: string, url: string) {
+export async function showSystem(title: string, body: string, tag: string, url: string) {
   try {
     const registration = await navigator.serviceWorker?.getRegistration();
     // renotify: derselbe Treffer meldet erst „gültig“, später den Zielpunkt; ohne renotify bliebe die zweite Meldung still (fehlt in den TS-DOM-Typen)

@@ -41,7 +41,7 @@ The plan has five steps.
 | S1a | This probe. `worker_python/ops/mt5/AutoGridCalendarProbe.mq5`, a service that runs once and writes `autogrid_calendar_probe.json` |
 | S1 | Worker. Service `AutoGridCalendar.mq5` writes the file every minute. `src/utils/econ_calendar.py` reads it and converts the times to UTC. Route `GET /api/news/events?from&to&impact&currencies`. Every logged-in role has access. The route is not bound to an account. The file is `stale` when it is older than 5 minutes. Pytest fixture, mock worker, test NWS-01 |
 | S2 | Card `components/dashboard/NewsCard.tsx`. The store `useNewsStore` refreshes every 60 seconds. Filter, i18n, hints, e2e `@NWS-02` |
-| S3 | Optional notification. The decision is open. Use the path of FRM-30. Test `@NWS-03` |
+| S3 | Notification. Decision 1107-A16.9: two alerts, minutes set by the user. Path of FRM-30. Test `@NWS-03` |
 
 Defaults:
 - Only the importance High.
@@ -91,5 +91,5 @@ The UI of step S2 is described in `2026-11-08-news-card-ui.md`.
 - [x] Decision: MT5 calendar or ForexFactory. MT5.
 - [x] S1: install the service on the VPS (`MQL5\Services`), check criterion c and the real `event_code` values. Done on 2026-11-08: criterion c passed (see the measurement above). The `event_code` list is still to compare with `INVERSE_KEYWORDS`.
 - [x] S0 design (done).
-- [ ] S2: UI built, see `2026-11-08-news-card-ui.md`. Waits for the merge and the visual check.
-- [ ] S3: decide if the notification is built.
+- [x] S2: merged (PR 453, v0.7.495), live on the VPS and checked in the browser on 2026-11-08. See `2026-11-08-news-card-ui.md`.
+- [x] S3: decided on 2026-11-08 (1107-A16.9): two alerts that the user sets (1–1440 minutes, each on or off). Built, see `2026-11-08-news-card-alerts.md`.
