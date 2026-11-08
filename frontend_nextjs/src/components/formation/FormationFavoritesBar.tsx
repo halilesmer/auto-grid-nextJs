@@ -1,7 +1,7 @@
 'use client';
 
 import { Tooltip } from '@/components/ui/tooltip';
-import { CountBadge, idle, segment } from '@/components/formation/FormationToolbar';
+import { CountBadge, idle, segment } from '@/components/formation/FormationForms';
 import { useT, type MessageKey } from '@/i18n';
 import { CONTEXT_TIMEFRAMES, type ContextTimeframe } from '@/lib/formation/params';
 import { formedSummary, timeframeCount, type FormedBySymbol, type ScanFormation } from '@/lib/formation/scan';

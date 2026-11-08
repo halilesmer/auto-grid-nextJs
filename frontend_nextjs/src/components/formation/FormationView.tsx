@@ -11,11 +11,9 @@ import { FavoritesAddButton, FavoritesSidebar } from '@/components/formation/Fav
 import { FormationChart } from '@/components/formation/FormationChart';
 import { FormationConditions } from '@/components/formation/FormationConditions';
 import { FormationSidebarTabs } from '@/components/formation/FormationSidebarTabs';
-import { FormationStatusChip } from '@/components/formation/FormationStatusChip';
 import { FormationAccountSelect, FormationSymbolSelect } from '@/components/formation/FormationSelectors';
-import { FormationAlarmMenu } from '@/components/formation/FormationAlarmMenu';
+import { FormationActions } from '@/components/formation/FormationActions';
 import { FormationAsOf, FormationAsOfSteps, useCompact } from '@/components/formation/FormationAsOf';
-import { FormationShotMenu } from '@/components/formation/FormationShotMenu';
 import { FavoritesForms, FavoritesTimeframes } from '@/components/formation/FormationFavoritesBar';
 import { FormationToolbar } from '@/components/formation/FormationToolbar';
 import { Alert } from '@/components/ui/alert';
@@ -277,13 +275,21 @@ export function FormationView() {
             setView({ form: next, tf: timeframeForForm(scan.hits, next, tf) });
           }}
           actions={
-            <>
-              {accountKnown && <FormationAsOfSteps pastAt={pastAt} tfSec={TIMEFRAME_SEC[tf]} now={brokerNowSec} onChange={setAt} />}
-              {accountKnown && <FormationAsOf pastAt={pastAt} now={brokerNowSec} onChange={setAt} />}
-              <FormationShotMenu ready={shot !== null} makeImage={makeShotImage} fileName={shot ? shotFileName(shot.hit, shot.symbol, shot.scanAt) : ''} />
-              <FormationAlarmMenu symbol={accountKnown ? symbol : null} alarm={alarm} pastView={pastAt !== null} />
-              <FormationStatusChip hit={hit} open={sidebar.open && sidebar.tab === 'conditions'} onToggle={() => sidebar.toggle('conditions')} />
-            </>
+            <FormationActions
+              showAsOf={accountKnown}
+              pastAt={pastAt}
+              tfSec={TIMEFRAME_SEC[tf]}
+              now={brokerNowSec}
+              onAsOf={setAt}
+              shotReady={shot !== null}
+              makeShotImage={makeShotImage}
+              shotFileName={shot ? shotFileName(shot.hit, shot.symbol, shot.scanAt) : ''}
+              symbol={accountKnown ? symbol : null}
+              alarm={alarm}
+              hit={hit}
+              conditionsOpen={sidebar.open && sidebar.tab === 'conditions'}
+              onToggleConditions={() => sidebar.toggle('conditions')}
+            />
           }
           mode={<ChartModeSegment fill />}
           symbol={

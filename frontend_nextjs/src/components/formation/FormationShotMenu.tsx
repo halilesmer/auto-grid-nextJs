@@ -13,10 +13,12 @@ const noSubscription = () => () => {};
  * Knopf in der Kopfleiste: erzeugt ein Bild der gewählten Formation (Chart, Zeichnungen, Bedingungen) und lädt es
  * herunter oder kopiert es. `makeImage` baut das PNG; ohne Kandidat (`ready` false) ist der Knopf aus.
  */
-export function FormationShotMenu({ ready, makeImage, fileName }: {
+export function FormationShotMenu({ ready, makeImage, fileName, disabledHint }: {
   ready: boolean;
   makeImage: () => Promise<Blob>;
   fileName: string;
+  /** Gesetzt: der Knopf ist aus (z. B. Zeiteinheit ohne Formationssuche) und der Hinweis nennt den Grund */
+  disabledHint?: string;
 }) {
   const t = useT();
   const [busy, setBusy] = useState(false);
@@ -54,14 +56,14 @@ export function FormationShotMenu({ ready, makeImage, fileName }: {
   return (
     <DropdownMenu
       label={t('formation.shot.menu')}
-      hint={ready ? t('formation.shot.menu.hint') : t('formation.shot.menu.empty.hint')}
+      hint={disabledHint ?? t(ready ? 'formation.shot.menu.hint' : 'formation.shot.menu.empty.hint')}
       icon={busy ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
       variant="ghost"
       size="icon-sm"
       align="left"
       className="max-lg:mr-1"
       panelClassName="w-60"
-      triggerProps={{ disabled: !ready || busy, 'data-testid': 'formation-shot' }}
+      triggerProps={{ disabled: disabledHint !== undefined || !ready || busy, 'data-testid': 'formation-shot' }}
     >
       <DropdownMenuGroup>
         <DropdownMenuItem icon={<Download size={14} />} hint={t('formation.shot.download.hint')} data-testid="formation-shot-download" onSelect={() => run(download, 'formation.shot.saved')}>

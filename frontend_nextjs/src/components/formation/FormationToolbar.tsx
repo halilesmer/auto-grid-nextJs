@@ -6,28 +6,11 @@ import { DockPackage } from '@/components/chart-workspace/dock/DockPackage';
 import { useDock } from '@/components/chart-workspace/dock/DockProvider';
 import { DockRow } from '@/components/chart-workspace/dock/DockRow';
 import { Tooltip } from '@/components/ui/tooltip';
-import { useT, type MessageKey } from '@/i18n';
+import { useT } from '@/i18n';
 import { CONTEXT_TIMEFRAMES, type ContextTimeframe } from '@/lib/formation/params';
-import { hitsCount, SCAN_FORMATIONS, type ScanFormation, type ScanHit } from '@/lib/formation/scan';
+import { hitsCount, type ScanFormation, type ScanHit } from '@/lib/formation/scan';
+import { CountBadge, FormationForms, idle, segment } from './FormationForms';
 import { cn } from '@/lib/utils';
-
-export function CountBadge({ count, active }: { count: number; active: boolean }) {
-  if (count === 0) return null;
-  return (
-    <span
-      data-testid="hit-badge"
-      className={cn(
-        'ml-1 inline-block min-w-[14px] rounded-full px-1 text-center text-[10px] font-semibold leading-[14px]',
-        active ? 'bg-black/15 text-current' : 'bg-success/15 text-success',
-      )}
-    >
-      {count}
-    </span>
-  );
-}
-
-export const segment = 'inline-flex h-7 shrink-0 cursor-pointer items-center rounded-[5px] px-1.5 text-xs transition-colors';
-export const idle = 'text-muted-foreground hover:bg-accent hover:text-foreground';
 
 /**
  * Kopfleiste im TradingView-Stil in zwei Zeilen (UI-17, Plan 1106-A1, Schritt S3). Zeile 1: `children` (Symbol und Konto), Aktionen und die Pakete in Zeile 1 (`DockRow`);
@@ -81,18 +64,7 @@ export function FormationToolbar({
       </Tooltip>
     );
   });
-  const formButtons = SCAN_FORMATIONS.map((x) => {
-    const count = hitsCount(hits, { form: x });
-    const name = t(`formation.form.${x}` as MessageKey);
-    return (
-      <Tooltip key={x} content={t('formation.form.option.hint', { form: name, count })} role="presentation">
-        <button type="button" aria-pressed={x === form} data-keep={x === form ? '' : undefined} data-testid={`formation-form-${x}`} onClick={() => onForm(x)} className={cn(segment, 'h-6', x === form ? 'bg-primary text-primary-foreground' : idle)}>
-          {name}
-          <CountBadge count={count} active={x === form} />
-        </button>
-      </Tooltip>
-    );
-  });
+  const formButtons = <FormationForms hits={hits} tf={tf} form={form} onForm={onForm} />;
   // Zeiteinheiten: Paket (docked) oder die feste Handy-Anordnung neben den Aktionen
   const phoneTimeframes = <div role="group" aria-label={t('formation.tf.label')} className="flex h-[38px] min-w-0 items-center gap-0.5 overflow-x-auto max-lg:flex-1">{tfButtons}</div>;
   const phoneForms = <div role="group" aria-label={t('formation.form.label')} className="pointer-events-auto flex h-[30px] min-w-0 items-center gap-0.5 overflow-x-auto border-b border-border px-2" data-testid="formation-forms">{formButtons}</div>;

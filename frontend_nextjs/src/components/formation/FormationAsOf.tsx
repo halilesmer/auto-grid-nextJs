@@ -53,13 +53,15 @@ interface Props {
   now: () => number;
   /** Wert für `?at=` oder null (live) */
   onChange: (value: string | null) => void;
+  /** Gesetzt: der Schalter ist aus (z. B. Zeiteinheit ohne Formationssuche) und der Hinweis nennt den Grund */
+  disabledHint?: string;
 }
 
 /**
  * Schalter „Stand“ der Kopfleiste (FRM-38): live oder ein Zeitpunkt in der Vergangenheit. Der Klick öffnet auf dem Desktop ein Popover,
  * unter 640 px ein Blatt von unten. Datum und Uhrzeit sind Brokerzeit; die Uhrzeit springt im Takt der Suche (15 Minuten).
  */
-export function FormationAsOf({ pastAt, now, onChange, float = false }: Props) {
+export function FormationAsOf({ pastAt, now, onChange, float = false, disabledHint }: Props) {
   const t = useT();
   const format = useFormat();
   const compact = useCompact();
@@ -159,7 +161,8 @@ export function FormationAsOf({ pastAt, now, onChange, float = false }: Props) {
         size="sm"
         variant="outline"
         className={cn('gap-1.5 px-2 sm:h-7', past && 'border-warning/50 bg-warning/10 text-warning hover:bg-warning/15')}
-        hint={t('formation.asof.menu.hint')}
+        hint={disabledHint ?? t('formation.asof.menu.hint')}
+        disabled={disabledHint !== undefined}
         aria-label={pastAt === null ? t('formation.asof.live') : t('formation.asof.chip', { time: format.mt5DateTime(pastAt) })}
         aria-expanded={open}
         aria-haspopup="dialog"
