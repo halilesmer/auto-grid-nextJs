@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-08 · **223/245** abgehakt · ❌ 5 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-08 · **223/246** abgehakt · ❌ 5 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -30,6 +30,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 23/27 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 18/22 |
 | 16 | **FRM** – Formationserkennung | 42/45 |
+| 17 | **NWS** – Nachrichten (Wirtschaftskalender) | 0/1 |
 
 ## 1. SYS – Verbindung & Infrastruktur
 
@@ -1133,3 +1134,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Eine Formation im Aufbau zeigt einen gestrichelten Weg von C zum erwarteten D in der Zukunft (Preis = Zielniveau Level 1 bzw. Mitte der D-Zone, Zeit = C plus Dauer von AB, am Rand abgeschnitten), einen Ring „D?“ und den Preis am rechten Rand (Z-ABCD-02). Neben dem Ring steht ein Abzeichen „ABCD · oluşuyor“ (Rahmen Warnung) oder „Gartley ✓“ (gültig, Rahmen Erfolg); der Stand ist als Text lesbar. Mehrere Formationen im Zeitrahmen: Abzeichen in einem Stapel (nächstes D oben), nur die gewählte voll gezeichnet, die übrigen als blasser Ring und blasses Abzeichen; Klick auf ein Abzeichen wählt die Formation; D-Niveaus näher als 1,5 ATR bilden ein Band „D? bölgesi“ mit beiden Preisen (Plan 1105-A5, A5.5/A5.6/A5.6.1).
   - **Prüfung:** Playwright-Test e2e/mocked/formation-expected-d-lib.spec.ts (@FRM-44) ausführen (D-Zeit und -Preis, Weg in die Zukunft und am Rand, Abzeichen im Aufbau und gültig, Stapel, blasse Ringe, Band bei 1,5 ATR; abgelaufene D-Zeit rückt hinter die letzte Kerze, Rozet-Zahl = Ring-Zahl in der Marktlücke, Stapel im Zeichenbereich, Preisschrift weicht dem Stapel aus). → Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-44) ausführen (ABCD im Aufbau mit Abzeichen, hell und dunkel, 375 px ohne Querscroll).
   - **Erwartet:** Der gestrichelte Weg endet am erwarteten D rechts der letzten Kerze, nicht an deren Schluss; das Abzeichen nennt Name und Stand als Text; nahe D-Niveaus erscheinen als ein Band.
+
+## 17. NWS – Nachrichten (Wirtschaftskalender)
+
+- [ ] **NWS-01** Wirtschaftskalender: Dienst, Datei und Route /news/events — 🧪 unit ⏳ · 🔌 api ⏳ · 👤 manuell ⏳
+  - Plan 1107-A16 S1. Die MT5-Python-API liest den Kalender nicht; der MQL5-Dienst worker_python/ops/mt5/AutoGridCalendar.mq5 schreibt jede Minute Common\Files\autogrid_calendar_<lang>.json (lang = Terminalsprache de/en/tr; MT5 liefert den Titel nur in der Terminalsprache, je Sprache ein Terminal mit eigenem Dienst; UTF-8, atomar über Temp-Datei und FileMove, Steuerzeichen in Titeln maskiert; Fenster Monatsanfang −1 Tag bis Monatsende, mindestens jetzt + 7 Tage; Kopf mit Server, Serverzeit, GMT, written_at, change_id, Zahlen und Fehlercodes; je Ereignis Titel in der Terminalsprache, event_code, Land, Währung, Wichtigkeit, time_mode, Sektor, Einheit, Multiplikator, actual/forecast/prev/revised_prev, impact_type). Der Worker (src/utils/econ_calendar.py, Ordner %APPDATA%\MetaQuotes\Terminal\Common\Files oder AUTOGRID_CALENDAR_DIR) liest alle Dateien autogrid_calendar_*.json: Zeiten und Werte aus der frischesten nicht veralteten Datei, Titel aller Dateien über value_id zu `titles` {de,en,tr} vereint (veraltete Datei liefert noch Titel); UTF-8 (Rückfall cp1252, json strict=False), rechnet Serverzeit in UTC um (time_trade_server − time_gmt, auf 15 Minuten gerundet; eine Stunde Versatz bei Sommerzeitwechsel möglich), sortiert nach Zeit und setzt forecast_direction (up/down/flat aus forecast gegen prev, null ohne Wert; bei umgekehrten Kennzahlen wie Arbeitslosenquote oder Erstanträgen gedreht, Treffer über event_code und Titel). Alle Dateien fehlen oder sind älter als 5 Minuten (nach der frischesten): stale. GET /api/news/events?from&to&impact&currencies&lang (lang tr/en/de; title = titles[lang], sonst en, sonst die erste vorhandene; jede Rolle, nicht an ein Konto gebunden) liefert {events, languages, stale, available, source: mt5, generated_at}; ohne Datei available=false und leere Liste, kein Fehler. Der Dienst wurde nicht gegen einen echten Terminal getestet.
+  - **Prüfung:** pytest tests/unit/test_econ_calendar.py und tests/api/test_news_api.py ausführen. → Auf dem VPS AutoGridCalendar.mq5 nach MQL5\Services kopieren, in MetaEditor kompilieren, im Navigator unter Dienste „Dienst starten“; Journal-Reiter „Experten“ zeigt keinen Fehler. Nach einer Minute ändert sich die Änderungszeit von autogrid_calendar.json. → GET /api/news/events?impact=high liefert Ereignisse; die Zeit eines bekannten Termins (US-Daten) stimmt in UTC; bei einem veröffentlichten Ereignis ist actual gefüllt (Kriterium c der Sonde); die event_code der Arbeitslosenkennzahlen enthalten einen Eintrag der Liste INVERSE_KEYWORDS.
+  - **Erwartet:** Die Tests bestehen. Auf dem VPS liefert die Route sortierte UTC-Zeiten, stale=false solange der Dienst läuft, und actual ist bei veröffentlichten Ereignissen gefüllt.

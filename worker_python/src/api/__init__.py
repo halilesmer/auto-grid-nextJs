@@ -10,6 +10,7 @@ from src.api.system import router as system_router
 from src.api.users import router as users_router
 from src.api.favorites import router as favorites_router
 from src.api.media import router as media_router
+from src.api.news import router as news_router
 
 from src.api.backtest_presets import router as backtest_presets_router
 from src.api.backtest_reports import router as backtest_reports_router
@@ -27,6 +28,7 @@ api_router.include_router(system_router)
 api_router.include_router(users_router)
 api_router.include_router(favorites_router)
 api_router.include_router(media_router)
+api_router.include_router(news_router)
 api_router.include_router(backtest_presets_router)
 api_router.include_router(backtest_reports_router)
 

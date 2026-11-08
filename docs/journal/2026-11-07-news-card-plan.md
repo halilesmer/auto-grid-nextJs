@@ -49,17 +49,33 @@ Defaults:
 - The card is only on the dashboard.
 
 ## Verification
-Not verified. The probe runs only on the VPS (MT5 is Windows only). Judge the result with these four criteria:
+The probe ran on the VPS on 2026-11-08 as a service, with one terminal. Result:
 
-| # | Criterion |
-|---|---|
-| a | The number of events is more than 0, and High events are in the list |
-| b | `TimeTradeServer` − `TimeGMT` is plausible, and the time of a known release is correct (for example US data at 13:30 or 14:30 UTC) |
-| c | `actual` is filled for releases of the last 24 hours |
-| d | The service type gives no error |
+| # | Criterion | Result |
+|---|---|---|
+| a | Events more than 0, High events in the list | Passed. 222 events: 16 high, 64 moderate, 135 low, 7 none. 19 currencies |
+| b | Server time and a known release | Passed. `TimeTradeServer` is 09:45 and `TimeGMT` is 07:45, so the server is GMT+2. US CPI at 15:30 server time is 13:30 UTC, which is correct |
+| c | `actual` filled for releases of the last 24 hours | Open. The test ran on a weekend, there was no release in the last 24 hours, and all `impact_type` values were `none`. The S1 service starts its window at the start of the month, so the first VPS test after the merge can check this |
+| d | The service type gives no error | Passed. `err_history=0` and `err_last=0`. `CalendarValueLast(0)` returned a change_id |
+
+Decision: the source is the MT5 calendar. The backup source is not needed now.
+
+Findings of the probe and what S1 does:
+1. The file was written in ANSI (cp1252). The service writes UTF-8 (`FILE_ANSI` with `CP_UTF8`). The worker reads UTF-8 and falls back to cp1252.
+2. `Q()` did not escape control characters, and one title had a raw line feed, so the JSON was not valid. The service escapes `\n`, `\r`, `\t` and all characters below 0x20. The worker reads with `strict=False`.
+3. Titles come in the language of the terminal (German on the VPS). The service passes `title` as is and adds the language-independent `event_code`. The decision about the title language (1107-A16.7) belongs to S2.
+4. The probe had no `event_code`, `sector`, `time_mode`, `unit` and `multiplier`. The service writes them. The list of inverse indicators and the sector comment need them. `time_mode` separates all-day events (an "EU summit" showed 00:00).
+5. The events were not in order. The worker sorts them by time.
+
+6. MT5 gives the event name only in the terminal language (`MqlCalendarEvent.name`, no language parameter), so one terminal gives one language. The service writes `autogrid_calendar_<lang>.json` (`lang` from `TERMINAL_LANGUAGE`). The worker reads all language files, takes times and values from the freshest file that is not stale, and merges the titles by `value_id` into `titles`. The route takes `lang` and falls back to `en`, then to the first available title (plan 1107-A16.7). A file without the `lang` field (version 1, for example the probe file `autogrid_calendar_probe.json`) is ignored.
+
+Known limit: the worker converts server time to UTC with one offset (`time_trade_server` − `time_gmt`, rounded to 15 minutes). An event close to a daylight-saving change can be one hour off.
+
+The real `event_code` values are known only after the first VPS test of S1. The inverse list (`INVERSE_KEYWORDS` in `econ_calendar.py`) matches by substring on the code and the title, so check it then.
 
 ## Open points
-- [ ] Run the probe on the VPS and write the result here.
-- [ ] Decision: MT5 calendar or ForexFactory.
-- [ ] S0 design, S1, S2.
+- [x] Run the probe on the VPS and write the result here.
+- [x] Decision: MT5 calendar or ForexFactory. MT5.
+- [ ] S1: install the service on the VPS (`MQL5\Services`), check criterion c and the real `event_code` values.
+- [ ] S0 design (done), S2.
 - [ ] S3: decide if the notification is built.
