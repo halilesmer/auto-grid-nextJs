@@ -944,7 +944,7 @@ export class MockWorker {
       const codes = (url.searchParams.get('currencies') ?? '').split(',').map((v) => v.trim().toUpperCase()).filter(Boolean);
       const lang = url.searchParams.get('lang') ?? '';
       const events = this.newsEvents
-        .map((e) => {
+        .map((e): Json => {
           const titles = (e.titles ?? {}) as Record<string, string>;
           return { ...e, title: titles[lang] ?? titles.en ?? Object.values(titles)[0] ?? e.title };
         })
