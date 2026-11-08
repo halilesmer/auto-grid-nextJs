@@ -258,6 +258,16 @@ kategorien:
           - Danach den richtigen Pfad wieder eintragen.
         erwartet: Konto 2 zeigt „[CONFIG] MT5 terminal yolu bulunamadı …“; das Journal von Terminal 1 enthält keine Anmeldung von Konto 2, der Bot von Konto 1 läuft ohne „BAĞLANTISI KOPTU“ weiter.
 
+      - id: ACC-12
+        titel: Medien im Konto (max. 3, PDF/Bild/Notiz)
+        beschreibung: "Je Konto höchstens 3 Dateien (PDF, PNG/JPEG/WebP, Notiz .txt/.md). API unter /accounts/{id}/media: Liste (ohne Dateiinhalt), Hochladen als roher Body (?name=), Herunterladen, Löschen. Der Typ kommt aus den ersten Bytes, nicht aus Endung oder Client-MIME; alles andere (SVG, HTML, GIF, HEIC) ergibt 415. Grenzen: Bild und PDF 10 MB, Notiz 1 MB (413), vierte Datei 409. Download mit nosniff, CSP sandbox und unveränderlichem Cache. Fremde Konten sind 404 (Administrator darf alles). Beim Löschen des Kontos bleiben die Medien; legt ein anderer Besitzer dieselbe Kennung an, werden sie verworfen (1107-A20.4, wie 1107-A6.3)."
+        code: [worker_python/src/api/media.py, worker_python/src/utils/account_media.py, worker_python/src/utils/paths.py, worker_python/src/api/accounts.py]
+        tiers: [api, live]
+        pruefung:
+          - Nur DEMO-Konto. Mit dem Admin-Schlüssel per curl eine kleine PNG-Datei an POST /api/accounts/<Konto>/media?name=test.png senden, dann GET /api/accounts/<Konto>/media und GET .../media/<id> aufrufen.
+          - Eine vierte Datei senden; die Testdatei danach mit DELETE entfernen.
+        erwartet: Upload antwortet 201, die Liste zeigt die Datei ohne Inhalt, der Download liefert dieselben Bytes mit den Sicherheitsheadern; die vierte Datei ergibt 409; nach DELETE ist die Liste leer.
+
   # ---------------------------------------------------------------------------
   - id: USR
     titel: Benutzer & Zugriff
