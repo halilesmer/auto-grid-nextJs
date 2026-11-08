@@ -138,7 +138,6 @@ for (const [name, url] of [['Setup', SETUP], ['Frei', FREE]] as const) {
     const actions = pkg(page, 'actions');
     await expect(actions).toBeVisible();
     // Since 1107-A21 the package holds the formation actions too (kept in the row). At 720 px the range may stand in the arrow menu with the tabs; it stays reachable
-    const listed0 = (n: number) => n > 3;
     const rangeInRow = await actions.getByTestId('range-trigger').isVisible();
     await expect(row(page, 'row2')).toBeVisible();
     await singleLine(page);
@@ -149,8 +148,15 @@ for (const [name, url] of [['Setup', SETUP], ['Frei', FREE]] as const) {
     const menu = page.getByTestId('dock-more-menu');
     // Since 1107-A21 the package also holds the formation actions (past moment, image): at this width they may stand in the menu too. The tabs and the license come in this order
     const wanted = [`tab:${msg('analysis.tab.chart')}`, `tab:${msg('analysis.tab.stats')}`, `button:${msg('analysis.license')}`];
-    // A range that left the row goes into this menu with the other hidden items (the menu keeps every hidden item, A4.17.2)
-    expect(rangeInRow || listed0(await menu.locator('button:visible, [role=tab]:visible').count())).toBe(true);
+    // A range that left the row stands in this menu (the menu draws the hidden items again, A4.17.2): it is visible there and opens its picker
+    if (!rangeInRow) {
+      const inMenu = menu.getByTestId('range-trigger');
+      await expect(inMenu).toBeVisible();
+      await inMenu.click();
+      await expect(page.getByTestId('range-panel')).toBeVisible();
+      await page.keyboard.press('Escape');
+      if (!(await menu.isVisible())) await actions.getByTestId('dock-more').click();
+    }
     const listed = await menu.locator('button:visible, [role=tab]:visible').evaluateAll(b => b.map(x => `${x.getAttribute('role') ?? 'button'}:${x.getAttribute('aria-label') ?? x.textContent?.trim()}`));
     expect(listed.filter(x => wanted.includes(x))).toEqual(wanted);
     await menu.getByRole('tab', { name: msg('analysis.tab.stats') }).click();
