@@ -53,6 +53,12 @@ export class Dashboard {
     return this.page.getByTestId('zone-card').nth(index);
   }
 
+  /** Öffnet das Symbol-Log-Panel über das ⋯-Menü der Setup-Karte `zoneIndex` (LOG-07). */
+  async openSymbolLogs(zoneIndex = 0, lang: Lang = this.lang) {
+    await this.zone(zoneIndex).getByRole('button', { name: msg('zone.header.menu', undefined, lang) }).click();
+    await this.zone(zoneIndex).getByRole('button', { name: msg('zone.logs.toggle', undefined, lang) }).click();
+  }
+
   /** Symbolkarte in Anzeigereihenfolge (ZON-20). */
   symbolCard(index = 0): Locator {
     return this.page.getByTestId('symbol-card').nth(index);

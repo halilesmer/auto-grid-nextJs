@@ -24,10 +24,10 @@ test.describe('LOG Logs', () => {
   test('Symbol-Logs zeigen nur das eigene Symbol', { tag: '@LOG-07' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
     const card = dashboard.symbolCard(0);
-    // Der Schalter sitzt einmal in der Symbolkarte, nicht in der Setup-Karte
-    await expect(card.getByRole('button', { name: msg('zone.logs.toggle') })).toHaveCount(1);
-    await expect(card.getByTestId('zone-card').getByRole('button', { name: msg('zone.logs.toggle') })).toHaveCount(0);
-    await card.getByRole('button', { name: msg('zone.logs.toggle') }).click();
+    // Der Streifen unter den Setups ist weg: das Panel öffnet nur über das ⋯-Menü des Setups
+    await expect(card.getByRole('button', { name: msg('zone.logs.toggle') })).toHaveCount(0);
+    await expect(card.getByTestId('symbol-logs-panel')).toHaveCount(0);
+    await dashboard.openSymbolLogs(0);
     const out = card.getByTestId('zone-log-output');
     await expect(out).toContainText('3 emir yerleştirildi');
     await expect(out).not.toContainText('fremde Zone');
@@ -70,7 +70,7 @@ test.describe('LOG Logs', () => {
     await dashboard.open(DEMO_ID);
 
     const uso = dashboard.symbolCard(0);
-    await uso.getByRole('button', { name: msg('zone.logs.toggle') }).click();
+    await dashboard.openSymbolLogs(0);
     const usoOut = uso.getByTestId('zone-log-output');
     await expect(usoOut).toContainText('C eins');
     await expect(usoOut).toContainText('A zwei');
@@ -85,7 +85,7 @@ test.describe('LOG Logs', () => {
     expect(call?.query.getAll('zone_id')).toEqual(['zone-a', 'zone-c']);
 
     const xau = dashboard.symbolCard(1);
-    await xau.getByRole('button', { name: msg('zone.logs.toggle') }).click();
+    await dashboard.openSymbolLogs(2);
     const xauOut = xau.getByTestId('zone-log-output');
     await expect(xauOut).toContainText('B fremd');
     await expect(xauOut).not.toContainText('A zwei');
@@ -98,6 +98,25 @@ test.describe('LOG Logs', () => {
       msg('logs.zoneBadge', { symbol: 'XAUUSD', n: 1 }),
       msg('logs.zoneBadge', { symbol: 'USOUSD', n: 1 }),
     ]);
+  });
+
+  test('Symbol-Logs: Escape und Klick nach außen schließen das Panel, Schließen-Button ebenso', { tag: '@LOG-07' }, async ({ page, dashboard }) => {
+    await dashboard.open(DEMO_ID);
+    const card = dashboard.symbolCard(0);
+    const panel = card.getByTestId('symbol-logs-panel');
+    await dashboard.openSymbolLogs(0);
+    await expect(panel).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(panel).toBeHidden();
+
+    await dashboard.openSymbolLogs(0);
+    await expect(panel).toBeVisible();
+    await page.mouse.click(2, 300); // leerer Rand außerhalb von Karte und Panel
+    await expect(panel).toBeHidden();
+
+    await dashboard.openSymbolLogs(0);
+    await panel.getByRole('button', { name: msg('zone.logs.close') }).click();
+    await expect(panel).toBeHidden();
   });
 
   test('Logs löschen', { tag: '@LOG-02' }, async ({ page, worker, dashboard }) => {

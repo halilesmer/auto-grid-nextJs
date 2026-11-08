@@ -3,6 +3,7 @@
 import { useCallback } from 'react';
 import type { ZoneCardProps } from './types';
 import { ZoneHeader } from './ZoneHeader';
+import { SymbolLogsPanel } from './SymbolLogs';
 import { ZoneFieldsEditor } from './ZoneFieldsEditor';
 import { cn } from '@/lib/utils';
 
@@ -48,14 +49,14 @@ export function ZoneCard({
     <div
       data-testid="zone-card"
       className={cn(
-        'relative overflow-hidden rounded-xl border border-border bg-card shadow-md transition-colors dark:shadow-black/40',
+        'relative overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-card)] transition-colors',
         'before:absolute before:inset-y-0 before:left-0 before:w-[3px]',
         accent,
         !isActive && 'before:opacity-40',
         modified && 'border-warning/30',
       )}
     >
-      <div className="border-b border-border px-2.5 py-2 sm:px-4 sm:py-3">
+      <div className="relative border-b border-border px-2.5 py-2 sm:px-4 sm:py-3">
         <ZoneHeader
           zone={zone}
           title={title}
@@ -71,6 +72,8 @@ export function ZoneCard({
           onSave={handleSave}
           saving={saving}
         />
+        {/* Sembol logları (LOG-07): Panel bu setup'ın başlığının altında, formun üstünde açılır */}
+        <SymbolLogsPanel zoneId={zone.id} />
       </div>
 
       <ZoneFieldsEditor zone={zone} onUpdate={onUpdate} symbolDetails={symbolDetails}
