@@ -122,7 +122,7 @@ DEMO account, read-only (`hooks/RULES.md` §3): summary and edit, logs panel, ph
 | Full e2e runs are heavy. | `heavy_lock.sh` runs them one at a time. |
 
 ## Open points
-- [ ] K1 header and logs
+- [x] K1 header and logs
 - [ ] K2 fields
 - [ ] K3 summary state
 - [ ] K4 check and signatures
