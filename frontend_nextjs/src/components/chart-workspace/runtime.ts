@@ -28,8 +28,8 @@ export function createChartBinding(chart: IChartApi, candles: ISeriesApi<'Candle
 const VIEW_SAVE_DELAY_MS = 180;
 /** Der Chart übernimmt eine gesetzte Ansicht erst im nächsten Bild und rundet sie dabei auf Kerzen; diese Meldungen sind kein Zoom */
 const VIEW_SETTLE_MS = 150;
-/** Kleinster Kerzenabstand in px, den lightweight-charts zulässt (Standard von `minBarSpacing`) */
-const MIN_BAR_SPACING_PX = 0.5;
+/** Kleinster Kerzenabstand in px (`minBarSpacing`); Standard von lightweight-charts wäre 0,5, 0,2 erlaubt mehr Auszoomen (1107-A9.3) */
+export const MIN_BAR_SPACING_PX = 0.2;
 
 /** Zeigt den gespeicherten Zeitbereich, wenn er die geladenen Kerzen überlappt, sonst alle Kerzen (wie „Ansicht zurücksetzen“). */
 export function restoreChartView(chart: IChartApi, times: readonly number[], saved: VisibleTime | undefined) {

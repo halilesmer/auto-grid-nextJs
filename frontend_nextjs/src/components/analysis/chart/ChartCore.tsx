@@ -25,7 +25,7 @@ import type { Appearance } from '@/lib/chart-workspace/settings';
 import { readChartColors, withAlpha, type ChartColors } from '@/lib/chartTheme';
 import { useThemeStore } from '@/store';
 import { ChartWorkspace, type WorkspaceContext } from '@/components/chart-workspace/ChartWorkspace';
-import { type ChartBinding, createChartBinding, appearanceColors, rememberChartView, restoreChartView, type SystemPaneInput, type SystemSeriesRef, type SystemSeriesRefs } from '@/components/chart-workspace/runtime';
+import { type ChartBinding, MIN_BAR_SPACING_PX, createChartBinding, appearanceColors, rememberChartView, restoreChartView, type SystemPaneInput, type SystemSeriesRef, type SystemSeriesRefs } from '@/components/chart-workspace/runtime';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
 import { isSystemRsi } from '@/lib/chart-workspace/indicators';
 import { clipSegments, type TrendSegment } from '@/lib/formation/trdPath';
@@ -322,7 +322,7 @@ export function ChartCore({
         fontSize: 11,
         panes: { separatorColor: 'transparent' },
       },
-      timeScale: { timeVisible: true, secondsVisible: false },
+      timeScale: { timeVisible: true, secondsVisible: false, minBarSpacing: MIN_BAR_SPACING_PX },
       ...(overlayLayout ? {} : { rightPriceScale: { scaleMargins: { top: 0.08, bottom: 0.08 } } }),
     });
     const candles = chart.addSeries(CandlestickSeries, { borderVisible: false, priceLineVisible: true });
