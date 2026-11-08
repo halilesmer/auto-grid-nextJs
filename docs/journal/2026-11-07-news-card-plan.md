@@ -73,9 +73,23 @@ Known limit: the worker converts server time to UTC with one offset (`time_trade
 
 The real `event_code` values are known only after the first VPS test of S1. The inverse list (`INVERSE_KEYWORDS` in `econ_calendar.py`) matches by substring on the code and the title, so check it then.
 
+### Measurement on the VPS, 2026-11-08
+The service `AutoGridCalendar` ran on the VPS with real data.
+
+| # | Result |
+|---|---|
+| Write interval | The service writes every 60 seconds. About 1100 events a month |
+| c | Passed. 246 past events had a forecast or previous value. In 238 of them `actual` is filled |
+| `impact_type` | Filled. 69 events negative, 67 positive |
+| Inverse indicators | MT5 reads them correctly itself. Unemployment 4.1 against an expected 4.2 gives `positive`. Without an expected value, `impact_type` is `none` |
+| Titles | They come in the language of the terminal. Decision 1107-A16.7: show them as they are |
+
+The UI of step S2 is described in `2026-11-08-news-card-ui.md`.
+
 ## Open points
 - [x] Run the probe on the VPS and write the result here.
 - [x] Decision: MT5 calendar or ForexFactory. MT5.
-- [ ] S1: install the service on the VPS (`MQL5\Services`), check criterion c and the real `event_code` values.
-- [ ] S0 design (done), S2.
+- [x] S1: install the service on the VPS (`MQL5\Services`), check criterion c and the real `event_code` values. Done on 2026-11-08: criterion c passed (see the measurement above). The `event_code` list is still to compare with `INVERSE_KEYWORDS`.
+- [x] S0 design (done).
+- [ ] S2: UI built, see `2026-11-08-news-card-ui.md`. Waits for the merge and the visual check.
 - [ ] S3: decide if the notification is built.

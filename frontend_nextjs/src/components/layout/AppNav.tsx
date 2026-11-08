@@ -10,6 +10,7 @@ import { VERSION } from '@/app/version';
 import { useT, type MessageKey } from '@/i18n';
 import { DropdownMenu, DropdownMenuGroup, useDropdownClose } from '@/components/ui/dropdown-menu';
 import { useAuthStore, type Me } from '@/store/useAuthStore';
+import NewsButton from '@/components/news/NewsButton';
 import HeaderMenu from './HeaderMenu';
 
 const LINKS: {
@@ -102,6 +103,7 @@ export default function AppNav() {
         </div>
 
         <div className="ml-auto flex min-w-0 items-center gap-2">
+          <NewsButton />
           <HeaderMenu />
           <DropdownMenu
             label={t('nav.menu')}
