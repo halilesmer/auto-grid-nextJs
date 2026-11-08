@@ -437,3 +437,9 @@ FRM-30:
     und geschlossenem Fenster, keine Doppelmeldung, 37 Abrufe in 5,2 s. Ausgeloest
     ueber gemerkten Stand, keine neue Kerze (Wochenende). Verstecktes Tab nur im eingebauten
     Browser, iPhone nicht geprueft.'
+NWS-01:
+  status: bestanden
+  datum: '2026-11-08'
+  notiz: 'VPS 2026-11-08 v0.7.491: /api/news/events available, not stale, de titles;
+    CPI 2026-11-10 13:30Z dir down/up from forecast vs prev; past NFP/unemployment
+    actual + impact_type positive'

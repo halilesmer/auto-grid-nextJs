@@ -203,6 +203,10 @@ export class MockWorker {
     { id: 3, event_id: 30, event_code: 'unemployment-rate', title: 'Unemployment Rate', titles: { de: 'Arbeitslosenquote', en: 'Unemployment Rate', tr: 'İşsizlik Oranı' }, country: 'DE', currency: 'EUR', importance: 'moderate', time: '2026-11-10T14:00:00Z', time_mode: 'datetime', sector: 'jobs', unit: 'percentage', multiplier: 'none', actual: null, forecast: 3.1, prev: 3.0, revised_prev: null, impact_type: 'none', forecast_direction: 'down' },
   ];
   newsStale = false;
+  /** NWS-02: Spiegel von worker_python/src/api/ui_prefs.py (je Konto ein Objekt je Schlüssel) */
+  readonly uiPrefs: Record<string, Record<string, Json>> = {};
+  /** PUT /ui-prefs schlägt mit 500 fehl (Worker-Fehler) */
+  uiPrefsFail = false;
   newsAvailable = true;
   /** Worker nicht erreichbar: REST-Anfragen scheitern mit Netzwerkfehler. */
   offline = false;
@@ -391,6 +395,7 @@ export class MockWorker {
     const seg = url.pathname.replace(/^\/api/, '').split('/').filter(Boolean);
     if (seg[0] === 'logs' && seg[1] === 'download') return seg[2] ?? null;
     if (['settings', 'ui-state', 'symbols', 'logs', 'favorites'].includes(seg[0]) && seg.length === 2) return seg[1];
+    if (seg[0] === 'ui-prefs' && (seg.length === 2 || seg.length === 3)) return seg[1];
     if (seg[0] === 'market' && seg.length === 3) return seg[1];
     if (seg[0] === 'history' && seg.length === 3) return seg[1];
     if (seg[0] === 'accounts' && seg.length === 2 && method !== 'GET') return seg[1];
@@ -937,6 +942,15 @@ export class MockWorker {
         return ok({ status: 'saved', account_id: id, states });
       }
       if (method === 'GET') return ok({ account_id: id, states: s.uiState[id] ?? {} });
+    }
+    // NWS-02: Spiegel von worker_python/src/api/ui_prefs.py
+    if (seg[0] === 'ui-prefs' && seg.length === 2 && method === 'GET') return ok({ account_id: seg[1], prefs: this.uiPrefs[seg[1]] ?? {} });
+    if (seg[0] === 'ui-prefs' && seg.length === 3 && method === 'PUT') {
+      const value = (body as { value?: unknown } | null)?.value;
+      if (!/^[a-z0-9_-]{1,40}$/.test(seg[2]) /* wie fullmatch */ || !value || typeof value !== 'object' || Array.isArray(value)) return { status: 422, body: { detail: 'invalid ui pref' } };
+      if (this.uiPrefsFail) return { status: 500, body: { detail: 'ui prefs failed' } };
+      this.uiPrefs[seg[1]] = { ...(this.uiPrefs[seg[1]] ?? {}), [seg[2]]: value as Json };
+      return ok({ account_id: seg[1], key: seg[2], value });
     }
     // NWS-01: Spiegel von worker_python/src/api/news.py (jede Rolle, nicht an ein Konto gebunden)
     if (seg[0] === 'news' && seg[1] === 'events' && method === 'GET') {

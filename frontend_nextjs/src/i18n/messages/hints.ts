@@ -1,4 +1,5 @@
 import { defineArea } from './define';
+import newsHints from './newsHints';
 import workspaceHints from './workspaceHints';
 
 // Erklärende Hinweise (Tooltips / (i)-Icons) zu jeder Einstellung, jedem Feld und jedem Button.
@@ -1889,5 +1890,5 @@ const existingHints = defineArea(
   },
 );
 
-const hints = { tr: { ...existingHints.tr, ...workspaceHints.tr }, en: { ...existingHints.en, ...workspaceHints.en }, de: { ...existingHints.de, ...workspaceHints.de } };
+const hints = { tr: { ...existingHints.tr, ...workspaceHints.tr, ...newsHints.tr }, en: { ...existingHints.en, ...workspaceHints.en, ...newsHints.en }, de: { ...existingHints.de, ...workspaceHints.de, ...newsHints.de } };
 export default hints;

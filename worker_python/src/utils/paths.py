@@ -135,6 +135,11 @@ def get_err_log_path(account_id: str) -> str:
     return os.path.join(get_account_log_dir(account_id), f"err_{safe}.log")
 
 
+def get_ui_prefs_path(account_id: str) -> str:
+    """Örn: data/ui_prefs_<account_id>.json (arayüz tercihleri, anahtar başına bir nesne; NWS-02)"""
+    return os.path.join(_ensure_data_dir(), f"ui_prefs_{safe_account_id(account_id)}.json")
+
+
 def get_ui_state_path(account_id: str) -> str:
     safe = safe_account_id(account_id)
     return os.path.join(get_account_log_dir(account_id), f"ui_{safe}.json")
