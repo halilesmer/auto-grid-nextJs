@@ -6,13 +6,23 @@
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 import { parseFixture } from '../../src/lib/formation/fixture';
+import { formationRequests } from '../../src/lib/formation/requests';
 import { DEMO_ID, expect, test, type MockWorker } from '../fixtures/test';
 
 const bars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/trd-up-d1-01.json', 'utf-8'))).bars;
 const D1_SERIES = bars.map((b) => [b.time, b.open, b.high, b.low, b.close]);
 const PREFS_KEY = 'grid-robot-analysis-prefs';
 
-const ratesCalls = (worker: MockWorker) => worker.calls.filter((c) => c.method === 'GET' && c.path.endsWith('/rates'));
+/**
+ * Die Anfragen des Charts und des Zugs. Die Formationssuche (UI-22: sie läuft auf jeder Zeiteinheit) holt daneben D1, H4, H1 und M15 mit ihrem festen
+ * Zeitraum (`formationRequests`); diese Anfragen gehören nicht zum Zug und werden herausgenommen.
+ */
+const ratesCalls = (worker: MockWorker) => worker.calls.filter((c) => {
+  if (c.method !== 'GET' || !c.path.endsWith('/rates')) return false;
+  const tf = c.query.get('timeframe') ?? '';
+  const scan = (formationRequests(DEMO_ID, 'EURUSD', Number(c.query.get('to'))) as Record<string, { from: number }>)[tf];
+  return !(scan && scan.from === Number(c.query.get('from')));
+});
 const stored = (page: Page) => page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? '{}').state ?? {}, PREFS_KEY);
 
 async function open(page: Page, worker: MockWorker, tf = 'D1') {
@@ -43,7 +53,9 @@ test.describe('ANA-21 Trendzug im Chart', () => {
     await trend(page).click();
     await expect(trend(page)).toHaveAttribute('aria-pressed', 'true');
     await expect(chart(page)).toHaveAttribute('data-trend', '6');
-    expect(distinct()).toBe(2);
+    // Mit dem Zeitraum „Alle“ (Standard seit UI-22) entsteht der Zug aus den Kerzen des Charts, ohne eigene Anfrage (OneChart, ANA-21);
+    // die Anfrage mit Vorlauf für einen gewählten Zeitraum prüft der nächste Test
+    expect(distinct()).toBe(1);
     expect((await stored(page)).showTrend).toBe(true);
 
     await page.reload();
@@ -68,17 +80,14 @@ test.describe('ANA-21 Trendzug im Chart', () => {
     expect(trendCall.from).toBe(chartCall.from - 400 * 86400);
   });
 
-  test('„Alles“: der Zug beginnt Vorlauf-Tage vor dem Anfang, den der Chart selbst wählt (letzte 5.000 Kerzen)', { tag: '@ANA-21' }, async ({ page, worker }) => {
+  test('„Alles“: der Zug entsteht aus den letzten 5.000 Kerzen, die der Chart selbst wählt, ohne eigene Anfrage', { tag: '@ANA-21' }, async ({ page, worker }) => {
     await open(page, worker);
     await trend(page).click();
     await expect(chart(page)).toHaveAttribute('data-trend', '6');
     const calls = ratesCalls(worker).map((c) => ({ from: Number(c.query.get('from')), to: Number(c.query.get('to')) }));
-    const chartCall = calls.reduce((a, b) => (b.from > a.from ? b : a));
-    const trendCall = calls.reduce((a, b) => (b.from < a.from ? b : a));
-    // D1: OPEN_RANGE_BARS = 5.000 Kerzen vor dem Ende, dazu 400 Tage Vorlauf
-    expect(chartCall.to - chartCall.from).toBe(5000 * 86400);
-    expect(trendCall.from).toBe(chartCall.from - 400 * 86400);
-    expect(trendCall.to).toBe(chartCall.to);
+    // D1: OPEN_RANGE_BARS = 5.000 Kerzen vor dem Ende; vorher hatte der Zug eine eigene Anfrage mit 400 Tagen Vorlauf davor, jetzt nutzt er die Kerzen des Charts
+    expect(calls).toHaveLength(1);
+    expect(calls[0].to - calls[0].from).toBe(5000 * 86400);
   });
 
   test('Gekürzter Zeitraum (mehr als 100.000 Zeitschritte): Chart und Zug beginnen am selben gekürzten Anfang, der Vorlauf entfällt', { tag: '@ANA-21' }, async ({ page, worker }) => {
@@ -115,6 +124,8 @@ test.describe('ANA-21 Trendzug im Chart', () => {
     const panel = await openSettings(page);
     await panel.getByTestId('trend-minSize').fill('1');
     await expect(chart(page)).not.toHaveAttribute('data-trend', '6');
+    // Seit UI-22 (1107-A21.8) gilt auf jeder Zeiteinheit Entwurf und Bestätigen: gespeichert wird erst mit „Anwenden“
+    await page.getByTestId('trend-confirm-apply').click();
     expect((await stored(page)).trend.minSize).toBe(1);
 
     await page.reload();
@@ -124,6 +135,8 @@ test.describe('ANA-21 Trendzug im Chart', () => {
     await expect(again.getByTestId('trend-minSize')).toHaveValue('1');
     await again.getByTestId('trend-reset').click();
     await expect(chart(page)).toHaveAttribute('data-trend', '6');
+    // Entwurf und Bestätigen (UI-22): gespeichert wird erst mit „Anwenden“
+    await page.getByTestId('trend-confirm-apply').click();
     expect((await stored(page)).trend.minSize).toBe(2.5);
   });
 
@@ -137,6 +150,8 @@ test.describe('ANA-21 Trendzug im Chart', () => {
     await panel.getByTestId('trend-rule').selectOption('filter');
     await expect(panel.getByTestId('trend-minSize')).toBeEnabled();
     await expect(panel.getByTestId('trend-ewoRetreat')).toBeEnabled();
+    // Entwurf und Bestätigen (UI-22): gespeichert wird erst mit „Anwenden“
+    await page.getByTestId('trend-confirm-apply').click();
     expect((await stored(page)).trend.rule).toBe('filter');
   });
 
@@ -150,6 +165,8 @@ test.describe('ANA-21 Trendzug im Chart', () => {
     await expect(chart(page)).toHaveAttribute('data-trend', '6');
     await panel.getByTestId('trend-ewoSlow').fill('40');
     await expect(panel.getByTestId('trend-ewo-invalid')).toHaveCount(0);
+    // Entwurf und Bestätigen (UI-22): gespeichert wird erst mit „Anwenden“
+    await page.getByTestId('trend-confirm-apply').click();
     expect((await stored(page)).trend).toMatchObject({ ewoFast: 5, ewoSlow: 40 });
   });
 

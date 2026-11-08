@@ -26,6 +26,12 @@ const TONE_COLOR: Record<Exclude<Tone, 'side'>, string> = {
   text: 'var(--foreground)',
 };
 
+/** The drawing of a formation lies over the whole chart (the one chart, 1107-A21): its hit areas must not swallow the wheel, so it goes on to the chart below (zoom) */
+function forwardWheel(e: React.WheelEvent) {
+  const under = document.elementsFromPoint(e.clientX, e.clientY).find((el) => !el.closest('[data-testid="formation-overlay"]'));
+  under?.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, clientX: e.clientX, clientY: e.clientY, deltaX: e.deltaX, deltaY: e.deltaY, deltaMode: e.deltaMode, ctrlKey: e.ctrlKey, shiftKey: e.shiftKey, altKey: e.altKey, metaKey: e.metaKey }));
+}
+
 const SIDE_COLOR = { buy: 'var(--success)', sell: 'var(--danger)' } as const;
 
 const toneColor = (tone: Tone, side: 'buy' | 'sell'): string => (tone === 'side' ? SIDE_COLOR[side] : TONE_COLOR[tone]);
@@ -142,17 +148,19 @@ export interface FormationLayerProps {
   visible: boolean;
   rsiVisible: boolean;
   waveVisible: boolean;
+  /** Key of the chart document (one chart): its own look (e.g. the line menu setting) wins over the global one */
+  workspaceKey?: string;
 }
 
 const NO_D: DLayout = { badges: [], rings: [], bands: [] };
 const NO_HITS: readonly ScanHit[] = [];
 
 /** Zeichnungen der Erkennung als SVG über dem Chart (für `renderOverlay` jedes `ChartView`); das Overlay endet vor der Preisachse. */
-export function FormationLayer({ scene, hit, bars, points, running, asOf, active, onActive, onCapture, onPriceBottom, visible, rsiVisible, waveVisible, others = NO_HITS, onSelectHit, atr }: FormationLayerProps) {
+export function FormationLayer({ scene, hit, bars, points, running, asOf, active, onActive, onCapture, onPriceBottom, visible, rsiVisible, waveVisible, others = NO_HITS, onSelectHit, atr, workspaceKey }: FormationLayerProps) {
   const t = useT();
   const { number } = useFormat();
   const { binding, rsi, wave } = scene;
-  const appearance = useChartWorkspaceStore(s => s.preview ?? s.appearance);
+  const appearance = useChartWorkspaceStore(s => s.preview ?? (workspaceKey ? s.documents[workspaceKey]?.appearance : undefined) ?? s.appearance);
   const formationStyle = useAnalysisPrefsStore(s => s.formationStyle);
   const lineMenuMode = appearance.lineMenu;
   const [lineMenu, setLineMenu] = useState<{ x: number; y: number; role: FormationLineRole } | null>(null);
@@ -323,6 +331,7 @@ export function FormationLayer({ scene, hit, bars, points, running, asOf, active
           style={{ transition: 'opacity .15s' }}
           onMouseEnter={() => onActive([g.id])}
           onMouseLeave={() => onActive(null)}
+          onWheel={forwardWheel}
         >
           {g.prims.map((p, i) => (
             <PrimView key={i} prim={p} side={hit.candidate.side} style={formationStyle} onMenu={openLineMenu} />

@@ -46,14 +46,14 @@ for (const appLocale of ['tr', 'en', 'de'] as AppLocale[]) {
     });
     test('Formationsnavigation wechselt bei 1024 px und bleibt ohne Überlappung', { tag: '@UI-08' }, async ({ page, dashboard }) => {
       await dashboard.open(null);
-      await page.goto('/chart?mode=formation');
+      await page.goto('/chart');
       const nav = page.locator('nav').first();
       for (const width of [375, 810, 1023, 1024, 1440]) {
         await page.setViewportSize({ width, height: 900 });
         // Unter lg stehen die Seitenlinks im ☰-Menü (UI-01), ab lg in der Kopfzeile
         const narrow = width < 1024;
         await expect(page.getByTestId('nav-menu')).toBeVisible({ visible: narrow });
-        const workspace = (await page.getByTestId('formation-page').boundingBox())!;
+        const workspace = (await page.getByTestId('chart-page').boundingBox())!;
         expect(workspace.y).toBe(narrow ? 0 : 56);
         expect(workspace.height).toBe(narrow ? 900 : 844);
         const linkArea = narrow ? await openPageMenu(page) : nav;

@@ -8,8 +8,8 @@ import { DEMO_ID, ZONE_ID, expect, test } from '../fixtures/test';
 
 const PAGES = [
   { name: 'frei', url: `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`, bar: 'chart-topbar' },
-  { name: 'Setup', url: `/chart?account=${DEMO_ID}&mode=setup&zone=${ZONE_ID}&tf=H1`, bar: 'chart-topbar' },
-  { name: 'Formation', url: `/formasyon?account=${DEMO_ID}&zone=${ZONE_ID}`, bar: 'formation-toolbar' },
+  { name: 'Setup', url: `/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=H1`, bar: 'chart-topbar' },
+  { name: 'Formation', url: `/chart?account=${DEMO_ID}&zone=${ZONE_ID}&form=GAR`, bar: 'chart-topbar' },
 ] as const;
 
 /** Ränder des Kursbereichs (erste Zeile mit Canvas in der Chart-Tabelle) und der Kopfleiste in px */

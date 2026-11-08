@@ -63,7 +63,7 @@ export function FormationShotMenu({ ready, makeImage, fileName, disabledHint }: 
       align="left"
       className="max-lg:mr-1"
       panelClassName="w-60"
-      triggerProps={{ disabled: disabledHint !== undefined || !ready || busy, 'data-testid': 'formation-shot' }}
+      triggerProps={{ disabled: disabledHint !== undefined || !ready || busy, 'data-testid': 'formation-shot', 'data-keep': '' }}
     >
       <DropdownMenuGroup>
         <DropdownMenuItem icon={<Download size={14} />} hint={t('formation.shot.download.hint')} data-testid="formation-shot-download" onSelect={() => run(download, 'formation.shot.saved')}>

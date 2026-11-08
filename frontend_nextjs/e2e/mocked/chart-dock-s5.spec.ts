@@ -4,10 +4,11 @@ import { msg } from '../fixtures/i18n';
 import { fixtureTrend, seedFixtureTrend } from '../fixtures/formation-trend';
 import { DEMO_ID, ZONE_ID, expect, test } from '../fixtures/test';
 
-// Serbest paket yerleşimi, S5: telefon (dikey, 30rem altı) ve yatay telefon (UI-17, plan 1106-A1.5; telefon testleri UI-08)
-const FORMATION = `/chart?mode=formation&account=${DEMO_ID}&zone=${ZONE_ID}&form=GAR`;
-const SETUP = `/chart?account=${DEMO_ID}&mode=setup&zone=${ZONE_ID}&tf=H1`;
-const FREE = `/chart?mode=free&account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
+// Serbest paket yerleşimi, S5: telefon (dikey, 30rem altı) ve yatay telefon (UI-17, plan 1106-A1.5; telefon testleri UI-08). Tek grafik (1107-A21, U4-4a):
+// mod paketi/anahtarı yok; üç adres (form=, zone=, symbol=) aynı sayfayı açar, testler eski bağlantıların hepsinde çalışır.
+const FORMATION = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}&form=GAR`;
+const SETUP = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=H1`;
+const FREE = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
 const MODES = [['Formation', FORMATION], ['Setup', SETUP], ['Frei', FREE]] as const;
 const storageKey = 'grid-robot-chart-workspaces-v1';
 const BOTH = ['@UI-17', '@UI-08'];
@@ -27,13 +28,13 @@ const DEFAULT_LAYOUT = { row1: ['mode', 'symbol', 'account', 'actions'], row2: [
 const handles = (page: Page) => page.locator('[data-dock-handle]').count();
 async function go(page: Page, url: string) {
   await page.goto(url);
-  await expect(page.getByTestId('chart-mode')).toBeVisible();
+  await expect(page.getByTestId('chart-topbar')).toBeVisible();
 }
 const scrollW = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth);
 /** Paket düzeni: tutamaçlar var; telefon düzeni: tutamaç ve ok menüsü yok */
 const expectPackages = async (page: Page, why: string) => { await expect(row(page, 'row1'), why).toBeVisible(); expect(await handles(page), why).toBeGreaterThan(0); };
 const expectPhone = async (page: Page, why: string) => {
-  await expect(page.getByTestId('chart-mode'), why).toBeVisible();
+  await expect(page.getByTestId('chart-topbar'), why).toBeVisible();
   await expect.poll(() => handles(page), { message: why }).toBe(0);
   expect(await page.locator('[data-testid="dock-more"]:visible').count(), why).toBe(0);
 };
@@ -42,16 +43,17 @@ const expectPhone = async (page: Page, why: string) => {
 for (const [w, h] of [[375, 812], [280, 640]] as const) {
   test(`Telefon ↔ geniş ${w} px: kayıtlı yerleşim korunur, telefonda depoya yazılmaz, geri büyütünce geri gelir`, { tag: BOTH }, async ({ page, worker }) => {
     await go(page, FORMATION);
-    // Özel yerleşim: Mod paketi Satır 1'in sağ ucuna, Görünüm paketi grafiğe
+    // Özel yerleşim: Ürün paketi Satır 1'in sağ ucuna, Görünüm paketi grafiğe
     await handle(page, 'view').click();
     await page.getByTestId('dock-move-free').click();
-    const start = (await handle(page, 'mode').boundingBox())!, r1 = (await row(page, 'row1').boundingBox())!;
+    const start = (await handle(page, 'symbol').boundingBox())!, r1 = (await row(page, 'row1').boundingBox())!;
     await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
     await page.mouse.down();
     await page.mouse.move(start.x + 30, start.y + 4, { steps: 5 });
     await page.mouse.move(r1.x + r1.width - 6, r1.y + r1.height / 2, { steps: 10 });
     await page.mouse.up();
-    await expect.poll(async () => (await stored(page))?.row1).toEqual(['symbol', 'account', 'actions', 'mode']);
+    // Kayıtlı listede çizilmeyen 'mode' (U4-5'e kadar) başta durur
+    await expect.poll(async () => (await stored(page))?.row1).toEqual(['mode', 'account', 'actions', 'symbol']);
     const custom = await stored(page);
     expect(Object.keys(custom.free)).toEqual(['view']);
     const raw = await page.evaluate(key => localStorage.getItem(key), storageKey);
@@ -69,7 +71,7 @@ for (const [w, h] of [[375, 812], [280, 640]] as const) {
 
     await page.setViewportSize({ width: 1440, height: 900 });
     await expectPackages(page, '1440 px geri');
-    await expect.poll(() => wrapOrder(page, 'row1')).toEqual(['symbol', 'account', 'actions', 'mode']);
+    await expect.poll(() => wrapOrder(page, 'row1')).toEqual(['account', 'actions', 'symbol']);
     await expect(pkg(page, 'view')).toHaveAttribute('data-zone', 'free');
     expect(await stored(page)).toEqual(custom);
   });
@@ -84,7 +86,7 @@ test('Döndürme 375×812 → 812×375 → 375×812: düzen değişir, açık tu
   await page.setViewportSize({ width: 812, height: 375 });
   await expectPackages(page, 'yatay');
   expect(await scrollW(page)).toBeLessThanOrEqual(812);
-  await handle(page, 'mode').click();
+  await handle(page, 'symbol').click();
   await expect(page.getByTestId('dock-move-row1')).toBeVisible();
   await page.setViewportSize({ width: 375, height: 812 });
   await expectPhone(page, 'tekrar dikey');
@@ -93,7 +95,7 @@ test('Döndürme 375×812 → 812×375 → 375×812: düzen değişir, açık tu
   expect(await scrollW(page)).toBeLessThanOrEqual(375);
   await page.setViewportSize({ width: 812, height: 375 });
   await expectPackages(page, 'tekrar yatay');
-  expect(await wrapOrder(page, 'row1')).toEqual(['mode', 'symbol', 'account', 'actions']);
+  expect(await wrapOrder(page, 'row1')).toEqual(['symbol', 'account', 'actions']);
 });
 
 // --- Yatay telefon boyutları ---
@@ -106,7 +108,7 @@ for (const [w, h] of [[667, 375], [740, 360], [812, 375], [844, 390], [932, 430]
       expect(await scrollW(page)).toBeLessThanOrEqual(w);
       const centers = await row(page, 'row1').locator('> [data-dock-wrap]').evaluateAll(els => els.map(e => { const r = e.getBoundingClientRect(); return r.top + r.height / 2; }));
       expect(Math.max(...centers) - Math.min(...centers), 'Satır 1 merkezleri').toBeLessThanOrEqual(4);
-      const barH = await page.evaluate(() => document.querySelector('[data-testid="formation-toolbar"], [data-testid="chart-topbar"]')!.getBoundingClientRect().height);
+      const barH = await page.evaluate(() => document.querySelector('[data-testid="chart-topbar"]')!.getBoundingClientRect().height);
       expect(barH, 'başlık').toBeLessThanOrEqual(66);
       const bad = await row(page, 'row1').evaluate(r => {
         const b = r.getBoundingClientRect(), out: string[] = [];
@@ -135,23 +137,27 @@ for (const [w, h] of [[667, 375], [740, 360], [812, 375], [844, 390], [932, 430]
       expect(lb.y + lb.height, 'hesap listesi pencerenin içinde').toBeLessThanOrEqual(h);
       expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('[role=listbox]') !== null, { x: lb.x + lb.width / 2, y: lb.y + lb.height - 4 }), 'hesap listesinin alt kenarı üstte').toBe(true);
       await page.keyboard.press('Escape');
-      if (name !== 'Formation') {
-        await page.getByTestId('range-trigger').click();
-        // Dış panel (kayan kutu) pencerenin içinde kalır; içerik 490 px yüksekliğinde, panel içinde kayar
-        const panel = page.getByTestId('range-panel').locator('xpath=ancestor::*[contains(@class,"z-50")][1]');
-        const box = (await panel.boundingBox())!;
-        expect(box.height).toBeGreaterThan(100);
-        expect(box.y + box.height, `Zeitraum paneli pencerenin içinde (y ${Math.round(box.y)}, yükseklik ${Math.round(box.height)})`).toBeLessThanOrEqual(h);
-        const scroll = await panel.evaluate(e => ({ client: e.clientHeight, full: e.scrollHeight, overflowY: getComputedStyle(e).overflowY }));
-        expect(scroll.overflowY).toBe('auto');
-        expect(scroll.full, 'içerik panelden uzun, içinde kayar').toBeGreaterThan(scroll.client);
-        // Panelin en altındaki alana kaydırınca görünür ve pencerenin içinde durur
-        const last = page.getByTestId('range-panel').locator('button').last();
-        await last.scrollIntoViewIfNeeded();
-        const lb2 = (await last.boundingBox())!;
-        expect(lb2.y + lb2.height, 'son düğme pencerenin içinde').toBeLessThanOrEqual(h);
-        expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('[data-testid=range-panel]') !== null, { x: lb2.x + lb2.width / 2, y: lb2.y + lb2.height / 2 }), 'son düğme üstte').toBe(true);
+      // 667 px'te Zeitraum, Formasyon eylemleri (data-keep) yüzünden ok menüsüne girer: o zaman menüdeki düğmeden açılır
+      let trigger = page.getByTestId('range-trigger').first();
+      if (!(await trigger.isVisible())) {
+        await pkg(page, 'actions').getByTestId('dock-more').click();
+        trigger = page.getByTestId('dock-more-menu').getByTestId('range-trigger');
       }
+      await trigger.click();
+      // Dış panel (kayan kutu) pencerenin içinde kalır; içerik 490 px yüksekliğinde, panel içinde kayar
+      const panel = page.getByTestId('range-panel').locator('xpath=ancestor::*[contains(@class,"z-50")][1]');
+      const box = (await panel.boundingBox())!;
+      expect(box.height).toBeGreaterThan(100);
+      expect(box.y + box.height, `Zeitraum paneli pencerenin içinde (y ${Math.round(box.y)}, yükseklik ${Math.round(box.height)})`).toBeLessThanOrEqual(h);
+      const scroll = await panel.evaluate(e => ({ client: e.clientHeight, full: e.scrollHeight, overflowY: getComputedStyle(e).overflowY }));
+      expect(scroll.overflowY).toBe('auto');
+      expect(scroll.full, 'içerik panelden uzun, içinde kayar').toBeGreaterThan(scroll.client);
+      // Panelin en altındaki alana kaydırınca görünür ve pencerenin içinde durur
+      const last = page.getByTestId('range-panel').locator('button').last();
+      await last.scrollIntoViewIfNeeded();
+      const lb2 = (await last.boundingBox())!;
+      expect(lb2.y + lb2.height, 'son düğme pencerenin içinde').toBeLessThanOrEqual(h);
+      expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('[data-testid=range-panel]') !== null, { x: lb2.x + lb2.width / 2, y: lb2.y + lb2.height / 2 }), 'son düğme üstte').toBe(true);
     });
   }
 }
@@ -165,7 +171,7 @@ const visibleItems = (page: Page, id: string) => page.locator(`[data-dock-pkg="$
   return { items: items.length, keptVisible: items.every(i => i.hasAttribute('data-keep') || i.querySelector('[data-keep]') !== null), arrow: !(content.querySelector<HTMLElement>('[data-dock-more]')?.hidden ?? true) };
 });
 
-test('667 × 375 Formation: Satır 1 taşmaz, Ürün kutusu açığı kadar daralır, çapa 812 px ile aynı genişlikte', { tag: BOTH }, async ({ page }) => {
+test('620 × 375 Formation: Satır 1 taşmaz, Ürün kutusu açığı kadar daralır, çapa 812 px ile aynı genişlikte', { tag: BOTH }, async ({ page }) => {
   const loops: string[] = [];
   page.on('console', m => { if (m.text().includes('ResizeObserver loop')) loops.push(m.text()); });
   page.on('pageerror', e => { if (e.message.includes('ResizeObserver loop')) loops.push(e.message); });
@@ -173,17 +179,21 @@ test('667 × 375 Formation: Satır 1 taşmaz, Ürün kutusu açığı kadar dara
   await go(page, FORMATION);
   const anchor812 = (await page.getByTestId('dock-account').boundingBox())!.width;
   expect(await boxWidth(page)).toBe(176);
-  await page.setViewportSize({ width: 667, height: 375 });
+  // 40 px'lik Seitenleiste şeridi yüzünden satır 667 px'te hâlâ sığıyor (kutu 176): Ürün kutusu 620 px'te daralır
+  await page.setViewportSize({ width: 620, height: 375 });
   await expect.poll(async () => (await boxWidth(page)) < 176).toBe(true);
-  const m = await row(page, 'row1').evaluate(r => ({ scroll: r.scrollWidth, client: r.clientWidth, row: r.getBoundingClientRect().width, sum: [...r.querySelectorAll(':scope > [data-dock-wrap]')].reduce((s, w) => s + w.getBoundingClientRect().width, 0), n: r.querySelectorAll(':scope > [data-dock-wrap]').length }));
+  const measure = () => row(page, 'row1').evaluate(r => ({ scroll: r.scrollWidth, client: r.clientWidth, row: r.getBoundingClientRect().width, sum: [...r.querySelectorAll(':scope > [data-dock-wrap]')].reduce((s, w) => s + w.getBoundingClientRect().width, 0), n: r.querySelectorAll(':scope > [data-dock-wrap]').length }));
+  // Yerleşim yaklaşık bir saniyede oturur (kutu önce 158, sonra 174 px): oturmuş durum ölçülür
+  await expect.poll(async () => { const x = await measure(); return x.sum + 2 * (x.n - 1) - x.row; }, { message: 'kutular satırı tam doldurur' }).toBeCloseTo(0, 1);
+  const m = await measure();
   expect(m.scroll, 'Satır 1 taşmaz').toBe(m.client);
-  expect(m.sum + 2 * (m.n - 1), 'kutular satırı tam doldurur').toBeCloseTo(m.row, 1);
   const w = await boxWidth(page);
   expect(w).toBeLessThan(176);
   expect(w).toBeGreaterThan(144);
   expect((await page.getByTestId('dock-account').boundingBox())!.width, 'çapa değişmez').toBe(anchor812);
-  expect(await visibleItems(page, 'actions')).toEqual({ items: 1, keptVisible: false, arrow: true });
-  expect(await visibleItems(page, 'mode')).toEqual({ items: 1, keptVisible: true, arrow: true });
+  // En küçük hâlde yalnız data-keep işaretli Formasyon eylemleri satırda kalır; Zeitraum, Chart/Statistik ok menüsünde
+  expect(await visibleItems(page, 'actions')).toEqual({ items: 4, keptVisible: true, arrow: true });
+  expect(await visibleItems(page, 'symbol')).toEqual({ items: 1, keptVisible: true, arrow: false });
   const covered = await page.getByTestId('dock-account').evaluate(a => {
     const c = a.getBoundingClientRect(), y = c.top + c.height / 2;
     return [c.left + 2, c.right - 2].map(x => { const e = document.elementFromPoint(x, y); return !e || !a.contains(e); });
@@ -197,15 +207,14 @@ test('667 × 375 Formation: Satır 1 taşmaz, Ürün kutusu açığı kadar dara
 
 for (const [w, h] of [[720, 800], [740, 360], [812, 375], [1024, 800], [1440, 900]] as const) {
   for (const [name, url] of MODES) {
-    test(`Ürün kutusu ${w} × ${h} ${name}: tam 176 px, Setup'ta seçici kutuyu doldurur`, { tag: BOTH }, async ({ page }) => {
+    test(`Ürün kutusu ${w} × ${h} ${name}: tam 176 px, sembol seçici kutuyu doldurur`, { tag: BOTH }, async ({ page }) => {
       await page.setViewportSize({ width: w, height: h });
       await go(page, url);
       await expect(productBox(page)).toBeVisible();
       expect(await boxWidth(page)).toBe(176);
-      if (name === 'Setup') {
-        const sel = (await page.getByTestId('zone-select').boundingBox())!;
-        expect(sel.width).toBeCloseTo(176, 0);
-      }
+      // Her bağlantıda aynı sembol seçicisi var (setup seçimi yok, 1107-A21): seçicinin kabı kutuyu doldurur
+      const sel = (await page.getByTestId('formation-symbol').locator('xpath=..').boundingBox())!;
+      expect(sel.width).toBeCloseTo(176, 0);
     });
   }
 }
@@ -243,25 +252,25 @@ test.describe('dokunmatik', () => {
   test('(a) tutamağa dokun: menü açılır, sürükleme başlamaz', { tag: BOTH }, async ({ page }) => {
     const cdp = await page.context().newCDPSession(page);
     await go(page, FORMATION);
-    const c = await center(page, 'mode');
+    const c = await center(page, 'symbol');
     await touch(cdp, [c]);
     await expect(page.getByTestId('dock-move-row2')).toBeVisible();
     await expect(page.locator('.dock-ghost')).toHaveCount(0);
-    expect(await wrapOrder(page, 'row1')).toEqual(['mode', 'symbol', 'account', 'actions']);
+    expect(await wrapOrder(page, 'row1')).toEqual(['symbol', 'account', 'actions']);
     expect(await stored(page)).toEqual(DEFAULT_LAYOUT);
   });
 
   test('(b) 10 px altında kayma: sürükleme başlamaz, düzen aynı', { tag: BOTH }, async ({ page }) => {
     const cdp = await page.context().newCDPSession(page);
     await go(page, FORMATION);
-    const c = await center(page, 'mode');
+    const c = await center(page, 'symbol');
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [c] });
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: c.x + 6, y: c.y + 5 }] });
     await expect(page.locator('.dock-ghost')).toHaveCount(0);
     await expect(page.locator('[data-dock-wrap].dock-src')).toHaveCount(0);
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     await expect(page.locator('.dock-ghost')).toHaveCount(0);
-    expect(await wrapOrder(page, 'row1')).toEqual(['mode', 'symbol', 'account', 'actions']);
+    expect(await wrapOrder(page, 'row1')).toEqual(['symbol', 'account', 'actions']);
     expect(await stored(page)).toEqual(DEFAULT_LAYOUT);
   });
 
@@ -272,8 +281,8 @@ test.describe('dokunmatik', () => {
     await touch(cdp, line(from, { x: r1.x + r1.width - 6, y: r1.y + r1.height / 2 }, 14));
     await expect.poll(async () => (await stored(page))?.row1).toEqual(['mode', 'symbol', 'account', 'actions', 'view']);
     await page.reload();
-    await expect(page.getByTestId('chart-mode')).toBeVisible();
-    await expect.poll(() => wrapOrder(page, 'row1')).toEqual(['mode', 'symbol', 'account', 'actions', 'view']);
+    await expect(page.getByTestId('chart-topbar')).toBeVisible();
+    await expect.poll(() => wrapOrder(page, 'row1')).toEqual(['symbol', 'account', 'actions', 'view']);
   });
 
   test('(d) sürüklerken sayfa kaymaz, grafik kaydırma ya da yakınlaştırma almaz', { tag: BOTH }, async ({ page }) => {
@@ -338,7 +347,7 @@ test.describe('dokunmatik', () => {
   test('(e) tutamak dokunma alanı kaba işaretçide en az 24 × 24 px, görünür boyut aynı', { tag: BOTH }, async ({ page }) => {
     await go(page, FORMATION);
     expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches), 'kaba işaretçi').toBe(true);
-    for (const id of ['mode', 'symbol', 'actions', 'view', 'edit']) {
+    for (const id of ['symbol', 'actions', 'view', 'edit']) {
       const h = handle(page, id);
       const visible = (await h.boundingBox())!;
       expect(visible.height, `${id} görünür yükseklik`).toBe(24);
@@ -383,7 +392,7 @@ for (const [name, url] of MODES) {
         requestAnimationFrame(tick);
       });
       await page.goto(url);
-      await expect(page.getByTestId('chart-mode')).toBeVisible();
+      await expect(page.getByTestId('chart-topbar')).toBeVisible();
       await page.waitForTimeout(500);
       await expectPhoneStrict(page, 'grafik yokken');
       if (mode === 'bekletilir') {
@@ -396,21 +405,22 @@ for (const [name, url] of MODES) {
     });
   }
 }
-test('1106-A5.16 Formation → Frei → Setup 375×812: geçişte kip bir an bile geniş olmaz', { tag: BOTH }, async ({ page }) => {
+test('1106-A5.16 Zaman dilimi geçişleri D1 → H1 → H4 375×812: geçişte kip bir an bile geniş olmaz', { tag: BOTH }, async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await go(page, FORMATION);
-  await expectPhoneStrict(page, 'Formation');
+  await expectPhoneStrict(page, 'H4');
   await page.evaluate(() => {
     const w = window as unknown as { __max: number };
     w.__max = 0;
     const tick = () => { w.__max = Math.max(w.__max, document.querySelectorAll('[data-dock-handle]').length); requestAnimationFrame(tick); };
     requestAnimationFrame(tick);
   });
-  for (const m of ['free', 'setup', 'formation']) {
-    await page.getByTestId(`chart-mode-${m}`).click();
-    await expect(page).toHaveURL(new RegExp(`mode=${m}`));
+  // Mod anahtarı kalktı (1107-A21); sayfa içi geçiş artık zaman dilimi düğmeleriyle (adres değişir, sayfa yeniden yüklenmez)
+  for (const tf of ['D1', 'H1', 'H4']) {
+    await page.getByTestId(`timeframe-${tf}`).click();
+    await expect.poll(() => new URL(page.url()).searchParams.get('tf')).toBe(tf === 'H4' ? null : tf);
     await page.waitForTimeout(400);
-    await expectPhoneStrict(page, m);
+    await expectPhoneStrict(page, tf);
   }
   expect(await page.evaluate(() => (window as unknown as { __max: number }).__max), 'geçişte hiçbir karede tutamaç çizilmedi').toBe(0);
 });

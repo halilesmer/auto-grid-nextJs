@@ -9,7 +9,8 @@ import type { Deal } from '../../src/lib/analysis/tradePairing';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, ZONE_ID, expect, makeZone, test, type MockWorker } from '../fixtures/test';
 
-const URL = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}`;
+// Der Zeitraum der Zeilen unten ist „letzte 30 Tage“; der Standard des Charts ist seit UI-22 „Alle“
+const URL = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=M15&range=last30`;
 const DAY = 86400;
 const H = 3600;
 
@@ -79,8 +80,18 @@ async function openSettings(page: Page) {
   return page.getByTestId('layers-menu');
 }
 
+/** Die Karte startet zu, solange eine Formation gezeichnet wird (UI-22): nach dem Scan aufklappen */
+async function openCard(page: Page) {
+  await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+  const card = page.getByTestId('chart-floating-card');
+  const expand = card.getByRole('button', { name: msg('chart.card.expand'), exact: true });
+  if (await expand.count()) await expand.click();
+  await expect(card.getByTestId('chart-card-overview')).toBeVisible();
+}
+
 /** Das Trade-Archiv liegt im Reiter „Trades“ der schwebenden Karte (UI-10) */
 async function openTradesTab(page: Page) {
+  await openCard(page);
   await page.getByTestId('chart-floating-card').getByRole('tab', { name: msg('chart.card.trades') }).click();
 }
 
@@ -118,15 +129,16 @@ test.describe('ANA-08 Trades im Chart und Trade-Archiv', () => {
     // Einstieg und erster Ausstieg von 16 liegen vor dem Chart
     const chart = page.getByTestId('analysis-chart');
     await expect(chart).toHaveAttribute('data-markers', '11');
-    await expect(page.getByTestId('chart-key')).toContainText(msg('analysis.chart.key.unknown'));
     await rows.first().getByRole('button', { name: msg('analysis.trades.focus') }).click();
     await expect(chart).toBeVisible();
 
-    // Abschaltbar; die Liste bleibt
+    // Abschaltbar (Schalter im Menü „Ebenen“, die Legende gibt es nicht mehr); die Liste bleibt
     const panel = await openSettings(page);
-    await panel.getByRole('switch', { name: msg('analysis.settings.history') }).click();
+    const history = panel.getByRole('switch', { name: msg('analysis.settings.history') });
+    await expect(history).toHaveAttribute('aria-checked', 'true');
+    await history.click();
     await expect(chart).toHaveAttribute('data-markers', '0');
-    await expect(page.getByTestId('chart-key-showHistory')).toHaveAttribute('aria-pressed', 'false');
+    await expect(history).toHaveAttribute('aria-checked', 'false');
     await expect(rows).toHaveCount(6);
   });
 
@@ -144,7 +156,11 @@ test.describe('ANA-08 Trades im Chart und Trade-Archiv', () => {
     await page.goto(URL);
     const chart = page.getByTestId('analysis-chart');
     await expect(chart).toHaveAttribute('data-fractals', /^[1-9]\d*$/);
-    await expect(page.getByTestId('chart-key')).toContainText(msg('analysis.chart.key.fractal'));
+    // Der Schalter „Fraktale“ im Menü „Ebenen“ ist an (die Legende gibt es nicht mehr)
+    const fractalSwitch = (await openSettings(page)).getByRole('switch', { name: msg('analysis.settings.fractals') });
+    await expect(fractalSwitch).toHaveAttribute('aria-checked', 'true');
+    await page.keyboard.press('Escape');
+    await openCard(page);
 
     // Chart in M15, Zone handelt H1: Hinweis mit Knopf
     const note = page.getByTestId('fractal-tf-note');
@@ -162,7 +178,8 @@ test.describe('ANA-08 Trades im Chart und Trade-Archiv', () => {
     worker.setZones(DEMO_ID, [makeZone({ magic: 200001 })]);
     await page.goto(URL);
     await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-fractals', '0');
-    await expect(page.getByTestId('chart-key')).not.toContainText(msg('analysis.chart.key.fractal'));
+    // Der Schalter „Fraktale“ ist für ein Grid-Setup gesperrt (kein Fraktal-Einstieg)
+    await expect((await openSettings(page)).getByRole('switch', { name: msg('analysis.settings.fractals') })).toBeDisabled();
   });
 });
 

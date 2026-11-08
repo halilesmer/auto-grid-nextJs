@@ -14,7 +14,7 @@ import { named, seedFixtureTrend, trendOf } from '../fixtures/formation-trend';
 // Formationen rechnen auf dem Trendzug des Nutzers (FRM-41); die Fixtures zeigen ihre Formation mit FIXTURE_TREND
 test.beforeEach(({ page }) => seedFixtureTrend(page, trendOf(fixtureBars)));
 
-const URL = `/chart?mode=formation&account=${DEMO_ID}&zone=${ZONE_ID}`;
+const URL = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}`;
 /** 2025-10-23 04:00 Brokerzeit: mit diesem Stand steht in der Fixture ein ABCD im Aufbau */
 const AT = 1761192000;
 const AT_PARAM = '2025-10-23T04:00';
@@ -35,8 +35,8 @@ function serve(worker: MockWorker, h4Until: number, m15End = AT) {
 async function open(page: Page, worker: MockWorker, query = `&at=${AT_PARAM}`, h4Until = NOW) {
   serve(worker, h4Until);
   await page.goto(`${URL}${query}`);
-  await expect(page.getByTestId('formation-toolbar')).toBeVisible();
-  await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+  await expect(page.getByTestId('chart-topbar')).toBeVisible();
+  await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
 }
 
 const badges = (page: Page) =>
@@ -67,7 +67,7 @@ test.describe('FRM-38 Stand in der Vergangenheit', () => {
     const cut = await badges(page);
     serve(worker, NOW);
     await page.reload();
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
     const full = await badges(page);
     expect(full).toEqual(cut);
     expect(cut.some((x) => x !== undefined && /:[1-9]/.test(x))).toBe(true);
@@ -85,7 +85,7 @@ test.describe('FRM-38 Stand in der Vergangenheit', () => {
     worker.state.favorites[DEMO_ID] = ['EURUSD', 'GBPUSD'];
     await page.addInitScript(() => localStorage.setItem('grid-robot-formation-sidebar', JSON.stringify({ open: true, tab: 'favorites' })));
     await open(page, worker);
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
     await expect(page.getByTestId('formation-asof-notice')).toBeVisible();
     await expect(page.getByTestId('formation-asof')).toHaveAttribute('data-state', 'past');
     await expect(page.getByTestId('formation-asof')).toHaveAttribute('aria-label', /23\.10\.25 04:00/);
@@ -160,7 +160,7 @@ test.describe('FRM-38 Stand in der Vergangenheit', () => {
     await open(page, worker);
     await expect(page.getByTestId('formation-asof-float')).toBeVisible();
     await expect(page.getByTestId('formation-asof')).toBeHidden();
-    expect(await page.getByTestId('formation-toolbar').evaluate((e) => e.getBoundingClientRect().height)).toBeLessThanOrEqual(70);
+    expect(await page.getByTestId('chart-topbar').evaluate((e) => e.getBoundingClientRect().height)).toBeLessThanOrEqual(70);
     await page.getByTestId('formation-asof-float').click();
     const box = await page.getByTestId('formation-asof-panel').boundingBox();
     expect(box!.y).toBeGreaterThanOrEqual(0);

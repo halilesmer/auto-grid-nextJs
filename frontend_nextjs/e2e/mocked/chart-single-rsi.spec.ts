@@ -6,7 +6,7 @@ import type { Page } from '@playwright/test';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, ZONE_ID, expect, test } from '../fixtures/test';
 
-const SETUP = `/chart?account=${DEMO_ID}&mode=setup&zone=${ZONE_ID}&tf=H1`;
+const SETUP = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=H1`;
 const FREE = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
 const STORAGE = 'grid-robot-chart-workspaces-v1';
 const rows = (page: Page) => page.locator('[data-indicator-row="RSI"]');

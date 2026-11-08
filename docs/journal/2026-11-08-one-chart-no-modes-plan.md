@@ -168,10 +168,10 @@ DEMO account, read-only (`hooks/RULES.md` §3): formation and setup on H4, empty
 | Full e2e runs are heavy. | `heavy_lock.sh` runs them one at a time, also when U4-1 to U4-3 run at the same time. |
 
 ## Open points
-- [ ] U4-1 setup layers
-- [ ] U4-2 formation layer
-- [ ] U4-3 URL model
-- [ ] U4-4a switch
+- [x] U4-1 setup layers (PR 451)
+- [x] U4-2 formation layer (PR 452)
+- [x] U4-3 URL model (PR 450)
+- [x] U4-4a switch (`2026-11-08-chart-u4-4a-switch.md`)
 - [ ] U4-4b one card
 - [ ] U4-5 remove the old shells
 - [ ] U4-6 live check and signature of UI-22

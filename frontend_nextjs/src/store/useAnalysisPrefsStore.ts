@@ -128,7 +128,7 @@ export const useAnalysisPrefsStore = create<AnalysisPrefsState>()(
         for (const key of Object.keys(DEFAULTS) as (keyof AnalysisPrefs)[]) out[key] = (s.previewBackup ?? s)[key];
         return { ...out, showTrend: s.showTrend, trend: s.trend, formationStyle: s.styleBackup ?? s.formationStyle };
       },
-      // Wie ThemeSync: erst nach der Hydration lesen (rehydrate() in app/chart/page.tsx), sonst SSR-Abweichung
+      // Wie ThemeSync: erst nach der Hydration lesen (rehydrate() in OneChart und FormationScanRunner), sonst SSR-Abweichung
       skipHydration: true,
       // Nur bekannte boolesche Felder übernehmen (alter/kaputter Speicherstand)
       merge: (persisted, current) => {

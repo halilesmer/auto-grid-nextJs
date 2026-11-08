@@ -3,8 +3,8 @@ import { msg } from '../fixtures/i18n';
 import { DEMO_ID, ZONE_ID, expect, test } from '../fixtures/test';
 import { fixtureTrend, seedFixtureTrend } from '../fixtures/formation-trend';
 
-// Serbest paket yerleşimi, S3: Formation modunda Satır 2, zaman dilimleri ve formasyonlar paket (UI-17, plan 1106-A1, journal 2026-11-06-free-package-layout)
-const URL = `/chart?mode=formation&account=${DEMO_ID}&zone=${ZONE_ID}&form=GAR`;
+// Serbest paket yerleşimi, S3: Satır 2, zaman dilimleri ve formasyonlar paket (UI-17, plan 1106-A1, journal 2026-11-06-free-package-layout). Tek grafik (1107-A21, U4-4a): mod paketi yok
+const URL = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}&form=GAR`;
 const storageKey = 'grid-robot-chart-workspaces-v1';
 test.setTimeout(60_000);
 test.use({ viewport: { width: 1440, height: 900 } });
@@ -16,7 +16,7 @@ const row = (page: Page, zone: 'row1' | 'row2' | 'bottom') => page.getByTestId(`
 const stored = (page: Page) => page.evaluate(key => JSON.parse(localStorage.getItem(key) || '{}').dockLayout ?? null, storageKey);
 async function open(page: Page) {
   await page.goto(URL);
-  await expect(page.getByTestId('formation-toolbar')).toBeVisible();
+  await expect(page.getByTestId('chart-topbar')).toBeVisible();
   await expect(pkg(page, 'formations')).toBeVisible();
 }
 async function dragTo(page: Page, id: string, testId: string) {
@@ -29,13 +29,14 @@ async function dragTo(page: Page, id: string, testId: string) {
   await page.mouse.up();
 }
 
-test('Varsayılan: zaman dilimleri ve formasyonlar Satır 2\'de, Satır 1 = mod, ürün, hesap, aksiyonlar', { tag: '@UI-17' }, async ({ page, worker }) => {
+test('Varsayılan: zaman dilimleri ve formasyonlar Satır 2\'de, Satır 1 = ürün, hesap, aksiyonlar (mod yok)', { tag: '@UI-17' }, async ({ page, worker }) => {
   void worker;
   await open(page);
   await expect(row(page, 'row2').locator('[data-dock-pkg="timeframes"]')).toBeVisible();
   await expect(row(page, 'row2').locator('[data-dock-pkg="formations"]')).toBeVisible();
-  // Satır 1'in görünen sırası tam bu dört öğe (hesap paket değil, sabit çapa)
-  expect(await row(page, 'row1').locator('> [data-dock-wrap]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.dockWrap))).toEqual(['mode', 'symbol', 'account', 'actions']);
+  // Satır 1'in görünen sırası tam bu üç öğe (hesap paket değil, sabit çapa)
+  expect(await row(page, 'row1').locator('> [data-dock-wrap]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.dockWrap))).toEqual(['symbol', 'account', 'actions']);
+  await expect(pkg(page, 'mode')).toHaveCount(0);
   await expect(pkg(page, 'timeframes')).toHaveAttribute('aria-label', msg('cw.tbGroup.timeframes'));
 });
 
@@ -52,7 +53,8 @@ test('Formasyonları Satır 1\'e sürükle, yeniden yükle: yer korunur', { tag:
 
 test('Dar pencerede sığmayan formasyonlar ok menüsünde; seçili olan satırda kalır, menüden seçim değişir', { tag: '@UI-17' }, async ({ page, worker }) => {
   void worker;
-  await page.setViewportSize({ width: 520, height: 800 });
+  // 520 px'te Satır 2 taşar: 9 zaman dilimi 367 px tutar, formasyonlar paketinin oku şerit altında kalır; 560 px
+  await page.setViewportSize({ width: 560, height: 800 });
   await open(page);
   const more = pkg(page, 'formations').getByTestId('dock-more');
   await expect(more).toBeVisible();
@@ -76,9 +78,9 @@ test('Zaman dilimleri paketini alt çubuğa taşı: oradan seçim grafiği deği
   await handle(page, 'timeframes').click();
   await page.getByTestId('dock-move-bottom').click();
   await expect(row(page, 'bottom').locator('[data-dock-pkg="timeframes"]')).toBeVisible();
-  const h1 = row(page, 'bottom').getByTestId('formation-tf-H1');
+  const h1 = row(page, 'bottom').getByTestId('timeframe-H1');
   await h1.click();
-  await expect(h1).toHaveAttribute('aria-pressed', 'true');
+  await expect(h1).toHaveAttribute('aria-checked', 'true');
   await expect(page).toHaveURL(/tf=H1/);
 });
 
@@ -101,13 +103,13 @@ test('Bir araç grubunu Satır 2\'ye taşı (menü ve ↑/↓), yeniden yükle: 
   await expect(row(page, 'bottom').locator('[data-dock-pkg="edit"]')).toBeVisible();
 });
 
-test('Frei modunda da Satır 2 var: oradaki paket Frei\'de de Satır 2\'de görünür, kayıt kalır', { tag: '@UI-17' }, async ({ page, worker }) => {
+test('Satır 2 her bağlantıda var: oradaki paket symbol= bağlantısında da Satır 2\'de görünür, kayıt kalır', { tag: '@UI-17' }, async ({ page, worker }) => {
   void worker;
   await open(page);
   await handle(page, 'edit').click();
   await page.getByTestId('dock-move-row2').click();
   await expect.poll(async () => (await stored(page))?.row2).toContain('edit');
-  await page.goto(`/chart?mode=free&account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`);
+  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`);
   await expect(row(page, 'row2').locator('[data-dock-pkg="edit"]')).toBeVisible();
   expect((await stored(page)).row2).toContain('edit');
 });

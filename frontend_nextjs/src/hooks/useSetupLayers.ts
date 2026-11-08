@@ -5,8 +5,8 @@ import { useDealsHistory } from '@/hooks/useDealsHistory';
 import { useLiveTrades } from '@/hooks/useLiveTrades';
 import type { MarketRates } from '@/hooks/useMarketRates';
 import { useSetupLabel } from '@/hooks/useSetupLabel';
-import { useSymbolDetails } from '@/hooks/useSymbolDetails';
-import { type ChartData, isTimeframe, ratesWindow, TIMEFRAME_SEC, type Timeframe } from '@/lib/analysis/candles';
+import { isCalendarTimeframe, periodStart } from '@/lib/analysis/calendarBars';
+import { CHART_TIMEFRAME_SEC, type ChartData, type ChartTimeframe, isTimeframe, ratesWindow } from '@/lib/analysis/candles';
 import { findFractals } from '@/lib/analysis/fractals';
 import { zoneLevels, type ZoneLevels } from '@/lib/analysis/levels';
 import { belongsToZoneView, pairTrades, type Trade } from '@/lib/analysis/tradePairing';
@@ -47,7 +47,7 @@ export interface SetupLayersInput {
   /** Alle Zonen des Kontos (für Setup-Nummer und Setup-Bezeichnung) */
   zones: ZoneSettings[] | null;
   symbol: string | null;
-  timeframe: Timeframe;
+  timeframe: ChartTimeframe;
   /** Gewählter Zeitraum in MT5-Sekunden, halb offen; from null = „alles“ */
   range: { from: number | null; to: number };
   offsetSec: number | null;
@@ -72,6 +72,8 @@ export interface LegendLayer {
   id: string;
   label: MessageKey;
   hint: MessageKey;
+  /** The switch has no effect for this setup (fractal switch of a setup without fractal entry); its hint says why */
+  disabled?: boolean;
 }
 
 /**
@@ -95,12 +97,15 @@ export function useSetupLayers({
   prefs,
 }: SetupLayersInput) {
   const t = useT();
-  const tfSec = TIMEFRAME_SEC[timeframe];
+  const tfSec = CHART_TIMEFRAME_SEC[timeframe];
+  // Start of the candle that holds a time. On W1 and MN the marker sits on the period start (1107-A21.10, 1107-A4.1)
+  const barStart = useCallback((time: number) => (isCalendarTimeframe(timeframe) ? periodStart(timeframe, time) : Math.floor(time / tfSec) * tfSec), [timeframe, tfSec]);
 
   // Live-Preis (laufende Kerze) und Positionen/Orders des laufenden Bots
   const { isConnected } = useWebSocketManager(accountId);
   useLiveTrades(accountId);
-  const symbolDetails = useSymbolDetails(zone?.step_by_loss ? accountId : null);
+  // The page loads the symbol list; a second loading hook would clear the shared list
+  const symbolDetails = useSettingsStore((s) => s.symbolDetails);
   const metrics = useBotRuntimeStore((s) => s.metrics);
   const liveData = useBotRuntimeStore((s) => s.liveData);
   const engineOrder = useSettingsStore((s) => s.engineOrder);
@@ -137,9 +142,9 @@ export function useSetupLayers({
   const [focus, setFocus] = useState<{ time: number; seq: number; view: string } | null>(null);
   const focusTrade = useCallback(
     (tr: Trade) => {
-      setFocus((f) => ({ time: Math.floor((tr.entryTime ?? tr.exitTime) / tfSec) * tfSec, seq: (f?.seq ?? 0) + 1, view: viewKey }));
+      setFocus((f) => ({ time: barStart(tr.entryTime ?? tr.exitTime), seq: (f?.seq ?? 0) + 1, view: viewKey }));
     },
-    [tfSec, viewKey],
+    [barStart, viewKey],
   );
 
   // Live-Preis nur für dieses Konto und Symbol, bei offenem Markt und sicherer Uhr
@@ -225,7 +230,7 @@ export function useSetupLayers({
   const overlays = useMemo(() => {
     const out = { markers: [] as TradeMarker[], links: [] as TradeLinkLine[], notes: new Map<number, string[]>() };
     if (!history || !prefs.showHistory) return out;
-    const bar = (time: number) => Math.floor(time / tfSec) * tfSec;
+    const bar = barStart;
     // Nur auf geladenen Kerzen: davor oder danach würde lightweight-charts den Punkt an den Rand klemmen
     const first = chart?.points[0]?.time ?? Infinity;
     const last = chart?.points[chart.points.length - 1]?.time ?? -Infinity;
@@ -288,7 +293,7 @@ export function useSetupLayers({
       );
     }
     return out;
-  }, [history, prefs.showHistory, tfSec, chart, data?.digits, fmt, t]);
+  }, [history, prefs.showHistory, barStart, chart, data?.digits, fmt, t]);
 
   // Fraktale (nur Fraktal-Zonen) aus den geschlossenen Kerzen; die der Bot gehandelt hat, hervorgehoben
   const isFractalZone = zone?.entry_mode === 'fractal';
@@ -357,7 +362,7 @@ export function useSetupLayers({
     { pref: 'showTrades', id: 'trades', label: 'analysis.settings.trades', hint: 'analysis.settings.trades.hint' },
     { pref: 'showOrders', id: 'orders', label: 'analysis.settings.orders', hint: 'analysis.settings.orders.hint' },
     { pref: 'showHistory', id: 'history', label: 'analysis.settings.history', hint: 'analysis.settings.history.hint' },
-    ...(isFractalZone ? [{ pref: 'showFractals' as const, id: 'fractals', label: 'analysis.settings.fractals' as const, hint: 'analysis.settings.fractals.hint' as const }] : []),
+    { pref: 'showFractals', id: 'fractals', label: 'analysis.settings.fractals', hint: isFractalZone ? 'analysis.settings.fractals.hint' : 'analysis.settings.fractals.off.hint', disabled: !isFractalZone },
   ];
 
   const setupNo = zone && zones ? (setupNumbers(zones).get(zone.id) ?? 0) : 0;

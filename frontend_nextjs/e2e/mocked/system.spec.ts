@@ -1,12 +1,23 @@
 /** SYS · Verbindung & Infrastruktur · UPD · Update und Shutdown. */
+import type { Page } from '@playwright/test';
 import { DEMO_ID, MT5_PATH, expect, test } from '../fixtures/test';
 import { fmt, msg } from '../fixtures/i18n';
 import { openHeaderMenu } from '../fixtures/header';
 
+/** Die Karte startet zu, solange eine Formation gezeichnet wird, und unter 1024 px (UI-22): nach dem Scan aufklappen, dann stehen die Live-Werte da */
+async function openCard(page: Page) {
+  await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+  const card = page.getByTestId('chart-floating-card');
+  const expand = card.getByRole('button', { name: msg('chart.card.expand'), exact: true });
+  if (await expand.count()) await expand.click();
+  await expect(card.getByTestId('chart-card-overview')).toBeVisible();
+}
+
 test.describe('SYS Verbindung', () => {
   test('WebSocket verbindet mit API-Schlüssel und nach Abbruch neu', { tag: '@SYS-02' }, async ({ page, worker }) => {
     // Die Analyse-Seite zeigt den Live-Chart erst mit gewähltem Konto; der Stream gehört diesem Konto
-    await page.goto(`/chart?account=${DEMO_ID}&mode=setup`);
+    await page.goto(`/chart?account=${DEMO_ID}&tf=M15`);
+    await openCard(page);
     await expect.poll(() => worker.socketAccounts).toEqual([DEMO_ID]);
     expect(new URL(worker.wsUrls.at(-1)!).searchParams.get('api_key')).toBe('e2e-key');
     const connects = worker.wsUrls.length;

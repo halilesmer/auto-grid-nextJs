@@ -23,9 +23,9 @@ const NAMED_SYMBOLS = 3;
 
 export const notificationPermission = (): NotificationPermission | 'unsupported' => (typeof Notification === 'undefined' ? 'unsupported' : Notification.permission);
 
-/** Adresse im Modus Formation der Chartseite: mit Notice zeigt sie Produkt, Formation und Zeiteinheit, ohne nur die Seite des Kontos */
+/** Adresse der Chartseite für einen Alarm: mit Notice zeigt sie Produkt, Formation und Zeiteinheit, ohne nur die Seite des Kontos (kein `mode`, 1107-A21) */
 export function formationUrl(accountId: string, notice?: AlarmNotice): string {
-  const params = new URLSearchParams({ mode: 'formation', account: accountId });
+  const params = new URLSearchParams({ account: accountId });
   if (notice) {
     params.set('symbol', notice.symbol);
     params.set('form', notice.form);

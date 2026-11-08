@@ -1,12 +1,9 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
-import { resolveChartMode } from '@/lib/chart/mode';
-
 /**
- * Gilt für die Trend-Regler eine Bestätigung (FRM-42)? Nur im Modus Formation rechnen Formationen, Suche und Alarm mit den
- * Werten. In Setup und Frei gilt jede Änderung sofort und die Seite zeigt keinen offenen Entwurf.
+ * Gilt für die Trend-Regler eine Bestätigung (FRM-42)? Seit dem einen Chart (1107-A21.8) ja, auf jeder Zeiteinheit: Formationen, Suche und Alarm
+ * stehen immer auf demselben Chart und rechnen mit denselben Trend-Werten, also gilt überall Entwurf und Bestätigen.
  */
 export function useTrendConfirm(): boolean {
-  return resolveChartMode(new URLSearchParams(useSearchParams().toString())) === 'formation';
+  return true;
 }

@@ -344,8 +344,8 @@ test.describe('ANA-25 Trendlinie: Menü per Rechtsklick und Doppelklick', () => 
     const last = rows[rows.length - 1];
     worker.state.ratesSeries = { D1: [], H4: rows, H1: [], M15: [[forming - 900, last[4], last[4], last[4], last[4]]] };
     await seedFixtureTrend(page, trendOf(garBars), true);
-    await page.goto(`/chart?mode=formation&account=${DEMO_ID}&zone=${ZONE_ID}&form=ABCD`);
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}&form=ABCD`);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
     await page.getByTestId('trend-toggle').click();
     await expect(chart(page)).toHaveAttribute('data-trend-segments', /\d/);
     await rightClick(page);

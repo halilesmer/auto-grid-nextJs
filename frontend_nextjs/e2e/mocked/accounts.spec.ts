@@ -1,6 +1,16 @@
 /** ACC · Konten: Liste, Anlegen, Duplikat, Bearbeiten, Löschen, Auswahl, Kontowechsel, LIVE/DEMO-Kennzeichnung. */
-import { DEMO_ID, LIVE_ID, MT5_PATH, ZONE_ID, expect, makeZone, test } from '../fixtures/test';
+import { DEMO_ID, LIVE_ID, MT5_PATH, expect, makeZone, test } from '../fixtures/test';
+import type { Page } from '@playwright/test';
 import { fmt, msg } from '../fixtures/i18n';
+
+/** Die Karte startet zu, solange eine Formation gezeichnet wird (UI-22): nach dem Scan aufklappen, dann steht „Übersicht“ mit den Live-Werten da */
+async function openCard(page: Page) {
+  await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+  const card = page.getByTestId('chart-floating-card');
+  const expand = card.getByRole('button', { name: msg('chart.card.expand'), exact: true });
+  if (await expand.count()) await expand.click();
+  await expect(card.getByTestId('chart-card-overview')).toBeVisible();
+}
 
 test.describe('ACC Konten', () => {
   test('Kontoliste zeigt alle Konten', { tag: '@ACC-01' }, async ({ page, dashboard }) => {
@@ -55,10 +65,8 @@ test.describe('ACC Konten', () => {
     // Client-Navigation: das gewählte Konto bleibt im Store
     await page.getByRole('navigation').getByRole('link', { name: msg('nav.chart') }).click();
     await expect(page).toHaveURL(`/chart?account=${LIVE_ID}`);
-    await page.getByTestId('chart-mode-free').click();
     await expect(page.getByTestId('free-chart-panel')).toBeVisible();
-    await page.getByTestId('chart-mode-setup').click();
-    await expect(page).toHaveURL(`/chart?account=${LIVE_ID}&mode=setup&zone=${ZONE_ID}`);
+    await openCard(page);
     await expect.poll(() => worker.openSockets).toBeGreaterThan(0);
     const price = page.getByTestId('chart-stat-price');
 
@@ -91,10 +99,8 @@ test.describe('ACC Konten', () => {
 
     await page.getByRole('navigation').getByRole('link', { name: msg('nav.chart') }).click();
     await expect(page).toHaveURL(`/chart?account=${LIVE_ID}`);
-    await page.getByTestId('chart-mode-free').click();
     await expect(page.getByTestId('free-chart-panel')).toBeVisible();
-    await page.getByTestId('chart-mode-setup').click();
-    await expect(page).toHaveURL(`/chart?account=${LIVE_ID}&mode=setup&zone=${ZONE_ID}`);
+    await openCard(page);
     await expect.poll(() => worker.socketAccounts).toEqual([LIVE_ID]);
     // Der Worker schickt diesem Stream die Metriken des zweiten Kontos (RSI, Live-Preis)
     worker.pushMetrics({ account_id: LIVE_ID, price: 98.5, rsi: 55.123 });

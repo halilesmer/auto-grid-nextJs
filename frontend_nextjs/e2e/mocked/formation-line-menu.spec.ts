@@ -10,7 +10,7 @@ import { msg } from '../fixtures/i18n';
 import { named, seedFixtureTrend, trendOf } from '../fixtures/formation-trend';
 import { DEMO_ID, ZONE_ID, expect, test, type MockWorker } from '../fixtures/test';
 
-const URL = `/chart?mode=formation&account=${DEMO_ID}&zone=${ZONE_ID}&form=ABCD`;
+const URL = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}&form=ABCD`;
 const FORMING_NOW = 1761192000;
 const bars = named('e2e/fixtures/formation/gar-buy-h4-01.json', parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/gar-buy-h4-01.json', 'utf-8')))).bars;
 
@@ -21,14 +21,26 @@ async function openPage(page: Page, worker: MockWorker) {
   worker.state.ratesSeries = { D1: [], H4: rows, H1: [], M15: [[FORMING_NOW - 900, last[4], last[4], last[4], last[4]]] };
   await seedFixtureTrend(page, trendOf(bars), true);
   await page.goto(URL);
-  await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+  await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
 }
 
-/** Klickpunkt auf der Linie: Mitte der unsichtbaren Treffer-Linie in Seitenkoordinaten (der Mittelpunkt des Rahmens liegt bei einer Schräge neben der Linie) */
+/**
+ * Klickpunkt auf der Linie: ein Punkt der unsichtbaren Treffer-Linie in Seitenkoordinaten, an dem sie obenauf liegt (elementFromPoint).
+ * Auf dem einen Chart (1107-A21) zeigt der Chart alle Kerzen, die Linien der Formation liegen eng beieinander; die Mitte der Linie kann unter einer anderen Rolle liegen.
+ */
 async function pointOn(page: Page, hit: Locator) {
-  const box = (await page.getByTestId('formation-overlay').boundingBox())!;
-  const [x1, y1, x2, y2] = await Promise.all(['x1', 'y1', 'x2', 'y2'].map(async a => Number(await hit.getAttribute(a))));
-  return { x: box.x + (x1 + x2) / 2, y: box.y + (y1 + y2) / 2 };
+  const p = await hit.evaluate((el) => {
+    const line = el as unknown as SVGLineElement, matrix = line.getScreenCTM()!;
+    const [x1, y1, x2, y2] = ['x1', 'y1', 'x2', 'y2'].map((a) => Number(line.getAttribute(a)));
+    let fallback: { x: number; y: number } | null = null;
+    for (const t of [0.5, 0.35, 0.65, 0.2, 0.8, 0.1, 0.9]) {
+      const point = new DOMPoint(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t).matrixTransform(matrix);
+      fallback ??= { x: point.x, y: point.y };
+      if (document.elementFromPoint(point.x, point.y) === el) return { x: point.x, y: point.y };
+    }
+    return fallback!;
+  });
+  return p;
 }
 const hitOf = (page: Page, role: string) => page.getByTestId('formation-overlay').locator(`[data-testid="line-hit"][data-hit-role="${role}"]`).first();
 const legs = (page: Page) => page.getByTestId('formation-overlay').locator('line[data-role="zigzag"]');
@@ -48,7 +60,7 @@ async function reloadKeepingStorage(page: Page) {
   const saved = await page.evaluate(() => JSON.stringify(Object.fromEntries(Object.entries(localStorage))));
   await page.addInitScript(json => { for (const [k, v] of Object.entries(JSON.parse(json) as Record<string, string>)) localStorage.setItem(k, v); }, saved);
   await page.reload();
-  await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+  await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
 }
 
 async function openSettings(page: Page, section?: string) {

@@ -19,7 +19,7 @@ import { named, seedFixtureTrend, trendOf } from '../fixtures/formation-trend';
 // Formationen rechnen auf dem Trendzug des Nutzers (FRM-41); die Fixtures zeigen ihre Formation mit FIXTURE_TREND
 test.beforeEach(({ page }) => seedFixtureTrend(page, trendOf(fixtureBars)));
 
-const URL = `/chart?mode=formation&account=${DEMO_ID}&zone=${ZONE_ID}`;
+const URL = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}`;
 const NOW = Date.UTC(2025, 10, 17, 12) / 1000;
 
 const fixtureBars = named('e2e/fixtures/formation/gar-buy-h4-01.json', parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/gar-buy-h4-01.json', 'utf-8')))).bars;
@@ -44,9 +44,9 @@ async function openPage(page: Page, worker: MockWorker, url = URL, now = NOW, ba
   serveFixture(worker, now, bars);
   await seedFixtureTrend(page, trendOf(bars), true);
   await page.goto(url);
-  await expect(page.getByTestId('formation-toolbar')).toBeVisible();
+  await expect(page.getByTestId('chart-topbar')).toBeVisible();
   // Die Suche ist fertig, wenn ihre Rechenzeit am Seitenelement steht
-  await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+  await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
 }
 
 /** Reserve unter dem Chart in px: unter 71 rem Containerbreite endet der Chart über der Werkzeugkarte (UI-11), sonst 0 */
@@ -56,7 +56,9 @@ const cardReserve = async (page: Page) => {
   expect(reserve).toBeGreaterThan(0);
   const chart = (await page.getByTestId('formation-chart').boundingBox())!, card = (await page.getByTestId('workspace-toolbar').boundingBox())!;
   expect(chart.y + chart.height).toBeLessThanOrEqual(card.y);
-  return reserve;
+  // The closed setup card (1107-A21, step U4-4a) holds its own strip under lg: its height is reserved as well (`--floating-card`)
+  const floating = await page.getByTestId('formation-main').evaluate(el => parseFloat(el.style.getPropertyValue('--floating-card')) || 0);
+  return reserve + floating;
 };
 
 /** Das Alarmmenü öffnet auf dem Verlauf; Schalter, Formationen und Alarm-Produkte stehen auf dem Reiter Einstellungen */
@@ -86,15 +88,18 @@ test.describe('FRM-18 Zeiteinheit- und Formationsleiste', () => {
     // Die Fixture liefert auf H4 eine gültige Gartley und eine Bat im Aufbau
     await expect(page.getByTestId('formation-form-GAR').getByTestId('hit-badge')).toHaveText('1');
     await expect(page.getByTestId('formation-form-BAT').getByTestId('hit-badge')).toHaveText('1');
-    await expect(page.getByTestId('formation-tf-H4').getByTestId('hit-badge')).toBeVisible();
-    await expect(page.getByTestId('formation-tf-M15').getByTestId('hit-badge')).toHaveCount(0);
+    await expect(page.getByTestId('timeframe-H4').getByTestId('hit-badge')).toBeVisible();
+    await expect(page.getByTestId('timeframe-M15').getByTestId('hit-badge')).toHaveCount(0);
   });
 
-  test('Klick auf eine Formation springt zur Zeiteinheit ihres Treffers', { tag: '@FRM-18' }, async ({ page, worker }) => {
+  test('Die Formationsreihe zeigt nur Treffer der gewählten Zeiteinheit; mit der Zeiteinheit H4 erscheint die Gartley', { tag: '@FRM-18' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&tf=M15`);
+    await expect(page.getByTestId('formation-form-GAR')).toHaveCount(0);
+    await expect(page.getByTestId('formation-forms-empty')).toContainText(msg('chart.formation.noneTf'));
+    await page.getByTestId('timeframe-H4').click();
+    await expect(page.getByTestId('timeframe-H4')).toHaveAttribute('aria-checked', 'true');
     await page.getByTestId('formation-form-GAR').click();
     await expect(page).toHaveURL(/form=GAR/);
-    await expect(page.getByTestId('formation-tf-H4')).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('Libra steht in der Leiste: gültige Kauf-Libra mit Badge, Checkliste und erreichtem Punkt K', { tag: ['@FRM-18', '@FRM-09'] }, async ({ page, worker }) => {
@@ -102,7 +107,7 @@ test.describe('FRM-18 Zeiteinheit- und Formationsleiste', () => {
     await openPage(page, worker, `${URL}&form=LIB`, 1763064000, bars);
     await expect(page.getByTestId('formation-form-LIB')).toContainText(msg('formation.form.LIB'));
     await expect(page.getByTestId('formation-form-LIB').getByTestId('hit-badge')).toHaveText('1');
-    await expect(page.getByTestId('formation-tf-H4')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('timeframe-H4')).toHaveAttribute('aria-checked', 'true');
     await expect(page.getByTestId('candidate-item').first().getByTestId('verdict-pill')).toHaveAttribute('data-verdict', 'valid');
     const list = page.getByTestId('formation-checklist');
     await expect(list.locator('[data-testid="check-row"][data-rule-id="LIB-12"]')).toHaveAttribute('data-state', 'met');
@@ -142,7 +147,7 @@ test.describe('FRM-18 Zeiteinheit- und Formationsleiste', () => {
     await openPage(page, worker, `${URL}&form=OBO`, 1763755200, bars);
     await expect(page.getByTestId('formation-form-OBO')).toContainText(msg('formation.form.OBO'));
     await expect(page.getByTestId('formation-form-OBO').getByTestId('hit-badge')).toHaveText('1');
-    await expect(page.getByTestId('formation-tf-H4')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('timeframe-H4')).toHaveAttribute('aria-checked', 'true');
     await expect(page.getByTestId('candidate-item').first().getByTestId('verdict-pill')).toHaveAttribute('data-verdict', 'valid');
     const list = page.getByTestId('formation-checklist');
     await expect(list.locator('[data-testid="check-row"][data-rule-id="OBO-11"]')).toHaveAttribute('data-state', 'met');
@@ -185,7 +190,8 @@ test.describe('FRM-18 Zeiteinheit- und Formationsleiste', () => {
 
   test('Ohne Treffer steht der Leerzustand statt einer Checkliste', { tag: '@FRM-18' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&tf=M15`);
-    await expect(page.getByTestId('formation-empty')).toContainText(msg('formation.empty.chart', { form: 'ABCD', tf: 'M15' }));
+    await expect(page.getByTestId('formation-forms-empty')).toContainText(msg('chart.formation.noneTf'));
+    await expect(page.getByTestId('formation-overlay')).toHaveCount(0);
     await expect(page.getByTestId('formation-checklist')).toHaveCount(0);
     await expect(page.getByTestId('candidate-empty')).toBeVisible();
   });
@@ -299,7 +305,7 @@ test.describe('FRM-19 Kandidaten-Liste und Checkliste', () => {
     worker.state.ratesSeries = { D1: rows, H4: [], H1: [], M15: [[now - 900, rows[rows.length - 1][4], rows[rows.length - 1][4], rows[rows.length - 1][4], rows[rows.length - 1][4]]] };
     await seedFixtureTrend(page, trendOf(fixture), true);
     await page.goto(`${URL}&form=CYP&tf=D1`);
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
     await expect(page.getByTestId('candidate-item').first().getByTestId('verdict-pill')).toHaveAttribute('data-verdict', 'valid');
     const list = page.getByTestId('formation-checklist');
     await expect(list.getByTestId('score-required')).not.toContainText(msg('formation.score.unmeasurable', { n: 1 }));
@@ -382,9 +388,9 @@ test.describe('FRM-45 Schalter Formasyon çizimleri', () => {
     await expect(page.locator('#overlay-formations')).toHaveCount(0);
   });
 
-  test('Im Modus Frei gibt es den Schalter nicht', { tag: '@FRM-45' }, async ({ page, worker }) => {
+  test('Auf einer Zeiteinheit ohne Formationen (M5) gibt es den Schalter nicht', { tag: '@FRM-45' }, async ({ page, worker }) => {
     serveFixture(worker, NOW);
-    await page.goto(`/chart?mode=free&account=${DEMO_ID}&symbol=EURUSD`);
+    await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=M5`);
     await expect(page.getByTestId('chart-workspace')).toBeVisible();
     await expect(page.getByRole('button', { name: msg('cw.overlayFormations'), exact: true })).toHaveCount(0);
   });
@@ -468,7 +474,7 @@ test.describe('FRM-20 Chart-Overlay und Hover', () => {
       localStorage.setItem(key, JSON.stringify({ state: { ...saved.state, formationStyle: style }, version: 1 }));
     });
     await page.goto(`${URL}&form=ABCD`);
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
     const overlay = page.getByTestId('formation-overlay');
     const leg = overlay.locator('line[data-role="zigzag"]').first();
     await expect(leg).toHaveAttribute('stroke', '#ff00ff');
@@ -542,7 +548,7 @@ test.describe('FRM-20 Ansicht des Formations-Charts', () => {
     const lastTime = series.H4[series.H4.length - 1][0];
     series.H1 = series.H4.map(([, ...prices], i) => [lastTime - (series.H4.length - 1 - i) * 3600, ...prices]);
     await page.goto(`${URL}&form=GAR`);
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
     await expect.poll(() => range(page)).toBe(allCandles());
     await zoomIn(page);
     await expect.poll(() => range(page)).not.toBe(allCandles());
@@ -550,10 +556,10 @@ test.describe('FRM-20 Ansicht des Formations-Charts', () => {
     await page.waitForTimeout(400);
     const zoomed = await range(page);
 
-    await page.getByTestId('formation-tf-H1').click();
+    await page.getByTestId('timeframe-H1').click();
     await expect(page.getByTestId('formation-chart')).toBeVisible();
     await page.waitForTimeout(400);
-    await page.getByTestId('formation-tf-H4').click();
+    await page.getByTestId('timeframe-H4').click();
     await expect(page.getByTestId('formation-chart')).toBeVisible();
     await expect.poll(() => sameView(page, zoomed)).toBe(true);
   });
@@ -582,7 +588,7 @@ test.describe('FRM-20 Ansicht des Formations-Charts', () => {
     await expect.poll(() => page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').documents ?? {}).some((d) => !!(d as { visibleTime?: unknown }).visibleTime))).toBe(true);
     const zoomed = await range(page);
     await page.reload();
-    await expect(page.getByTestId('formation-toolbar')).toBeVisible();
+    await expect(page.getByTestId('chart-topbar')).toBeVisible();
     await expect.poll(() => sameView(page, zoomed)).toBe(true);
     await page.waitForTimeout(400);
     await page.getByRole('button', { name: msg('cw.fit'), exact: true }).click();
@@ -590,7 +596,7 @@ test.describe('FRM-20 Ansicht des Formations-Charts', () => {
     // Das Zurücksetzen wird entprellt gespeichert
     await expect.poll(() => page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').documents ?? {}).some((d) => !!(d as { visibleTime?: unknown }).visibleTime))).toBe(false);
     await page.reload();
-    await expect(page.getByTestId('formation-toolbar')).toBeVisible();
+    await expect(page.getByTestId('chart-topbar')).toBeVisible();
     await expect.poll(() => range(page)).toBe(allCandles());
   });
 });
@@ -654,12 +660,12 @@ test.describe('FRM-25 freie Produktwahl', () => {
     await pick(page, 'gold', 'XAUUSD');
     await expect(page).toHaveURL(/symbol=XAUUSD/);
     await expect(page).not.toHaveURL(/zone=/);
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
     expect(ratesFor(worker, 'XAUUSD').sort()).toEqual(expect.arrayContaining(['D1', 'H1', 'H4', 'M15']));
 
     await pick(page, 'crude', 'USOUSD');
     await expect(page).toHaveURL(/symbol=USOUSD/);
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
     expect(ratesFor(worker, 'USOUSD').sort()).toEqual(expect.arrayContaining(['D1', 'H1', 'H4', 'M15']));
   });
 
@@ -673,15 +679,15 @@ test.describe('FRM-25 freie Produktwahl', () => {
 
   test('Ein Konto ohne Setup kann ein Produkt wählen', { tag: '@FRM-25' }, async ({ page, worker }) => {
     serveFixture(worker, NOW);
-    await page.goto(`/chart?mode=formation&account=${LIVE_ID}`);
+    await page.goto(`/chart?account=${LIVE_ID}`);
     await expect(page.getByText(msg('formation.noSymbol.text'))).toBeVisible();
     await pick(page, 'euro', 'EURUSD');
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
     await expect(page.getByText(msg('formation.noSymbol.text'))).toHaveCount(0);
   });
 
   test('Ein Kontowechsel löscht das gewählte Produkt', { tag: '@FRM-25' }, async ({ page, worker }) => {
-    await openPage(page, worker, `/chart?mode=formation&account=${DEMO_ID}&symbol=XAUUSD`);
+    await openPage(page, worker, `/chart?account=${DEMO_ID}&symbol=XAUUSD`);
     await expect(symbolInput(page)).toHaveValue('XAUUSD');
     await page.getByRole('combobox', { name: msg('account.select.aria') }).click();
     await page.getByRole('option', { name: /LIVE/ }).click();
@@ -702,8 +708,8 @@ test.describe('FRM-25 freie Produktwahl', () => {
     worker.state.symbols = worker.state.symbols.map((s) => (s.name === 'EURUSD' ? { ...s, name: 'EURUSDm' } : s));
     serveFixture(worker, NOW);
     worker.state.settings[DEMO_ID] = { LOOP_INTERVAL_SECONDS: 2, SYMBOLS: groupZones([makeZone({ symbol: 'EURUSDm' })]) };
-    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await page.goto(`/chart?account=${DEMO_ID}`);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
     await expect(symbolInput(page)).toHaveValue('EURUSDM');
     // Der Listeneintrag zeigt: Die Symbole sind geladen, das Verlassen des Feldes vergleicht wirklich
     await symbolInput(page).click();
@@ -731,7 +737,7 @@ test.describe('FRM-22 schmale Ansicht', () => {
     expect(rail!.x).toBe(0);
     expect(rail!.width).toBe(52);
     // Die Kopfleiste steht über dem Chart (UI-12): der Chart beginnt an ihrer Unterkante
-    const bar = (await page.getByTestId('formation-toolbar').boundingBox())!;
+    const bar = (await page.getByTestId('chart-topbar').boundingBox())!;
     expect(chart!.y).toBe(bar.y + bar.height);
     // Chart und Reserve für die Werkzeugkarte füllen den Rest der Seite (UI-11)
     expect(chart!.y + chart!.height + (await cardReserve(page))).toBe(812);
@@ -760,7 +766,7 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
     await openPage(page, worker, `${URL}&form=GAR`);
     // Container 1348 px (< 91rem): zwei Zeilen (UI-15, A13.7). Zeile 1 ist 38 px hoch (Mindesthöhe, auch ohne Pakete in Zeile 1), Zeile 2 trägt die Zeiteinheiten und Formationen.
     // UI-17 S2: die Werkzeuge sind Pakete und stehen standardmäßig in der unteren Leiste des Charts, nicht mehr in der Kopfleiste (Mass vorher: Werkzeuge in Zeile 1, y 56–94)
-    const bar = (await page.getByTestId('formation-toolbar').boundingBox())!;
+    const bar = (await page.getByTestId('chart-topbar').boundingBox())!;
     expect(bar).toMatchObject({ x: 52, y: 56, width: 1348 });
     expect(bar.height).toBeLessThanOrEqual(70);
     const forms = (await page.getByTestId('formation-forms').boundingBox())!;
@@ -770,7 +776,7 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
     expect(tools.y).toBeGreaterThanOrEqual(bar.y + bar.height);
     expect(tools.x + tools.width).toBeLessThanOrEqual(1400);
     await expect(page.getByTestId('workspace-toolbar').getByRole('button', { name: msg('cw.indicators', {}, 'de') })).toBeVisible();
-    const sizes = await page.getByTestId('formation-toolbar').evaluate((root) => {
+    const sizes = await page.getByTestId('chart-topbar').evaluate((root) => {
       const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
       const found = new Set<number>();
       while (walker.nextNode()) {
@@ -795,7 +801,7 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
       const rail = await page.getByTestId('drawing-toolbar').boundingBox();
       expect(rail).toEqual({ x: 0, y: 56, width: 52, height: 844 });
       expect(await page.getByTestId('app-nav').boundingBox()).toEqual({ x: 0, y: 0, width: 1440, height: 56 });
-      for (const id of ['formation-selectors', 'formation-toolbar', 'formation-legend']) {
+      for (const id of ['chart-topbar-row1', 'chart-topbar', 'formation-legend']) {
         const box = await page.getByTestId(id).boundingBox();
         expect(box!.x).toBeGreaterThanOrEqual(chart!.x);
         expect(box!.y).toBeGreaterThanOrEqual(56);
@@ -808,7 +814,7 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
       expect(sidebar.x + sidebar.width).toBeLessThanOrEqual(1400);
       expect(sidebar.y).toBeGreaterThanOrEqual(56);
       expect(sidebar.y + sidebar.height).toBeLessThanOrEqual(900);
-      const toolbar = await page.getByTestId('formation-toolbar').boundingBox();
+      const toolbar = await page.getByTestId('chart-topbar').boundingBox();
       const pointA = await page.getByTestId('formation-overlay').getByText('A', { exact: true }).boundingBox();
       expect(pointA!.y).toBeGreaterThan(toolbar!.y + toolbar!.height);
       // Die Checkliste scrollt unabhängig, das Chart-Canvas bleibt dabei an derselben Stelle.
@@ -833,9 +839,9 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
       // Desktoplinks sind direkt in der Kopfzeile erreichbar.
       await expect(page.getByTestId('nav-menu')).toBeHidden();
       await expect(page.getByTestId('app-nav').getByRole('link', { name: msg('nav.chart', {}, 'de'), exact: true })).toBeVisible();
-      await page.getByTestId('chart-mode-setup').click();
-      await expect(page).toHaveURL(/mode=setup/);
-      await expect(page.getByTestId('formation-page')).toHaveCount(0);
+      await page.getByRole('tab', { name: msg('analysis.tab.stats', {}, 'de') }).click();
+      await expect(page).toHaveURL(/tab=stats/);
+      await expect(page.getByTestId('chart-page')).toHaveCount(0);
     });
   }
 });
@@ -947,6 +953,8 @@ test.describe('FRM-27 Formationsalarm', () => {
   });
 
   test('Eine Formation, die nach dem Einschalten gültig wird, wird einmal gemeldet, nicht nach dem Neuladen', { tag: '@FRM-27' }, async ({ page, worker }) => {
+    // 1107-A21: the page also loads the chart candles for each of the 15-minute jumps; the test needs more time than before
+    test.setTimeout(60_000);
     await page.clock.install();
     await openPage(page, worker, `${URL}&form=GAR`, FORMING_NOW);
     await enable(page, ['GAR']);
@@ -966,9 +974,9 @@ test.describe('FRM-27 Formationsalarm', () => {
     // Nach dem Neuladen gilt der Stand als bekannt
     serveFixture(worker, NOW);
     await page.reload();
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
     await expect(page.getByTestId('formation-alarm')).toHaveAttribute('data-enabled', 'true');
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
     await expect(page.getByText(gartley())).toHaveCount(0);
   });
 
@@ -979,13 +987,13 @@ test.describe('FRM-27 Formationsalarm', () => {
     await remembered(page, 'EURUSD');
     // Auf eine andere Formation und Zeiteinheit wechseln, damit der Sprung sichtbar wird
     await page.getByTestId('formation-form-BAT').click();
-    await page.getByTestId('formation-tf-H1').click();
+    await page.getByTestId('timeframe-H1').click();
     await advance(page, worker, NOW);
     await expect(page.getByText(gartley())).toBeVisible();
 
     await page.getByRole('button', { name: msg('formation.alarm.show'), exact: true }).click();
     await expect(page.getByTestId('formation-form-GAR')).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.getByTestId('formation-tf-H4')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('timeframe-H4')).toHaveAttribute('aria-checked', 'true');
     await expect(page.getByTestId('candidate-item').first()).toHaveAttribute('aria-pressed', 'true');
   });
 
@@ -1014,7 +1022,7 @@ test.describe('FRM-27 Formationsalarm', () => {
     await page.clock.install();
     await openPage(page, worker, `${URL}&form=GAR`, FORMING_NOW);
     await advance(page, worker, NOW);
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
     await expect(page.getByText(gartley())).toHaveCount(0);
   });
 
@@ -1037,9 +1045,13 @@ test('Scheitert das erste Laden der Konten beim Neuladen, wird im Takt neu gelad
   let calls = 0;
   await page.route('**/api/accounts', (route) => (calls++ === 0 ? route.abort('failed') : route.fallback()));
   await page.reload();
-  await expect(page.getByTestId('formation-toolbar')).toBeVisible();
+  await expect(page.getByTestId('chart-topbar')).toBeVisible();
   await expect(page.getByRole('combobox', { name: msg('account.select.aria') })).toHaveText('E2E Demo', { timeout: 15_000 });
-  expect(calls).toBe(2);
+  // 1107-A21: the page, the navigation and the search runner each start the first load at once (the first one fails); once the list is there, nobody asks again
+  expect(calls).toBeGreaterThanOrEqual(2);
+  const settled = calls;
+  await page.waitForTimeout(12_000);
+  expect(calls).toBe(settled);
 });
 
 test.describe('FRM-28 Favoriten-Fahne', () => {
@@ -1124,11 +1136,13 @@ test.describe('FRM-29 Favoriten-Seitenleiste und Suche', () => {
   /** Die Mock-Kerzen gelten für jedes Produkt: jeder Favorit (hier 4-stellige Paare wie die Fixture) hat auf H4 eine gültige Gartley und eine Bat im Aufbau */
   async function openWithFavorites(page: Page, worker: MockWorker, favorites: string[], open = true) {
     worker.state.favorites[DEMO_ID] = favorites;
+    // The one chart draws only products of the broker list (1107-A21): the favorites need their symbols there
+    const eur = worker.state.symbols.find((x) => x.name === 'EURUSD')!;
+    worker.state.symbols = [...worker.state.symbols, ...favorites.filter((x) => !worker.state.symbols.some((y) => y.name === x)).map((name) => ({ ...eur, name, description: name }))];
     await openPage(page, worker);
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
     if (open) await page.getByTestId('favorites-toggle').click();
   }
-  const ratesCalls = (worker: MockWorker) => worker.callsTo('GET', /\/market\/.*\/rates$/).length;
   const rowSymbols = (page: Page) => page.getByTestId('favorites-row').evaluateAll((rows) => rows.map((r) => r.getAttribute('data-symbol')));
 
   test('Nur gebildete Formationen stehen in der Formations-Zeile, die Zahl ist die Zahl der Produkte', { tag: '@FRM-29' }, async ({ page, worker }) => {
@@ -1141,28 +1155,32 @@ test.describe('FRM-29 Favoriten-Seitenleiste und Suche', () => {
     await expect(page.getByTestId('fav-tf-D1').getByTestId('hit-badge')).toHaveCount(0);
   });
 
-  test('Klick auf einen Zeitraum filtert ohne neue Anfragen', { tag: '@FRM-29' }, async ({ page, worker }) => {
+  // 1107-A21: the chart loads its own candles for a new timeframe; the filter starts no new search (scan runs of the page and of the favorites stay)
+  test('Klick auf einen Zeitraum filtert ohne neue Suche', { tag: '@FRM-29' }, async ({ page, worker }) => {
     await openWithFavorites(page, worker, ['EURUSD', 'GBPUSD']);
-    const before = ratesCalls(worker);
+    const runs = await page.getByTestId('chart-page').getAttribute('data-scan-runs');
+    const favoritesBefore = await page.getByTestId('chart-page').getAttribute('data-favorites-scan-ms');
     await page.getByTestId('fav-tf-D1').click();
     await expect(page.getByTestId('favorites-forms-empty')).toHaveText(msg('formation.fav.noForms'));
     await expect(page).toHaveURL(/tf=D1/);
     await page.getByTestId('fav-tf-H4').click();
     await expect(page.getByTestId('fav-form-GAR')).toBeVisible();
-    expect(ratesCalls(worker)).toBe(before);
+    await page.waitForTimeout(1000);
+    expect(await page.getByTestId('chart-page').getAttribute('data-scan-runs')).toBe(runs);
+    expect(await page.getByTestId('chart-page').getAttribute('data-favorites-scan-ms')).toBe(favoritesBefore);
   });
 
-  test('Die Zeilen stehen sichtbar nie doppelt: offen in der Seitenleiste, geschlossen über dem Chart', { tag: '@FRM-29' }, async ({ page, worker }) => {
+  // 1107-A21: the top bar always shows the nine timeframes and the formations of the symbol, so the favorites rows live in the sidebar tab only
+  test('Die Zeilen stehen sichtbar nie doppelt: nur in der Seitenleiste, nie in der Kopfleiste', { tag: '@FRM-29' }, async ({ page, worker }) => {
     await openWithFavorites(page, worker, ['EURUSD'], false);
-    await expect(page.getByTestId('fav-form-GAR')).toHaveCount(1);
+    await expect(page.getByTestId('fav-form-GAR')).toHaveCount(0);
     await expect(page.getByTestId('favorites-panel')).toHaveCount(0);
-    await expect(page.getByTestId('formation-form-GAR')).toHaveCount(0);
     await page.getByTestId('favorites-toggle').click();
     await expect(page.getByTestId('favorites-panel').getByTestId('fav-form-GAR')).toBeVisible();
     await expect(page.getByTestId('fav-form-GAR')).toHaveCount(1);
-    await expect(page.getByTestId('formation-toolbar').getByTestId('fav-tf-H4')).toHaveCount(0);
+    await expect(page.getByTestId('chart-topbar').getByTestId('fav-tf-H4')).toHaveCount(0);
     // Kamera und Glocke bleiben in der Kopfleiste
-    await expect(page.getByTestId('formation-topbar').getByTestId('formation-shot')).toBeVisible();
+    await expect(page.getByTestId('chart-topbar-row1').getByTestId('formation-shot')).toBeVisible();
   });
 
   test('Klick auf eine Formation filtert die Tabelle, ein zweiter Klick hebt den Filter auf', { tag: '@FRM-29' }, async ({ page, worker }) => {
@@ -1274,7 +1292,7 @@ test.describe('FRM-29 Favoriten-Seitenleiste und Suche', () => {
 
 test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', () => {
   const KEY = 'grid-robot-formation-alarm';
-  const ALARM_URL = `/chart?account=${DEMO_ID}&mode=free`;
+  const ALARM_URL = `/chart?account=${DEMO_ID}&tf=M15`;
   const gartley = (symbol: string) => msg('formation.alarm.notice.both', { form: msg('formation.form.GAR'), side: msg('formation.side.buy'), symbol, tf: 'H4', point: 'D' });
   const ratesCalls = (worker: MockWorker) => worker.callsTo('GET', /\/market\/.*\/rates$/).length;
 
@@ -1327,7 +1345,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     expect(note.tag).toContain('EURUSD');
     // Der Schlüssel trägt das Konto: gleiche Formation in zwei Konten ersetzt sich nicht
     expect(note.tag).toContain(DEMO_ID);
-    expect(note.url).toBe(`/chart?mode=formation&account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`);
+    expect(note.url).toBe(`/chart?account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`);
   });
 
   test('„Anzeigen“ führt von /chart zu Produkt, Formation und Zeiteinheit auf /formasyon', { tag: '@FRM-30' }, async ({ page, worker }) => {
@@ -1339,8 +1357,8 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     await remembered(page, 'EURUSD');
     await nextSlot(page, worker);
     await page.getByRole('button', { name: msg('formation.alarm.show'), exact: true }).click();
-    await expect(page).toHaveURL(new RegExp(`/chart\\?mode=formation&account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`));
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await expect(page).toHaveURL(new RegExp(`/chart\\?account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`));
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
     // Mit Favoriten stehen die Formationen in der Favoriten-Zeile: die Liste zeigt die Gartley der Zeiteinheit H4
     await expect(page.getByTestId('candidate-item').first()).toBeVisible();
     await expect(page.getByTestId('formation-symbol').getByRole('combobox')).toHaveValue('EURUSD');
@@ -1357,8 +1375,8 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     await expect(page.getByText(gartley('GBPUSD'))).toBeVisible();
     // Der Favorit EURUSD hat keinen Alarm: keine Meldung für ihn
     await expect(page.getByText(gartley('EURUSD'))).toHaveCount(0);
-    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
+    await page.goto(`/chart?account=${DEMO_ID}`);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
     await page.getByTestId('favorites-toggle').click();
     await expect(page.getByTestId('fav-form-GAR').getByTestId('hit-badge')).toHaveText('1');
     await expect(page.getByTestId('favorites-row')).toHaveCount(1);
@@ -1369,8 +1387,8 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     worker.state.ratesErrorSymbols = ['GBPUSD'];
     serveFixture(worker, NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID], memory: { [`${DEMO_ID}|GBPUSD`]: {} } });
-    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
+    await page.goto(`/chart?account=${DEMO_ID}`);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
     await openAlarmSettings(page);
     await expect(page.getByTestId('formation-alarm-incomplete')).toContainText('GBPUSD');
     await expect(page.getByTestId('formation-alarm-incomplete')).not.toContainText('EURUSD');
@@ -1382,13 +1400,16 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     serveFixture(worker, NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID] });
-    await page.goto(ALARM_URL);
+    // 1107-A21: every tab also loads its own chart and search for the symbol of the page; XAUUSD keeps them apart from the favorite EURUSD
+    const url = `${ALARM_URL}&symbol=XAUUSD`;
+    const favoriteCalls = () => worker.callsTo('GET', /\/market\/.*\/rates$/).filter((c) => c.query.get('symbol') === 'EURUSD').length;
+    await page.goto(url);
     await waitForPass(worker, 1);
     const second = await page.context().newPage();
     await worker.install(second);
-    await second.goto(ALARM_URL);
+    await second.goto(url);
     await second.waitForTimeout(2000);
-    expect(ratesCalls(worker)).toBe(4);
+    expect(favoriteCalls()).toBe(4);
   });
 
   test('Die Karte erscheint auch im zweiten Tab, der nicht sucht', { tag: '@FRM-30' }, async ({ page, worker }) => {
@@ -1418,7 +1439,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     await expect(page.getByRole('button', { name: msg('formation.alarm.show'), exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: msg('formation.alarm.openFavorites'), exact: true })).toBeVisible();
     const [note] = await shown(page);
-    expect(note.url).toBe(`/chart?mode=formation&account=${DEMO_ID}`);
+    expect(note.url).toBe(`/chart?account=${DEMO_ID}`);
     expect(note.tag).toBe(`formation-alarm-since-${DEMO_ID}`);
   });
 
@@ -1442,13 +1463,13 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
   test('Die Nachricht des Service Workers nach einem Klick auf die Systemmeldung öffnet die Formation ohne Neuladen', { tag: '@FRM-30' }, async ({ page, worker }) => {
     serveFixture(worker, NOW);
     await page.goto(`/chart?account=${DEMO_ID}`);
-    const url = `/chart?mode=formation&account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`;
+    const url = `/chart?account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`;
     // Der Service Worker selbst ist in den Tests blockiert; geprüft wird die Seite, die seine Nachricht annimmt
     // Der Hörer steht erst nach der Hydration: die Nachricht kommt, bis die Seite sie annimmt (auf einem langsamen Rechner nach dem Ladeereignis)
     await expect.poll(async () => {
       await page.evaluate((target) => navigator.serviceWorker.dispatchEvent(new MessageEvent('message', { data: { type: 'formation-alarm-open', url: target } })), url);
       return page.url();
-    }, { intervals: [250, 500, 1000] }).toMatch(new RegExp(`/chart\\?mode=formation&account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`));
+    }, { intervals: [250, 500, 1000] }).toMatch(new RegExp(`/chart\\?account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`));
   });
 
   test('Die Schalter „Alle Favoriten“ und „Systemmeldung“ speichern sofort, auch wenn die Browser-Abfrage nie beantwortet wird', { tag: '@FRM-30' }, async ({ page, worker }) => {
@@ -1459,7 +1480,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
       Object.defineProperty(Notification, 'permission', { get: () => 'default' });
       Notification.requestPermission = () => new Promise(() => {});
     });
-    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
+    await page.goto(`/chart?account=${DEMO_ID}`);
     await openAlarmSettings(page);
     const stored = () => page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? '{}'), KEY);
     await page.getByRole('switch', { name: msg('formation.alarm.favorites') }).click();
@@ -1500,7 +1521,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
   test('Ohne gewähltes und ohne gemerktes Konto ruht der Alarm und das Menü sagt es', { tag: '@FRM-30' }, async ({ page, worker }) => {
     serveFixture(worker, NOW);
     await seed(page, {});
-    await page.goto('/chart?mode=formation');
+    await page.goto('/chart');
     await page.getByTestId('formation-alarm').click();
     await expect(page.getByTestId('formation-alarm-status')).toHaveText(msg('formation.alarm.status.rest.none'));
     await expect(page.getByTestId('formation-alarm-rest-note')).toBeVisible();
@@ -1510,7 +1531,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
   test('Ein gemerktes Konto, das es nicht mehr gibt, lässt den Alarm ruhen und das Menü sagt es', { tag: '@FRM-30' }, async ({ page, worker }) => {
     serveFixture(worker, NOW);
     await seed(page, { account: '999999' });
-    await page.goto('/chart?mode=formation');
+    await page.goto('/chart');
     await page.getByTestId('formation-alarm').click();
     await expect(page.getByTestId('formation-alarm-status')).toHaveText(msg('formation.alarm.status.rest.gone'));
     expect(ratesCalls(worker)).toBe(0);
@@ -1521,7 +1542,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     worker.state.accounts = [];
     serveFixture(worker, NOW);
     await seed(page, { account: DEMO_ID });
-    await page.goto('/chart?mode=formation');
+    await page.goto('/chart');
     await page.getByTestId('formation-alarm').click();
     await expect(page.getByTestId('formation-alarm-status')).toHaveText(msg('formation.alarm.status.rest.gone'));
   });
@@ -1529,7 +1550,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
   test('Ein Alarm-Produkt bleibt nach dem Neuladen ohne Konto auf der Seite im Menü entfernbar', { tag: '@FRM-30' }, async ({ page, worker }) => {
     serveFixture(worker, NOW);
     await seed(page, { account: DEMO_ID, enabled: [`${DEMO_ID}|EURUSD`] });
-    await page.goto('/chart?mode=formation&symbol=EURUSD');
+    await page.goto('/chart?symbol=EURUSD');
     await openAlarmSettings(page);
     await page.getByTestId('formation-alarm-extra-EURUSD').click();
     await page.waitForFunction((key) => JSON.parse(localStorage.getItem(key) ?? '{}').enabled.length === 0, KEY);
@@ -1542,7 +1563,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     serveFixture(worker, NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID], account: '999999' });
-    await page.goto('/chart?mode=formation');
+    await page.goto('/chart');
     await page.getByTestId('formation-alarm').click();
     await expect(page.getByTestId('formation-alarm-status')).toHaveText(msg('formation.alarm.status.rest.gone'));
     // Das Konto entsteht, ein anderer Tab merkt es: dieser Tab bekommt nur das storage-Ereignis
@@ -1569,8 +1590,8 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     worker.state.favorites[DEMO_ID] = ['EURUSD', 'GBPUSD'];
     serveFixture(worker, NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID], enabled: [`${DEMO_ID}|XAUUSD`] });
-    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
+    await page.goto(`/chart?account=${DEMO_ID}`);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
     await openAlarmSettings(page);
     await expect(page.getByRole('switch', { name: msg('formation.alarm.favorites') })).toBeChecked();
     await expect(page.getByTestId('formation-alarm-status')).toContainText('3/3');
@@ -1586,9 +1607,9 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     serveFixture(worker, NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID] });
-    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
+    await page.goto(`/chart?account=${DEMO_ID}`);
     await waitForPass(worker, 1);
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
     const before = ratesCalls(worker);
     await page.getByTestId('trend-settings').click();
     await page.getByTestId('trend-settings-panel').getByTestId('trend-minSize').fill('1.5');
@@ -1621,7 +1642,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
       }
       await route.fallback().catch(() => undefined);
     });
-    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
+    await page.goto(`/chart?account=${DEMO_ID}`);
     await expect.poll(() => held, { timeout: 15_000 }).toBeGreaterThanOrEqual(1);
     await expect.poll(() => ratesCalls(worker), { timeout: 15_000 }).toBeGreaterThanOrEqual(4);
     const writes = () => page.evaluate(() => (window as unknown as { __alarmWrites: string[][] }).__alarmWrites.length);
@@ -1640,7 +1661,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     serveFixture(worker, NOW);
     await seed(page, { enabled: [`${DEMO_ID}|GBPUSD`], active: false });
-    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
+    await page.goto(`/chart?account=${DEMO_ID}`);
     await waitForPass(worker, 1);
     await page.waitForTimeout(1500);
     const symbols = worker.callsTo('GET', /\/market\/.*\/rates$/).map((c) => c.query.get('symbol'));
@@ -1652,9 +1673,9 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     serveFixture(worker, NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID] });
-    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
+    await page.goto(`/chart?account=${DEMO_ID}`);
     await waitForPass(worker, 1);
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
     const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('grid-robot-analysis-prefs') ?? '{}').state?.trend?.minSize as number | undefined);
     const applied = await stored();
     await expect(page.getByTestId('trend-confirm')).toHaveCount(0);
@@ -1667,7 +1688,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     await expect(page.getByTestId('trend-pending-dot')).toBeVisible();
     // Entwurf: nichts gespeichert, keine neue Suche (weder der Favoriten-Suche noch der Suche der Seite selbst, R1-11)
     const before = ratesCalls(worker);
-    const pageRuns = () => page.getByTestId('formation-page').getAttribute('data-scan-runs');
+    const pageRuns = () => page.getByTestId('chart-page').getAttribute('data-scan-runs');
     const runs = await pageRuns();
     expect(Number(runs)).toBeGreaterThan(0);
     await page.waitForTimeout(1500);
@@ -1682,62 +1703,43 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     await expect.poll(() => ratesCalls(worker), { timeout: 15_000 }).toBeGreaterThanOrEqual(before + 4);
   });
 
-  /** Entwurf in Formation (Regler bewegt, nicht bestätigt), dann in derselben Seite zu Setup: der Speicher bleibt, die Adresse wechselt nur den Modus */
-  async function draftThenSetup(page: Page, worker: MockWorker) {
-    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+  const storedTrend = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('grid-robot-analysis-prefs') ?? '{}').state?.trend as { minSize: number; changeCloses: number });
+
+  // 1107-A21.8: Entwurf und Bestätigung gelten auf jeder Zeiteinheit (vorher nur in Formation; Setup und Frei wendeten sofort an, R1-03, R1-10)
+  test('FRM-42 (A21.8): Entwurf und Bestätigung gelten auf jeder Zeiteinheit; ein Wechsel der Zeiteinheit lässt den Entwurf stehen', { tag: '@FRM-42' }, async ({ page, worker }) => {
     serveFixture(worker, NOW);
     await page.addInitScript(([key, trend]) => {
       localStorage.setItem(key, JSON.stringify({ state: { trend, showTrend: true }, version: 1 }));
     }, ['grid-robot-analysis-prefs', trendOf(fixtureBars)] as const);
-    await page.goto(`/chart?mode=setup&account=${DEMO_ID}&zone=${ZONE_ID}&tf=H4`);
-    const chart = page.getByTestId('analysis-chart');
-    await expect(chart).toHaveAttribute('data-trend', /^[1-9]\d*$/);
-    const applied = await chart.getAttribute('data-trend');
-    await page.getByTestId('chart-mode-formation').click();
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
-    await page.getByTestId('trend-settings').click();
-    await page.getByTestId('trend-settings-panel').getByTestId('trend-minSize').fill('3.5');
-    await expect(page.getByTestId('trend-confirm')).toBeVisible();
-    await page.getByTestId('chart-mode-setup').click();
-    await expect(chart).toBeVisible();
-    return { chart, applied: applied as string };
-  }
-  const storedTrend = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('grid-robot-analysis-prefs') ?? '{}').state?.trend as { minSize: number; changeCloses: number });
-
-  test('FRM-42 Setup: ein offener Entwurf aus Formation wird dort nicht still angewendet; eine Änderung gilt für die angewendete Einstellung und der Entwurf bleibt (R1-03)', { tag: '@FRM-42' }, async ({ page, worker }) => {
-    const { applied } = await draftThenSetup(page, worker);
-    const before = await storedTrend(page);
-    // Setup hat keine Bestätigungsleiste und kein Wartepunkt: das Panel zeigt die angewendete Einstellung
-    await expect(page.getByTestId('trend-pending-dot')).toHaveCount(0);
+    await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=H1`);
+    await expect(page.getByTestId('chart-topbar')).toBeVisible();
+    const applied = await storedTrend(page);
     await page.getByTestId('trend-settings').click();
     const panel = page.getByTestId('trend-settings-panel');
-    await expect(panel.getByTestId('trend-minSize')).toHaveValue(String(before.minSize));
-    await expect(page.getByTestId('trend-confirm')).toHaveCount(0);
-    const other = before.changeCloses === 1 ? 2 : 1;
-    await panel.getByRole('button', { name: msg(`cw.trend.closes.${other}`) }).click();
-    await expect.poll(async () => (await storedTrend(page)).changeCloses).toBe(other);
-    expect((await storedTrend(page)).minSize).toBe(before.minSize);
-    expect(applied).toMatch(/^\d+$/);
-    // Zurück in Formation wartet der Entwurf noch auf die Bestätigung
-    await page.getByTestId('chart-mode-formation').click();
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await expect(panel.getByTestId('trend-minSize')).toHaveValue(String(applied.minSize));
+    await panel.getByTestId('trend-minSize').fill('3.5');
+    await expect(page.getByTestId('trend-confirm')).toBeVisible();
+    await expect(page.getByTestId('trend-pending-dot')).toBeVisible();
+    // Der Entwurf ist nicht angewendet und überlebt den Wechsel der Zeiteinheit
+    expect((await storedTrend(page)).minSize).toBe(applied.minSize);
+    await page.keyboard.press('Escape');
+    await page.getByTestId('timeframe-M5').click();
+    await page.getByTestId('timeframe-H4').click();
+    await expect(page.getByTestId('trend-pending-dot')).toBeVisible();
     await page.getByTestId('trend-settings').click();
     await expect(page.getByTestId('trend-settings-panel').getByTestId('trend-minSize')).toHaveValue('3.5');
-    await expect(page.getByTestId('trend-confirm')).toBeVisible();
-  });
-
-  test('FRM-42 Setup: der Chart zeichnet die angewendete Linie, nicht den offenen Entwurf aus Formation (R1-10)', { tag: '@FRM-42' }, async ({ page, worker }) => {
-    const { chart, applied } = await draftThenSetup(page, worker);
-    await expect(chart).toHaveAttribute('data-trend', applied);
+    await page.getByTestId('trend-confirm-apply').click();
+    await expect.poll(async () => (await storedTrend(page)).minSize).toBe(3.5);
+    await expect(page.getByTestId('trend-pending-dot')).toHaveCount(0);
   });
 
   test('FRM-42 [Geri al]: der Entwurf kehrt zur angewendeten Einstellung zurück, ohne neue Suche', { tag: '@FRM-42' }, async ({ page, worker }) => {
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     serveFixture(worker, NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID] });
-    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
+    await page.goto(`/chart?account=${DEMO_ID}`);
     await waitForPass(worker, 1);
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
     await page.getByTestId('trend-settings').click();
     const slider = page.getByTestId('trend-settings-panel').getByTestId('trend-minSize');
     const original = await slider.inputValue();
@@ -1756,9 +1758,9 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     serveFixture(worker, NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID] });
-    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
+    await page.goto(`/chart?account=${DEMO_ID}`);
     // Das Menü richtet sich erst an der Glocke aus, wenn die Leiste fertig ist
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
     await expect(page.getByTestId('favorites-strip')).toBeVisible();
     await page.getByTestId('formation-alarm').click();
     const panel = page.getByTestId('formation-alarm-panel');
@@ -1784,7 +1786,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     serveFixture(worker, NOW);
     await storeSidebar(page, { open: true, tab: 'favorites' });
     await seed(page, { favoritesEnabled: [DEMO_ID] });
-    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
+    await page.goto(`/chart?account=${DEMO_ID}`);
     await expect(page.getByTestId('formation-sidebar')).toBeVisible();
     await expect(page.getByTestId('sidebar-tab-favorites')).toBeVisible();
     expect(await onTop(page, page.getByTestId('sidebar-tab-favorites'))).toBe(true);
@@ -1801,7 +1803,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     serveFixture(worker, NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID], history: { [DEMO_ID]: [history()] }, forms: [] });
-    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
+    await page.goto(`/chart?account=${DEMO_ID}`);
     await page.getByTestId('formation-alarm').click();
     await expect(page.getByRole('tab', { name: new RegExp(`^${msg('formation.alarm.tab.history')}`) })).toHaveAttribute('aria-selected', 'true');
     await expect(historyItems(page)).toHaveCount(1);
@@ -1812,7 +1814,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     serveFixture(worker, FORMING_NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID], system: false });
     await page.clock.install();
-    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
+    await page.goto(`/chart?account=${DEMO_ID}`);
     await remembered(page, 'EURUSD');
     await nextSlot(page, worker);
     await expect(page.getByText(gartley('EURUSD'))).toBeVisible();
@@ -1829,7 +1831,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     serveFixture(worker, NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID], memory: { [`${DEMO_ID}|EURUSD`]: {} }, forms: ['ABCD', 'GAR', 'BAT', 'BUT', 'CRB', 'CYP', 'CDT'] });
-    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
+    await page.goto(`/chart?account=${DEMO_ID}`);
     await expect(page.getByText(msg('formation.alarm.notice.since', { count: 5 }))).toBeVisible();
     await openHistory(page);
     await expect(historyItems(page)).toHaveCount(5);
@@ -1841,7 +1843,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     serveFixture(worker, NOW);
     const memory = { [`${DEMO_ID}|EURUSD`]: { 'EURUSD|GAR|H4|buy|1': { valid: true, target: true } } };
     await seed(page, { favoritesEnabled: [DEMO_ID], memory, history: { [DEMO_ID]: [history()] }, forms: [] });
-    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
+    await page.goto(`/chart?account=${DEMO_ID}`);
     await openHistory(page);
     await expect(historyItems(page)).toHaveCount(1);
     await page.getByTestId('formation-alarm-history-clear').click();
@@ -1856,11 +1858,11 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     serveFixture(worker, FORMING_NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID] });
     await page.clock.install();
-    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
+    await page.goto(`/chart?account=${DEMO_ID}`);
     await remembered(page, 'EURUSD');
     const second = await page.context().newPage();
     await worker.install(second);
-    await second.goto(`/chart?mode=formation&account=${DEMO_ID}`);
+    await second.goto(`/chart?account=${DEMO_ID}`);
     await second.waitForTimeout(1500);
     await nextSlot(page, worker);
     await expect(page.getByText(gartley('EURUSD'))).toBeVisible();
@@ -1872,10 +1874,10 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     serveFixture(worker, NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID], memory: { [`${DEMO_ID}|EURUSD`]: {} }, history: { [DEMO_ID]: [history()] }, forms: [] });
-    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
+    await page.goto(`/chart?account=${DEMO_ID}`);
     await openHistory(page);
     await historyItems(page).first().click();
-    await expect(page).toHaveURL(new RegExp(`/chart\\?mode=formation&account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`));
+    await expect(page).toHaveURL(new RegExp(`/chart\\?account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`));
     // Das Menü schließt, damit der gewählte Chart frei liegt
     await expect(page.getByTestId('formation-alarm-panel')).toHaveCount(0);
   });
@@ -1884,7 +1886,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     serveFixture(worker, NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID], forms: [] });
-    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
+    await page.goto(`/chart?account=${DEMO_ID}`);
     await openHistory(page);
     await expect(page.getByTestId('formation-alarm-history-empty')).toHaveText(new RegExp(msg('formation.alarm.history.empty')));
     await expect(page.getByTestId('formation-alarm-history-clear')).toBeDisabled();
@@ -1897,7 +1899,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     // Die älteste Gruppe hat nur noch zwei Einträge, der Rest fiel an der Grenze heraus
     const oldest = [0, 1].map((i) => ({ ...history(), id: `o${i}`, key: `o${i}`, at: Date.UTC(2025, 10, 16, 9, 0), batch: 'since' }));
     await seed(page, { favoritesEnabled: [DEMO_ID], history: { [DEMO_ID]: [...single, ...oldest] }, forms: [] });
-    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
+    await page.goto(`/chart?account=${DEMO_ID}`);
     await openHistory(page);
     await expect(historyItems(page)).toHaveCount(100);
     await expect(page.getByTestId('formation-alarm-history-group')).toHaveText(new RegExp(msg('formation.alarm.history.group.since', { count: 2 })));
@@ -1909,9 +1911,9 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     serveFixture(worker, NOW);
     const many = Array.from({ length: 8 }, (_, i) => ({ ...history(), id: `h${i}`, key: `k${i}`, at: Date.UTC(2025, 10, 16, 9, i) }));
     await seed(page, { favoritesEnabled: [DEMO_ID], history: { [DEMO_ID]: many }, forms: [] });
-    await page.goto(`/chart?mode=formation&account=${DEMO_ID}`);
+    await page.goto(`/chart?account=${DEMO_ID}`);
     // Wie im Menü-Test oben: erst wenn die Leiste fertig ist, sitzt die Glocke an ihrem Platz; das Menü richtet sich beim Öffnen daran aus
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/);
     await openHistory(page);
     await expect(historyItems(page)).toHaveCount(8);
     // Das Menü öffnet mit einer kurzen Bewegung: die Breite wird erst danach gemessen
@@ -1932,7 +1934,7 @@ test.describe('FRM-31 laufende Kerze', () => {
     series.M15 = [[NOW - 900, 1.2, 1.2, 1.2, 1.2], [NOW, price, price, price, price]];
     worker.state.ratesLive = { H4: NOW, M15: NOW };
     await page.goto(URL);
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
     await expect(page.getByTestId('formation-form-GAR').getByTestId('hit-badge')).toHaveText('1');
     await expect(page.getByTestId('formation-form-BAT').getByTestId('hit-badge')).toHaveText('1');
     await expect(page.getByTestId('formation-chart')).toHaveAttribute('data-last-price', `${NOW}:${price}`);
@@ -1948,10 +1950,10 @@ test.describe('FRM-31 laufende Kerze', () => {
     series.M15 = [[NOW - 900, 1.2, 1.2, 1.2, 1.2], [NOW, 1.2, 1.2, 1.2, 1.2]];
     worker.state.ratesLive = { H4: NOW, H1: NOW, M15: NOW };
     await page.goto(`${URL}&form=GAR`);
-    await expect(page.getByTestId('formation-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
     const chart = page.getByTestId('formation-chart');
     await expect(chart).toHaveAttribute('data-last-range', '0.9:1.5');
-    await page.getByTestId('formation-tf-H1').click();
+    await page.getByTestId('timeframe-H1').click();
     await expect(chart).toHaveAttribute('data-last-range', '1.19:1.21');
   });
 });
@@ -2078,7 +2080,7 @@ test.describe('FRM-23 Werkzeugleiste des Charts liegt obenauf', () => {
       }, font);
       await expect.poll(async () => {
         // Die Kopfleiste ist bis 91rem Containerbreite ein Raster (UI-15, `contents` am Kopfleisten-Knoten): Bezugspunkt ist die Leiste als Ganzes, Zeile 1 ist 38 px hoch
-        const bar = (await page.getByTestId('formation-toolbar').boundingBox())!;
+        const bar = (await page.getByTestId('chart-topbar').boundingBox())!;
         const box = (await page.getByTestId('workspace-toolbar').boundingBox())!;
         if (box.y + box.height <= bar.y + 39) return 'oben';
         return box.y >= bar.y + bar.height ? 'unten' : 'dazwischen';
@@ -2265,7 +2267,7 @@ test.describe('FRM-37 Seitenleiste mit Reitern Bedingungen und Favoriten', () =>
     // Seite, Urteil und Zähler stehen im Namen, der Hinweis nennt sie ebenfalls
     await expect(chip).toHaveAccessibleName(new RegExp(`${msg('formation.side.buy')}.*${msg('formation.verdict.valid')}.*\\d+/\\d+.*\\d+/\\d+`));
     const tools = (await page.getByTestId('workspace-toolbar').boundingBox())!;
-    const topbar = (await page.getByTestId('formation-toolbar').boundingBox())!;
+    const topbar = (await page.getByTestId('chart-topbar').boundingBox())!;
     const compact = (await chip.boundingBox())!;
     // UI-17 S2: die Werkzeug-Pakete stehen in der unteren Leiste des Charts, unter der Kopfleiste (vorher in Zeile 1 rechts vom Status-Knopf)
     expect(tools.y).toBeGreaterThanOrEqual(topbar.y + topbar.height);
@@ -2300,7 +2302,7 @@ test.describe('FRM-37 Seitenleiste mit Reitern Bedingungen und Favoriten', () =>
     await page.getByTestId('favorites-toggle').click();
     await expect(page.getByTestId('formation-sidebar')).toHaveCount(0);
     await page.reload();
-    await expect(page.getByTestId('formation-toolbar')).toBeVisible();
+    await expect(page.getByTestId('chart-topbar')).toBeVisible();
     await expect(page.getByTestId('formation-sidebar')).toHaveCount(0);
     // Gespeichert ist der letzte Reiter: ein Klick auf das Symbol der Bedingungen öffnet genau diesen
     await page.getByTestId('conditions-toggle').click();

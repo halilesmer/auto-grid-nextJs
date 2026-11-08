@@ -5,6 +5,19 @@ import { nowMs } from '../fixtures/mock-worker';
 import { OLDER_PAGE_BARS, OPEN_RANGE_BARS } from '../../src/lib/analysis/candles';
 import { dragLeft, openNearLeftEdge, panToFirstCandle } from '../fixtures/chart-older';
 import { dialogTab, openDrawings } from '../fixtures/chart-dialog';
+import { formationRequests } from '../../src/lib/formation/requests';
+
+// These tests are about the chart itself. The side bar of the one chart starts open from 1024 px and takes 288 px (1107-A21, U4-4a): closed, the chart has its old width
+// `range=7d` was no preset: it fell back to the default range (30 days), which is "All" since 1107-A21. The tests mean seven days: `range=last7`.
+test.beforeEach(({ page }) => page.addInitScript(() => localStorage.setItem('grid-robot-formation-sidebar', JSON.stringify({ open: false, tab: 'conditions' }))));
+
+/** Die Formationssuche (UI-22) läuft auf jeder Zeiteinheit und holt D1, H4, H1 und M15 mit festem Zeitraum (`formationRequests`); das sind keine Anfragen des Charts */
+const isScanQuery = (query: string) => {
+  const q = new URLSearchParams(query);
+  const scan = (formationRequests(DEMO_ID, 'EURUSD', Number(q.get('to'))) as Record<string, { from: number }>)[q.get('timeframe') ?? ''];
+  return !!scan && scan.from === Number(q.get('from'));
+};
+const chartQueries = (worker: { ratesQueries: string[] }) => ({ get ratesQueries() { return worker.ratesQueries.filter((q) => !isScanQuery(q)); } });
 
 /** Zoom in per Mausrad auf der Mitte des Charts: das Overlay-Layout (UI-10) hat keine +/−-Knöpfe */
 async function zoomIn(page: Page) {
@@ -16,12 +29,14 @@ async function zoomIn(page: Page) {
 
 test('Freier Chart lädt Broker-Symbol ohne Setup und stellt URL wieder her', { tag: '@ANA-16' }, async ({ page, worker }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
-  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`);
+  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=last7`);
   await expect(page.getByTestId('free-chart-panel')).toBeVisible();
   await expect(page.getByTestId('chart-workspace')).toBeVisible();
   await expect(page.getByTestId('zone-select')).toHaveCount(0);
   await expect(page.getByTestId('workspace-indicator-values')).toContainText('EWO');
-  expect(worker.calls.filter(c => c.path === `/api/settings/${DEMO_ID}`)).toEqual([]);
+  // 1107-A21: the one chart reads the setups of the account to show the setup layers of the symbol (here: none, so the card says that the symbol has no setup)
+  expect(worker.calls.filter(c => c.path === `/api/settings/${DEMO_ID}`).length).toBeGreaterThan(0);
+  await expect(page.getByTestId('chart-floating-card')).toContainText('EURUSD');
   await page.reload();
   await expect(page.getByTestId('chart-workspace')).toHaveAttribute('data-context', /EURUSD/);
   expect(errors).toEqual([]);
@@ -29,7 +44,7 @@ test('Freier Chart lädt Broker-Symbol ohne Setup und stellt URL wieder her', { 
 
 test('Chart-Vorschau: Abbrechen, Anwenden und Neuladen', { tag: '@ANA-19' }, async ({ page, worker }) => {
   void worker;
-  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`);
+  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=last7`);
   await page.getByTestId('workspace-settings').click();
   const modal = page.getByTestId('chart-workspace-settings');
   await modal.getByRole('button', { name: msg('cw.status'), exact: true }).click();
@@ -51,7 +66,7 @@ test('Chart-Vorschau: Abbrechen, Anwenden und Neuladen', { tag: '@ANA-19' }, asy
 
 test('Bestehendes Chart-Dokument übernimmt die bisherige Darstellung', { tag: '@ANA-19' }, async ({ page, worker }) => {
   void worker;
-  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`);
+  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=last7`);
   const chart = page.getByTestId('chart-workspace');
   await expect(chart).toBeVisible();
   const key = await chart.getAttribute('data-context');
@@ -75,7 +90,7 @@ test('Bestehendes Chart-Dokument übernimmt die bisherige Darstellung', { tag: '
 
 test('Vorlagenmenü speichert eine Vorlage, setzt zurück und lädt sie wieder', { tag: '@ANA-19' }, async ({ page, worker }) => {
   void worker;
-  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`);
+  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=last7`);
   await page.getByTestId('workspace-settings').click();
   const modal = page.getByTestId('chart-workspace-settings');
   await modal.getByRole('button', { name: msg('cw.status'), exact: true }).click();
@@ -98,7 +113,7 @@ test('Vorlagenmenü speichert eine Vorlage, setzt zurück und lädt sie wieder',
 
 test('Zurückgesetzte Darstellung und Ansicht bleiben je Symbol gespeichert', { tag: '@ANA-19' }, async ({ page, worker }) => {
   void worker;
-  const url = (symbol: string) => `/chart?account=${DEMO_ID}&symbol=${symbol}&tf=H1&range=7d`;
+  const url = (symbol: string) => `/chart?account=${DEMO_ID}&symbol=${symbol}&tf=H1&range=last7`;
   const readDocument = (key: string) => page.evaluate(contextKey => {
     const state = JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}');
     return state.documents?.[contextKey] ?? null;
@@ -164,7 +179,7 @@ test('Mit mehr als 2000 Kerzen zeigt der Chart alle Kerzen', { tag: '@ANA-19' },
   const latest = Math.floor((Date.now() / 1000 + worker.state.brokerOffset) / 3600) * 3600;
   const series = Array.from({ length: 2100 }, (_, i) => [latest - (2100 - i) * 3600, 1 + i * .0001, 1.002 + i * .0001, .999 + i * .0001, 1.001 + i * .0001]);
   worker.state.ratesSeries = { H1: series };
-  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`);
+  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=last7`);
   await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-visible-range', `${series[0][0]},${series[2099][0]}`);
 });
 
@@ -175,7 +190,7 @@ test('Mit mehr Kerzen, als die Breite fasst, löscht „Ansicht zurücksetzen“
   const series = Array.from({ length: 1500 }, (_, i) => [latest - (1500 - i) * 3600, 1 + i * .0001, 1.002 + i * .0001, .999 + i * .0001, 1.001 + i * .0001]);
   worker.state.ratesSeries = { H1: series };
   const lastTime = series[1499][0];
-  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`);
+  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=last7`);
   const chart = page.getByTestId('chart-workspace');
   await expect(chart).toBeVisible();
   const key = (await chart.getAttribute('data-context'))!;
@@ -195,7 +210,7 @@ test('Mit mehr Kerzen, als die Breite fasst, löscht „Ansicht zurücksetzen“
 
 test('Neue Kerze und Größenänderung speichern keinen Zoom, ein eigener Zoom überlebt den Zeitrahmenwechsel', { tag: '@ANA-19' }, async ({ page, worker }) => {
   void worker;
-  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`);
+  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=last7`);
   const chart = page.getByTestId('chart-workspace');
   await expect(chart).toBeVisible();
   const key = (await chart.getAttribute('data-context'))!;
@@ -214,7 +229,7 @@ test('Neue Kerze und Größenänderung speichern keinen Zoom, ein eigener Zoom �
 
 test('Indikatorinstanzen und Parameter bleiben je Symbol getrennt', { tag: '@ANA-18' }, async ({ page, worker }) => {
   void worker;
-  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`);
+  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=last7`);
   await page.getByRole('button', { name: msg('cw.indicators'), exact: true }).click();
   await page.getByRole('button', { name: '+ SMA', exact: true }).click();
   // Adding opens the settings of the new indicator; OK keeps it
@@ -225,7 +240,7 @@ test('Indikatorinstanzen und Parameter bleiben je Symbol getrennt', { tag: '@ANA
   await page.getByRole('button', { name: msg('cw.indicators'), exact: true }).click();
   await page.locator('[data-indicator="SMA"]').getByRole('button', { name: msg('ind.edit'), exact: true }).click();
   await expect(page.locator('[data-indicator="SMA"]').getByRole('spinbutton', { name: msg('cw.period'), exact: true })).toHaveValue('10');
-  await page.goto(`/chart?account=${LIVE_ID}&symbol=USOUSD&tf=H1&range=7d`);
+  await page.goto(`/chart?account=${LIVE_ID}&symbol=USOUSD&tf=H1&range=last7`);
   await expect(page.getByTestId('workspace-indicator-values')).not.toContainText('SMA');
 });
 
@@ -264,7 +279,7 @@ test('RSI-Füllung verwendet nach Wechsel auf die linke Achse weiter die RSI-Ska
 
 test('Göstergeler-Fenster hat die Reiter Göstergeler und Çizimler; ohne Zeichnung steht ein Hinweis', { tag: '@UI-20' }, async ({ page, worker }) => {
   void worker;
-  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`);
+  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=last7`);
   await page.getByRole('button', { name: msg('cw.indicators'), exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByRole('heading', { name: msg('cw.indicatorsAndDrawings') })).toBeVisible();
@@ -280,14 +295,15 @@ test('Göstergeler-Fenster hat die Reiter Göstergeler und Çizimler; ohne Zeich
 test('Zeichnen, Rückgängig, Wiederholen, Bearbeiten und Neuladen', { tag: ['@ANA-17', '@UI-20'] }, async ({ page, worker }) => {
   void worker;
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
-  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`);
+  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=last7`);
   const workspace = page.getByTestId('chart-workspace');
   const chart = page.getByTestId('analysis-chart');
   await expect(chart).toBeVisible();
   await workspace.getByRole('button', { name: msg('cw.rail.linesMenu'), exact: true }).click();
   await page.getByTestId('tool-horizontal-line').click();
   const box = await chart.boundingBox(); if (!box) throw new Error('Chart missing');
-  await page.mouse.click(box.x + box.width * .45, box.y + 60);
+  // The top bar of the one chart has two rows (timeframes and formations, to y 126): the line is drawn below them
+  await page.mouse.click(box.x + box.width * .45, box.y + 160);
   const undo = workspace.getByRole('button', { name: msg('cw.undo'), exact: true });
   await expect(undo).toBeEnabled();
   await chart.focus(); await chart.press('ControlOrMeta+z');
@@ -305,8 +321,10 @@ test('Zeichnen, Rückgängig, Wiederholen, Bearbeiten und Neuladen', { tag: ['@A
   await expect(page.getByRole('dialog').getByRole('spinbutton', { name: msg('cw.width'), exact: true })).toHaveValue('3');
   await page.keyboard.press('Escape');
   const drawings = await page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').documents).map(d => (d as { drawings: string }).drawings));
-  await page.getByRole('radio', { name: 'H4', exact: true }).click();
-  await expect(page).toHaveURL(/tf=H4/);
+  await page.getByTestId('timeframe-H4').click();
+  // H4 is the default timeframe now: it leaves the URL
+  await expect(page).not.toHaveURL(/tf=H1/);
+  await expect(page.getByTestId('timeframe-H4')).toHaveAttribute('aria-checked', 'true');
   expect(await page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').documents).map(d => (d as { drawings: string }).drawings))).toEqual(drawings);
   await page.reload();
   await openDrawings(workspace);
@@ -348,13 +366,13 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 375, height: 812 
 test('Broker-Suche bewahrt Originalnamen und verwirft ungültige Symbole nach Kontowechsel', { tag: '@ANA-16' }, async ({ page, worker }) => {
   worker.setZones(DEMO_ID, []);
   worker.state.symbols = worker.state.symbols.map(s => s.name === 'XAUUSD' ? { ...s, name: 'Gold.m' } : s);
-  await page.goto(`/chart?account=${DEMO_ID}&mode=free`);
-  await page.getByRole('combobox', { name: msg('cw.symbol') }).fill('Gold');
+  await page.goto(`/chart?account=${DEMO_ID}&tf=M15`);
+  await page.getByRole('combobox', { name: msg('formation.symbol') }).fill('Gold');
   await page.getByRole('option').filter({ hasText: 'Gold.m' }).click();
   await expect(page.getByTestId('chart-workspace')).toHaveAttribute('data-context', /Gold\.m/);
   expect(worker.calls.filter(c => c.path === `/api/market/${DEMO_ID}/rates`).every(c => c.query.get('symbol') === 'Gold.m')).toBe(true);
   worker.overrides.set(`GET /api/symbols/${LIVE_ID}`, { status: 200, body: { status: 'success', account_id: LIVE_ID, symbols: worker.state.symbols.filter(s => s.name === 'EURUSD') } });
-  await page.goto(`/chart?account=${LIVE_ID}&symbol=Gold.m`);
+  await page.goto(`/chart?account=${LIVE_ID}&symbol=Gold.m&tf=M15`);
   await expect(page.getByRole('alert').filter({ hasText: msg('cw.invalidSymbol') })).toBeVisible();
   await expect(page.getByTestId('chart-workspace')).toHaveCount(0);
   expect(worker.calls.filter(c => c.path === `/api/market/${LIVE_ID}/rates`)).toHaveLength(0);
@@ -444,7 +462,7 @@ test('Lokales Bild bleibt getrennt gespeichert und überlebt Löschen/Rückgäng
   expect(errors).toEqual([]);
 });
 
-const CHART_URL = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
+const CHART_URL = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=last7`;
 type StoredIndicator = { id: string; kind: string; paneId: string; paneCollapsed: boolean; visible: boolean; scaleSide: string; maxTimeframe: number };
 type StoredAlarm = { armed: boolean; value: number };
 
@@ -542,11 +560,11 @@ test('Indikatormenü: Sichtbarkeit, Zeitrahmen, Skala, Bereichswechsel, Kopie, F
   await page.locator('[data-indicator="RSI"]').getByRole('spinbutton', { name: msg('ind.vis.hour.to') }).fill('1');
   await page.getByRole('button', { name: msg('ind.ok'), exact: true }).click();
   await expect(values).toContainText('RSI');
-  await page.getByRole('radio', { name: 'H4', exact: true }).click();
+  await page.getByTestId('timeframe-H4').click();
   await expect(values).toContainText('EWO');
   // Outside its timeframe range the indicator is not drawn: its row stays, dimmed and without a value.
   await expect(page.locator('[data-indicator-row="RSI"]')).toHaveAttribute('data-drawn', 'false');
-  await page.getByRole('radio', { name: 'H1', exact: true }).click();
+  await page.getByTestId('timeframe-H1').click();
   await expect(page.locator('[data-indicator-row="RSI"]')).toHaveAttribute('data-drawn', 'true');
   await expect(values).toContainText('RSI');
 
@@ -625,7 +643,7 @@ test('Alarm: ein Zeitrahmenwechsel ist kein Übertritt, ein Live-Kurs löst ihn 
   await expect.poll(async () => (await storedDocument(page, context)).alarms.length).toBe(1);
 
   await expect.poll(() => rsiValue(page)).toBeLessThan(55);
-  await page.getByRole('radio', { name: 'H4', exact: true }).click();
+  await page.getByTestId('timeframe-H4').click();
   await expect.poll(() => rsiValue(page)).toBeGreaterThan(55);
   await expect(toasts).toHaveCount(0);
   expect((await storedDocument(page, context)).alarms[0].armed).toBe(true);
@@ -634,7 +652,7 @@ test('Alarm: ein Zeitrahmenwechsel ist kein Übertritt, ein Live-Kurs löst ihn 
   // also ab Freitag 21:00 UTC) gäbe es sie ohne ratesAllDays nicht.
   worker.state.ratesSeries = null;
   worker.state.ratesAllDays = true;
-  await page.goto(`/chart?account=${DEMO_ID}&symbol=USOUSD&tf=H1&range=7d`);
+  await page.goto(`/chart?account=${DEMO_ID}&symbol=USOUSD&tf=H1&range=last7`);
   await page.goto(CHART_URL);
   await expect(page.getByTestId('chart-workspace')).toHaveAttribute('data-context', context);
   await expect.poll(() => worker.openSockets).toBeGreaterThan(0);
@@ -663,7 +681,7 @@ test('Bereichseinstellungen und Alarme bleiben im Chart-Kontext; alte Dokumente 
   await controls.getByRole('button', { name: msg('cw.paneCollapse', { indicator: 'RSI' }) }).click();
   await expect.poll(async () => (await storedDocument(page, context)).indicators.find(item => item.kind === 'RSI')?.paneCollapsed).toBe(true);
 
-  await page.goto(`/chart?account=${LIVE_ID}&symbol=USOUSD&tf=H1&range=7d`);
+  await page.goto(`/chart?account=${LIVE_ID}&symbol=USOUSD&tf=H1&range=last7`);
   await expect(controls.getByRole('button', { name: msg('cw.paneCollapse', { indicator: 'RSI' }) })).toBeVisible();
 
   // Stand vor ANA-20: keine Bereichsfelder, keine Alarme.
@@ -700,10 +718,10 @@ test.describe('ANA-26 W1 und MN im freien Chart', () => {
   ]) {
     test(`${c.tf} fragt D1 ab, beginnt am Periodenbeginn und hat ${c.bars} Kerzen`, { tag: '@ANA-26' }, async ({ page, worker }) => {
       worker.state.ratesSeries = { D1: dailySeries() };
-      await page.goto(`/chart?mode=free&account=${DEMO_ID}&symbol=EURUSD&tf=${c.tf}&from=2024-01-03&to=2024-02-10`);
+      await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=${c.tf}&from=2024-01-03&to=2024-02-10`);
       await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-bars', String(c.bars));
-      expect(worker.ratesQueries.length).toBeGreaterThan(0);
-      for (const q of worker.ratesQueries) {
+      expect(chartQueries(worker).ratesQueries.length).toBeGreaterThan(0);
+      for (const q of chartQueries(worker).ratesQueries) {
         const p = new URLSearchParams(q);
         expect(p.get('timeframe')).toBe('D1');
         expect(Number(p.get('from'))).toBe(c.from);
@@ -713,11 +731,13 @@ test.describe('ANA-26 W1 und MN im freien Chart', () => {
     });
   }
 
-  test('Setup-Modus kennt W1 nicht', { tag: '@ANA-26' }, async ({ page, worker }) => {
+  // Vorher kannte der Setup-Modus W1 nicht (Rückfall auf M15). Der eine Chart (UI-22) hat alle neun Zeiteinheiten, auch mit einem Link mit `zone`.
+  test('Ein Link mit zone kennt W1: tf=W1 wird gewählt, alle neun Zeiteinheiten stehen da', { tag: '@ANA-26' }, async ({ page, worker }) => {
     void worker;
-    await page.goto(`/chart?mode=setup&account=${DEMO_ID}&zone=${ZONE_ID}&tf=W1`);
-    await expect(page.getByTestId('timeframe-M15')).toHaveAttribute('aria-checked', 'true');
-    await expect(page.getByTestId('timeframe-W1')).toHaveCount(0);
+    await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=W1`);
+    await expect(page.getByTestId('timeframe-W1')).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByTestId('timeframe-M15')).toHaveAttribute('aria-checked', 'false');
+    await expect(page.getByTestId('timeframe-select').locator('[data-testid^="timeframe-"]')).toHaveCount(9);
   });
 });
 
@@ -730,7 +750,7 @@ test('ANA-26 D1-Lücke: Hinweis nennt D1, W1 zeichnet keinen Lückenplatz', { ta
   }
   worker.state.ratesSeries = { D1: rows };
   worker.state.ratesMissing = [{ from: Date.UTC(2024, 0, 17) / 1000, to: Date.UTC(2024, 0, 19) / 1000, reason: 'unavailable', checked_at: Date.UTC(2024, 1, 1) / 1000 }];
-  await page.goto(`/chart?mode=free&account=${DEMO_ID}&symbol=EURUSD&tf=W1&from=2024-01-03&to=2024-02-10`);
+  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=W1&from=2024-01-03&to=2024-02-10`);
   await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-bars', '6');
   await expect(page.getByTestId('missing-ranges').locator('li')).toHaveCount(1);
   await expect(page.getByTestId('data-quality')).toContainText(msg('analysis.data.missing.textCalendar'));
@@ -738,7 +758,7 @@ test('ANA-26 D1-Lücke: Hinweis nennt D1, W1 zeichnet keinen Lückenplatz', { ta
 
 test.describe('ANA-27 Ältere Kerzen laden beim Scrollen nach links (leichte Seiten, Fenster „alles“)', () => {
   // Erste Ladung: OPEN_RANGE_BARS Kerzen; die 100.000-Kerzen-Fälle stehen in chart-older-heavy.spec.ts (Journal 2026-11-07-chart-older-candles)
-  const ALL_URL = `/chart?mode=free&account=${DEMO_ID}&symbol=EURUSD&tf=M1&range=all`;
+  const ALL_URL = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=M1&range=all`;
   const PAGE = OLDER_PAGE_BARS;
   /**
    * Erste Ladung bei „alles“: das Fenster endet am Ende des Brokertags und reicht OPEN_RANGE_BARS Minuten zurück (ratesWindow);
@@ -779,7 +799,7 @@ test.describe('ANA-27 Ältere Kerzen laden beim Scrollen nach links (leichte Sei
     const latest = Math.floor((Date.now() / 1000 + worker.state.brokerOffset) / 86400) * 86400;
     // Die Historie beginnt 1970-01-04: die erste Seite (20.000 Tage vor 2013) wäre mit from < 0 angefragt worden
     worker.state.ratesSince = 3 * 86400;
-    await page.goto(`/chart?mode=free&account=${DEMO_ID}&symbol=EURUSD&tf=D1&range=all`);
+    await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=D1&range=all`);
     const chart = page.getByTestId('analysis-chart');
     await expect(chart).toHaveAttribute('data-bars', /^[45]\d{3}$/);
     await panToFirstCandle(page);
@@ -791,7 +811,7 @@ test.describe('ANA-27 Ältere Kerzen laden beim Scrollen nach links (leichte Sei
 
   test('Ohne Indikator-Reihen und Ebenen bleibt die Ansicht beim Anfügen ebenfalls stehen', { tag: '@ANA-27' }, async ({ page, worker }) => {
     worker.state.ratesAllDays = true;
-    const { chart, rangeOf, before, loaded, release } = await openNearLeftEdge(page, worker, { url: ALL_URL, initialBars: firstLoad(worker), extra: { drawings: '[]', indicators: [], images: {}, overlays: { rsi: false, wave: false } } });
+    const { chart, rangeOf, before, loaded, release } = await openNearLeftEdge(page, chartQueries(worker), { url: ALL_URL, initialBars: firstLoad(worker), extra: { drawings: '[]', indicators: [], images: {}, overlays: { rsi: false, wave: false } } });
     release();
     await expect(chart).toHaveAttribute('data-bars', String(loaded + PAGE));
     await page.waitForTimeout(500);
@@ -801,7 +821,7 @@ test.describe('ANA-27 Ältere Kerzen laden beim Scrollen nach links (leichte Sei
 
   test('Ein Fehlschlag pausiert das Laden: keine Anfrage im Dauertakt', { tag: '@ANA-27' }, async ({ page, worker }) => {
     worker.state.ratesAllDays = true;
-    const { chart, loaded, failures } = await openNearLeftEdge(page, worker, { url: ALL_URL, initialBars: firstLoad(worker), fail: true });
+    const { chart, loaded, failures } = await openNearLeftEdge(page, chartQueries(worker), { url: ALL_URL, initialBars: firstLoad(worker), fail: true });
     await expect.poll(failures).toBe(1);
     // Der Chart steht weiter am linken Rand; ohne Pause käme sofort die nächste Anfrage, auch bei weiterer Bedienung
     await dragLeft(page, 30);

@@ -14,9 +14,9 @@ import { fixtureTrend, seedFixtureTrend } from '../fixtures/formation-trend';
 // Formationen rechnen auf dem Trendzug des Nutzers (FRM-41); die Fixture zeigt ihre Formation mit ihrer Einstellung
 test.beforeEach(({ page }) => seedFixtureTrend(page, fixtureTrend('gar-buy-h4-01')));
 
-const SETUP = `/chart?account=${DEMO_ID}&mode=setup&zone=${ZONE_ID}&tf=H1`;
+const SETUP = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=H1`;
 const FREE = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
-const FORMATION = `/chart?mode=formation&account=${DEMO_ID}&zone=${ZONE_ID}&form=GAR`;
+const FORMATION = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}&form=GAR`;
 const NOW = Date.UTC(2025, 10, 17, 12) / 1000;
 const fixtureBars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/gar-buy-h4-01.json', 'utf-8'))).bars;
 
@@ -29,6 +29,14 @@ async function open(page: Page, worker: MockWorker, name: string, url: string) {
   }
   await page.goto(url);
   await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-bars', /^[1-9]\d*$/);
+}
+
+/** Die Karte startet zu, solange eine Formation gezeichnet wird, und unter 1024 px (UI-22): nach dem Scan aufklappen */
+async function openCard(page: Page) {
+  await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+  const expand = page.getByTestId('chart-floating-card').getByRole('button', { name: msg('chart.card.expand'), exact: true });
+  if (await expand.count()) await expand.click();
+  await expect(page.getByTestId('chart-card-overview')).toBeVisible();
 }
 
 const openMenu = (page: Page) => page.getByRole('button', { name: msg('cw.layers'), exact: true }).click();
@@ -136,24 +144,29 @@ test('UI-13 kein Zahnrad „Anzeige-Einstellungen“ mehr, in keinem Modus', { t
   }
 });
 
-// Die Setup-Schalter stehen in der Legende (chart-key-<pref>) und im Menü; beide zeigen denselben Zustand
-test('UI-13 Setup: Legende und Menü zeigen für die Setup-Ebenen denselben Zustand', { tag: '@UI-13' }, async ({ page, worker }) => {
+// Die Legende (chart-key-<pref>) gibt es nicht mehr (UI-22): die Setup-Schalter stehen nur im Menü, und ihr Zustand bleibt beim Schließen und Öffnen des Menüs
+test('UI-13 Setup: die Schalter der Setup-Ebenen im Menü halten ihren Zustand', { tag: '@UI-13' }, async ({ page, worker }) => {
   await open(page, worker, 'Setup', SETUP);
   const pairs = [
     ['showZoneLines', 'analysis.settings.zoneLines'], ['showLevels', 'analysis.settings.levels'], ['showTrades', 'analysis.settings.trades'],
     ['showOrders', 'analysis.settings.orders'], ['showHistory', 'analysis.settings.history'],
   ] as const;
-  for (const [pref, key] of pairs) {
-    const legend = page.getByTestId(`chart-key-${pref}`);
-    // Legende schaltet aus: Menü zeigt aus
-    await legend.click();
-    await expect(legend).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByTestId('chart-key')).toHaveCount(0);
+  for (const [, key] of pairs) {
+    // Menü schaltet aus
+    await openMenu(page);
+    await expect(layerSwitch(page, key)).toHaveAttribute('aria-checked', 'true');
+    await layerSwitch(page, key).click();
+    await expect(layerSwitch(page, key)).toHaveAttribute('aria-checked', 'false');
+    await page.keyboard.press('Escape');
+    // Neu geöffnet zeigt das Menü aus; ein Klick schaltet wieder ein
     await openMenu(page);
     await expect(layerSwitch(page, key)).toHaveAttribute('aria-checked', 'false');
-    // Menü schaltet ein: Legende zeigt ein
     await layerSwitch(page, key).click();
     await page.keyboard.press('Escape');
-    await expect(legend).toHaveAttribute('aria-pressed', 'true');
+    await openMenu(page);
+    await expect(layerSwitch(page, key)).toHaveAttribute('aria-checked', 'true');
+    await page.keyboard.press('Escape');
   }
 });
 
@@ -162,6 +175,7 @@ for (const [width, height] of [[1440, 900], [375, 812]] as const) {
   test(`UI-13 Setup ${width} px: jeder Setup-Schalter ist im Menü erreichbar`, { tag: '@UI-13' }, async ({ page, worker }) => {
     await page.setViewportSize({ width, height });
     await open(page, worker, 'Setup', SETUP);
+    if (width >= 1024) await openCard(page);
     await openMenu(page);
     for (const key of ['analysis.settings.zoneLines', 'analysis.settings.levels', 'analysis.settings.trades', 'analysis.settings.orders', 'analysis.settings.history', 'analysis.settings.zoneCard'] as const) {
       const sw = layerSwitch(page, key);
@@ -207,7 +221,8 @@ test('UI-13 schmale Breite: das Menü öffnet vollständig im Bildschirm', { tag
     await page.setViewportSize({ width: 375, height: 812 });
     await open(page, worker, name, url);
     await openMenu(page);
-    const menu = (await page.getByTestId('layers-menu').boundingBox())!;
+    // Mit den Gruppen Formation und Setup (UI-22) ist der Inhalt länger als der Bildschirm und scrollt im Menü: gemessen wird das Menü (Rahmen), nicht sein ganzer Inhalt
+    const menu = (await page.getByTestId('layers-menu').locator('xpath=..').boundingBox())!;
     expect(menu.x).toBeGreaterThanOrEqual(0);
     expect(menu.x + menu.width).toBeLessThanOrEqual(375);
     expect(menu.y).toBeGreaterThanOrEqual(0);

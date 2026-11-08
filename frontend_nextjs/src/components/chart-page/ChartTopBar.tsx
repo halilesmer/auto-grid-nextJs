@@ -16,7 +16,8 @@ import { cn } from '@/lib/utils';
 /** Was die Seite /chart zur Kopfleiste und zu den Hinweisen der Chart-Ansicht beisteuert (Konto, Modus, Zeitraum, Chart/Statistik) */
 export interface ChartChrome {
   account: ReactNode;
-  mode: ReactNode;
+  /** Old mode switch; the one chart (1107-A21) has none */
+  mode?: ReactNode;
   /** Setup-Wahl (nur im Setup-Modus) */
   zone: ReactNode;
   range: ReactNode;
@@ -28,10 +29,13 @@ export interface ChartChrome {
 /** Die Teile der Kopfleiste einer Chartseite; jeder steht in einem eigenen Platz (`Slot`), damit er auf dem Handy umsortiert werden kann */
 export interface ChartTopBarProps {
   account: ReactNode;
-  mode: ReactNode;
+  /** Old mode switch; the one chart (1107-A21) has none */
+  mode?: ReactNode;
   /** Symbol (frei) oder Setup (Setup-Modus) */
   target: ReactNode;
   timeframes: ReactNode;
+  /** Formation buttons of the one chart (package `formations`, second row) */
+  forms?: ReactNode;
   range: ReactNode;
   view: ReactNode;
   /** Knöpfe am Ende (Lizenzhinweis, Anzeige-Schalter) */
@@ -58,7 +62,7 @@ function Slot({ className, children }: { className?: string; children: ReactNode
  * Konto und Ziel (das Ziel hat Inhaltsbreite, höchstens 42 %, das Konto den Rest, Variante C von 04.11.); Modus, Zeitraum und Knöpfe; Zeiteinheiten; Ansicht.
  * Ab lg liegt die Leiste über dem Chart (ChartPage); am Ende steht die `DockRow` von Zeile 1 (UI-17, Pakete der Werkzeuge; gibt es keine, ist sie ausgeblendet). Die Leiste reicht Klicks im freien Bereich durch (nur ihre Bedienelemente fangen sie).
  */
-export function ChartTopBar({ account, mode, target, timeframes, range, view, tools, extra, flat = false }: ChartTopBarProps) {
+export function ChartTopBar({ account, mode, target, timeframes, forms, range, view, tools, extra, flat = false }: ChartTopBarProps) {
   const t = useT();
   const [legendOpen, setLegendOpen] = useState(false);
   const dock = useDock();
@@ -106,6 +110,7 @@ export function ChartTopBar({ account, mode, target, timeframes, range, view, to
           {tools}
         </DockPackage>
         {timeframes && <DockPackage id="timeframes"><div className="flex items-center" data-keep="">{timeframes}</div></DockPackage>}
+        {forms && <DockPackage id="formations" testId="formation-forms">{forms}</DockPackage>}
       </div>
     );
   }
@@ -114,16 +119,20 @@ export function ChartTopBar({ account, mode, target, timeframes, range, view, to
       <div className={cn('flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border px-2 py-1 short:contents', '@max-[30rem]/formation-main:gap-x-1')}>
         <div className={cn('pointer-events-auto flex min-w-0 flex-wrap items-center gap-1 max-lg:w-full short:col-span-3 short:w-auto short:flex-nowrap short:border-b short:border-border short:px-2 short:py-0.5', '@max-[30rem]/formation-main:contents')}>
           <Slot className="@max-[30rem]/formation-main:order-1 @max-[30rem]/formation-main:flex-1 @max-[30rem]/formation-main:basis-[56%]">{account}</Slot>
-          <Slot className="@max-[30rem]/formation-main:order-3">{mode}</Slot>
           <Slot className="@max-[30rem]/formation-main:order-2 @max-[30rem]/formation-main:flex-[0_1_auto] @max-[30rem]/formation-main:max-w-[42%]">{target}</Slot>
+          <Slot className="@max-[30rem]/formation-main:order-3">{mode}</Slot>
+        </div>
+        {/* The DOM follows the order on the phone (tab order = visual order, UI-15): range and tools, then timeframes and formations, then the view */}
+        <div className={cn('pointer-events-auto flex min-w-0 flex-wrap items-center gap-1 short:flex-nowrap short:px-2 short:py-0', '@max-[30rem]/formation-main:contents')}>
+          <Slot className="@max-[30rem]/formation-main:order-4 @max-[30rem]/formation-main:flex-1">{range}</Slot>
+          <Slot className="@max-[30rem]/formation-main:order-5 @max-[30rem]/formation-main:flex @max-[30rem]/formation-main:gap-1">{tools}</Slot>
         </div>
         <div className={cn('pointer-events-auto flex min-w-0 max-w-full items-center gap-1 short:px-2 short:py-0', '@max-[30rem]/formation-main:contents')}>
           <Slot className="@max-[30rem]/formation-main:order-6 @max-[30rem]/formation-main:basis-full @max-[30rem]/formation-main:[&>[data-testid=timeframe-select]]:w-full @max-[30rem]/formation-main:[&>[data-testid=timeframe-select]]:justify-between">{timeframes}</Slot>
+          {forms && <Slot className="@max-[30rem]/formation-main:order-6 @max-[30rem]/formation-main:basis-full"><div className="pointer-events-auto flex h-[30px] min-w-0 items-center gap-0.5 overflow-x-auto" data-testid="formation-forms">{forms}</div></Slot>}
         </div>
-        <div className={cn('pointer-events-auto flex min-w-0 flex-wrap items-center gap-1 short:flex-nowrap short:px-2 short:py-0', '@max-[30rem]/formation-main:contents')}>
-          <Slot className="@max-[30rem]/formation-main:order-4 @max-[30rem]/formation-main:flex-1">{range}</Slot>
+        <div className={cn('pointer-events-auto flex min-w-0 items-center gap-1 short:px-2 short:py-0', '@max-[30rem]/formation-main:contents')}>
           <Slot className="@max-[30rem]/formation-main:order-7">{view}</Slot>
-          <Slot className="@max-[30rem]/formation-main:order-5 @max-[30rem]/formation-main:flex @max-[30rem]/formation-main:gap-1">{tools}</Slot>
         </div>
         {/* Satır 1'in paket bölgesi (UI-17): başlıkta kalan genişlik; paket yokken gizli */}
         {!flat && <DockRow zone="row1" className="short:col-span-3 @max-[30rem]/formation-main:hidden" />}

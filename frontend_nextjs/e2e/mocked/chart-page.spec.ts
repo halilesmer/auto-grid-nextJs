@@ -1,5 +1,5 @@
 /**
- * UI-10 Chartseiten mit gemeinsamem Gerüst: Zielzustand von /chart (frei und Setup) nach dem freigegebenen Entwurf
+ * UI-10 Chartseiten mit gemeinsamem Gerüst: Zielzustand von /chart (ein Chart ohne Modi, UI-22; Symbol mit und ohne Setup) nach dem freigegebenen Entwurf
  * (docs/journal/2026-11-01-unified-chart-page.md). Der Chart füllt die Seite, Steuerungen sitzen in der Kopfleiste
  * und in der schwebenden Karte.
  */
@@ -7,7 +7,7 @@ import type { Page } from '@playwright/test';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, ZONE_ID, expect, test } from '../fixtures/test';
 
-const SETUP = `/chart?account=${DEMO_ID}&mode=setup&zone=${ZONE_ID}`;
+const SETUP = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=M15`; // Symbol mit Setup
 const FREE = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
 const VIEWPORTS = [
   { width: 375, height: 667 },
@@ -32,6 +32,8 @@ for (const viewport of VIEWPORTS) {
 
     test('Setup-Modus: Chart füllt die Seite, Steuerungen in Kopfleiste und schwebender Karte', { tag: '@UI-10' }, async ({ page, worker }) => {
       void worker; // installiert den gemockten Worker
+      // The side bar of the one chart starts open from 1024 px (UI-22) and crowds the top bar: closed, the controls stand in the bar as before
+      await page.addInitScript(() => localStorage.setItem('grid-robot-formation-sidebar', JSON.stringify({ open: false, tab: 'conditions' })));
       await page.goto(SETUP);
       const chart = page.getByTestId('analysis-chart');
       await expect(chart).toBeVisible();
@@ -58,21 +60,23 @@ for (const viewport of VIEWPORTS) {
       const reserve = vars.workspace + vars.floating;
       expect(box!.height + reserve).toBeGreaterThanOrEqual(surface!.height - 2);
 
-      // Kopfleiste: Setup, Zeiteinheit, Bereich; zweite Zeile: Legenden-Schalter
+      // Kopfleiste: Symbol, Zeiteinheit, Bereich; die Setup-Schalter stehen im Menü „Ebenen“ (keine Legendenzeile mehr)
       const topbar = page.getByTestId('chart-topbar');
-      await expect(topbar.getByTestId('zone-select')).toBeVisible();
+      await expect(topbar.getByTestId('formation-symbol')).toBeVisible();
       await expect(topbar.getByTestId('timeframe-H1')).toBeVisible();
       await expect(topbar.getByTestId('range-trigger')).toBeVisible();
-      // Auf dem Handy (unter 30 rem) steht die Legende hinter dem Knopf „Lejant“
-      if (viewport.width < 480) await topbar.getByTestId('chart-legend-toggle').click();
-      await expect(topbar.getByTestId('chart-key')).toBeVisible();
+      await expect(topbar.getByTestId('chart-key')).toHaveCount(0);
+      await page.getByTestId('layers-button').click();
+      await expect(page.getByTestId('layers-menu').getByTestId('layers-group-setup').getByRole('switch')).toHaveCount(7);
+      await page.keyboard.press('Escape');
 
       // Schwebende Karte: Zonenkarte und Live-Werte, Trades im zweiten Reiter
       const card = page.getByTestId('chart-floating-card');
       await expect(card).toBeVisible();
-      // Unter 1024 px ist die Karte eingeklappt
+      // Die Karte ist unter 1024 px zu und, solange eine Formation gezeichnet wird, auch darüber: nach dem Scan aufklappen
+      await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
       const expand = card.getByRole('button', { name: msg('chart.card.expand') });
-      if (viewport.width < 1024) await expand.click();
+      if (await expand.count()) await expand.click();
       await expect(card.getByText('90 – 110')).toBeVisible();
       await expect(card.getByTestId('chart-stat-price')).toBeVisible();
       await card.getByRole('tab', { name: msg('chart.card.trades') }).click();
@@ -82,13 +86,21 @@ for (const viewport of VIEWPORTS) {
 
     test('Freier Modus: Chart füllt die Seite, Steuerungen in der Kopfleiste', { tag: '@UI-10' }, async ({ page, worker }) => {
       void worker;
+      await page.addInitScript(() => localStorage.setItem('grid-robot-formation-sidebar', JSON.stringify({ open: false, tab: 'conditions' })));
       await page.goto(FREE);
       const chart = page.getByTestId('analysis-chart');
       await expect(chart).toBeVisible();
 
       await expect(page.getByText(msg('analysis.subtitle'))).toHaveCount(0);
       await expect(page.getByTestId('analysis-chart-frame')).toHaveCount(0);
-      await expect(page.getByTestId('chart-floating-card')).toHaveCount(0);
+      // Ein Symbol ohne Setup (EURUSD) hat nur die Karte mit dem Hinweis, keine Setup-Werte
+      const noSetupCard = page.getByTestId('chart-floating-card');
+      await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+      await expect(noSetupCard).toBeVisible();
+      const expandCard = noSetupCard.getByRole('button', { name: msg('chart.card.expand') });
+      if (await expandCard.count()) await expandCard.click();
+      await expect(noSetupCard.getByTestId('chart-card-no-setup')).toBeVisible();
+      await expect(page.getByTestId('chart-stat-price')).toHaveCount(0);
       await noOverflow(page);
 
       const surface = await page.getByTestId('formation-surface').boundingBox();
@@ -102,13 +114,15 @@ for (const viewport of VIEWPORTS) {
       await expect(topbar.getByTestId('range-trigger')).toBeVisible();
       const stats = topbar.getByRole('tab', { name: msg('analysis.tab.stats'), exact: true });
       if (viewport.width === 1024) {
-        // Plan 1106-A4.15 (Halil: „A4.15.1 menü“): bei 1024 px passt die Satır 1 nicht; Chart/Statistik stehen im ˅-Menü der Aksiyonlar
-        await expect(stats).toBeHidden();
-        await topbar.locator('[data-dock-pkg="actions"]').getByTestId('dock-more').click();
-        const menu = page.getByTestId('dock-more-menu');
-        expect(await menu.locator('button:visible, [role=tab]:visible').evaluateAll(b => b.map(x => `${x.getAttribute('role') ?? 'button'}:${x.getAttribute('aria-label') ?? x.textContent?.trim()}`)))
-          .toEqual([`tab:${msg('analysis.tab.chart')}`, `tab:${msg('analysis.tab.stats')}`, `button:${msg('analysis.license')}`]);
-        await menu.getByRole('tab', { name: msg('analysis.tab.stats'), exact: true }).click();
+        // Plan 1106-A4.15 (Halil: „A4.15.1 menü“): bei 1024 px kann Satır 1 zu schmal sein; dann stehen Chart/Statistik im ˅-Menü der Aksiyonlar.
+        // Seit 1107-A21 teilt sich das Paket Aksiyonlar den Platz mit den Formations-Aktionen: beide Orte sind richtig, Statistik muss erreichbar sein
+        if (await stats.isVisible()) await stats.click();
+        else {
+          await topbar.locator('[data-dock-pkg="actions"]').getByTestId('dock-more').click();
+          const menu = page.getByTestId('dock-more-menu');
+          expect(await menu.locator('[role=tab]:visible').evaluateAll(b => b.map(x => x.getAttribute('aria-label') ?? x.textContent?.trim()))).toEqual([msg('analysis.tab.chart'), msg('analysis.tab.stats')]);
+          await menu.getByRole('tab', { name: msg('analysis.tab.stats'), exact: true }).click();
+        }
         await expect(page).toHaveURL(/tab=stats/);
       } else await expect(stats).toBeVisible();
     });

@@ -23,9 +23,12 @@ export interface FloatingCardTab {
  * eigenen Streifen über den Werkzeugen: ihre Höhe steht als `--floating-card` auf `formation-main`, die Chartfläche endet darüber (ChartCore),
  * damit sie den untersten Bereich (EWO) nicht verdeckt. Aufgeklappt liegt sie über dem Chart.
  */
-export function FloatingCard({ title, tabs }: { title: string; tabs: FloatingCardTab[] }) {
+export function FloatingCard({ title, tabs, defaultOpen = true, collapseSignal = false }: { title: string; tabs: FloatingCardTab[]; /** Ab lg zunächst aufgeklappt; mit false zunächst zu */ defaultOpen?: boolean; /** Wechselt auf true: die Karte klappt zu (der eine Chart: die offene Karte würde die Formationszeichnung rechts überdecken); danach gilt wieder die Wahl des Nutzers */ collapseSignal?: boolean }) {
   const t = useT();
-  const [open, setOpen] = useState(() => typeof window === 'undefined' || window.innerWidth >= 1024);
+  // The user's click wins; until then the card follows the defaults (open from lg) and the signal (closed while a formation is drawn)
+  const [userOpen, setUserOpen] = useState<boolean | null>(null);
+  const open = userOpen ?? (defaultOpen && !collapseSignal && (typeof window === 'undefined' || window.innerWidth >= 1024));
+  const setOpen = setUserOpen;
   const [tabId, setTabId] = useState(tabs[0].id);
   const tab = tabs.find((x) => x.id === tabId) ?? tabs[0];
   const base = useId();
