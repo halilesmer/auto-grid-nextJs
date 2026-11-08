@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-08 · **223/243** abgehakt · ❌ 4 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-08 · **223/244** abgehakt · ❌ 4 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -15,7 +15,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | # | Kategorie | Stand |
 |---|---|---|
 | 1 | **SYS** – Verbindung & Infrastruktur | 10/12 |
-| 2 | **ACC** – Konten | 11/11 |
+| 2 | **ACC** – Konten | 11/12 |
 | 3 | **USR** – Benutzer & Zugriff | 8/8 |
 | 4 | **SET** – Allgemeine Einstellungen | 6/6 |
 | 5 | **SYM** – Symbole | 4/4 |
@@ -137,6 +137,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Nur DEMO. Zwei Konten mit je eigenem Terminal, Bot von Konto 1 läuft. → Bei Konto 2 im Bearbeiten-Dialog einen nicht existierenden MT5-Pfad eintragen, speichern und für Konto 2 eine Zone öffnen (Symbolliste) bzw. „Bot starten“ klicken. → Danach den richtigen Pfad wieder eintragen.
   - **Erwartet:** Konto 2 zeigt „[CONFIG] MT5 terminal yolu bulunamadı …“; das Journal von Terminal 1 enthält keine Anmeldung von Konto 2, der Bot von Konto 1 läuft ohne „BAĞLANTISI KOPTU“ weiter.
   - 📝 v0.7.229, VPS mit 4 Terminals, DEMO: Konto 2 mit nicht vorhandenem mt5_path → /start sofort [CONFIG] MT5 terminal yolu bulunamadı; Journal von Terminal 1 ohne fremden Login; Bot von Konto 1 lief weiter (BAĞLANTISI KOPTU: 0). Symbolliste kein Prüfweg (Cache 1 h).
+- [ ] **ACC-12** Medien im Konto (max. 3, PDF/Bild/Notiz) — 🔌 api ⏳ · 🌐 live ⏳
+  - Je Konto höchstens 3 Dateien (PDF, PNG/JPEG/WebP, Notiz .txt/.md). API unter /accounts/{id}/media: Liste (ohne Dateiinhalt), Hochladen als roher Body (?name=), Herunterladen, Löschen. Der Typ kommt aus den ersten Bytes, nicht aus Endung oder Client-MIME; alles andere (SVG, HTML, GIF, HEIC) ergibt 415. Grenzen: Bild und PDF 10 MB, Notiz 1 MB (413), vierte Datei 409. Download mit nosniff, CSP sandbox und unveränderlichem Cache. Fremde Konten sind 404 (Administrator darf alles). Beim Löschen des Kontos bleiben die Medien; legt ein anderer Besitzer dieselbe Kennung an, werden sie verworfen (1107-A20.4, wie 1107-A6.3).
+  - **Prüfung:** Nur DEMO-Konto. Mit dem Admin-Schlüssel per curl eine kleine PNG-Datei an POST /api/accounts/<Konto>/media?name=test.png senden, dann GET /api/accounts/<Konto>/media und GET .../media/<id> aufrufen. → Eine vierte Datei senden; die Testdatei danach mit DELETE entfernen.
+  - **Erwartet:** Upload antwortet 201, die Liste zeigt die Datei ohne Inhalt, der Download liefert dieselben Bytes mit den Sicherheitsheadern; die vierte Datei ergibt 409; nach DELETE ist die Liste leer.
 
 ## 3. USR – Benutzer & Zugriff
 
@@ -304,7 +308,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Im Fraktal-Modus blendet der Schalter „Mit SL (Stop Loss)“ (fractal_use_sl, Standard an) die SL-Felder (Methode, ATR, SAR, Puffer) aus; Orders kommen dann ohne SL. Ohne SL ist „TP als Betrag“ fest aktiv (Chance/Risiko braucht einen SL). Wird mit der Zone gespeichert.
   - **Prüfung:** Fraktal-Zone auf dem DEMO-Konto, „Mit SL“ ausschalten, speichern, Bot starten.
   - **Erwartet:** Pending Orders ohne SL in MT5; TP nur als Betrag.
-- [x] **ZON-16** Fraktal – Anzahl Orders je Richtung — 🖥️ e2e ✅ 2026-11-05 · 👤 manuell ✅ 2026-10-15
+- [x] **ZON-16** Fraktal – Anzahl Orders je Richtung — 🖥️ e2e ✅ 2026-11-08 · 👤 manuell ✅ 2026-10-15
   - Im Fraktal-Modus legt „Anzahl Orders“ fest, auf wie vielen der jüngsten Fraktale je Richtung eine Pending Order steht (fractal_order_count, 1–20, Standard 1). Nur BUY oder nur SELL → ein Feld „Anzahl BUY-Orders“ bzw. „Anzahl SELL-Orders“; Beide mit „Buy/Sell gleich“ → ein Feld „Anzahl Orders (BUY & SELL)“; Beide ohne „gleich“ → getrennte Felder (sell_fractal_order_count). Die Infokarte im Diagramm zeigt den Wert. Wird mit der Zone gespeichert.
   - **Prüfung:** Fraktal-Zone auf dem DEMO-Konto, Richtung BUY, „Anzahl BUY-Orders“ 3, speichern, Bot starten. → Im MT5-Chart den Indikator „Fractals“ einblenden und die letzten drei oberen Fraktale mit den Buy-Stop-Orders vergleichen. → Eine der Orders in MT5 von Hand löschen.
   - **Erwartet:** Buy Stops nur auf den letzten drei oberen Fraktalen, soweit der Kurs sie noch nicht erreicht hat und sie im Preisbereich liegen (also höchstens drei, oft weniger). Für die gelöschte Order kommt keine neue, auch nicht auf einem älteren Fraktal; die übrigen bleiben stehen.
