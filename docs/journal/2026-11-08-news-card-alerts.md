@@ -28,6 +28,11 @@ Step S3 of plan 1107-A16. The row at the bottom of the news card was a placehold
 - `e2e/mocked/news-alerts.spec.ts` (`@NWS-03`, 8 tests, fixed clock, `page.clock.runFor`): defaults and worker save, field limits, late open (one alert, no repeat after reload), exact timers (15 and 1 minute), permission denied, permission asked on first switch, "show news" click, one request on page open.
 - `@NWS-02`: 12 tests still green.
 
+## Regression and lesson (found on 2026-11-08, live on localhost)
+- The first version of this step waited until an account was selected (`accountsSettled = accountsLoaded && (selectedAccount !== null || accounts.length === 0)`). The dashboard does not preselect an account after a reload, so the card stayed on "loading" and no alert ran without an account. In S2 the card showed all currencies in this case.
+- Fix: the wait is only "accounts loaded"; the 700 ms wait of the callers joins the request without and with an account. Tests `@NWS-02` and `@NWS-03` "Hesap seçili değil" (red before, green after).
+- Lesson: every e2e test selected the account (`dashboard.open(DEMO_ID)`). A flow without a selected account needs its own test.
+
 ## Open points
 - [ ] Real browser check on the VPS and on the phone: system notification and tap (NWS-03 manual part).
 - [ ] The wait of 700 ms is a guess. On a slow link to the worker the settings can arrive later and one more request goes out. A clean fix needs a "settings are loading" flag in the settings store.

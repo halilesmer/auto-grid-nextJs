@@ -158,4 +158,14 @@ test.describe('NWS-03 Haber uyarıları', () => {
     expect(requests).toHaveLength(1);
     expect(requests[0]).toContain('currencies=USD');
   });
+
+  test('Hesap seçili değil (Dashboard hesap önseçmez): tarayıcıda saklı uyarı yine gelir', { tag: '@NWS-03' }, async ({ page, dashboard }) => {
+    await fakeNotifications(page, 'granted');
+    await page.addInitScript(() => {
+      localStorage.setItem('grid-robot-news-alerts:none', JSON.stringify({ alerts: [{ on: false, minutes: 60 }, { on: true, minutes: 30 }] }));
+    });
+    await dashboard.open(null);
+    // Hesapsız ayar tüm para birimleriyle çalışır: USD (PCE) ve EUR haberleri taranır
+    await expect(alertToasts(page).first()).toContainText('Çekirdek PCE');
+  });
 });

@@ -220,4 +220,15 @@ test.describe('NWS-02 Deutsch', () => {
     await expect(page.getByTestId('news-card')).toContainText(msg('news.title', undefined, 'de'));
     await expect(page.getByTestId('news-imp-high')).toHaveText(msg('news.imp.high', undefined, 'de'));
   });
+
+});
+
+test.describe('NWS-02 Hesap seçili değil', () => {
+  test('Hesap seçili değil: kart yüklemede takılmaz, tüm para birimleriyle haberleri gösterir', { tag: '@NWS-02' }, async ({ page, dashboard }) => {
+    await dashboard.open(null);
+    await page.getByTestId('news-button').click();
+    await expect(page.getByTestId('news-card')).toBeVisible();
+    await expect(page.getByTestId('news-row').first()).toBeVisible();
+    await expect(page.getByTestId('news-ccy-summary')).toContainText('EUR'); // hepsi: USD EUR GBP …
+  });
 });

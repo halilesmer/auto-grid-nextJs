@@ -10,8 +10,9 @@ import { useSettingsStore } from '@/store/useSettingsStore';
  */
 export function useNewsCurrencies() {
   const selectedAccount = useAccountStore((s) => s.selectedAccount);
-  // Kontolar geldi ve hesap seçimi oturdu (ya da hiç hesap yok): daha önce istek gitmez, yoksa hesapsız + hesaplı iki istek çıkar
-  const accountsSettled = useAccountStore((s) => s.accountsLoaded && (s.selectedAccount !== null || s.accounts.length === 0));
+  // Kontolar geldi: daha önce istek gitmez. Hesap seçimi birkaç yüz ms sonra oturabilir; çağıranların bekleme süresi (SETTLE_MS)
+  // hesapsız + hesaplı iki isteği birleştirir. Hesap hiç seçilmezse (Dashboard önseçmez) istek yine gider: tüm para birimleri.
+  const accountsSettled = useAccountStore((s) => s.accountsLoaded);
   const loadedAccount = useSettingsStore((s) => s.loadedAccount);
   const zones = useSettingsStore((s) => s.settings?.ZONES);
   const filter = useNewsStore((s) => s.filter);
