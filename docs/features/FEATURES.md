@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-08 · **222/245** abgehakt · ❌ 5 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-08 · **223/246** abgehakt · ❌ 5 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -26,7 +26,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 10 | **LOG** – Logs | 7/7 |
 | 11 | **UPD** – System & Updates | 6/6 |
 | 12 | **VPS** – VPS-Fernsteuerung vom Mac | 8/10 |
-| 13 | **UI** – Oberfläche | 17/21 |
+| 13 | **UI** – Oberfläche | 18/22 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 23/27 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 18/22 |
 | 16 | **FRM** – Formationserkennung | 42/45 |
@@ -728,6 +728,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Hinter jedem Dialog bleibt die Seite scharf und unverändert sichtbar (Plan 1107-A1, Entwurf „Modal Arka Planı“, Variante C). Die Hintergrundschicht nimmt ihre Farbe nur aus der CSS-Variablen --overlay (globals.css, Tailwind-Klasse bg-overlay), in beiden Themes transparent und ohne backdrop-filter. Das gilt für alle Dialoge mit Modal (Indikator- und Zeichnungseinstellungen, Chart-Einstellungen, Trendlinie, Alarm, Bestätigungen, Verbindung, Symbol hinzufügen, Backtest, Benutzer, Update), für das Kontoformular (natives <dialog>, ::backdrop) und für das Datums-Panel der Formasyon-Seite auf dem Telefon. Ein Klick neben den Dialog und Escape schließen ihn wie bisher. Keine Worker-Änderung.
   - **Prüfung:** Playwright-Test e2e/mocked/modal-backdrop.spec.ts (@UI-21) ausführen. → /chart öffnen, Indikatoren → RSI → Ayarlar, in hellem und dunklem Theme: der Chart hinter dem Dialog ist scharf und nicht abgedunkelt; ein Klick neben den Dialog schließt ihn. → Dashboard → Kontomenü → Konto hinzufügen: auch hinter dem Kontoformular ist die Seite scharf und nicht abgedunkelt.
   - **Erwartet:** Kein Dialog macht die Seite dahinter unscharf oder dunkler; Schließen durch Klick daneben und Escape funktioniert weiter.
+- [x] **UI-22** One chart without modes — 🖥️ e2e ✅ 2026-11-08
+  - Plan 1107-A21, Schritt U4-3 (URL-Modell, noch keine sichtbare Änderung): Die Chartseite bekommt ein reines URL-Modell ohne Modus (lib/chart/chartUrl.ts). Lesen: mode wird ignoriert; tf ist eine der neun Zeiteinheiten (M1 M5 M15 M30 H1 H4 D1 W1 MN), Standard H4; Zeitraum-Standard „Alle“ (eigene Konstante für Chart und Statistik, /backtest behält last30); zone ohne symbol ergibt das Symbol der Zone; tab=stats öffnet die Statistik. Schreiben: Standardwerte verlassen die URL, jede Schreibung entfernt mode, ein Wechsel auf eine Zeiteinheit ohne Formationen (nicht D1/H4/H1/M15) entfernt form und at. Bis U4-4a nutzt keine Komponente das Modell; die Seiten-Tests (Schalter weg, neun Zeiteinheiten, Formationsschicht) kommen mit U4-4a bis U4-6 dazu.
+  - **Prüfung:** Playwright-Test e2e/mocked/chart-url-lib.spec.ts (@UI-22) ausführen.
+  - **Erwartet:** Die Lib-Tests sind grün. Die Seite verhält sich noch wie bisher (U4-4a schaltet um).
 
 ## 14. ANA – Analyse (Chart, Statistik, Backtest)
 

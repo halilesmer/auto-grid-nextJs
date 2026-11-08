@@ -1525,6 +1525,15 @@ kategorien:
           - "Dashboard → Kontomenü → Konto hinzufügen: auch hinter dem Kontoformular ist die Seite scharf und nicht abgedunkelt."
         erwartet: "Kein Dialog macht die Seite dahinter unscharf oder dunkler; Schließen durch Klick daneben und Escape funktioniert weiter."
 
+      - id: UI-22
+        titel: "One chart without modes"
+        beschreibung: "Plan 1107-A21, Schritt U4-3 (URL-Modell, noch keine sichtbare Änderung): Die Chartseite bekommt ein reines URL-Modell ohne Modus (lib/chart/chartUrl.ts). Lesen: mode wird ignoriert; tf ist eine der neun Zeiteinheiten (M1 M5 M15 M30 H1 H4 D1 W1 MN), Standard H4; Zeitraum-Standard „Alle“ (eigene Konstante für Chart und Statistik, /backtest behält last30); zone ohne symbol ergibt das Symbol der Zone; tab=stats öffnet die Statistik. Schreiben: Standardwerte verlassen die URL, jede Schreibung entfernt mode, ein Wechsel auf eine Zeiteinheit ohne Formationen (nicht D1/H4/H1/M15) entfernt form und at. Bis U4-4a nutzt keine Komponente das Modell; die Seiten-Tests (Schalter weg, neun Zeiteinheiten, Formationsschicht) kommen mit U4-4a bis U4-6 dazu."
+        code: [frontend_nextjs/src/lib/chart/chartUrl.ts]
+        tiers: [e2e]
+        pruefung:
+          - "Playwright-Test e2e/mocked/chart-url-lib.spec.ts (@UI-22) ausführen."
+        erwartet: "Die Lib-Tests sind grün. Die Seite verhält sich noch wie bisher (U4-4a schaltet um)."
+
   # ---------------------------------------------------------------------------
   - id: ANA
     titel: Analyse (Chart, Statistik, Backtest)
