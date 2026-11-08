@@ -16,7 +16,8 @@ export function ZoneBreakoutFields({
   sync,
   handleChange,
   handleBlur,
-}: ZoneBreakoutFieldsProps) {
+  plain,
+}: ZoneBreakoutFieldsProps & { plain?: boolean }) {
   const t = useT();
   const byLoss = !!zone.step_by_loss;
   const split = isBoth && !sync;
@@ -26,16 +27,22 @@ export function ZoneBreakoutFields({
     : t(split ? 'zone.breakout.buyPullback.hint' : 'zone.breakout.minPullback.hint');
   const sellPullbackHint = byLoss ? t('zone.breakout.sellPullbackLoss.hint') : t('zone.breakout.sellPullback.hint');
 
+  const trendSwitch = (
+    <FieldSwitch
+      checked={zone.is_breakout}
+      onChange={(checked) => update('is_breakout', checked)}
+      label={t('zone.breakout.trendOnly')}
+      hint={t('zone.breakout.trendOnly.hint')}
+    />
+  );
+
   return (
-    <section className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
-      <SectionLabel>{t('zone.breakout.title')}</SectionLabel>
+    <section className={plain ? 'space-y-3' : 'space-y-3 rounded-lg border border-border bg-muted/30 p-3'}>
+      {!plain && <SectionLabel>{t('zone.breakout.title')}</SectionLabel>}
+      {/* Kutu (plain): „Sadece trend yönünde“ steht in einer eigenen Zeile */}
+      {plain && <div>{trendSwitch}</div>}
       <div className="flex flex-wrap items-start gap-3">
-        <FieldSwitch
-          checked={zone.is_breakout}
-          onChange={(checked) => update('is_breakout', checked)}
-          label={t('zone.breakout.trendOnly')}
-          hint={t('zone.breakout.trendOnly.hint')}
-        />
+        {!plain && trendSwitch}
         <InputField
           label={
             byLoss

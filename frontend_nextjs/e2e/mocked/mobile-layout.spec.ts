@@ -221,17 +221,17 @@ for (const lang of LOCALES) {
       await dashboard.open(DEMO_ID);
       await expect(page.getByTestId('zone-card')).toHaveCount(2);
 
-      // Der gemeinsame Grid-Block braucht auf Mobil eine eigene Zeile; die Zahlenfelder bleiben kurz.
-      const step = await dashboard.zoneField(msg('zone.field.buyGridLoss', undefined, lang)).locator('xpath=ancestor::label[1]').boundingBox();
-      const sw = await dashboard.zoneSwitch(msg('zone.stepByLoss', undefined, lang)).locator('xpath=ancestor::label[1]').boundingBox();
-      expect(Math.abs(step!.x - sw!.x), 'Verlust-Schalter linksbündig beim Grid').toBeLessThanOrEqual(1);
-      expect(sw!.y - (step!.y + step!.height), 'Verlust-Schalter unter der Vorschau').toBeGreaterThanOrEqual(0);
-      expect(sw!.y - (step!.y + step!.height), 'Verlust-Schalter bleibt nah beim Grid').toBeLessThanOrEqual(12);
-      const grid = await dashboard.zoneField(msg('zone.field.buyGridLoss', undefined, lang)).boundingBox();
+      // „Zarara göre“ steht als Feldspalte vor dem Grid-Schritt; die Zahlenfelder bleiben kurz.
+      const stepField = dashboard.zoneField(msg('zone.field.buyGridLoss', undefined, lang));
+      const step = await stepField.boundingBox();
+      const sw = await dashboard.zoneSwitch(msg('zone.stepByLoss.short', undefined, lang)).boundingBox();
+      expect(step!.x - (sw!.x + sw!.width), 'Verlust-Schalter links vom Grid').toBeGreaterThanOrEqual(0);
+      expect(Math.abs(sw!.y + sw!.height / 2 - (step!.y + step!.height / 2)), 'Verlust-Schalter auf Höhe des Grid-Feldes').toBeLessThanOrEqual(4);
+      const grid = step;
       const lot = await dashboard.zoneField(msg('zone.field.buyLot', undefined, lang)).boundingBox();
       expect(grid!.width, 'Grid-Feld bleibt kurz').toBeLessThanOrEqual(128);
       expect(lot!.width, 'Lot-Feld bleibt kurz').toBeLessThanOrEqual(96);
-      expect(lot!.y, 'Lot folgt unter dem zusammengehörigen Grid-Block').toBeGreaterThanOrEqual(sw!.y + sw!.height);
+      expect(lot!.x + lot!.width, 'Lot bleibt im Fenster').toBeLessThanOrEqual(375);
 
       await expectZoneAreaInViewport(dashboard, lang);
       await expectNothingOverflowsInSetupCards(page);

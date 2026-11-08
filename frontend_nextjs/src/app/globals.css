@@ -243,6 +243,26 @@
     }
   }
 
+  /* Setup-Felder im Dashboard (1108-A5): ab sm 28 px hoch, 12,5 px Schrift (darunter bleibt es bei 32 px) */
+  @media (width >= 40rem) {
+    .setup-fields .input-s {
+      height: 1.75rem;
+      padding: 0 0.625rem;
+      font-size: 0.78125rem;
+    }
+  }
+
+  /* Setup-Felder (1108-A5): Zahlenfelder ohne Spin-Knöpfe, die Pfeiltasten gehen weiter */
+  .setup-fields input[type='number'] {
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
+  .setup-fields input[type='number']::-webkit-inner-spin-button,
+  .setup-fields input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
   .input-s:hover:not(:disabled) {
     border-color: color-mix(in oklab, var(--foreground) 22%, transparent);
   }

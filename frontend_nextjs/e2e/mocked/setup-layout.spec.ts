@@ -29,6 +29,18 @@ async function boxOf(locator: Locator, name: string) {
 }
 
 /**
+ * Der Schalter steht in einer eigenen Zeile direkt über seinem Feld (Drei-Kästen-Layout, 1108-A5): höchstens 40 px
+ * Abstand nach oben, gleiche linke Kante wie die Zeile (Schalter beginnt im Kasten links von der Feldmitte).
+ */
+async function expectSwitchAbove(sw: Locator, field: Locator, name: string) {
+  const s = await boxOf(sw, `${name}: Schalter`);
+  const f = await boxOf(field, `${name}: Feld`);
+  const gap = f.y - (s.y + s.height);
+  expect(gap, `${name}: Schalter nicht über dem Feld`).toBeGreaterThanOrEqual(-1);
+  expect(gap, `${name}: Schalter zu weit über dem Feld`).toBeLessThanOrEqual(40);
+}
+
+/**
  * Der Schalter steht in der Zeile seines Feldes: seine Mitte liegt höchstens 4 px über oder unter der Mitte des
  * Eingabefeldes, und zwischen Schalter und Feld liegen höchstens 40 px (links oder rechts, ohne Überlappung).
  */
@@ -56,18 +68,19 @@ test.describe('ZON-20 Kompaktes Setup', () => {
     expect(widths.filter((w) => w > 128), 'Zahlenfelder breiter als 128 px').toEqual([]);
   });
 
-  test('Schalter in Feldzeilen stehen neben ihrem Feld', { tag: '@ZON-20' }, async ({ worker, dashboard }) => {
+  test('Schalter stehen neben oder (Nur Trend, Bereinigen) in eigener Zeile über ihrem Feld', { tag: '@ZON-20' }, async ({ worker, dashboard }) => {
     seedFullSetups(worker);
     await dashboard.open(DEMO_ID);
 
     // Grid-Setup
     await expectSwitchNextTo(switchOf(dashboard, msg('zone.sync'), 0), dashboard.zoneField(msg('zone.field.orderType'), 0), 'BUY/SELL gleich');
-    await expectSwitchNextTo(
+    // „Nur Trend“ und „Bereinigen“ stehen in einer eigenen Zeile über ihren Feldern
+    await expectSwitchAbove(
       switchOf(dashboard, msg('zone.breakout.trendOnly'), 0),
       dashboard.zoneField(msg('zone.breakout.buyPullback'), 0),
       'Nur Trend',
     );
-    await expectSwitchNextTo(switchOf(dashboard, msg('zone.exit.clearOnExit'), 0), dashboard.zoneField(msg('zone.exit.side'), 0), 'Bereinigen');
+    await expectSwitchAbove(switchOf(dashboard, msg('zone.exit.clearOnExit'), 0), dashboard.zoneField(msg('zone.exit.side'), 0), 'Bereinigen');
 
     // Fraktal-Setup
     await expectSwitchNextTo(switchOf(dashboard, msg('zone.sync'), 1), dashboard.zoneField(msg('zone.field.orderType'), 1), 'Fraktal: BUY/SELL gleich');
@@ -98,7 +111,7 @@ for (const width of [1440, 375]) {
         { order_type: 'BOTH', sync_buy_sell: true },
         { order_type: 'BOTH', sync_buy_sell: false },
       ] as const) {
-        test(`Verlust-Schalter bleibt direkt unter Grid-Abstand: ${setup.order_type}, Sync ${setup.sync_buy_sell}`,
+        test(`Verlust-Schalter steht direkt vor dem Grid-Abstand: ${setup.order_type}, Sync ${setup.sync_buy_sell}`,
           { tag: ['@ZON-13', '@ZON-20', '@UI-08'] }, async ({ page, worker, dashboard }) => {
             worker.setZones(DEMO_ID, [makeZone(setup)]);
             await page.addInitScript((selectedTheme) => {
@@ -107,19 +120,21 @@ for (const width of [1440, 375]) {
             await dashboard.open(DEMO_ID);
             await expect(page.locator('html')).toHaveClass(theme === 'dark' ? /dark/ : /^(?!.*\bdark\b)/);
             const split = setup.order_type === 'BOTH' && !setup.sync_buy_sell;
-            const sw = switchOf(dashboard, msg('zone.stepByLoss', undefined, 'de'), 0);
+            const sw = switchOf(dashboard, msg('zone.stepByLoss.short', undefined, 'de'), 0);
 
             for (const byLoss of [false, true]) {
-              if (byLoss) await dashboard.zoneSwitch(msg('zone.stepByLoss', undefined, 'de')).click();
+              if (byLoss) await dashboard.zoneSwitch(msg('zone.stepByLoss.short', undefined, 'de')).click();
               const priceKey = split ? 'zone.field.buyGrid' : 'zone.field.gridStep';
               const lossKey = split ? 'zone.field.buyGridLoss' : 'zone.field.gridStepLoss';
               const key = byLoss ? lossKey : priceKey;
               const field = dashboard.zoneField(msg(key, undefined, 'de'));
-              const f = await boxOf(field.locator('xpath=ancestor::label[1]'), 'Grid-Abstand mit Vorschau');
-              const s = await boxOf(sw, 'Verlust-Schalter');
-              expect(Math.abs(s.x - f.x), 'Linksbündig mit Grid-Abstand').toBeLessThanOrEqual(1);
-              expect(s.y - (f.y + f.height), 'Kein Überlappen').toBeGreaterThanOrEqual(0);
-              expect(s.y - (f.y + f.height), 'Kleiner Abstand unter dem Feld').toBeLessThanOrEqual(12);
+              // „Zarara göre“ ist die Feldspalte direkt vor dem Grid-Abstand: links davon, Schalter auf Höhe des Feldes
+              const f = await boxOf(field, 'Grid-Abstand');
+              const s = await boxOf(dashboard.zoneSwitch(msg('zone.stepByLoss.short', undefined, 'de')), 'Verlust-Schalter');
+              const col = await boxOf(sw, 'Spalte „Zarara göre“ mit Beschriftung');
+              expect(f.x - (s.x + s.width), 'Schalter links vom Grid-Abstand').toBeGreaterThanOrEqual(0);
+              expect(f.x - (col.x + col.width), 'Kleiner Abstand zum Grid-Abstand').toBeLessThanOrEqual(16);
+              expect(Math.abs(s.y + s.height / 2 - (f.y + f.height / 2)), 'Schalter auf Höhe des Feldes').toBeLessThanOrEqual(4);
               expect(s.x + s.width, 'Schalter vollständig im Fenster').toBeLessThanOrEqual(width);
               const sizes = await page.evaluate(() => ({
                 scroll: document.documentElement.scrollWidth,

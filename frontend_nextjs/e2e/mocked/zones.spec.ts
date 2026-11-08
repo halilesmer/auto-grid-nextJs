@@ -374,7 +374,7 @@ test.describe('ZON Zonen', () => {
   test('Abstand nach Verlust ($): Grid und Pullback als Betrag', { tag: '@ZON-13' }, async ({ worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
     const zone = dashboard.zone();
-    const byLoss = dashboard.zoneSwitch(msg('zone.stepByLoss'));
+    const byLoss = dashboard.zoneSwitch(msg('zone.stepByLoss.short'));
     await expect(byLoss).toHaveAttribute('aria-checked', 'false');
     await expect(zone.getByTestId('loss-preview')).toHaveCount(0);
 
@@ -397,14 +397,14 @@ test.describe('ZON Zonen', () => {
     await pullback.fill('3');
 
     await saveAndReload(dashboard);
-    await expect(dashboard.zoneSwitch(msg('zone.stepByLoss'))).toHaveAttribute('aria-checked', 'true');
+    await expect(dashboard.zoneSwitch(msg('zone.stepByLoss.short'))).toHaveAttribute('aria-checked', 'true');
     await expect(grid).toHaveValue('10');
     await expect(pullback).toHaveValue('3');
     await expect(tp).toHaveValue('2');
     expect(worker.zonesOf(DEMO_ID)[0]).toMatchObject({ step_by_loss: true, grid_step: 10, pullback_distance: 3, take_profit: 2 });
 
     // Zurück auf Preisabstand: 10 $ → 1,0; 3 $ → 0,3
-    await dashboard.zoneSwitch(msg('zone.stepByLoss')).click();
+    await dashboard.zoneSwitch(msg('zone.stepByLoss.short')).click();
     await expect(dashboard.zoneField(msg('zone.field.gridStep'))).toHaveValue('1');
     await expect(dashboard.zoneField(msg('zone.breakout.minPullback'))).toHaveValue('0.3');
     await expect(dashboard.zoneField(msg('zone.field.takeProfit'))).toHaveValue('0.2');
@@ -415,7 +415,7 @@ test.describe('ZON Zonen', () => {
       makeZone({ symbol: 'EURUSD', min_price: 1.05, max_price: 1.2, grid_step: 0.001, lot_size: 0.1, pullback_distance: 0.0005 }),
     ]);
     await dashboard.open(DEMO_ID);
-    await dashboard.zoneSwitch(msg('zone.stepByLoss')).click();
+    await dashboard.zoneSwitch(msg('zone.stepByLoss.short')).click();
     // Mehr Nachkommastellen (0.001) als ein $-Betrag (2) darf die Umrechnung nicht auf 0.00 kürzen
     await expect(dashboard.zoneField(msg('zone.field.gridStepLoss'))).toHaveValue('10');
     const pullback = dashboard.zoneField(msg('zone.breakout.minPullbackLoss'));
@@ -430,7 +430,7 @@ test.describe('ZON Zonen', () => {
     await instant.click();
     await expect(instant).toHaveAttribute('aria-checked', 'true');
     // Unabhängig von „Abstand nach Verlust“
-    await expect(dashboard.zoneSwitch(msg('zone.stepByLoss'))).toHaveAttribute('aria-checked', 'false');
+    await expect(dashboard.zoneSwitch(msg('zone.stepByLoss.short'))).toHaveAttribute('aria-checked', 'false');
 
     await saveAndReload(dashboard);
     await expect(dashboard.zoneSwitch(msg('zone.instantEntry'))).toHaveAttribute('aria-checked', 'true');
@@ -449,8 +449,9 @@ test.describe('ZON Zonen', () => {
     await expect(zone.getByTestId('fractal-fields')).toBeVisible();
     // Grid-Felder und -Schalter sind im Fraktal-Modus ausgeblendet
     await expect(dashboard.zoneField(msg('zone.field.gridStep'))).toHaveCount(0);
-    await expect(zone.getByText(msg('zone.stepByLoss'))).toHaveCount(0);
+    await expect(zone.getByText(msg('zone.stepByLoss.short'))).toHaveCount(0);
     await expect(zone.getByText(msg('zone.breakout.title'))).toHaveCount(0);
+    await expect(dashboard.zoneSwitch(msg('zone.breakout.trendOnly'))).toHaveCount(0);
     // Standard: H4, Ausbruch, ATR 14 × 1,5, Chance/Risiko 2
     await expect(zone.getByTestId('fractal-timeframe')).toHaveValue('H4');
     await expect(zone.getByTestId('fractal-order-mode')).toHaveValue('breakout');

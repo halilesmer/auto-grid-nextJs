@@ -22,7 +22,7 @@ export function ZoneBasicFields({
 
   return (
     <div className="flex flex-wrap items-start gap-3">
-      <InputField label={t('zone.field.orderType')} hint={t('zone.field.orderType.hint')}>
+      <InputField className="shrink-0" label={t('zone.field.orderType')} hint={t('zone.field.orderType.hint')}>
         <select
           value={zone.order_type}
           onChange={(e) => update('order_type', e.target.value)}
@@ -64,7 +64,7 @@ export function ZoneBasicFields({
           className="input-s w-32"
         />
       </InputField>
-      <InputField label={t('zone.entryMode')} hint={t('zone.entryMode.hint')}>
+      <InputField className="shrink-0" label={t('zone.entryMode')} hint={t('zone.entryMode.hint')}>
         <select
           data-testid="entry-mode"
           value={isFractal ? 'fractal' : 'grid'}
