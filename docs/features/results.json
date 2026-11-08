@@ -318,8 +318,8 @@
   },
   "ANA-27": {
     "e2e": {
-      "datum": "2026-11-07",
-      "status": "failed",
+      "datum": "2026-11-08",
+      "status": "passed",
       "tests": 9
     }
   },
@@ -1935,7 +1935,7 @@
   },
   "ZON-16": {
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-08",
       "status": "passed",
       "tests": 1
     }

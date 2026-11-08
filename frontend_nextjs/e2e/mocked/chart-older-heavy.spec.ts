@@ -1,8 +1,17 @@
 import { MAX_TOTAL_BARS, OLDER_PAGE_BARS } from '../../src/lib/analysis/candles';
 import { DEMO_ID, expect, test } from '../fixtures/test';
+import { dragLeft, openNearLeftEdge, panToFirstCandle } from '../fixtures/chart-older';
 
 /**
- * ANA-27 Messung: wie lange dauert es, eine Seite älterer M1-Kerzen anzufügen (Antwort da → Chart gezeichnet),
+ * Die schweren ANA-27-Fälle (mehr als 100.000 Kerzen im Chart) laufen hintereinander in einem Worker: parallel bremsten sie
+ * sich und einander aus (Journal 2026-11-07-chart-older-candles). `default` heißt: der Reihe nach, ein Fehler überspringt
+ * die übrigen nicht (anders als `serial`).
+ */
+test.describe.configure({ mode: 'default' });
+
+
+/**
+ * ANA-27 schwere Fälle. Messung: wie lange dauert es, eine Seite älterer M1-Kerzen anzufügen (Antwort da → Chart gezeichnet),
  * je größer der Chart wird. Standard 150.000 Kerzen (schnell); ANA_PROFILE_BARS=360000 misst die
  * Obergrenze eines Jahres M1. Grenze laut Plan 1107-A4.4: über 1 s je Seite → Gesamtgrenze (MAX_TOTAL_BARS) senken; Ergebnis im Journal 2026-11-07-chart-older-candles.
  */
@@ -50,11 +59,7 @@ test('Ältere Kerzen anfügen: Dauer je Seite bleibt unter der Grenze', { tag: '
     await expect.poll(async () => {
       const now = Number(await chart.getAttribute('data-bars'));
       if (now > before) return now;
-      const area = (await chart.boundingBox())!;
-      await page.mouse.move(area.x + area.width * 0.4, area.y + area.height * 0.6);
-      await page.mouse.down();
-      await page.mouse.move(area.x + area.width * 0.9, area.y + area.height * 0.6, { steps: 6 });
-      await page.mouse.up();
+      await dragLeft(page);
       return now;
     }, { timeout: 120_000, intervals: [50] }).toBeGreaterThan(before);
     await expect.poll(async () => (await read()).steps.at(-1)?.bars ?? 0, { timeout: 30_000 }).toBeGreaterThan(before);
@@ -75,4 +80,33 @@ test('Ältere Kerzen anfügen: Dauer je Seite bleibt unter der Grenze', { tag: '
   expect(Number(await chart.getAttribute('data-bars'))).toBeLessThanOrEqual(MAX_TOTAL_BARS + OLDER_PAGE_BARS);
   // Grobe Schranke gegen Rückschritte, auch auf einer langsamen CI-Maschine; die Grenze von 1 s liest man aus der Messung (Journal)
   for (const p of pages) expect(p.ms).toBeLessThan(8000);
+});
+
+test.describe('ANA-27 Zeitraum über 100.000 Kerzen (M1)', () => {
+  const M1_URL = `/chart?mode=free&account=${DEMO_ID}&symbol=EURUSD&tf=M1&from=2024-01-03&to=2024-03-20`;
+  // 78 Tage M1 = 112.320 Kerzen: mehr als die 100.000 der ersten Ladung, der Rest kommt nach
+
+  test('Sola kaydırınca bir sayfa eklenir, görünen zaman aralığı aynı kalır, aralık başında yükleme durur', { tag: '@ANA-27' }, async ({ page, worker }) => {
+    // Wie vor dem Umzug dieses Tests aus chart-workspace.spec.ts (90 s); der Umzug hatte die Angabe verloren
+    test.setTimeout(90_000);
+    worker.state.ratesAllDays = true;
+    const { chart, rangeOf, before, loadedFrom, release } = await openNearLeftEdge(page, worker, { url: M1_URL, initialBars: '100000' });
+    release();
+    // Die zweite Seite: nur der Rest bis zum Zeitraumbeginn, nicht mehr als eine Seite
+    await expect(chart).toHaveAttribute('data-bars', '112320');
+    const older = new URLSearchParams(worker.ratesQueries.filter((q) => new URLSearchParams(q).get('to') === String(loadedFrom)).at(-1));
+    expect(Number(older.get('from'))).toBe(Date.UTC(2024, 0, 3) / 1000);
+    // Die Ansicht springt nicht: dieselbe erste und letzte sichtbare Kerzenzeit wie vor dem Anfügen
+    await page.waitForTimeout(500);
+    const after = await rangeOf();
+    expect(Math.max(Math.abs(after[0] - before[0]), Math.abs(after[1] - before[1]))).toBeLessThanOrEqual(60);
+    // Am Zeitraumbeginn ist Schluss: der Hinweis „gekürzt“ ist weg, die Anzeige links nennt den Beginn
+    await expect(page.getByTestId('data-quality')).toHaveCount(0);
+    await panToFirstCandle(page);
+    await expect(page.getByTestId('older-edge')).toHaveAttribute('data-state', 'range');
+    await expect(page.getByTestId('older-edge-line')).toBeVisible();
+    const requests = worker.ratesQueries.length;
+    await page.waitForTimeout(1200);
+    expect(worker.ratesQueries.length).toBe(requests);
+  });
 });
