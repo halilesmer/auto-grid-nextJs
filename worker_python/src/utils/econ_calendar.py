@@ -16,7 +16,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 FILE_GLOB = "autogrid_calendar_*.json"
-FILE_PREFIX = "autogrid_calendar_"
 ENV_DIR = "AUTOGRID_CALENDAR_DIR"
 FALLBACK_LANG = "en"
 STALE_SECONDS = 300
@@ -133,11 +132,10 @@ def _key(raw: dict):
     return raw.get("value_id") if raw.get("value_id") is not None else ("e", raw.get("event_id"))
 
 
-def _lang_of(doc: dict, path: Path) -> str:
+def _lang_of(doc: dict) -> str | None:
+    """Servis (version >= 2) yazdığı `lang` alanıyla; alanı olmayan belge (deneme dosyası) sayılmaz."""
     lang = doc.get("lang")
-    if isinstance(lang, str) and lang.strip():
-        return lang.strip().lower()
-    return path.stem[len(FILE_PREFIX):].lower() or FALLBACK_LANG
+    return lang.strip().lower() if isinstance(lang, str) and lang.strip() else None
 
 
 def _pick_title(titles: dict[str, str], lang: str | None, order: list[str]) -> str | None:
@@ -177,9 +175,10 @@ def load_events(
         except OSError:
             continue
         doc = _read_doc(path)
-        if doc is None or server_offset_seconds(doc) is None:
+        doc_lang = _lang_of(doc) if doc else None
+        if doc_lang is None or server_offset_seconds(doc) is None:
             continue
-        docs.append((mtime, _lang_of(doc, path), doc))
+        docs.append((mtime, doc_lang, doc))
     if not docs:
         return result
     docs.sort(key=lambda d: d[0], reverse=True)

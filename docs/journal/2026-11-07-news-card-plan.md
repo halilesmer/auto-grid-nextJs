@@ -67,7 +67,7 @@ Findings of the probe and what S1 does:
 4. The probe had no `event_code`, `sector`, `time_mode`, `unit` and `multiplier`. The service writes them. The list of inverse indicators and the sector comment need them. `time_mode` separates all-day events (an "EU summit" showed 00:00).
 5. The events were not in order. The worker sorts them by time.
 
-6. MT5 gives the event name only in the terminal language (`MqlCalendarEvent.name`, no language parameter), so one terminal gives one language. The service writes `autogrid_calendar_<lang>.json` (`lang` from `TERMINAL_LANGUAGE`). The worker reads all language files, takes times and values from the freshest file that is not stale, and merges the titles by `value_id` into `titles`. The route takes `lang` and falls back to `en`, then to the first available title (plan 1107-A16.7).
+6. MT5 gives the event name only in the terminal language (`MqlCalendarEvent.name`, no language parameter), so one terminal gives one language. The service writes `autogrid_calendar_<lang>.json` (`lang` from `TERMINAL_LANGUAGE`). The worker reads all language files, takes times and values from the freshest file that is not stale, and merges the titles by `value_id` into `titles`. The route takes `lang` and falls back to `en`, then to the first available title (plan 1107-A16.7). A file without the `lang` field (version 1, for example the probe file `autogrid_calendar_probe.json`) is ignored.
 
 Known limit: the worker converts server time to UTC with one offset (`time_trade_server` − `time_gmt`, rounded to 15 minutes). An event close to a daylight-saving change can be one hour off.
 

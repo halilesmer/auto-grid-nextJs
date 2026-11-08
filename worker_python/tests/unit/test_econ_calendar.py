@@ -50,7 +50,7 @@ def put(directory, lang, doc, age=0):
 
 @pytest.fixture
 def cal(tmp_path):
-    put(tmp_path, "de", DOC)
+    put(tmp_path, "de", with_lang("de"))
     return tmp_path
 
 
@@ -128,14 +128,19 @@ def test_alle_dateien_bayat_stale_true(tmp_path):
 
 
 @pytest.mark.feature("NWS-01")
-def test_sprache_aus_dateiname_ohne_lang_feld(tmp_path):
-    put(tmp_path, "tr", DOC)
-    assert ec.load_events(tmp_path)["languages"] == ["tr"]
+def test_datei_ohne_lang_feld_zaehlt_nicht(tmp_path):
+    probe = json.loads(json.dumps(DOC))
+    probe["events"][0]["title"] = "Probe-Titel"
+    (tmp_path / "autogrid_calendar_probe.json").write_text(json.dumps(probe), encoding="utf-8")
+    put(tmp_path, "de", with_lang("de"))
+    res = ec.load_events(tmp_path)
+    assert res["languages"] == ["de"]
+    assert all(set(e["titles"]) == {"de"} for e in res["events"])
 
 
 @pytest.mark.feature("NWS-01")
 def test_cp1252_und_steuerzeichen(tmp_path):
-    doc = json.loads(json.dumps(DOC))
+    doc = with_lang("de")
     doc["events"][0]["title"] = "Erstanträge\nauf Hilfe"
     text = json.dumps(doc, ensure_ascii=False).replace("\\n", "\n")  # rohes Zeilenende im String
     (tmp_path / "autogrid_calendar_de.json").write_bytes(text.encode("cp1252"))

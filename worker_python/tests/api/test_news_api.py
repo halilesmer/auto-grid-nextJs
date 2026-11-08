@@ -6,7 +6,7 @@ from tests.unit.test_econ_calendar import DOC, put, with_lang
 
 @pytest.mark.feature("NWS-01")
 def test_route(tmp_path, monkeypatch, client):
-    put(tmp_path, "de", DOC)
+    put(tmp_path, "de", with_lang("de"))
     monkeypatch.setenv("AUTOGRID_CALENDAR_DIR", str(tmp_path))
     body = client.get("/api/news/events", params={"impact": "high", "currencies": "usd"}).json()
     assert [e["id"] for e in body["events"]] == [1] and body["available"] is True
