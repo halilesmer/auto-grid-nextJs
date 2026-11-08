@@ -115,5 +115,5 @@ Method: temporary `minBarSpacing` option, 100 000 M1 candles, chart 1 228 px wid
   - A wide drag (15 % to 96 % of the chart width, 1 800 candles) needs about 55 drags and 13 s for the same distance. A drag with two intermediate steps does not move the chart, so it keeps six steps. The helpers are in `e2e/fixtures/chart-older.ts`.
   - The cases with more than 100 000 candles (the range test and the measurement) are in `chart-older-heavy.spec.ts` with `test.describe.configure({ mode: 'default' })`. They run one after the other in one worker. A failure does not skip the second (`serial` would).
   - The other page tests use the window "all" (about 4 000 candles at the start) and no longer load 100 000 candles twice.
-  - No timeout was raised and no expectation was relaxed.
+  - No timeout was raised and no expectation was relaxed. The wait for the left edge (`panToFirstCandle`) stays at 60 s as before. Its poll interval is 50 ms instead of 100 ms, which means more tries, not more time. The first version of the helper had 120 s by mistake. The review of the branch found it and it is back at 60 s.
 - Result with the real clock, `heavy_lock.sh scripts/features/run.sh e2e ANA-27`: 9 of 9 passed in 3 runs (50 to 54 s, before: 2.2 min and failures). A run with eight busy loops (load 15) also passed 9 of 9 (1.1 min).

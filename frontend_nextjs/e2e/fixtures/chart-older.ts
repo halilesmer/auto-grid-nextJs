@@ -33,7 +33,7 @@ export async function panToFirstCandle(page: Page) {
     if (await page.getByTestId('older-edge-line').count()) return true;
     await dragLeft(page);
     return false;
-  }, { timeout: 120_000, intervals: [50] }).toBe(true);
+  }, { timeout: 60_000, intervals: [50] }).toBe(true);
 }
 
 /**
