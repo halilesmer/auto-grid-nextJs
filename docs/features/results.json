@@ -130,9 +130,9 @@
   },
   "ANA-02": {
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-08",
       "status": "passed",
-      "tests": 5
+      "tests": 1
     }
   },
   "ANA-03": {
@@ -248,7 +248,7 @@
   },
   "ANA-16": {
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-08",
       "status": "passed",
       "tests": 3
     }

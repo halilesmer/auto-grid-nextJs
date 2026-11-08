@@ -3,15 +3,16 @@ import { DEMO_ID, expect, test } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 import { NEWS_SOON_ID, installNewsClock, newsFixture } from '../fixtures/news';
 
-const OPEN = `/chart?account=${DEMO_ID}&mode=free`;
-
 test.beforeEach(async ({ page, worker }) => {
   await installNewsClock(page);
   worker.newsEvents = newsFixture();
 });
 
-async function openCard(page: import('@playwright/test').Page) {
-  await page.goto(OPEN);
+type Dash = import('../fixtures/dashboard').Dashboard;
+
+// Dashboard: dort liegen die Zonen-Symbole des Kontos (Standard-Währung USD aus USOUSD) im Store
+async function openCard(page: import('@playwright/test').Page, dashboard: Dash) {
+  await dashboard.open(DEMO_ID);
   const button = page.getByTestId('news-button');
   await expect(button).toBeVisible();
   await expect(page.getByTestId('news-button-label')).toContainText('USD');
@@ -21,8 +22,8 @@ async function openCard(page: import('@playwright/test').Page) {
 }
 
 test.describe('NWS-02 Haber kartı', () => {
-  test('Düğme sıradaki haberi sayar, kart varsayılan filtreyle 5 satır gösterir', { tag: '@NWS-02' }, async ({ page }) => {
-    await page.goto(OPEN);
+  test('Düğme sıradaki haberi sayar, kart varsayılan filtreyle 5 satır gösterir', { tag: '@NWS-02' }, async ({ page, dashboard }) => {
+    await dashboard.open(DEMO_ID);
     const button = page.getByTestId('news-button');
     await expect(button).toHaveAttribute('data-soon', 'true');
     await expect(page.getByTestId('news-button-label')).toHaveText(/USD 2\d dk|USD 1\d dk/);
@@ -39,8 +40,8 @@ test.describe('NWS-02 Haber kartı', () => {
     await expect(page.getByTestId('news-card')).toHaveCount(0);
   });
 
-  test('Satır: saat belirsiz, gün boyu, birim ve düzeltme', { tag: '@NWS-02' }, async ({ page }) => {
-    await openCard(page);
+  test('Satır: saat belirsiz, gün boyu, birim ve düzeltme', { tag: '@NWS-02' }, async ({ page, dashboard }) => {
+    await openCard(page, dashboard);
     await expect(page.getByTestId('news-row').filter({ hasText: 'Fed Chair Speech' }).getByTestId('news-time')).toHaveText(msg('news.time.tentative'));
     await expect(page.getByTestId('news-row').filter({ hasText: 'Bank Holiday' }).getByTestId('news-time')).toHaveText(msg('news.time.allday'));
     const sales = page.getByTestId('news-row').filter({ hasText: 'Retail Sales' });
@@ -48,8 +49,8 @@ test.describe('NWS-02 Haber kartı', () => {
     await expect(sales).toContainText(msg('news.rev', { v: '0,25%' }));
   });
 
-  test('Ok renkleri: yayından önce soluk beklenti yönü, sonra MT5 etkisi', { tag: '@NWS-02' }, async ({ page }) => {
-    await openCard(page);
+  test('Ok renkleri: yayından önce soluk beklenti yönü, sonra MT5 etkisi', { tag: '@NWS-02' }, async ({ page, dashboard }) => {
+    await openCard(page, dashboard);
     const row = (title: string) => page.getByTestId('news-row').filter({ hasText: title });
     const pre = row('Çekirdek PCE').getByTestId('news-arrow');
     await expect(pre).toHaveAttribute('data-dir', 'up');
@@ -74,8 +75,8 @@ test.describe('NWS-02 Haber kartı', () => {
     await expect(row('Bank Holiday').getByTestId('news-arrow')).toHaveCount(0);
   });
 
-  test('Para birimi: katlı satır, Düzenle, Temizle, Sembollerden doldur; EUR eklenince negatif ok', { tag: '@NWS-02' }, async ({ page }) => {
-    await openCard(page);
+  test('Para birimi: katlı satır, Düzenle, Temizle, Sembollerden doldur; EUR eklenince negatif ok', { tag: '@NWS-02' }, async ({ page, dashboard }) => {
+    await openCard(page, dashboard);
     const summary = page.getByTestId('news-ccy-summary');
     await expect(summary).toHaveText('USD'); // zone sembolü USOUSD → USD
     await page.getByTestId('news-ccy-edit').click();
@@ -93,8 +94,8 @@ test.describe('NWS-02 Haber kartı', () => {
     await expect(page.getByTestId('news-ccy-list')).toHaveCount(0);
   });
 
-  test('Önem çoklu seçim; Gün: aralık seçilince tek günler kapanır', { tag: '@NWS-02' }, async ({ page }) => {
-    await openCard(page);
+  test('Önem çoklu seçim; Gün: aralık seçilince tek günler kapanır', { tag: '@NWS-02' }, async ({ page, dashboard }) => {
+    await openCard(page, dashboard);
     await page.getByTestId('news-ccy-edit').click();
     await page.getByTestId('news-ccy-EUR').click();
     const rows = page.getByTestId('news-row');
@@ -120,8 +121,8 @@ test.describe('NWS-02 Haber kartı', () => {
     await expect(page.getByTestId('news-day-d0')).toBeEnabled();
   });
 
-  test('Filtre hesap başına worker\'a kaydedilir: "✓ Kaydedildi" rozeti, sayfaya dönünce aynı filtre', { tag: '@NWS-02' }, async ({ page, worker }) => {
-    await openCard(page);
+  test('Filtre hesap başına worker\'a kaydedilir: "✓ Kaydedildi" rozeti, sayfaya dönünce aynı filtre', { tag: '@NWS-02' }, async ({ page, worker, dashboard }) => {
+    await openCard(page, dashboard);
     await page.getByTestId('news-imp-low').click();
     await page.getByTestId('news-day-d-1').click();
     await expect(page.getByTestId('news-saved')).toHaveAttribute('data-kind', 'worker');
@@ -129,16 +130,16 @@ test.describe('NWS-02 Haber kartı', () => {
     await expect(page.getByTestId('news-saved')).toHaveCount(0, { timeout: 5000 });
     await page.goto('/vps');
     await expect(page.getByTestId('news-button')).toHaveCount(0);
-    await page.goto(OPEN);
+    await dashboard.open(DEMO_ID);
     await page.getByTestId('news-button').click();
     await expect(page.getByTestId('news-imp-low')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByTestId('news-day-d-1')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByTestId('news-imp-moderate')).toHaveAttribute('aria-pressed', 'false');
   });
 
-  test('Tarayıcı yedeği silinse de filtre worker\'dan geri gelir; eski yanıt yeni seçimi ezmez', { tag: '@NWS-02' }, async ({ page, worker }) => {
+  test('Tarayıcı yedeği silinse de filtre worker\'dan geri gelir; eski yanıt yeni seçimi ezmez', { tag: '@NWS-02' }, async ({ page, worker, dashboard }) => {
     worker.uiPrefs[DEMO_ID] = { news_filter: { impacts: ['moderate'], days: ['week'], currencies: ['EUR'] } };
-    await page.goto(OPEN);
+    await dashboard.open(DEMO_ID);
     await page.getByTestId('news-button').click();
     await expect(page.getByTestId('news-imp-moderate')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByTestId('news-imp-high')).toHaveAttribute('aria-pressed', 'false');
@@ -148,15 +149,15 @@ test.describe('NWS-02 Haber kartı', () => {
     expect(await page.evaluate((k) => localStorage.getItem(k), `grid-robot-news-filter:${DEMO_ID}`)).toContain('"moderate"');
     // Kopyayı sil, yenile: filtre yine worker'dan gelir
     await page.evaluate((k) => localStorage.removeItem(k), `grid-robot-news-filter:${DEMO_ID}`);
-    await page.reload();
+    await dashboard.open(DEMO_ID);
     await page.getByTestId('news-button').click();
     await expect(page.getByTestId('news-imp-moderate')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByTestId('news-day-week')).toHaveAttribute('aria-pressed', 'true');
   });
 
-  test('Worker hatasında filtre tarayıcıda kalır ve rozet bunu söyler', { tag: '@NWS-02' }, async ({ page, worker }) => {
+  test('Worker hatasında filtre tarayıcıda kalır ve rozet bunu söyler', { tag: '@NWS-02' }, async ({ page, worker, dashboard }) => {
     worker.uiPrefsFail = true;
-    await openCard(page);
+    await openCard(page, dashboard);
     await page.getByTestId('news-imp-low').click();
     await expect(page.getByTestId('news-saved')).toHaveAttribute('data-kind', 'local');
     await expect(page.getByTestId('news-saved')).toHaveText(msg('news.savedLocal'));
@@ -166,8 +167,8 @@ test.describe('NWS-02 Haber kartı', () => {
     await expect(page.getByRole('tooltip')).toContainText(msg('news.savedLocal.hint'));
   });
 
-  test('/vps ve /users sayfalarında düğme yok', { tag: '@NWS-02' }, async ({ page }) => {
-    await page.goto(OPEN);
+  test('/vps ve /users sayfalarında düğme yok', { tag: '@NWS-02' }, async ({ page, dashboard }) => {
+    await dashboard.open(DEMO_ID);
     await expect(page.getByTestId('news-button')).toBeVisible();
     for (const path of ['/vps', '/users']) {
       await page.goto(path);
@@ -176,9 +177,9 @@ test.describe('NWS-02 Haber kartı', () => {
     }
   });
 
-  test('Veri durumu: kaynak yok ve eski veri uyarısı', { tag: '@NWS-02' }, async ({ page, worker }) => {
+  test('Veri durumu: kaynak yok ve eski veri uyarısı', { tag: '@NWS-02' }, async ({ page, worker, dashboard }) => {
     worker.newsStale = true;
-    await openCard(page);
+    await openCard(page, dashboard);
     await expect(page.getByText(msg('news.state.stale.title'))).toBeVisible();
     await expect(page.getByTestId('news-button')).toHaveAttribute('data-dim', 'true');
     await expect(page.getByTestId('news-dot')).toHaveCount(0);
@@ -193,9 +194,9 @@ test.describe('NWS-02 Haber kartı', () => {
     await expect(page.getByText(msg('news.state.empty.title'))).toBeVisible();
   });
 
-  test('375 px: yalnız simge, kart ekrana sığar, taşma yok', { tag: '@NWS-02' }, async ({ page }) => {
+  test('375 px: yalnız simge, kart ekrana sığar, taşma yok', { tag: '@NWS-02' }, async ({ page, dashboard }) => {
     await page.setViewportSize({ width: 375, height: 812 });
-    await page.goto(OPEN);
+    await dashboard.open(DEMO_ID);
     const button = page.getByTestId('news-button');
     await expect(button).toBeVisible();
     await expect(page.getByTestId('news-button-label')).toBeHidden();
@@ -213,8 +214,8 @@ test.describe('NWS-02 Haber kartı', () => {
 
 test.describe('NWS-02 Deutsch', () => {
   test.use({ appLocale: 'de' });
-  test('Kartenbeschriftung und Titel in der Seitensprache', { tag: '@NWS-02' }, async ({ page }) => {
-    await page.goto(OPEN);
+  test('Kartenbeschriftung und Titel in der Seitensprache', { tag: '@NWS-02' }, async ({ page, dashboard }) => {
+    await dashboard.open(DEMO_ID);
     await page.getByTestId('news-button').click();
     await expect(page.getByTestId('news-card')).toContainText(msg('news.title', undefined, 'de'));
     await expect(page.getByTestId('news-imp-high')).toHaveText(msg('news.imp.high', undefined, 'de'));

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { usePathname } from 'next/navigation';
 import { CalendarClock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useAccountSettings } from '@/hooks/useAccountSettings';
 import { useLocale, useT } from '@/i18n';
 import { currenciesFromSymbols, effectiveCurrencies, isSoon, minutesUntil, nextEvent } from '@/lib/news';
 import { cn } from '@/lib/utils';
@@ -44,14 +43,13 @@ function NewsButtonInner() {
   const zones = useSettingsStore((s) => s.settings?.ZONES);
   const { filter, events, available, stale, failed, accountId } = useNewsStore();
 
-  // Hesabın zone sembolleri (varsayılan para birimleri); ayarlar yoksa yüklenir
-  const settingsError = useAccountSettings(selectedAccount, 'ifMissing');
-  const settingsReady = !selectedAccount || (loadedAccount === selectedAccount && !!zones) || !!settingsError;
+  // Hesabın zone sembolleri (varsayılan para birimleri): yalnız ayarlar başka yerde zaten yüklüyse (Dashboard).
+  // Düğme ayar çağırmaz (ANA-16: serbest grafik /settings istemez); yoksa tüm para birimleri.
   const symbolsKey = (loadedAccount === selectedAccount ? (zones ?? []) : []).map((z) => z.symbol).join(',');
   const derived = useMemo(() => currenciesFromSymbols(symbolsKey ? symbolsKey.split(',') : []), [symbolsKey]);
   const ccys = effectiveCurrencies(filter, derived);
   const ccyKey = ccys.join(',');
-  const ready = connected && accountId === selectedAccount && (filter.currencies !== null || settingsReady);
+  const ready = connected && accountId === selectedAccount;
 
   useEffect(() => {
     useNewsStore.getState().loadFilter(selectedAccount);
