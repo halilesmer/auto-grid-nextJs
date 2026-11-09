@@ -204,10 +204,23 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     if (drawingKey === context.key) store.setDocument(context.key, next);
     else {
       const own = store.documents[context.key] ?? defaults;
-      if (own.indicators !== next.indicators || own.overlays !== next.overlays || own.paneOrder !== next.paneOrder || own.systemPanes !== next.systemPanes) store.setDocument(context.key, { ...own, indicators: next.indicators, overlays: next.overlays, paneOrder: next.paneOrder, systemPanes: next.systemPanes });
+      if (own.indicators !== next.indicators || own.overlays !== next.overlays || own.paneOrder !== next.paneOrder || own.systemPanes !== next.systemPanes || own.paneHeights !== next.paneHeights) store.setDocument(context.key, { ...own, indicators: next.indicators, overlays: next.overlays, paneOrder: next.paneOrder, systemPanes: next.systemPanes, paneHeights: next.paneHeights });
       store.setDocument(drawingKey, { ...emptyChartDocument(), drawings: next.drawings, images: next.images });
     }
   }, [context.key, drawingKey, defaults]);
+  // The user drags a pane separator: the chart changes the pane heights itself and sends no event. After each pointer release
+  // the heights are read again; a change goes into the product's document, so the panes keep it after a reload (UI-24).
+  useEffect(() => {
+    if (!binding) return;
+    const release = () => requestAnimationFrame(() => {
+      const parts = renderer.current?.measurePaneParts();
+      if (!parts) return;
+      const saved = documentRef.current.paneHeights ?? {};
+      saveDocument({ ...documentRef.current, paneHeights: { ...saved, ...parts } });
+    });
+    window.addEventListener('pointerup', release, true);
+    return () => window.removeEventListener('pointerup', release, true);
+  }, [binding, saveDocument]);
   const saveAppearance = useCallback((next: Appearance) => {
     const store = useChartWorkspaceStore.getState();
     if (perProduct) {
@@ -325,6 +338,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
       cursor = `url("data:image/svg+xml,${encodeURIComponent(svg)}") 8 8, crosshair`;
     }
     binding.host.style.setProperty('cursor', cursor);
+    renderer.current?.setPaneParts(doc.paneHeights);
     const values = renderer.current?.update(effectiveIndicators, bars, missing, timeframeSec, appearance, context.symbol, until, maximizedPaneId, systemModels, paneOrder) ?? [];
     const frame = requestAnimationFrame(() => setSample({ scope: chartScope, values }));
     manager.current?.setDrawingsVisible(appearance.hideDrawings);
@@ -332,7 +346,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     if (manager.current) replay.current.sync(manager.current, until);
     manager.current?.redraw();
     return () => cancelAnimationFrame(frame);
-  }, [binding, appearance, digits, effectiveIndicators, bars, missing, timeframeSec, context.symbol, until, theme, revision, preferences.cursor, maximizedPaneId, chartScope, systemModels, paneOrder]);
+  }, [binding, appearance, digits, effectiveIndicators, bars, missing, timeframeSec, context.symbol, until, theme, revision, preferences.cursor, maximizedPaneId, chartScope, systemModels, paneOrder, doc.paneHeights]);
 
   useEffect(() => {
     if (!alarmsAvailable || sample.scope !== chartScope) return;

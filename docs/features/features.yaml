@@ -1585,6 +1585,16 @@ kategorien:
           - "Bei 375, 1024 und 1440 px: Menü öffnen, „Statistik“ anklicken; /chart hat keine Reiter Chart/Statistik; /chart?account=…&tab=stats öffnet /stats."
         erwartet: "Statistik ist ein Menüpunkt mit eigener Seite, die Kopfleiste von /chart hat keine Reiter, alte Links öffnen die Statistik, die Kopfzeile bleibt eine Zeile."
 
+      - id: UI-24
+        titel: "Oszillator-Höhe je Produkt gespeichert"
+        beschreibung: "Halil 2026-11-09: zieht der Nutzer die Trennlinie eines Oszillator-Bereichs (RSI, EWO, eigene Oszillatoren), bleibt die Höhe nach dem Neuladen. Gespeichert wird im Chart-Dokument des Produkts (Konto, Symbol; `paneHeights`, Höhe je Bereichs-id als Teil des Preisbereichs). Nach jedem Loslassen der Maus misst der Chart die Bereiche; nur eine Änderung gegenüber dem letzten Aufbau wird gespeichert, ein Klick ohne Ziehen speichert nichts. Eingeklappte und maximierte Bereiche werden nicht gemessen. Bereiche ohne gespeicherte Höhe bekommen wie bisher die halbe Höhe des Preisbereichs. Ein anderes Produkt behält seine eigenen Höhen."
+        code: [frontend_nextjs/src/components/chart-workspace/runtime.ts, frontend_nextjs/src/components/chart-workspace/ChartWorkspace.tsx, frontend_nextjs/src/store/useChartWorkspaceStore.ts]
+        tiers: [e2e]
+        pruefung:
+          - "Playwright-Test e2e/mocked/chart-pane-heights.spec.ts (@UI-24) ausführen."
+          - "/chart öffnen, RSI- und EWO-Bereich per Trennlinie verkleinern, Seite neu laden; dann ein anderes Symbol öffnen."
+        erwartet: "Nach dem Neuladen haben RSI und EWO die gezogene Höhe; das andere Symbol zeigt seine eigenen Höhen."
+
   # ---------------------------------------------------------------------------
   - id: ANA
     titel: Analyse (Chart, Statistik, Backtest)
