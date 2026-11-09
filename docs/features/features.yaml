@@ -2098,6 +2098,15 @@ kategorien:
           - Auf dem VPS (DEMO, nur lesen) die Fenster 3, 4 und 5 mit dem bt-Werkzeug in vier Kollen rechnen (ohne, nur askExtremes, nur quoteGrid, beide); im Worker-Log die erneut geholten Bereiche prüfen.
         erwartet: Die Tests bestehen. Auf dem VPS sinkt die Zahl nicht zugeordneter Trades der Setups 200050 und 200052 gegenüber „tick“ plus Replay ohne BKT-22, keine K-Klasse wird schlechter, und die Füllpreise der Raster-Symbole liegen zu 100 % im Raster des Tages.
 
+      - id: BKT-23
+        titel: "Backtest: Trigger-Minuten-Replay (Worker-Endpunkt)"
+        beschreibung: "Worker-Teil (PR-A, Plan 1109-K57) des Trigger-Minuten-Replays: GET /market/{id}/replay?symbol&start&m liefert die Ticks einzelner Minuten, damit der Backtest die Füll- und Ausstiegsminuten seiner Trades mit echten Ticks abspielen kann. `start` = Minute (MT5-Zeit, Sekunden, durch 60 teilbar), `m` = Minutenabstände (\"0,5,1\" = start, +5, +6 Minuten; der erste zu start, jeder weitere zur Vorminute). Grenzen: höchstens 2000 Minuten und 3 Tage Spanne, sonst 400; unbekanntes Symbol 404; Zugriff alle Rollen, aber nur eigene Konten (account_access, fremdes Konto = 404). Vorhandene Zeilen der Tabelle tick_replay (S/J aus BKT-20, frühere T) kommen aus der Datenbank; nur fehlende Minuten holt der Worker in 2-Stunden-Stücken mit je einem copy_ticks_range (data_query, einzeln unter dem gemeinsamen MT5-Slot, 40 s Budget je Aufruf, Rest als `budget`) und speichert sie als Art T (INSERT OR IGNORE: S/J-Zeilen werden nie überschrieben; Schema unverändert). Minuten ohne Tick fehlen in der Antwort und werden nur als leere T-Zeile gespeichert, wenn sie mindestens 2 Tage alt sind. Konto in /start oder /stop = `busy` ohne MT5-Zugriff. Antwort: Spalten t/kind/off/ms/b/a wie `replay` bei /rates (Preise in ganzen Punkten) plus `missing` (busy, budget, error). Der Browser-Teil (mehrere Durchläufe, Ausführungsverzögerung) folgt in PR-B."
+        code: [worker_python/src/api/market.py, worker_python/src/utils/market_sync.py, worker_python/src/utils/market_db.py, worker_python/tests/unit/test_replay_minutes.py, worker_python/tests/api/test_market_replay_minutes_api.py]
+        tiers: [unit, api]
+        pruefung:
+          - pytest tests/unit/test_replay_minutes.py und tests/api/test_market_replay_minutes_api.py ausführen (Minutenkodierung, Grenzen, Stücke, Cache, S/J bleiben, busy, Zugriff).
+        erwartet: Die Tests bestehen. Der Browser-Teil (BKT-23 in PR-B) ergänzt Tier e2e und die VPS-Abnahme.
+
   # ---------------------------------------------------------------------------
   - id: FRM
     titel: Formationserkennung
