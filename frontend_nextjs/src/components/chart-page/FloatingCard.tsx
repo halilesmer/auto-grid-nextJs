@@ -17,7 +17,7 @@ export interface FloatingCardTab {
 
 /**
  * Karte des Charts mit Titel, Reitern und Einklappen. Ab lg steht sie offen neben dem Chart (320 px; `OneChart` macht den Chart um ihre Breite schmaler, 1107-A21.18),
- * zugeklappt ist sie ein kleiner Kopf rechts über dem Chart, unter der Kopfleiste (`--chart-top`, ChartOverlays),
+ * zugeklappt ist sie ein kleiner Kopf rechts über dem Chart, unter der Kopfleiste (`--chart-top`, ChartOverlays), links der Preisachse (`--card-right` = Achsenbreite + 22 px, mindestens 84 px),
  * darunter unten über den Werkzeugen (zwei Zeilen hoch) des Charts und dort zunächst eingeklappt. Eingeklappt unter lg steht sie in einem
  * eigenen Streifen über den Werkzeugen: ihre Höhe steht als `--floating-card` auf `formation-main`, die Chartfläche endet darüber (ChartCore),
  * damit sie den untersten Bereich (EWO) nicht verdeckt. Unter lg liegt sie aufgeklappt über dem Chart.
@@ -44,6 +44,23 @@ export function FloatingCard({ title, tabs, defaultOpen = true, collapseSignal =
     window.addEventListener('resize', measure);
     return () => { observer.disconnect(); window.removeEventListener('resize', measure); page.style.removeProperty('--floating-card'); };
   }, [open]);
+  // Closed from lg the header stands left of the price scale. The scale gets wider with long prices or order tags, so the offset follows its measured width (1107-A21.21)
+  useLayoutEffect(() => {
+    const el = card.current, page = el?.closest<HTMLElement>('[data-testid="formation-main"]');
+    if (!el || !page || open) return;
+    let watched: Element | null = null;
+    function apply() {
+      const cell = page!.querySelector('[data-testid="analysis-chart"] table tr:first-child td:last-child');
+      if (cell !== watched) { if (watched) resizer.unobserve(watched); watched = cell; if (cell) resizer.observe(cell); }
+      const scale = cell ? Math.ceil(cell.getBoundingClientRect().width) : 0;
+      el!.style.setProperty('--card-right', `${Math.max(84, scale + 22)}px`);
+    }
+    const resizer = new ResizeObserver(apply);
+    apply();
+    const mutations = new MutationObserver(apply);
+    mutations.observe(page, { childList: true, subtree: true });
+    return () => { mutations.disconnect(); resizer.disconnect(); el.style.removeProperty('--card-right'); };
+  }, [open]);
   const moveTab = (event: KeyboardEvent, index: number) => {
     const steps: Record<string, number> = { ArrowRight: 1, ArrowLeft: -1 };
     const step = steps[event.key];
@@ -62,7 +79,7 @@ export function FloatingCard({ title, tabs, defaultOpen = true, collapseSignal =
         'pointer-events-auto absolute max-lg:z-[52] flex max-h-[calc(100dvh-var(--chart-top,0px)-8rem)] max-lg:max-h-[calc(100dvh-var(--chart-top,0px)-9.5rem)] flex-col overflow-hidden rounded-xl border border-border bg-background/97 shadow-lg',
         'max-lg:left-[64px] max-lg:right-3 lg:top-[calc(var(--chart-top,0px)+0.5rem)]',
         // Open from lg: the card stands next to the chart (the chart is 320 px narrower, OneChart); closed it is a small header over the chart (1107-A21.18)
-        open ? 'lg:left-full lg:right-auto' : 'lg:right-[84px]',
+        open ? 'lg:left-full lg:right-auto' : 'lg:right-(--card-right,84px)',
         open ? 'max-lg:bottom-[8.5rem]' : 'max-lg:bottom-[calc(var(--workspace-card,6.5rem)+0.25rem)]',
         'lg:w-80',
       )}

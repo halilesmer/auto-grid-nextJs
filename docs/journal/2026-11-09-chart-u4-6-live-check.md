@@ -27,5 +27,5 @@ Step U4-6 of plan 1107-A21: read-only check of `/chart` on the DEMO account in t
 Not checked by the agent in the browser: the Trades tab at a 320 px card, MN, 1100 px. The phone check of the project owner covers MN and the Trades table.
 
 ## Open points
-- [ ] 1107-A21.21: at 1024 px a collapsed card header sat over the chart and covered the price scale (`images/2026-11-09-u4-6-card-collapsed-1024.jpg`). It stayed after a reload. The cause is not known: a defect, or the agent moved the package by mistake (it clicked the toolbar arrow). No fix in this step.
+- [x] 1107-A21.21 (cause found and fixed, see `2026-11-09-chart-collapsed-card.md`): at 1024 px a collapsed card header sat over the chart and covered the price scale (`images/2026-11-09-u4-6-card-collapsed-1024.jpg`). It stayed after a reload. The cause is not known: a defect, or the agent moved the package by mistake (it clicked the toolbar arrow). No fix in this step.
 - [ ] Observation: the worker returned candles slowly. H4 took 18 to 40 s. M5 and W1 did not load at all in the test. The cause is not known (VPS load or code).
