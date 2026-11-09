@@ -3,7 +3,7 @@ date: 2026-11-08
 author: Claude
 type: plan
 status: done
-pr: [455, 457, 461, K4_PR]
+pr: [455, 457, 461, 467]
 features: [ZON-20, ZON-13, ZON-22, LOG-07, UI-07, UI-08]
 areas: [frontend, tests, docs]
 ---
