@@ -4,6 +4,7 @@
   (hedging/netting) ve sembolün kâr hesabı türü VPS'te bununla ölçülür.
 - /clock (ANA-10): takvimin "bugün/bu hafta" gibi seçimleri için broker saati farkı.
 - /ticks (BKT-17): ham tick'ler, yalnızca yönetici, en çok 2 saat.
+- /replay (BKT-23): istenen dakikaların tick'leri, tüm roller (kendi hesabı), en çok 2000 dakika.
 - /rates, /coverage (ANA-04): mum veritabanı; eksik parçalar MT5'ten ihtiyaç anında çekilir.
 - /history/{id}/deals (ANA-07): hesabın deal arşivi ve bölge kaydı.
 - /market/{id}/imports (BKT-05): CSV'den mum içe aktarma; kaynak `csv:<import_id>`.
@@ -286,6 +287,38 @@ async def ticks(
     except mt5_market.MarketDataError as exc:
         raise HTTPException(status_code=exc.status, detail=exc.detail)
     return {"account_id": account_id, "symbol": symbol, "from": from_, "to": to, "count": len(rows), "ticks": rows}
+
+
+@router.get("/market/{account_id}/replay", dependencies=[Depends(account_access)])
+async def replay_minutes(
+    account_id: str,
+    symbol: str,
+    start: int = Query(..., ge=0),
+    m: str = Query(..., max_length=14000),
+):
+    """BKT-23: Ticks einzelner Minuten für den Trigger-Replay des Backtests (alle Rollen, nur eigene Konten).
+
+    `start` = Minute (MT5-Zeit, Sekunden, durch 60 teilbar), `m` = Minutenabstände ("0,5,1": start, +5, +6 Minuten;
+    höchstens 2000 Minuten, 3 Tage Spanne). Antwort: Spalten t/kind/off/ms/b/a wie `replay` bei /rates (kind T =
+    auf Abruf geholt, S/J = Rollover-/Sprungminuten) und `missing` (busy, budget, error). Minuten ohne Tick fehlen.
+    Salt-okunur, veri sorgusu kipinde; Tick-Abrufe in 2-Stunden-Stücken, einzeln unter dem gemeinsamen MT5-Slot.
+    """
+    symbol = symbol.strip()
+    if not symbol or len(symbol) > 40:
+        raise HTTPException(status_code=400, detail="Sembol boş ya da çok uzun")
+    try:
+        minutes = market_sync.parse_replay_minutes(start, m)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    account = _account_or_404(account_id)
+    try:
+        result = await asyncio.to_thread(
+            market_sync.get_replay_minutes, account, symbol, minutes, is_account_busy(account_id))
+    except market_db.MarketDbUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except mt5_market.MarketDataError as exc:
+        raise HTTPException(status_code=exc.status, detail=exc.detail)
+    return {"account_id": account_id, "symbol": symbol, **result}
 
 
 @router.get("/market/{account_id}/coverage", dependencies=[Depends(account_access)])
