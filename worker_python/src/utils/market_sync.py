@@ -18,6 +18,7 @@ import time
 
 from src.utils import market_db as db
 from src.utils import mt5_market as mm
+from src.utils.worker_obs import obs_log
 
 # Zaman dilimi → (MT5 sabitinin adı, saniye)
 TIMEFRAMES = {
@@ -140,6 +141,16 @@ def _syncing_holes(mt5, symbol: str, tf_name: str, bars: list[dict], a: int, b: 
     return holes
 
 
+def _timed_range(mt5, symbol: str, tf_name: str, tf, a: int, b: int):
+    """copy_rates_range + Zeitlog (1109-R5). Verhalten unveraendert."""
+    t0 = time.monotonic()
+    rates = mt5.copy_rates_range(symbol, tf, a, b - 1)
+    n = len(rates) if rates is not None else 0
+    obs_log.info("[rates-timing] copy_rates_range %s %s bars=%d took=%.2fs", symbol, tf_name.replace("TIMEFRAME_", ""), n,
+                 time.monotonic() - t0)
+    return rates
+
+
 def _fetch_chunk(account: dict, symbol: str, tf_name: str, a: int, b: int) -> dict:
     """Tek bağlantı/kilit altında: [a, b) mumları, en yeni mum ve a'dan önce mum var mı."""
 
@@ -152,7 +163,7 @@ def _fetch_chunk(account: dict, symbol: str, tf_name: str, a: int, b: int) -> di
             mt5.symbol_select(symbol, True)  # Market Watch'ta olmayan sembolün geçmişi yüklenmez
         tf = getattr(mt5, tf_name)
         errors: list[str] = []
-        rates = mt5.copy_rates_range(symbol, tf, a, b - 1)  # MT5: bitiş dahil
+        rates = _timed_range(mt5, symbol, tf_name, tf, a, b)  # MT5: bitiş dahil
         if mm._mt5_error(mt5, "copy_rates_range", rates, errors):
             raise mm.MarketDataError(f"[RATES] {errors[0]}")
         for _ in range(EMPTY_RETRIES):
@@ -160,7 +171,7 @@ def _fetch_chunk(account: dict, symbol: str, tf_name: str, a: int, b: int) -> di
                 break
             time.sleep(EMPTY_RETRY_PAUSE_SEC)
             mt5.symbol_select(symbol, True)
-            rates = mt5.copy_rates_range(symbol, tf, a, b - 1)
+            rates = _timed_range(mt5, symbol, tf_name, tf, a, b)
             if mm._mt5_error(mt5, "copy_rates_range", rates, errors):
                 raise mm.MarketDataError(f"[RATES] {errors[0]}")
         newest = mt5.copy_rates_from_pos(symbol, tf, 0, 1)
@@ -468,7 +479,10 @@ def get_rates(account: dict, symbol: str, timeframe: str, a: int, b: int, busy: 
         hit = _tail_cache.get(key)
         if hit and time.monotonic() - hit[0] < TAIL_CACHE_SEC:
             return hit[1]
+    t_req = time.monotonic()
     result = _get_rates(account, source, symbol, timeframe, a, b, busy, tick_spread, tick_replay)
+    obs_log.info("[rates-timing] get_rates %s %s bars=%d total=%.2fs", symbol, timeframe, len(result["t"]),
+                 time.monotonic() - t_req)
     with _tail_lock:
         # Süresi dolanlar atılır (sözlük büyümesin)
         now = time.monotonic()
@@ -494,7 +508,11 @@ def _get_rates(account: dict, source: str, symbol: str, timeframe: str, a: int, 
     if todo and busy:
         missing += [{"from": x, "to": y, "reason": "busy", "checked_at": None} for x, y in todo]
     elif todo:
-        if not _FETCH_SLOT.acquire(timeout=FETCH_WAIT_SEC):
+        t_slot = time.monotonic()
+        got_slot = _FETCH_SLOT.acquire(timeout=FETCH_WAIT_SEC)
+        obs_log.info("[rates-timing] fetch_slot %s %s wait=%.2fs got=%s", symbol, timeframe,
+                     time.monotonic() - t_slot, got_slot)
+        if not got_slot:
             missing += [{"from": x, "to": y, "reason": "busy", "checked_at": None} for x, y in todo]
         else:
             try:
