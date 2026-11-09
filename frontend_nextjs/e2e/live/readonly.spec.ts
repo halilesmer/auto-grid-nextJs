@@ -7,7 +7,7 @@ import { expect, openSetup, test } from './live';
 import { msg } from '../fixtures/i18n';
 
 /** Sammelt METRICS-Nachrichten des echten Streams, bis `count` erreicht ist. */
-async function collectMetrics(page: Page, count: number, timeout = 15_000) {
+async function collectMetrics(page: Page, accountId: string, count: number, timeout = 15_000) {
   const messages: Array<Record<string, unknown>> = [];
   const wsUrls: string[] = [];
   page.on('websocket', (ws) => {
@@ -21,7 +21,8 @@ async function collectMetrics(page: Page, count: number, timeout = 15_000) {
       }
     });
   });
-  await page.goto('/chart');
+  // Der Stream gehört dem gewählten Konto; /chart wählt es aus ?account= (ohne Konto öffnet sich kein Stream)
+  await page.goto(`/chart?account=${accountId}`);
   await expect.poll(() => messages.length, { timeout }).toBeGreaterThanOrEqual(count);
   return { messages, wsUrls };
 }
@@ -80,7 +81,7 @@ test.describe('Live (nur lesend)', () => {
 
   test('WebSocket-Stream liefert Metriken', { tag: '@MET-03' }, async ({ page, api, account }) => {
     const settings = await api.settings(account.id);
-    const { messages, wsUrls } = await collectMetrics(page, 3);
+    const { messages, wsUrls } = await collectMetrics(page, account.id, 3);
     if (api.key) expect(wsUrls.some((u) => u.includes('api_key='))).toBe(true);
 
     const last = messages.at(-1)!;
@@ -88,7 +89,13 @@ test.describe('Live (nur lesend)', () => {
     // Stream zeigt das Symbol der ersten Zone des Kontos
     const firstSymbol = settings.ZONES?.[0]?.symbol;
     if (firstSymbol && last.symbol) expect(String(last.symbol).toUpperCase()).toBe(firstSymbol.toUpperCase());
-    await expect(page.getByTestId('chart-stat-price')).not.toContainText('--');
+    // Die schwebende Karte startet zu (UI-22): nach dem Scan aufklappen, dann stehen die Live-Werte in „Übersicht“
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    const card = page.getByTestId('chart-floating-card');
+    const expand = card.getByRole('button', { name: msg('chart.card.expand'), exact: true });
+    if (await expand.count()) await expand.click();
+    await card.getByTestId('chart-card-tab-overview').click();
+    await expect(card.getByTestId('chart-stat-price')).not.toContainText('--');
   });
 
   test('Kontoauswahl zeigt die Einstellungen vom VPS', { tag: ['@ACC-06', '@SET-01'] }, async ({ page, api, account, dashboard }) => {
@@ -187,8 +194,14 @@ test.describe('Live (nur lesend)', () => {
     if (before.bot_running && before.metrics.mt5_connected) {
       await expect(page.getByTestId('metric-profit')).toContainText(msg('metrics.live'));
       await expect(dashboard.botStatus).toHaveText(msg('bot.status.running'));
-      const shown = Number((await price.textContent())!.replace(/[^\d.]/g, ''));
-      const now = (await api.botStatus(account.id)).metrics.current_price ?? 0;
+      // Die erste Karte kann ein anderes Symbol haben als current_price der Metriken: gegen den Preis ihres Symbols prüfen
+      const symbol = (await dashboard.symbolInput(0).inputValue()).toUpperCase();
+      // Zahl in der Anzeigesprache (z. B. „4.102,17“): letztes Trennzeichen ist das Dezimalzeichen
+      const text = ((await price.textContent()) ?? '').replace(/[^\d.,]/g, '');
+      const sep = Math.max(text.lastIndexOf('.'), text.lastIndexOf(','));
+      const shown = Number(sep < 0 ? text : `${text.slice(0, sep).replace(/[.,]/g, '')}.${text.slice(sep + 1)}`);
+      const live = await api.botStatus(account.id);
+      const now = live.metrics.symbol_prices?.[symbol] ?? live.metrics.current_price ?? 0;
       // Preis bewegt sich zwischen den Abfragen; 1 % Toleranz
       expect(Math.abs(shown - now) / now).toBeLessThan(0.01);
       const positions = Number(await page.getByTestId('metric-positions').getAttribute('data-value'));

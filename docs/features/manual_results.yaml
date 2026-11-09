@@ -55,6 +55,17 @@ ACC-11:
     → /start sofort [CONFIG] MT5 terminal yolu bulunamadı; Journal von Terminal 1
     ohne fremden Login; Bot von Konto 1 lief weiter (BAĞLANTISI KOPTU: 0). Symbolliste
     kein Prüfweg (Cache 1 h).'
+ACC-12:
+  status: bestanden
+  datum: '2026-11-09'
+  notiz: 'Canlı DEMO: yükleme/listeleme/indirme başlıkları (nosniff, CSP sandbox,
+    immutable), 4. dosya 409, SVG/HTML/HEIC 415, silme 200; v0.7.519'
+ACC-13:
+  status: bestanden
+  datum: '2026-11-09'
+  notiz: 'Canlı DEMO (çalışmayan hesap, UI): form açılırken indirme yok, PDF+2560px
+    JPEG+txt yüklendi, karta tıklayınca tek GET, 4. dosya reddi, Escape yalnız önizlemeyi
+    kapatır'
 SET-01:
   status: bestanden
   datum: '2026-09-23'
