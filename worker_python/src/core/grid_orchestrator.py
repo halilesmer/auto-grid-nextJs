@@ -18,6 +18,7 @@ from .grid_order_manager import (
     clean_zombie_orders,
     process_partial_fills_and_tpsl,
     handle_zone_exit,
+    retry_exit_closes,
 )
 from .grid_execution.handler import handle_sliding_grid
 from .grid_execution.vanished import check_vanished_orders
@@ -106,6 +107,8 @@ def manage_dynamic_grid(
         active_zones_state,
         consecutive_errors,
     )
+
+    retry_exit_closes(mt5, zones, robot_positions, active_zones_state, filling_mode)
 
     ok = len(prices) == len(symbols)
     for idx, zone in enumerate(zones):
