@@ -17,7 +17,8 @@ import {
   type OlderEdge,
   type Timeframe,
 } from '@/lib/analysis/candles';
-import { fetchRates, type RatesResponse } from '@/services/marketApi';
+import { sharedFetchRates, subscribeTick } from '@/lib/sharedRates';
+import type { RatesResponse } from '@/services/marketApi';
 
 /** Endstück nachladen bzw. nach einem Fehler neu versuchen (Plan 11.5); der Worker hält das Endstück 30 s im Cache */
 const REFRESH_MS = 60_000;
@@ -94,7 +95,7 @@ export async function loadAll(
   let from = q.from;
   // Der Worker liefert höchstens 50.000 Kerzen je Antwort, der Rest über next_from
   while (from < q.to) {
-    const page = await fetchRates(accountId, { ...q, from }, signal);
+    const page = await sharedFetchRates(accountId, { ...q, from }, signal);
     pages.push(page);
     const count = pages.reduce((n, p) => n + p.t.length, 0);
     if (page.next_from === null || page.next_from <= from || count >= MAX_CHART_BARS) break;
@@ -185,7 +186,7 @@ export function useMarketRates(request: RatesRequest | null, nowSec: () => numbe
     const refreshTail = (cur: MarketRates) => {
       const from = cur.bars[cur.bars.length - 1].time;
       busy = true;
-      fetchRates(request.accountId, { ...q, from }, controller.signal)
+      sharedFetchRates(request.accountId, { ...q, from }, controller.signal)
         .then((page) => {
           if (controller.signal.aborted) return;
           // Ohne Kerzen (Konto beschäftigt, MT5-Fehler) bleibt der bisherige Stand: nie eine echte Kerze verwerfen
@@ -235,7 +236,7 @@ export function useMarketRates(request: RatesRequest | null, nowSec: () => numbe
         retryAt = performance.now() + OLDER_RETRY_MS;
         setState((s) => (s.key === key ? { ...s, loadingOlder: false } : s));
       };
-      fetchRates(request.accountId, { ...q, from: plan.from, to: plan.to }, controller.signal)
+      sharedFetchRates(request.accountId, { ...q, from: plan.from, to: plan.to }, controller.signal)
         .then((page) => {
           if (controller.signal.aborted) return;
           // „unavailable“ am Seitenbeginn: entweder der Beginn der MT5-Historie oder ein langes Loch mittendrin (market_sync.empty);
@@ -272,7 +273,8 @@ export function useMarketRates(request: RatesRequest | null, nowSec: () => numbe
     };
 
     load();
-    const timer = setInterval(() => {
+    // Gleiches Konto, Symbol, Zeitrahmen und Ende: ein Takt für alle Hooks (1107-A21.19)
+    const unsubscribe = subscribeTick(`${request.accountId}|${request.symbol}|${request.timeframe}|${win.to}`, REFRESH_MS, () => {
       const cur = latest.current;
       if (busy || cur.key !== key) return;
       if (!cur.data) {
@@ -281,11 +283,11 @@ export function useMarketRates(request: RatesRequest | null, nowSec: () => numbe
       }
       // Nur, wenn der Zeitraum bis jetzt reicht
       if (win.to > clock.current() - tfSec && cur.data.bars.length > 0) refreshTail(cur.data);
-    }, REFRESH_MS);
+    });
 
     return () => {
       controller.abort();
-      clearInterval(timer);
+      unsubscribe();
       olderRef.current = NO_OLDER;
     };
     // request steckt vollständig im key

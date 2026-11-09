@@ -969,7 +969,7 @@ test.describe('FRM-27 Formationsalarm', () => {
   });
 
   test('Eine Formation, die nach dem Einschalten gültig wird, wird einmal gemeldet, nicht nach dem Neuladen', { tag: '@FRM-27' }, async ({ page, worker }) => {
-    // 1107-A21.15: kept at 60 s. A clock jump of 15 minutes fires the 60-second tail refresh of every rates hook 15 times (about 50 requests per jump, see journal 2026-11-08-chart-u4-5b-fixes); the test body takes 20 s on a free machine, 40 s under load
+    // 1107-A21.15/A21.19: kept at 60 s. A clock jump of 15 minutes fires the 60-second tail refresh 15 times; hooks with the same range now share it (about 30 requests per jump, was 49, see journal 2026-11-09-chart-shared-rates). The body took 27 s on a loaded machine
     test.setTimeout(60_000);
     await page.clock.install();
     await openPage(page, worker, `${URL}&form=GAR`, FORMING_NOW);
