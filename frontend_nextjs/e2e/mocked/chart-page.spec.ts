@@ -4,6 +4,7 @@
  * und in der schwebenden Karte.
  */
 import type { Page } from '@playwright/test';
+import { openCardTab } from '../fixtures/card';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, ZONE_ID, expect, test } from '../fixtures/test';
 
@@ -54,7 +55,9 @@ for (const viewport of VIEWPORTS) {
       // Obergrenze: eine Reserve ist höchstens so hoch wie ihr Element plus Randabstand und 4 px, sonst könnte der Chart schrumpfen.
       const vars = await page.getByTestId('formation-main').evaluate(el => ({ workspace: parseFloat(el.style.getPropertyValue('--workspace-card')) || 0, floating: parseFloat(el.style.getPropertyValue('--floating-card')) || 0 }));
       const tools = await page.getByTestId('workspace-toolbar').evaluate(el => el.getBoundingClientRect().height + parseFloat(getComputedStyle(el).bottom) + 8);
-      const cardHeight = (await page.getByTestId('chart-floating-card').boundingBox())!.height;
+      // From lg there is no floating card (rail + panel, 1107-A21.22): it reserves no height
+      const floatingCard = page.getByTestId('chart-floating-card');
+      const cardHeight = (await floatingCard.count()) ? (await floatingCard.boundingBox())!.height : 0;
       expect(vars.workspace).toBeLessThanOrEqual(tools + 4);
       expect(vars.floating).toBeLessThanOrEqual(cardHeight + 4 + 4);
       const reserve = vars.workspace + vars.floating;
@@ -71,13 +74,10 @@ for (const viewport of VIEWPORTS) {
       await page.keyboard.press('Escape');
 
       // Schwebende Karte: Zonenkarte und Live-Werte, Trades im zweiten Reiter
-      const card = page.getByTestId('chart-floating-card');
-      await expect(card).toBeVisible();
-      // Die Karte ist unter 1024 px zu und, solange eine Formation gezeichnet wird, auch darüber: nach dem Scan aufklappen
+      // The scan ends first, then the card opens: rail button from lg, floating card below
       await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
-      const expand = card.getByRole('button', { name: msg('chart.card.expand') });
-      if (await expand.count()) await expand.click();
-      await card.getByTestId('chart-card-tab-overview').click();
+      const card = await openCardTab(page, 'overview');
+      await expect(card).toBeVisible();
       await expect(card.getByText('90 – 110')).toBeVisible();
       await expect(card.getByTestId('chart-stat-price')).toBeVisible();
       await card.getByRole('tab', { name: msg('chart.card.trades') }).click();
@@ -95,17 +95,15 @@ for (const viewport of VIEWPORTS) {
       await expect(page.getByText(msg('analysis.subtitle'))).toHaveCount(0);
       await expect(page.getByTestId('analysis-chart-frame')).toHaveCount(0);
       // Ein Symbol ohne Setup (EURUSD) hat nur die Karte mit dem Hinweis, keine Setup-Werte
-      const noSetupCard = page.getByTestId('chart-floating-card');
       await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+      const noSetupCard = await openCardTab(page, 'overview');
       await expect(noSetupCard).toBeVisible();
-      const expandCard = noSetupCard.getByRole('button', { name: msg('chart.card.expand') });
-      if (await expandCard.count()) await expandCard.click();
-      await noSetupCard.getByTestId('chart-card-tab-overview').click();
       await expect(noSetupCard.getByTestId('chart-card-no-setup')).toBeVisible();
       await expect(page.getByTestId('chart-stat-price')).toHaveCount(0);
       await noOverflow(page);
-      // The open card stands next to the chart (1107-A21.18) and narrows it: close it again, the checks below are about the full-width bar
-      await noSetupCard.getByRole('button', { name: msg('chart.card.collapse'), exact: true }).click();
+      // The open panel narrows the chart (1107-A21.22): close it again, the checks below are about the full-width bar
+      if (await page.getByTestId('chart-rail').isVisible()) await page.getByTestId('chart-rail-card').click();
+      else await noSetupCard.getByRole('button', { name: msg('chart.card.collapse'), exact: true }).click();
 
       const surface = await page.getByTestId('formation-surface').boundingBox();
       const box = await chart.boundingBox();
