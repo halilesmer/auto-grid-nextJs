@@ -73,13 +73,13 @@ interface NumCtx {
 }
 
 /** Zahlenfeld mit „Zurück zum Kontowert“; bewusst außerhalb der Seite, damit es beim Tippen nicht neu eingehängt wird. */
-function Num({ c, k, label, hintKey, resettable = false, decimals, shown, onInput, suffix }: {
-  c: NumCtx; k: Key; label: MessageKey; hintKey: MessageKey; resettable?: boolean; decimals?: number; shown?: number; onInput?: (v: number) => void; suffix?: ReactNode;
+function Num({ c, k, label, hintKey, resettable = false, decimals, shown, onInput, suffix, className }: {
+  c: NumCtx; k: Key; label: MessageKey; hintKey: MessageKey; resettable?: boolean; decimals?: number; shown?: number; onInput?: (v: number) => void; suffix?: ReactNode; className?: string;
 }) {
   const { t, val, setVal, resetVal, over, auto } = c;
   const changed = k in over && over[k] !== auto[k];
   return (
-    <div className="flex min-w-0 flex-col gap-1.5">
+    <div className={cn('flex min-w-0 flex-col gap-1.5', className)}>
       <InputField label={t(label)} hint={t(hintKey)}>
         <div className="flex items-center gap-1.5">
           <NumberInput
@@ -253,7 +253,7 @@ export default function GridRiskView() {
               suffix={<Button variant="outline" size="sm" hint={t('tools.live.hint')} disabled={!accountId || !info} onClick={() => { resetVal('p0'); setRefresh((n) => n + 1); }} data-testid="grid-risk-live">{t('tools.live')}</Button>} />
             <Num c={c} k="floor" label="tools.floor" hintKey="tools.floor.hint" decimals={digits} />
             <Num c={c} k="lot" label="tools.lot" hintKey="tools.lot.hint" decimals={4} />
-            <Num c={c} k="step" label="tools.step" hintKey="tools.step.hint" shown={stepShown} decimals={stepCent ? Math.max(0, digits - 2) : digits}
+            <Num c={c} k="step" label="tools.step" hintKey="tools.step.hint" className="col-span-2" shown={stepShown} decimals={stepCent ? Math.max(0, digits - 2) : digits}
               onInput={(v) => setVal('step', stepCent ? v / 100 : v)}
               suffix={
                 <span className="flex shrink-0 rounded-md bg-muted p-0.5 text-[11px]">

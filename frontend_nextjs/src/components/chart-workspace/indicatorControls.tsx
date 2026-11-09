@@ -10,6 +10,7 @@ import { FILL_ROWS, GRADIENT_ROWS, patchRow, rowStyle, type Tones } from '@/lib/
 import type { Indicator, RowKey, RowStyle } from '@/lib/chart-workspace/indicators';
 import { cn } from '@/lib/utils';
 import { ownColor } from './runtime';
+import { handleDecimalKeyDown, handleDecimalPaste } from '@/components/ui/NumberInput';
 
 const box = 'h-8 rounded-md border border-border bg-popover text-sm text-foreground';
 const CHECKER = 'repeating-conic-gradient(var(--border) 0 25%, var(--muted) 0 50%) 0 0 / 8px 8px';
@@ -38,7 +39,7 @@ export function NumberBox({ label, hint, value, min, max, step = 1, onChange, di
   };
   return <Tooltip content={hint}><input aria-label={label} disabled={disabled} className={cn(box, className, 'px-2.5 text-right tabular-nums disabled:cursor-not-allowed disabled:opacity-50')} type="number" min={min} max={max} step={step} value={text ?? value}
     onChange={e => { setText(e.target.value); const n = Number(e.target.value); if (e.target.value !== '' && Number.isFinite(n) && n >= min && n <= max) onChange(clampNumber(n, min, max, step)); }}
-    onBlur={e => commit(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') commit(e.currentTarget.value); }} /></Tooltip>;
+    onBlur={e => commit(e.target.value)} onKeyDown={e => { handleDecimalKeyDown(e); if (e.key === 'Enter') commit(e.currentTarget.value); }} onPaste={handleDecimalPaste} /></Tooltip>;
 }
 export function SelectBox({ label, hint, value, options, onChange, disabled }: { label: string; hint: string; value: string; options: readonly { value: string; label: string }[]; onChange: (v: string) => void; disabled?: boolean }) {
   return <Tooltip content={hint}><span className="relative inline-flex"><select aria-label={label} disabled={disabled} className={cn(box, 'w-36 appearance-none truncate pl-2.5 pr-7 disabled:cursor-not-allowed disabled:opacity-50')} value={value} onChange={e => onChange(e.target.value)}>{options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select><ChevronDown className="pointer-events-none absolute right-2 top-2 size-4 text-muted-foreground" aria-hidden="true" /></span></Tooltip>;

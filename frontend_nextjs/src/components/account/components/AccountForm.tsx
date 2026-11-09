@@ -10,6 +10,7 @@ import { AccountMedia, AccountMediaPending } from '../media/AccountMedia';
 import { PasswordField } from './PasswordField';
 import { MT5PathSelector } from './MT5PathSelector';
 import type { AccountFormProps } from '../types';
+import { handleDecimalKeyDown, handleDecimalPaste } from '@/components/ui/NumberInput';
 
 function submitLabelKey({ isSaving, isLoading }: { isSaving?: boolean; isLoading?: boolean }): MessageKey {
   if (isSaving) return 'account.form.saving';
@@ -99,6 +100,8 @@ export function AccountForm({
           <input
             name="login"
             type="number"
+            onKeyDown={handleDecimalKeyDown}
+            onPaste={handleDecimalPaste}
             value={formData.login || ''}
             onChange={(e) => onChange('login', e.target.value)}
             onBlur={() => onBlur('login')}

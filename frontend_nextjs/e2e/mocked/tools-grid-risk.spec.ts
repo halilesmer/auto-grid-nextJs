@@ -45,6 +45,26 @@ test.describe('Grid-Risikorechner', { tag: '@TLS-01' }, () => {
     await expect(swapCell).toHaveClass(/text-danger/);
   });
 
+  test('Kademe aralığı: „0.“ stürzt nicht ab, Komma gilt als Punkt, das Feld ist breit genug', async ({ page, dashboard }) => {
+    await openCalculator(page, dashboard);
+    await pickSymbol(page, 'USOUSD');
+    const step = page.getByTestId('grid-risk-step');
+    // Leer → NaN als Wert; früher Endlosschleife im NumberInput (Too many re-renders)
+    await step.fill('');
+    await step.pressSequentially('0.5');
+    await expect(page.getByTestId('grid-risk-page')).toBeVisible();
+    await expect(step).toHaveValue('0.5');
+    // Komma gilt wie Punkt (Tippen und Einfügen)
+    await step.fill('');
+    await step.pressSequentially('0,25');
+    await expect(step).toHaveValue('0.25');
+    await page.getByTestId('grid-risk-lot').fill('');
+    await page.getByTestId('grid-risk-lot').pressSequentially('0,02');
+    await expect(page.getByTestId('grid-risk-lot')).toHaveValue('0.02');
+    // Platz für mehrere Ziffern neben dem Cent/Fiyat-Schalter
+    expect((await step.boundingBox())!.width).toBeGreaterThan(100);
+  });
+
   test('Fehlerfälle: Dip über P0 und zu viele Stufen mit der echten Zahl (P0 80,1 → 1 in 0,01: 7911)', async ({ page, dashboard }) => {
     await openCalculator(page, dashboard);
     await pickSymbol(page, 'USOUSD');
