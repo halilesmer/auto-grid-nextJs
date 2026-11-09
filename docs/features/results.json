@@ -368,14 +368,14 @@
       "tests": 50
     },
     "e2e": {
-      "datum": "2026-11-07",
+      "datum": "2026-11-09",
       "status": "passed",
       "tests": 17
     }
   },
   "BKT-06": {
     "e2e": {
-      "datum": "2026-11-07",
+      "datum": "2026-11-09",
       "status": "passed",
       "tests": 2
     }
@@ -1127,8 +1127,8 @@
   },
   "FRM-47": {
     "e2e": {
-      "datum": "2026-11-08",
-      "status": "failed",
+      "datum": "2026-11-09",
+      "status": "passed",
       "tests": 20
     }
   },

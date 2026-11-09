@@ -42,3 +42,6 @@ The thread and the task each tick every 250 ms. They log when a tick is more tha
 - [ ] Merge the PR. Wait for the VPS update.
 - [ ] Request a cold D1 range (5 000 days) on a symbol that the terminal has not loaded. Poll `/api/system/platform` in parallel. Read the `[rates-timing]` and `[heartbeat]` lines.
 - [ ] Write the result (GIL: yes or no) in this entry in a second PR.
+
+## Follow-up fix (first VPS run)
+The first VPS run wrote no `[rates-timing]` lines. `main.py` imports the routers before `console_tee` replaces `sys.stdout`. The `grid.obs` handler kept the old stream, so `worker_console.log` did not get the lines. The handler now writes to the current `sys.stdout`. A test covers it.
