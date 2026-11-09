@@ -697,3 +697,29 @@ def test_standardgrenze_ist_10000_mb(monkeypatch):
     monkeypatch.delenv("MARKET_DB_MAX_MB", raising=False)
     from src.utils import market_db
     assert market_db.max_bytes() == 10000 * 1024 * 1024
+
+
+@pytest.mark.feature("ANA-04")
+def test_rates_timing_log_written(client, broker):
+    """1109-R5: copy_rates_range-, Slot- und Gesamtdauer stehen als [rates-timing]-Zeilen im Log."""
+    import logging
+    from src.utils.worker_obs import obs_log
+
+    lines = []
+
+    class Grab(logging.Handler):
+        def emit(self, record):
+            lines.append(record.getMessage())
+
+    h = Grab()
+    obs_log.addHandler(h)
+    try:
+        get_rates(client, MON, MON + 3600)
+    finally:
+        obs_log.removeHandler(h)
+    text = "\n".join(lines)
+    assert f"[rates-timing] copy_rates_range {SYMBOL} M1 bars=" in text
+    assert "took=" in text
+    assert f"[rates-timing] fetch_slot {SYMBOL} M1 wait=" in text
+    assert f"[rates-timing] get_rates {SYMBOL} M1 bars=" in text and "total=" in text
+    assert TEST_ACCOUNT_ID not in text  # keine Kontonummer im Log

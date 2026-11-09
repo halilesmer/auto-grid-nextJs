@@ -71,6 +71,8 @@ async def _startup_maintenance():
     loop.create_task(asyncio.to_thread(startup_maintenance, persisted))
     app.state.watchdog_task = loop.create_task(run_watchdog())
     app.state.auto_update_task = loop.create_task(run_auto_updater())
+    from src.utils.worker_obs import start_heartbeat
+    app.state.heartbeat = start_heartbeat(loop)  # 1109-R5: Thread-/Schleifen-Verspaetung loggen
 
 @app.on_event("shutdown")
 def force_shutdown():
