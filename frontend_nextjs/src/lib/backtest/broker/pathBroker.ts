@@ -435,14 +435,17 @@ export class PathBroker extends SimBroker {
   /**
    * Marke ausführen. `atMarket`: der Kurs ist hinweggesprungen, im Modell „gap“ gilt der Marktpreis; sonst der
    * Preis der Marke. Der Markt (Kurs, Uhr) ist vorher mit setMarket gestellt.
+   * BKT-23: `quote` (Replay-Minute) ist die Quote, zu der der Broker ausführt (letzter Tick bis zur Verzögerung nach der
+   * Auslösung); ohne Angabe gilt der Tick der Auslösung. Sie wirkt nur dort, wo sonst der Marktpreis gilt.
    */
-  fire(trigger: Trigger, atMarket: boolean): void {
+  fire(trigger: Trigger, atMarket: boolean, quote?: { bid: number; ask: number }): void {
     const useMarket = atMarket && this.fill === 'gap';
+    const market = quote ?? this.tick;
     if (trigger.kind === 'fill') {
       const order = this.orders.find((o) => o.ticket === trigger.ticket);
       if (!order) throw new RunError('run.internal', { what: 'order missing', ticket: trigger.ticket });
       const buy = BUY_ORDER_TYPES.includes(order.type);
-      const marketPrice = buy ? this.tick.ask : this.tick.bid;
+      const marketPrice = buy ? market.ask : market.bid;
       const level = this.orderLevel(order.type, order.price_open);
       let price = useMarket ? marketPrice : level;
       if (useMarket && this.wideBefore) price = buy ? Math.max(price, order.price_open) : Math.min(price, order.price_open);
@@ -481,7 +484,7 @@ export class PathBroker extends SimBroker {
     let onGrid: number;
     if (buy) onGrid = tp ? this.bidUp(level) : this.bidDown(level);
     else onGrid = tp ? this.askDown(level) : this.askUp(level);
-    const marketPrice = buy ? this.tick.bid : this.tick.ask;
+    const marketPrice = buy ? market.bid : market.ask;
     let price = useMarket ? marketPrice : onGrid;
     if (trigger.kind === 'sl' && !this.replaying) {
       const slip = this.slSlippagePoints === null ? this.spreadPrice / 2 : this.slSlippagePoints * this.costs.point;
@@ -494,6 +497,11 @@ export class PathBroker extends SimBroker {
       else price = Math.max(price, worse);
     }
     this.closePosition(position, price, trigger.kind);
+  }
+
+  /** BKT-23: Eröffnungszeiten der noch offenen Positionen (Sekunden) */
+  openEntryTimes(): number[] {
+    return this.positions.map((p) => this.opens.get(p.ticket)?.time).filter((t): t is number => typeof t === 'number');
   }
 
   /** Startzustand: eine schon offene Position übernehmen (ohne Eingangskommission, die liegt vor dem Zeitraum) */

@@ -85,7 +85,7 @@ interface Page {
 }
 
 /** Antwort-Spalten der Replay-Minuten: `off[i]` = Start der Minute i in ms/b/a (Länge + 1, aufsteigend), Preise in ganzen Punkten */
-interface ReplayColumns {
+export interface ReplayColumns {
   t: number[];
   kind: string[];
   off: number[];
@@ -96,14 +96,16 @@ interface ReplayColumns {
 
 const isNumArray = (v: unknown): v is number[] => Array.isArray(v) && v.every((x) => typeof x === 'number');
 
-function validReplay(r: unknown): r is ReplayColumns {
+export function validReplay(r: unknown): r is ReplayColumns {
   const c = r as Partial<ReplayColumns> | null;
   if (!c || !isNumArray(c.t) || !isNumArray(c.off) || !isNumArray(c.ms) || !isNumArray(c.b) || !isNumArray(c.a)) return false;
   if (!Array.isArray(c.kind) || c.kind.length !== c.t.length || c.off.length !== c.t.length + 1) return false;
   const total = c.ms.length;
   if (c.b.length !== total || c.a.length !== total || c.off[0] !== 0 || c.off[c.off.length - 1] !== total) return false;
   for (let i = 1; i < c.off.length; i++) if (c.off[i] < c.off[i - 1]) return false;
-  for (let i = 0; i < total; i++) if (!(c.ms[i] >= 0 && c.ms[i] < 60_000) || c.b[i] > c.a[i]) return false;
+  for (let i = 0; i < total; i++) if (!(c.ms[i] >= 0 && c.ms[i] < 60_000) || !(c.b[i] > 0) || !(c.a[i] > 0) || c.b[i] > c.a[i]) return false;
+  // Innerhalb einer Minute nicht fallende Zeit (der Lauf rechnet die Ausführungsverzögerung vorwärts)
+  for (let m = 0; m < c.t.length; m++) for (let i = c.off[m] + 1; i < c.off[m + 1]; i++) if (c.ms[i] < c.ms[i - 1]) return false;
   return true;
 }
 

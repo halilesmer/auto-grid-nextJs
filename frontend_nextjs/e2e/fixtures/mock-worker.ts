@@ -248,6 +248,9 @@ export class MockWorker {
   readonly ratesDelivered: number[] = [];
   /** Abfragen von /market/{id}/rates (Query-Text), für BKT-19 */
   readonly tickSpreadRequests: string[] = [];
+  /** BKT-23: Abfragen von /market/{id}/replay (Query-Text) und die Ticks je Minute, die der Mock liefert ([ms, Bid, Ask] in Preisen); ohne Eintrag fehlt die Minute wie bei einem Worker ohne Tick */
+  readonly replayRequests: string[] = [];
+  replayTicks: Record<number, [number, number, number][]> = {};
   /** Abfragetext jeder Antwort von /market/{id}/rates, in Reihenfolge (ANA-26: W1 und MN fragen D1) */
   readonly ratesQueries: string[] = [];
   /** Rohkörper der laufenden Anfrage (Chunk-Upload des CSV-Imports) */
@@ -1141,6 +1144,35 @@ export class MockWorker {
         return { status: 400, body: { detail: 'tick_replay tick_spread ister' } };
       }
       return ok(this.rates(seg[1], url.searchParams));
+    }
+
+    // BKT-23, wie market.py replay_minutes: Minuten aus start + Abständen m, Spalten t/kind/off/ms/b/a (Punkte 0,001 wie /rates)
+    if (seg[0] === 'market' && seg[2] === 'replay' && method === 'GET') {
+      if (!s.accounts.some((a) => String(a.id) === seg[1])) {
+        return { status: 404, body: { detail: `Account '${seg[1]}' not found` } };
+      }
+      const start = Number(url.searchParams.get('start'));
+      const diffs = (url.searchParams.get('m') ?? '').split(',');
+      if (!url.searchParams.get('symbol') || !(start >= 0) || start % 60 !== 0 || diffs.length === 0 || diffs.length > 2000 || diffs.some((d) => !/^\d+$/.test(d))) {
+        return { status: 400, body: { detail: 'start/m ungültig' } };
+      }
+      this.replayRequests.push(url.searchParams.toString());
+      let at = start;
+      const cols = { t: [] as number[], kind: [] as string[], off: [0], ms: [] as number[], b: [] as number[], a: [] as number[] };
+      for (const d of diffs) {
+        at += Number(d) * 60;
+        const ticks = this.replayTicks[at];
+        if (!ticks) continue;
+        cols.t.push(at);
+        cols.kind.push('T');
+        for (const [ms, bid, ask] of ticks) {
+          cols.ms.push(ms);
+          cols.b.push(Math.round(bid / 0.001));
+          cols.a.push(Math.round(ask / 0.001));
+        }
+        cols.off.push(cols.ms.length);
+      }
+      return ok({ account_id: seg[1], symbol: url.searchParams.get('symbol'), ...cols, missing: [] });
     }
 
     // Wie market.py quotes: je Symbol letzter Preis, Vortagsschluss und Stellen; null = unbekannt
