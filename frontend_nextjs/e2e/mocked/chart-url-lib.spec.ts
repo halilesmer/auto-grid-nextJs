@@ -12,7 +12,7 @@ const zoneSymbol = (id: string) => (id === 'z1' ? 'EURUSD' : null);
 
 ui('Defaults: empty URL gives H4, range All, no symbol', () => {
   const r = parseChartUrl(p(''));
-  expect(r).toEqual({ account: null, symbol: null, zone: null, tf: 'H4', form: null, at: null, range: { preset: 'all' }, tab: 'chart' });
+  expect(r).toEqual({ account: null, symbol: null, zone: null, tf: 'H4', form: null, at: null, range: { preset: 'all' } });
   expect(DEFAULT_CHART_TF).toBe('H4');
   expect(DEFAULT_CHART_RANGE).toEqual({ preset: 'all' });
 });
@@ -56,9 +56,9 @@ ui('Zone without symbol takes the symbol of the zone; explicit symbol wins', () 
   expect(parseChartUrl(p('zone=z1')).symbol).toBeNull();
 });
 
-ui('tab=stats opens Statistics; other values give chart', () => {
-  expect(parseChartUrl(p('tab=stats')).tab).toBe('stats');
-  expect(parseChartUrl(p('tab=x')).tab).toBe('chart');
+ui('tab is no longer part of the model (UI-23): read ignores it, every write removes it', () => {
+  expect('tab' in parseChartUrl(p('tab=stats'))).toBe(false);
+  expect(buildChartUrl(p('tab=stats&symbol=EURUSD'), {}).toString()).toBe('symbol=EURUSD');
 });
 
 ui('Range: preset, custom days, invalid falls back to All', () => {
@@ -69,7 +69,7 @@ ui('Range: preset, custom days, invalid falls back to All', () => {
 });
 
 ui('Write: default values leave the URL', () => {
-  const out = buildChartUrl(p('symbol=EURUSD&tf=M5&range=last7'), { tf: 'H4', range: DEFAULT_CHART_RANGE, tab: 'chart' });
+  const out = buildChartUrl(p('symbol=EURUSD&tf=M5&range=last7'), { tf: 'H4', range: DEFAULT_CHART_RANGE });
   expect(out.toString()).toBe('symbol=EURUSD');
 });
 
@@ -103,7 +103,6 @@ ui('Write: null clears a field; custom range replaces preset', () => {
   expect(r.has('range')).toBe(false);
   expect(r.get('from')).toBe('2026-10-01');
   expect(buildChartUrl(r, { range: { preset: 'last90' } }).toString()).toBe('range=last90');
-  expect(buildChartUrl(r, { tab: 'stats' }).get('tab')).toBe('stats');
 });
 
 ui('Write: untouched default values of an old link also leave the URL', () => {

@@ -11,7 +11,11 @@ const nextConfig: NextConfig = {
   // Die Formationsseite ist seit dem einen Chart (1107-A21) /chart; ein alter `mode=` wird dort ignoriert. Alte Links (gespeicherte Alarm-Meldungen, Lesezeichen) behalten ihren Query-String:
   // Next reicht die Query-Werte der Anfrage an das Ziel durch.
   async redirects() {
-    return [{ source: '/formasyon', destination: '/chart', permanent: false }];
+    // Die Statistik ist seit UI-23 die Seite /stats: alte Links /chart?…&tab=stats öffnen sie (tab fällt dort beim ersten Schreiben der Adresse weg).
+    return [
+      { source: '/formasyon', destination: '/chart', permanent: false },
+      { source: '/chart', has: [{ type: 'query', key: 'tab', value: 'stats' }], destination: '/stats', permanent: false },
+    ];
   },
   experimental: {
     serverActions: {

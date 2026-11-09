@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'motion/react';
-import { CandlestickChart, FlaskConical, Grid3x3, LayoutDashboard, Menu, Server, Users } from 'lucide-react';
+import { BarChart3, CandlestickChart, FlaskConical, Grid3x3, LayoutDashboard, Menu, Server, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip } from '@/components/ui/tooltip';
 import { VERSION } from '@/app/version';
@@ -24,14 +24,15 @@ const LINKS: {
 }[] = [
   { href: '/', labelKey: 'nav.dashboard', hintKey: 'nav.dashboard.hint', icon: LayoutDashboard },
   { href: '/chart', labelKey: 'nav.chart', hintKey: 'nav.chart.hint', icon: CandlestickChart },
+  { href: '/stats', labelKey: 'nav.stats', hintKey: 'nav.stats.hint', icon: BarChart3 },
   { href: '/backtest', labelKey: 'nav.backtest', hintKey: 'nav.backtest.hint', icon: FlaskConical },
   // /vps läuft auch ohne Worker-Verbindung: erst ausblenden, wenn feststeht, dass es kein Admin ist
   { href: '/vps', labelKey: 'nav.vps', hintKey: 'nav.vps.hint', icon: Server, visible: (me) => !me || me.role === 'admin' },
   { href: '/users', labelKey: 'nav.users', hintKey: 'nav.users.hint', icon: Users, visible: (me) => me?.role === 'admin' },
 ];
 
-/** Das Werkzeuge-Menü steht hinter Dashboard, Chart und Backtest; VPS und Benutzer folgen. */
-const TOOLS_AFTER = 3;
+/** Das Werkzeuge-Menü steht hinter Dashboard, Chart, Statistik und Backtest; VPS und Benutzer folgen. */
+const TOOLS_AFTER = 4;
 
 /**
  * Seitenlinks. `row` = in der Kopfzeile (ab lg) mit gleitender Markierung, `panel` = untereinander im
@@ -55,9 +56,10 @@ function NavLinks({ layout, from = 0, to = LINKS.length }: { layout: 'row' | 'pa
           aria-label={label}
           onClick={inPanel ? close : undefined}
           className={cn(
-            'relative flex min-h-10 items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            'relative flex min-h-10 items-center gap-2 whitespace-nowrap rounded-lg py-2 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             // Kopfzeile eine Stufe kleiner; im ☰-Menü wie die übrigen Menüeinträge (text-sm)
-            inPanel ? 'w-full text-sm' : 'text-xs',
+            // Kopfzeile zwischen lg und xl etwas enger: mit „Statistik“ (UI-23) passen sonst bei 1024 px nicht alle Admin-Links in die Zeile
+            inPanel ? 'w-full px-3 text-sm' : 'px-2.5 text-xs xl:px-3',
             inPanel && active && 'bg-accent',
             active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
             inPanel && !active && 'hover:bg-accent',

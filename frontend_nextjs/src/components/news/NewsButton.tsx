@@ -140,7 +140,8 @@ function NewsButtonInner() {
         )}
       >
         <CalendarClock size={15} aria-hidden="true" />
-        <span className="hidden sm:inline" data-testid="news-button-label">{label}</span>
+        {/* lg–xl: nur Symbol, sonst drängt die Geri-sayım (z. B. „USD 19 sa 45 dk“) die Menüpunkte zusammen (UI-23, 1024 px) */}
+        <span className="hidden sm:inline lg:hidden xl:inline" data-testid="news-button-label">{label}</span>
         {soon && <span data-testid="news-dot" className="absolute -right-0.5 -top-0.5 size-2 rounded-full border-2 border-background bg-warning" />}
       </Button>
       {open && (

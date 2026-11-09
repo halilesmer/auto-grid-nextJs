@@ -36,7 +36,7 @@ test.describe('UI-01 Kopfzeile', () => {
     await expect(nav.getByRole('link', { name: msg('nav.chart') })).toHaveCount(0);
 
     const panel = await openPageMenu(page);
-    for (const key of ['nav.dashboard', 'nav.chart', 'nav.backtest', 'nav.vps', 'nav.users'] as const) {
+    for (const key of ['nav.dashboard', 'nav.chart', 'nav.stats', 'nav.backtest', 'nav.vps', 'nav.users'] as const) {
       await expectInViewport(page, panel.getByRole('link', { name: msg(key), exact: true }), key);
     }
     await expect(panel.getByRole('link', { name: msg('nav.dashboard') })).toHaveAttribute('aria-current', 'page');

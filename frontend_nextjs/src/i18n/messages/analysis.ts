@@ -4,8 +4,6 @@ import { defineArea } from './define';
 export default defineArea(
   {
     'analysis.subtitle': 'Seçili hesap ve setup için grafik ve istatistik',
-    'analysis.tab.chart': 'Grafik',
-    'analysis.tab.stats': 'İstatistik',
     'analysis.zone': 'Setup',
     'analysis.zone.placeholder': 'Setup seçin',
     'analysis.zone.search': 'Sembol veya setup ara…',
@@ -204,8 +202,6 @@ export default defineArea(
   },
   {
     'analysis.subtitle': 'Chart and statistics for the selected account and setup',
-    'analysis.tab.chart': 'Chart',
-    'analysis.tab.stats': 'Statistics',
     'analysis.zone': 'Setup',
     'analysis.zone.placeholder': 'Select a setup',
     'analysis.zone.search': 'Search symbol or setup…',
@@ -404,8 +400,6 @@ export default defineArea(
   },
   {
     'analysis.subtitle': 'Chart und Statistik für das gewählte Konto und Setup',
-    'analysis.tab.chart': 'Chart',
-    'analysis.tab.stats': 'Statistik',
     'analysis.zone': 'Setup',
     'analysis.zone.placeholder': 'Setup wählen',
     'analysis.zone.search': 'Symbol oder Setup suchen…',
