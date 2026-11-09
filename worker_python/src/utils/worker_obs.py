@@ -18,7 +18,21 @@ LATE_SEC = 1.0
 
 obs_log = logging.getLogger("grid.obs")
 if not obs_log.handlers:
-    _h = logging.StreamHandler(sys.stdout)
+    class _LiveStdout(logging.StreamHandler):
+        """Schreibt auf das AKTUELLE sys.stdout: console_tee ersetzt es erst nach dem Import."""
+
+        def __init__(self):
+            super().__init__(sys.stdout)
+
+        @property
+        def stream(self):
+            return sys.stdout
+
+        @stream.setter
+        def stream(self, _value):
+            pass
+
+    _h = _LiveStdout()
     _h.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
     obs_log.addHandler(_h)
     obs_log.setLevel(logging.INFO)
