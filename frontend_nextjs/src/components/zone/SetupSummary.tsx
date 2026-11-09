@@ -32,9 +32,10 @@ export function SetupSummary({ zone, symbolDetails }: { zone: ZoneSettings; symb
     >
       {items.map((item) => (
         <li key={item.id} className="min-w-0 max-w-full">
-          <Tooltip content={t(`zone.summary.${item.id}.hint` as MessageKey)} className="max-w-full" touchToggle>
+          <Tooltip content={item.full ? `${t(`zone.summary.${item.id}.hint` as MessageKey)} ${item.full}` : t(`zone.summary.${item.id}.hint` as MessageKey)} className="max-w-full" touchToggle>
             <span
               tabIndex={0}
+              aria-label={item.full ? `${item.label} ${item.full}` : undefined}
               data-testid={`summary-${item.id}`}
               data-off={item.off || undefined}
               className={cn(
@@ -43,7 +44,7 @@ export function SetupSummary({ zone, symbolDetails }: { zone: ZoneSettings; symb
               )}
             >
               <span className="shrink-0 text-muted-foreground">{item.label}</span>
-              <span className={cn('min-w-0 break-words font-mono font-medium tabular-nums', item.off ? 'text-muted-foreground' : 'text-foreground')}>
+              <span className={cn('min-w-0 font-mono font-medium tabular-nums', item.off ? 'text-muted-foreground' : 'text-foreground')}>
                 {item.value}
               </span>
             </span>
