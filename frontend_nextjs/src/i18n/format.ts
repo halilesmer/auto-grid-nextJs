@@ -7,6 +7,8 @@ export interface Formatters {
   money: (value: number, signed?: boolean) => string;
   /** Symbolpreis mit festen Nachkommastellen (Symbol-Digits), ohne Währungszeichen. */
   price: (value: number, digits?: number) => string;
+  /** Yalnız tarih (gg.aa.yyyy), yerel saat dilimi. */
+  date: (value: Date | number | string) => string;
   time: (value: Date | number | string) => string;
   dateTime: (value: Date | number | string) => string;
   /** SS:DD (saniyesiz), yerel saat dilimi. */
@@ -29,6 +31,7 @@ export function makeFormatters(locale: Locale): Formatters {
     },
     price: (value, digits = 2) =>
       value.toLocaleString(tag, { minimumFractionDigits: digits, maximumFractionDigits: digits }),
+    date: (value) => new Date(value).toLocaleDateString(tag, { day: '2-digit', month: '2-digit', year: 'numeric' }),
     time: (value) => new Date(value).toLocaleTimeString(tag, { hour12: false }),
     dateTime: (value) => new Date(value).toLocaleString(tag, { hour12: false }),
     clock: (value) => new Date(value).toLocaleTimeString(tag, { hour: '2-digit', minute: '2-digit', hour12: false }),

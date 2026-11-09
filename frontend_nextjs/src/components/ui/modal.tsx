@@ -16,9 +16,13 @@ interface ModalProps {
   children: ReactNode;
   className?: string;
   dismissible?: boolean;
+  /** false: başlık satırı çizilmez, içerik kendi başlığını (ve kapat düğmesini) taşır; Escape/arka plan yine kapatır. */
+  chrome?: boolean;
+  /** Erişilebilir ad, wenn kein Titel (chrome=false) da ist. */
+  label?: string;
 }
 
-export function Modal({ open, onClose, title, icon, children, className, dismissible = true }: ModalProps) {
+export function Modal({ open, onClose, title, icon, children, className, dismissible = true, chrome = true, label }: ModalProps) {
   const t = useT();
   // Anker bleibt an der Einbaustelle, um den Portal-Container zu bestimmen (erst im Browser vorhanden)
   const [anchor, setAnchor] = useState<HTMLSpanElement | null>(null);
@@ -56,6 +60,7 @@ export function Modal({ open, onClose, title, icon, children, className, dismiss
               <motion.div
                 role="dialog"
                 aria-modal="true"
+                aria-label={label}
                 initial={{ opacity: 0, y: 12, scale: 0.97 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 8, scale: 0.98 }}
@@ -65,7 +70,7 @@ export function Modal({ open, onClose, title, icon, children, className, dismiss
                   className,
                 )}
               >
-                {(title || dismissible) && (
+                {chrome && (title || dismissible) && (
                   <div className="mb-4 flex items-center gap-3">
                     {icon}
                     {title && <h3 className="flex-1 text-base font-semibold tracking-tight">{title}</h3>}

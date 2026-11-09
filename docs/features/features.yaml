@@ -280,12 +280,22 @@ kategorien:
       - id: ACC-12
         titel: Medien im Konto (max. 3, PDF/Bild/Notiz)
         beschreibung: "Je Konto höchstens 3 Dateien (PDF, PNG/JPEG/WebP, Notiz .txt/.md). API unter /accounts/{id}/media: Liste (ohne Dateiinhalt), Hochladen als roher Body (?name=), Herunterladen, Löschen. Der Typ kommt aus den ersten Bytes, nicht aus Endung oder Client-MIME; alles andere (SVG, HTML, GIF, HEIC) ergibt 415. Grenzen: Bild und PDF 10 MB, Notiz 1 MB (413), vierte Datei 409. Download mit nosniff, CSP sandbox und unveränderlichem Cache. Fremde Konten sind 404 (Administrator darf alles). Beim Löschen des Kontos bleiben die Medien; legt ein anderer Besitzer dieselbe Kennung an, werden sie verworfen (1107-A20.4, wie 1107-A6.3)."
-        code: [worker_python/src/api/media.py, worker_python/src/utils/account_media.py, worker_python/src/utils/paths.py, worker_python/src/api/accounts.py]
-        tiers: [api, live]
+        code: [worker_python/src/api/media.py, worker_python/src/utils/account_media.py, worker_python/src/utils/paths.py, worker_python/src/api/accounts.py, frontend_nextjs/src/services/mediaApi.ts, frontend_nextjs/src/components/account/media/AccountMedia.tsx, frontend_nextjs/src/components/account/media/useAccountMedia.ts, frontend_nextjs/src/components/account/media/MediaSlot.tsx, frontend_nextjs/src/components/account/media/mediaUtils.ts, frontend_nextjs/src/components/account/components/AccountForm.tsx]
+        tiers: [api, e2e, live]
         pruefung:
           - Nur DEMO-Konto. Mit dem Admin-Schlüssel per curl eine kleine PNG-Datei an POST /api/accounts/<Konto>/media?name=test.png senden, dann GET /api/accounts/<Konto>/media und GET .../media/<id> aufrufen.
           - Eine vierte Datei senden; die Testdatei danach mit DELETE entfernen.
         erwartet: Upload antwortet 201, die Liste zeigt die Datei ohne Inhalt, der Download liefert dieselben Bytes mit den Sicherheitsheadern; die vierte Datei ergibt 409; nach DELETE ist die Liste leer.
+
+      - id: ACC-13
+        titel: Medien im Kontoformular, Vorschau lädt erst beim Anklicken
+        beschreibung: "Im Bearbeiten-Dialog eines Kontos (unter den Notizen, nur bei gespeichertem Konto; beim neuen Konto steht ein Hinweis) zeigt der Abschnitt „Medien“ die Dateien als Karten mit Typ-Symbol, Name, Größe und Datum (ohne Vorschaubild). Beim Öffnen läuft nur die Listenabfrage; die Datei selbst lädt erst ein Klick auf die Karte, als Blob mit API-Schlüssel (axiosInstance, nie eine Worker-URL in <img>/window.open). Die Vorschau zeigt Bild (<img>, Einpassen/Originalgröße), PDF (iframe) oder Notiz als Klartext (<pre>, kein HTML/Markdown); „Neuer Tab“ und „Herunterladen“ im Kopf, Schließen bricht den Ladevorgang ab. Eine einmal geöffnete Datei lädt in dieser Sitzung nicht erneut (höchstens 3 Blob-URLs, beim Schließen des Abschnitts freigegeben). Datei wählen oder ziehen lädt sofort hoch, immer nur eine gleichzeitig; JPEG/WebP über 2 MB werden vorher im Browser auf 2560 px Kantenlänge verkleinert (PNG nicht). Löschen fragt mit ConfirmModal. Escape schließt bei offener Vorschau oder Frage nur diese, nicht das Kontoformular (1107-A20, 1108-A1)."
+        code: [frontend_nextjs/src/components/account/media/AccountMedia.tsx, frontend_nextjs/src/components/account/media/MediaPreviewDialog.tsx, frontend_nextjs/src/components/account/media/MediaSlot.tsx, frontend_nextjs/src/components/account/media/useAccountMedia.ts, frontend_nextjs/src/components/account/media/useEscapeShield.ts, frontend_nextjs/src/services/mediaApi.ts, frontend_nextjs/src/components/account/components/AccountForm.tsx]
+        tiers: [e2e, live]
+        pruefung:
+          - Nur DEMO-Konto, Worker auf dem VPS aktuell. Konto bearbeiten, im Abschnitt „Medien“ eine kleine PNG-Datei und ein PDF hinzufügen. DevTools → Network offen halten.
+          - Formular schließen und neu öffnen; danach die Karten nacheinander anklicken. Escape in der Vorschau drücken.
+        erwartet: Beim Öffnen des Formulars gibt es nur die Listenabfrage, keine Dateiabfrage. Jeder Klick auf eine Karte lädt genau einmal und zeigt Bild bzw. PDF; ein zweites Öffnen derselben Karte erzeugt keine neue Abfrage. Escape schließt nur die Vorschau, das Formular bleibt. Die Testdateien danach löschen.
 
   # ---------------------------------------------------------------------------
   - id: USR

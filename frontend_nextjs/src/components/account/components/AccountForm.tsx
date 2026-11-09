@@ -6,6 +6,7 @@ import { FieldLabel, Tooltip } from '@/components/ui/tooltip';
 import { useT, type MessageKey } from '@/i18n';
 import { useIsAdmin } from '@/store/useAuthStore';
 import { useUsersStore } from '@/store/useUsersStore';
+import { AccountMedia, AccountMediaPending } from '../media/AccountMedia';
 import { PasswordField } from './PasswordField';
 import { MT5PathSelector } from './MT5PathSelector';
 import type { AccountFormProps } from '../types';
@@ -35,6 +36,7 @@ export function AccountForm({
   mt5ScanError,
   onSubmit,
   onEditExisting,
+  media,
 }: AccountFormProps) {
   const t = useT();
   const isAdmin = useIsAdmin();
@@ -233,6 +235,8 @@ export function AccountForm({
           className="input-s resize-none"
         />
       </div>
+
+      {media?.open && (media.accountId ? <AccountMedia key={media.accountId} accountId={media.accountId} canEdit /> : <AccountMediaPending />)}
 
       <div className="mt-6 flex justify-end gap-3 border-t border-border pt-5">
         <Button

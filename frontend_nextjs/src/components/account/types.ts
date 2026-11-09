@@ -168,6 +168,8 @@ export interface AccountFormProps {
   mt5ScanError?: string | null;
   onSubmit: () => void;
   onEditExisting?: () => void;
+  /** Medya bölümü (1107-A20): `accountId` yoksa hesap henüz kayıtlı değil; `open` false iken liste istenmez. */
+  media?: { open: boolean; accountId: string | null };
 }
 
 export interface MT5PathSelectorProps {
