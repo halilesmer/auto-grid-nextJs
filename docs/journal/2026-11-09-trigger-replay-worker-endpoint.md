@@ -3,7 +3,7 @@ date: 2026-11-09
 author: Claude
 type: feature
 status: open
-pr: [479]
+pr: [479, 482]
 features: [BKT-23]
 areas: [worker, backtest]
 ---
