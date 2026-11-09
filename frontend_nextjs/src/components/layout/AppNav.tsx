@@ -12,6 +12,7 @@ import { DropdownMenu, DropdownMenuGroup, useDropdownClose } from '@/components/
 import { useAuthStore, type Me } from '@/store/useAuthStore';
 import NewsButton from '@/components/news/NewsButton';
 import HeaderMenu from './HeaderMenu';
+import ToolsNav from './ToolsNav';
 
 const LINKS: {
   href: string;
@@ -29,18 +30,21 @@ const LINKS: {
   { href: '/users', labelKey: 'nav.users', hintKey: 'nav.users.hint', icon: Users, visible: (me) => me?.role === 'admin' },
 ];
 
+/** Das Werkzeuge-Menü steht hinter Dashboard, Chart und Backtest; VPS und Benutzer folgen. */
+const TOOLS_AFTER = 3;
+
 /**
  * Seitenlinks. `row` = in der Kopfzeile (ab lg) mit gleitender Markierung, `panel` = untereinander im
  * ☰-Menü (unter lg); dort schließt ein Klick das Menü.
  */
-function NavLinks({ layout }: { layout: 'row' | 'panel' }) {
+function NavLinks({ layout, from = 0, to = LINKS.length }: { layout: 'row' | 'panel'; from?: number; to?: number }) {
   const pathname = usePathname();
   const t = useT();
   const me = useAuthStore((s) => s.me);
   const close = useDropdownClose();
   const inPanel = layout === 'panel';
 
-  return LINKS.filter((link) => !link.visible || link.visible(me)).map(({ href, labelKey, hintKey, icon: Icon }) => {
+  return LINKS.slice(from, to).filter((link) => !link.visible || link.visible(me)).map(({ href, labelKey, hintKey, icon: Icon }) => {
     const label = t(labelKey);
     const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
     return (
@@ -98,11 +102,13 @@ export default function AppNav() {
         </Tooltip>
 
         {chartWorkspace && <span className="hidden text-sm font-medium sm:block lg:hidden">{t('nav.chart')}</span>}
-        <div className="hidden min-w-0 items-center gap-1 lg:flex">
-          <NavLinks layout="row" />
+        <div className="hidden min-w-0 flex-1 items-center justify-center gap-1 lg:flex">
+          <NavLinks layout="row" to={TOOLS_AFTER} />
+          <ToolsNav layout="row" />
+          <NavLinks layout="row" from={TOOLS_AFTER} />
         </div>
 
-        <div className="ml-auto flex min-w-0 items-center gap-2">
+        <div className="ml-auto flex min-w-0 items-center gap-2 lg:ml-0">
           <NewsButton />
           <HeaderMenu />
           <DropdownMenu
@@ -116,7 +122,9 @@ export default function AppNav() {
           >
             <div data-testid="nav-menu-panel">
               <DropdownMenuGroup className="space-y-0.5">
-                <NavLinks layout="panel" />
+                <NavLinks layout="panel" to={TOOLS_AFTER} />
+                <ToolsNav layout="panel" />
+                <NavLinks layout="panel" from={TOOLS_AFTER} />
               </DropdownMenuGroup>
             </div>
           </DropdownMenu>

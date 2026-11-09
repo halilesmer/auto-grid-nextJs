@@ -221,6 +221,45 @@ def quotes(account_config: dict, symbols: list[str]) -> dict:
     return _connected(account_config, lambda mt5: collect_quotes(mt5, account_config, symbols))
 
 
+def collect_calc_context(mt5, account_config: dict, symbol: str) -> dict:
+    """Grid-Risiko-Rechner (TLS-01): Kontodaten + Marge von 1 Lot zum Ask. Nur lesend.
+
+    `margin_per_lot` ist None, wenn MT5 die Marge nicht berechnen kann (der Client nimmt dann die Näherung).
+    """
+    acc = _check_account(mt5, account_config)
+    info = mt5.symbol_info(symbol)
+    tick = mt5.symbol_info_tick(symbol)
+    if info is None:
+        raise MarketDataError(f"[SYMBOL] {symbol} bu hesapta bulunamadı.", status=404)
+    if tick is None:
+        raise MarketDataError(f"[TICK] {symbol} için fiyat yok.", status=404)
+    bid, ask = _plain(getattr(tick, "bid", 0)), _plain(getattr(tick, "ask", 0))
+    price = ask or bid
+    margin = None
+    if price:
+        try:
+            margin = mt5.order_calc_margin(mt5.ORDER_TYPE_BUY, symbol, 1.0, price)
+        except Exception:
+            margin = None
+    return {
+        "balance": _plain(acc.balance),
+        "leverage": _plain(getattr(acc, "leverage", 0)),
+        "currency": _plain(acc.currency),
+        "margin_so_so": _plain(getattr(acc, "margin_so_so", None)),
+        "margin_so_mode": _plain(getattr(acc, "margin_so_mode", None)),
+        "symbol": symbol,
+        "bid": bid,
+        "ask": ask,
+        "margin_per_lot": _plain(margin) if margin else None,
+        "margin_price": price if margin else None,
+    }
+
+
+def calc_context(account_config: dict, symbol: str) -> dict:
+    """Bağlanır (veri sorgusu kipinde) ve hesaplayıcı bağlamını okur."""
+    return _connected(account_config, lambda mt5: collect_calc_context(mt5, account_config, symbol))
+
+
 TICKS_MAX_WINDOW_SEC = 2 * 3600  # BKT-17: bir çağrıda en çok 2 saat
 TICKS_MAX_ROWS = 200_000
 

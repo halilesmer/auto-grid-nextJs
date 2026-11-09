@@ -1045,6 +1045,22 @@ export class MockWorker {
       return { ...ok({ account_id: seg[1], quotes }), delayMs: s.quotesDelayMs };
     }
 
+    // Wie market.py calc_context (TLS-01): Konto- und Margendaten für den Grid-Risiko-Rechner; nur lesend
+    if (seg[0] === 'market' && seg[2] === 'calc-context' && method === 'GET') {
+      if (!s.accounts.some((a) => String(a.id) === seg[1])) {
+        return { status: 404, body: { detail: `Account '${seg[1]}' not found` } };
+      }
+      const name = url.searchParams.get('symbol') ?? '';
+      const sym = s.symbols.find((x) => x.name === name);
+      if (!sym) return { status: 404, body: { detail: `[SYMBOL] ${name} bu hesapta bulunamadı.` } };
+      const { balance, leverage, bid, ask, marginNull } = s.calcContext;
+      const margin = marginNull ? null : (ask * (sym.trade_contract_size ?? 1)) / leverage;
+      return ok({
+        account_id: seg[1], symbol: name, balance, leverage, currency: 'USD', margin_so_so: 50, margin_so_mode: 0,
+        bid, ask, margin_per_lot: margin, margin_price: marginNull ? null : ask,
+      });
+    }
+
     // --------------------------------------------------------------- CSV-Import (market.py, BKT-05)
     if (seg[0] === 'market' && seg[2] === 'imports') {
       return this.csvImports(method, seg, body, principal);
