@@ -7,7 +7,6 @@ import { MOCK_API } from '../fixtures/env';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, LIVE_ID, ZONE_ID, expect, makeZone, test } from '../fixtures/test';
 
-const tab = (page: Page, key: Parameters<typeof msg>[0]) => page.getByRole('tab', { name: msg(key) });
 const accountSelect = (page: Page) => page.getByRole('combobox', { name: msg('account.select.aria') });
 
 async function chooseAccount(page: Page, id: string) {
@@ -26,7 +25,7 @@ async function openCard(page: Page) {
   await expect(card.getByTestId('chart-card-overview')).toBeVisible();
 }
 
-/** Ein Element der Kopfleiste. Ist die Leiste zu schmal (UI-17), liegen Chart/Statistik und die Lizenz im ˅-Menü der Aksiyonlar: dann wird es dort gesucht. */
+/** Ein Element der Kopfleiste. Ist die Leiste zu schmal (UI-17), liegt die Lizenz im ˅-Menü der Aksiyonlar: dann wird es dort gesucht. */
 async function inTopbar(page: Page, find: (scope: Locator) => Locator): Promise<Locator> {
   const topbar = page.getByTestId('chart-topbar');
   const direct = find(topbar);
@@ -74,22 +73,20 @@ test.describe('ANA Analyse-Seite', () => {
     await expect(page.getByText('90 – 110')).toBeVisible();
   });
 
-  test('Tabs stehen in der URL und überstehen das Neuladen', { tag: '@ANA-01' }, async ({ page, worker }) => {
+  // UI-23: the statistics are the page /stats (menu item), no tab in the chart bar any more
+  test('Statistik ist eine eigene Seite und übersteht das Neuladen', { tag: ['@ANA-01', '@UI-23'] }, async ({ page, worker }) => {
     void worker;
     await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=M15`);
     await openCard(page);
     await expect(page.getByText('90 – 110')).toBeVisible();
 
-    await (await inTopbar(page, (scope) => scope.getByRole('tab', { name: msg('analysis.tab.stats') }))).click();
-    await expect(page).toHaveURL(/tab=stats/);
+    await page.goto(`/stats?account=${DEMO_ID}&zone=${ZONE_ID}`);
     await expect(page.getByTestId('stats-tab')).toBeVisible();
 
     await page.reload();
-    await expect(tab(page, 'analysis.tab.stats')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('stats-tab')).toBeVisible();
     await expect(page.getByTestId('zone-select')).toContainText(msg('analysis.zone.option', { symbol: 'USOUSD', n: 1 }));
-
-    await tab(page, 'analysis.tab.chart').click();
-    await expect(page).not.toHaveURL(/tab=/);
+    expect(new URL(page.url()).searchParams.get('tab')).toBeNull();
   });
 
   test('Lizenzhinweis von TradingView', { tag: '@ANA-01' }, async ({ page, worker }) => {

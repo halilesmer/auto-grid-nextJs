@@ -852,11 +852,9 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
       // Desktoplinks sind direkt in der Kopfzeile erreichbar.
       await expect(page.getByTestId('nav-menu')).toBeHidden();
       await expect(page.getByTestId('app-nav').getByRole('link', { name: msg('nav.chart', {}, 'de'), exact: true })).toBeVisible();
-      // At 1100 px the open card leaves the chart 728 px wide and the tabs stand in the arrow menu (reachable, test in chart-one-chart.spec.ts);
-      // this step clicks the tab in the desktop bar, so it goes to 1440 px
-      await page.setViewportSize({ width: 1440, height: 900 });
-      await page.getByRole('tab', { name: msg('analysis.tab.stats', {}, 'de') }).click();
-      await expect(page).toHaveURL(/tab=stats/);
+      // The statistics are the menu item /stats (UI-23)
+      await page.getByTestId('app-nav').getByRole('link', { name: msg('nav.stats', {}, 'de'), exact: true }).click();
+      await expect(page).toHaveURL(/\/stats/);
       await expect(page.getByTestId('chart-page')).toHaveCount(0);
     });
   }

@@ -252,6 +252,13 @@ test.describe('UI-07 Hinweise: Abdeckung', () => {
     expect(await unhinted(page)).toEqual([]);
   });
 
+  test('Statistik-Seite: jedes Bedienelement erklärt sich', { tag: ['@UI-07', '@UI-23'] }, async ({ page, worker }) => {
+    void worker;
+    await page.goto(`/stats?account=${DEMO_ID}&zone=${ZONE_ID}`);
+    await expect(page.getByTestId('stats-tab')).toBeVisible();
+    expect(await unhinted(page)).toEqual([]);
+  });
+
   test('Formasyon- und Chart-Seite', { tag: '@UI-07' }, async ({ page, worker, dashboard }) => {
     void worker;
     await page.goto('/chart');

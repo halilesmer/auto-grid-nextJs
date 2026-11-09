@@ -116,19 +116,8 @@ for (const viewport of VIEWPORTS) {
       const topbar = page.getByTestId('chart-topbar');
       await expect(topbar.getByTestId('timeframe-H1')).toBeVisible();
       await expect(topbar.getByTestId('range-trigger')).toBeVisible();
-      const stats = topbar.getByRole('tab', { name: msg('analysis.tab.stats'), exact: true });
-      if (viewport.width === 1024) {
-        // Plan 1106-A4.15 (Halil: „A4.15.1 menü“): bei 1024 px kann Satır 1 zu schmal sein; dann stehen Chart/Statistik im ˅-Menü der Aksiyonlar.
-        // Seit 1107-A21 teilt sich das Paket Aksiyonlar den Platz mit den Formations-Aktionen: beide Orte sind richtig, Statistik muss erreichbar sein
-        if (await stats.isVisible()) await stats.click();
-        else {
-          await topbar.locator('[data-dock-pkg="actions"]').getByTestId('dock-more').click();
-          const menu = page.getByTestId('dock-more-menu');
-          expect(await menu.locator('[role=tab]:visible').evaluateAll(b => b.map(x => x.getAttribute('aria-label') ?? x.textContent?.trim()))).toEqual([msg('analysis.tab.chart'), msg('analysis.tab.stats')]);
-          await menu.getByRole('tab', { name: msg('analysis.tab.stats'), exact: true }).click();
-        }
-        await expect(page).toHaveURL(/tab=stats/);
-      } else await expect(stats).toBeVisible();
+      // Seit UI-23 hat die Kopfleiste keine Reiter Chart/Statistik mehr; die Statistik ist ein Menüpunkt (/stats)
+      await expect(topbar.getByRole('tab')).toHaveCount(0);
     });
   });
 }

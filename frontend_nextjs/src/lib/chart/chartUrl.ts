@@ -5,16 +5,14 @@ import { isDayString, isTimeString, RANGE_PRESETS, type DayRange, type RangePres
 /**
  * URL model of the one chart without modes (plan 1107-A21, U4-3). Pure functions, no store.
  * Old links with `mode=` keep working: `mode` is ignored on read and removed on every write.
+ * `tab` is the same since UI-23: Statistics is the page /stats (next.config.ts redirects `/chart?tab=stats` there).
  */
-
-export const CHART_TABS = ['chart', 'stats'] as const;
-export type ChartTab = (typeof CHART_TABS)[number];
 
 export type ChartRange = { preset: RangePreset } | { custom: DayRange };
 
 /** Without `tf` the chart opens on H4 (1107-A21.7) */
 export const DEFAULT_CHART_TF: ChartTimeframe = 'H4';
-/** Range default of the chart and Statistics ("All"). `/backtest` keeps its own `last30` (useAnalysisParams). */
+/** Range default of /chart and /stats ("All"). `/backtest` keeps its own `last30` (useAnalysisParams). */
 export const DEFAULT_CHART_RANGE: ChartRange = Object.freeze({ preset: 'all' as const });
 
 export interface ChartUrlState {
@@ -25,7 +23,6 @@ export interface ChartUrlState {
   form: string | null;
   at: string | null;
   range: ChartRange;
-  tab: ChartTab;
 }
 
 /** Only these timeframes have formation detection (1107-A21.1) */
@@ -38,7 +35,6 @@ export function parseChartUrl(params: URLSearchParams, zoneSymbol?: (zoneId: str
   const zone = params.get('zone') || null;
   const symbol = params.get('symbol')?.trim() || (zone && zoneSymbol ? zoneSymbol(zone) || null : null);
   const tfParam = params.get('tf');
-  const tab = params.get('tab');
   return {
     account: params.get('account') || null,
     symbol,
@@ -48,7 +44,6 @@ export function parseChartUrl(params: URLSearchParams, zoneSymbol?: (zoneId: str
     form: params.get('form') || null,
     at: params.get('at') || null,
     range: parseRange(params),
-    tab: tab === 'stats' ? 'stats' : 'chart',
   };
 }
 
@@ -76,7 +71,6 @@ export type ChartUrlChange = Partial<{
   form: string | null;
   at: string | null;
   range: ChartRange;
-  tab: ChartTab;
 }>;
 
 function setOrDelete(out: URLSearchParams, key: string, value: string | null | undefined) {
@@ -85,17 +79,17 @@ function setOrDelete(out: URLSearchParams, key: string, value: string | null | u
 }
 
 /**
- * New query after a change. Default values leave the URL, `mode` is always removed, and a timeframe
+ * New query after a change. Default values leave the URL, `mode` and `tab` are always removed, and a timeframe
  * without formations drops `form` and `at` (1107-A21.9). The input is not changed.
  */
 export function buildChartUrl(current: URLSearchParams, change: ChartUrlChange): URLSearchParams {
   const out = new URLSearchParams(current);
   out.delete('mode');
+  out.delete('tab');
   for (const key of ['account', 'symbol', 'zone', 'form', 'at'] as const) {
     if (key in change) setOrDelete(out, key, change[key]);
   }
   if (change.tf) setOrDelete(out, 'tf', change.tf === DEFAULT_CHART_TF ? null : change.tf);
-  if (change.tab) setOrDelete(out, 'tab', change.tab === 'chart' ? null : change.tab);
   if (change.range) {
     for (const key of ['range', 'from', 'to', 'ft', 'tt']) out.delete(key);
     if ('preset' in change.range) {
@@ -111,7 +105,6 @@ export function buildChartUrl(current: URLSearchParams, change: ChartUrlChange):
   // Default values leave the URL, also the untouched ones of an old link
   if (out.get('tf') === DEFAULT_CHART_TF) out.delete('tf');
   if (out.get('range') === 'all') out.delete('range');
-  if (out.get('tab') === 'chart') out.delete('tab');
   const tf = isChartTimeframe(out.get('tf')) ? (out.get('tf') as ChartTimeframe) : DEFAULT_CHART_TF;
   if (!hasFormations(tf)) {
     out.delete('form');

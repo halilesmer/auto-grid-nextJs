@@ -501,7 +501,6 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
           timeframes={<TimeframeSelect value={timeframe} onChange={onTimeframe} options={CHART_TIMEFRAMES} counts={tfCounts} flat />}
           forms={forms}
           range={chrome.range}
-          view={chrome.view}
           tools={<>{formationActions}<LicenseInfo /></>}
         />
       }

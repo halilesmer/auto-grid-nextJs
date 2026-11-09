@@ -15,7 +15,7 @@ import { fixtureTrend, seedFixtureTrend } from '../fixtures/formation-trend';
 // Formationen rechnen auf dem Trendzug des Nutzers (FRM-41); die Fixture zeigt ihre Formation mit ihrer Einstellung
 test.beforeEach(({ page }) => seedFixtureTrend(page, fixtureTrend('gar-buy-h4-01')));
 
-const STATS = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tab=stats`;
+const STATS = `/stats?account=${DEMO_ID}&zone=${ZONE_ID}`;
 const SIZES = [[1440, 900], [375, 812], [812, 375]] as const;
 const MAX_BAR = 66;
 
@@ -24,29 +24,30 @@ const visibleHeadings = (page: Page) => page.evaluate(() => [...document.querySe
 
 test.describe('UI-15 Statistik mit Kopfleiste', () => {
   for (const [w, h] of SIZES) {
-    test(`${w} × ${h}: Statistik hat keinen Seitentitel, aber die Kopfleiste mit Chart/Statistik (Statistik gewählt) und ohne Modus-Schalter`, { tag: '@UI-15' }, async ({ page, worker }) => {
+    test(`${w} × ${h}: Statistik hat keinen Seitentitel, aber die Kopfleiste ohne Reiter Chart/Statistik und ohne Modus-Schalter`, { tag: ['@UI-15', '@UI-23'] }, async ({ page, worker }) => {
       void worker;
       await page.setViewportSize({ width: w, height: h });
       await page.goto(STATS);
-      await expect(page.getByRole('tab', { name: msg('analysis.tab.stats') })).toHaveAttribute('aria-selected', 'true');
-      await expect(page.getByRole('tab', { name: msg('analysis.tab.chart') })).toHaveAttribute('aria-selected', 'false');
+      await expect(page.getByTestId('stats-tab')).toBeVisible();
+      await expect(page.getByTestId('analysis-controls').getByRole('tab')).toHaveCount(0);
       await expect(page.locator('[data-testid^="chart-mode"]')).toHaveCount(0);
       await expect(page.getByText(msg('analysis.subtitle'))).toHaveCount(0);
       expect(await visibleHeadings(page)).toEqual([]);
-      await expect(page.getByRole('heading', { level: 1 })).toHaveText(msg('nav.chart'));
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(msg('nav.stats'));
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(w);
     });
   }
 
-  // Vorher öffneten „Frei“ und „Formation“ den Chart ihres Modus; der eine Chart (UI-22) hat nur noch den Reiter „Chart“
-  test('Statistik: der Reiter „Chart“ öffnet den Chart, behält das Konto und schreibt weder tab noch mode', { tag: '@UI-15' }, async ({ page, worker }) => {
+  // Seit UI-23 ist die Statistik eine eigene Seite: der Menüpunkt „Chart“ öffnet den Chart, das Konto bleibt (über den Store)
+  test('Statistik: der Menüpunkt „Chart“ öffnet den Chart, behält das Konto und schreibt weder tab noch mode', { tag: ['@UI-15', '@UI-23'] }, async ({ page, worker }) => {
     void worker;
     await page.goto(STATS);
-    await page.getByRole('tab', { name: msg('analysis.tab.chart') }).click();
+    await expect(page.getByTestId('stats-tab')).toBeVisible();
+    await page.getByTestId('app-nav').getByRole('link', { name: msg('nav.chart'), exact: true }).click();
     await expect(page.getByTestId('chart-page')).toBeVisible();
     expect(new URL(page.url()).searchParams.get('tab')).toBeNull();
     expect(new URL(page.url()).searchParams.get('mode')).toBeNull();
-    expect(new URL(page.url()).searchParams.get('account')).toBe(DEMO_ID);
+    await expect.poll(() => new URL(page.url()).searchParams.get('account')).toBe(DEMO_ID);
     await expect(page.locator('[data-testid^="chart-mode"]')).toHaveCount(0);
   });
 });
@@ -69,17 +70,17 @@ test.describe('UI-15 Kopfleiste im Querformat', () => {
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(812);
       await expect(page.locator('[data-testid^="chart-mode"]')).toHaveCount(0);
       if (name !== 'Formation') {
-        // Satır 1 dar (satır 796 px): plan 1106-A4.10 sırası: önce araçlar, Chart/Statistik, en son Zeitraum ok menüsüne girer, Mod ancak sonra daralır.
-        // Der Modus-Schalter ist weg (UI-22): Aksiyonlar bleiben Zeitraum + ok.
+        // Satır 1 dar (satır 796 px): plan 1106-A4.10 sırası: önce araçlar, en son Zeitraum ok menüsüne girer.
+        // Der Modus-Schalter ist weg (UI-22), die Reiter Chart/Statistik auch (UI-23): Aksiyonlar bleiben Zeitraum + Werkzeuge.
         const actions = page.locator('[data-dock-pkg="actions"]');
         await expect(actions.getByTestId('range-trigger')).toBeVisible();
-        await expect(actions.getByTestId('dock-more')).toBeVisible();
-        // Aksiyonlar okunun menüsü: tam olarak Chart/Statistik sekmeleri ve araç düğmesi (lisans), bu sırayla (plan 1106-A4.14)
-        await actions.getByTestId('dock-more').click();
-        const items = page.getByTestId('dock-more-menu').locator('button:visible, [role=tab]:visible');
-        expect(await items.evaluateAll(b => b.map(x => `${x.getAttribute('role') ?? 'button'}:${x.getAttribute('aria-label') ?? x.textContent?.trim()}`))).toEqual([`tab:${msg('analysis.tab.chart')}`, `tab:${msg('analysis.tab.stats')}`, `button:${msg('analysis.license')}`]);
-        await page.getByTestId('dock-more-menu').getByRole('tab', { name: msg('analysis.tab.stats') }).click();
-        await expect(page).toHaveURL(/tab=stats/);
+        await expect(page.getByTestId('chart-topbar').getByRole('tab')).toHaveCount(0);
+        // Steht der Lizenzknopf im ok-Menü, ist er dort der einzige Eintrag ohne Reiter (plan 1106-A4.14)
+        if (await actions.getByTestId('dock-more').isVisible()) {
+          await actions.getByTestId('dock-more').click();
+          const items = page.getByTestId('dock-more-menu').locator('button:visible, [role=tab]:visible');
+          expect(await items.evaluateAll(b => b.map(x => `${x.getAttribute('role') ?? 'button'}:${x.getAttribute('aria-label') ?? x.textContent?.trim()}`))).toEqual([`button:${msg('analysis.license')}`]);
+        } else await expect(actions.getByRole('button', { name: msg('analysis.license') })).toBeVisible();
       }
     });
   }
@@ -117,10 +118,12 @@ test.describe('UI-15 Kopfleiste im Querformat', () => {
     expect(top, 'Kontoliste: der untere Rand liegt oben auf').toBe(true);
   });
 
-  test('?tab=stats mit symbol (alter Link): ein Klick auf „Chart“ öffnet den Chart', { tag: '@UI-15' }, async ({ page, worker }) => {
+  test('?tab=stats mit symbol (alter Link) öffnet die Seite Statistik; der Menüpunkt „Chart“ führt zurück', { tag: ['@UI-15', '@UI-23'] }, async ({ page, worker }) => {
     void worker;
     await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tab=stats`);
-    await page.getByRole('tab', { name: msg('analysis.tab.chart') }).click();
+    await expect(page).toHaveURL(/\/stats\?/);
+    await expect(page.getByTestId('analysis-page')).toBeVisible();
+    await page.getByTestId('app-nav').getByRole('link', { name: msg('nav.chart'), exact: true }).click();
     await expect(page.getByTestId('chart-page')).toBeVisible();
     expect(new URL(page.url()).searchParams.get('tab')).toBeNull();
   });

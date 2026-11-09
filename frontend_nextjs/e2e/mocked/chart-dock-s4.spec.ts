@@ -131,7 +131,7 @@ test('(e) Ürün paketi: her bağlantıda (Frei, Setup) sembol seçimi; setup se
 });
 
 for (const [name, url] of [['Setup', SETUP], ['Frei', FREE]] as const) {
-  test(`(f) ${name} 720 px: aksiyonlar paketi Zeitraum ve Chart/Statistik taşır, Satır 1 tek satır`, { tag: '@UI-17' }, async ({ page }) => {
+  test(`(f) ${name} 720 px: aksiyonlar paketi Zeitraum ve araçları taşır, Satır 1 tek satır`, { tag: '@UI-17' }, async ({ page }) => {
     await page.setViewportSize({ width: 720, height: 800 });
     await go(page, url);
     const actions = pkg(page, 'actions');
@@ -141,12 +141,17 @@ for (const [name, url] of [['Setup', SETUP], ['Frei', FREE]] as const) {
     await expect(row(page, 'row2')).toBeVisible();
     await singleLine(page);
     await noScroll(page, 720);
-    // A4.10/A4.17.2: 720 px'te sekmeler satırda gizli; Aksiyonlar okunun menüsü tam olarak ölçülen liste; menüden İstatistik'e geçilir
-    await expect(actions.getByRole('tab', { name: msg('analysis.tab.stats') })).toBeHidden();
+    // A4.10/A4.17.2: Aksiyonlar okunun menüsü tam olarak ölçülen liste. Seit UI-23 gibt es dort keine Reiter Chart/Statistik mehr
+    await expect(page.getByTestId('chart-topbar').getByRole('tab')).toHaveCount(0);
+    // Ohne die Reiter passt das Paket bei 720 px oft ganz in die Zeile: dann gibt es kein ok-Menü, und der Lizenzknopf steht in der Zeile
+    if (!(await actions.getByTestId('dock-more').isVisible())) {
+      await expect(actions.getByRole('button', { name: msg('analysis.license') })).toBeVisible();
+      return;
+    }
     await actions.getByTestId('dock-more').click();
     const menu = page.getByTestId('dock-more-menu');
-    // Since 1107-A21 the package also holds the formation actions (past moment, image): at this width they may stand in the menu too. The tabs and the license come in this order
-    const wanted = [`tab:${msg('analysis.tab.chart')}`, `tab:${msg('analysis.tab.stats')}`, `button:${msg('analysis.license')}`];
+    // Since 1107-A21 the package also holds the formation actions (past moment, image): at this width they may stand in the menu too. The license is the last item
+    const wanted = [`button:${msg('analysis.license')}`];
     // A range that left the row stands in this menu (the menu draws the hidden items again, A4.17.2): it is visible there and opens its picker
     if (!rangeInRow) {
       const inMenu = menu.getByTestId('range-trigger');
@@ -158,17 +163,16 @@ for (const [name, url] of [['Setup', SETUP], ['Frei', FREE]] as const) {
     }
     const listed = await menu.locator('button:visible, [role=tab]:visible').evaluateAll(b => b.map(x => `${x.getAttribute('role') ?? 'button'}:${x.getAttribute('aria-label') ?? x.textContent?.trim()}`));
     expect(listed.filter(x => wanted.includes(x))).toEqual(wanted);
-    await menu.getByRole('tab', { name: msg('analysis.tab.stats') }).click();
-    await expect(page).toHaveURL(/tab=stats/);
+    expect(listed.filter(x => x.startsWith('tab:'))).toEqual([]);
   });
 }
 
-test('(g) Statistik görünümünde Chart\'a dönüş düğmesi görünür kalır', { tag: '@UI-17' }, async ({ page }) => {
+test('(g) Statistik-Seite: der Menüpunkt „Chart“ führt zurück zum Chart', { tag: ['@UI-17', '@UI-23'] }, async ({ page }) => {
   await page.goto(STATS);
-  const back = page.getByTestId('chart-topbar').getByRole('tab', { name: msg('analysis.tab.chart') });
-  await expect(back).toBeVisible();
-  await back.click();
-  await expect(page).not.toHaveURL(/tab=stats/);
+  await expect(page).toHaveURL(/\/stats\?/);
+  await page.getByTestId('app-nav').getByRole('link', { name: msg('nav.chart'), exact: true }).click();
+  await expect(page).toHaveURL(/\/chart/);
+  await expect(page.getByTestId('chart-page')).toBeVisible();
 });
 
 test('Varsayılan Satır 1 sırası: tam olarak ürün, hesap, aksiyonlar (mod paketi çizilmez)', { tag: '@UI-17' }, async ({ page }) => {
