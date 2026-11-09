@@ -173,8 +173,8 @@ Kurz gesagt:
   am nächsten Ask-Rasterwert darüber, Kauf-Limit und Verkaufs-TP darunter, Verkaufs-Stop und Kauf-SL am Bid-Raster
   darunter, Verkaufs-Limit und Kauf-TP darüber. Ein Limit füllt zum besseren Rasterpreis. Der Marktpreis (Ask) ist der
   nächste Raster-Ask, gekappt auf `alo`…`ahi`. Der SL-Schlupf (halber Spread) bleibt, auf das Raster gerundet.
-- Nicht modelliert: springt der Kurs in einem Tick über mehrere Rasterschritte. Replay-Minuten und die Modi „max“,
-  „fixed“, „candle“ sowie CSV bleiben unverändert.
+- Nicht modelliert: springt der Kurs in einem Tick über mehrere Rasterschritte (das deckt das Trigger-Minuten-Replay,
+  BKT-23, §5). Replay-Minuten und die Modi „max“, „fixed“, „candle“ sowie CSV bleiben unverändert.
 
 ## 4. Kennzahlen
 
@@ -223,6 +223,14 @@ Ein eigenes Modell, nicht „wie der MT5-Tester“.
 - **Optionen:** „Konservative Ausführungsregel“ (TP und SL mit demselben Auslösepreis: SL zuerst; sonst gilt die Preis-Reihenfolge im Wegstück),
   „Sensitivität: beide Kerzenwege“ (zwei Läufe, Spanne anzeigen; eine Prüfung, keine Garantie),
   „Modell mit Gap-Ausführung“ (bei Kurslücken Füllung zum Marktpreis).
+
+- **Trigger-Minuten-Replay (BKT-23, Plan 1109-K57):** Mit `RunModel.triggerReplay` (Vorgabe aus) und Spread „tick“ auf
+  M1 holt der Auftrag die Ticks der Minuten, in denen eigene Trades ein- oder ausgestiegen sind (auch offene Positionen
+  am Ende), und rechnet neu, bis keine neue Minute mehr dazukommt (höchstens 4 Durchgänge, 5000 Minuten und 1 Mio. Ticks
+  je Weg; früheste Minuten zuerst, der Rest bleibt im Kerzenweg). In diesen Minuten gelten die Replay-Regeln von BKT-20;
+  Füllung und Ausstieg nehmen aber die letzte Quote höchstens `REPLAY_FILL_LATENCY_MS` (1 ms) nach dem Tick der Auslösung
+  (Ausführungsverzögerung des Brokers), ohne Richtungsregel: ein Limit kann besser, ein Stop schlechter füllen. Fehlt die
+  Worker-Adresse oder schlägt der Abruf fehl, bleibt es bei einem Durchgang (`run.triggerReplayUnavailable`).
 
 **Musterlösungen (Schritt 4, BKT-01/BKT-09):** `worker_python/tests/parity/` spielt 29 Szenarien
 mit dem echten Python-Bot ab (erst der Markt, dann der Bot, simulierte Uhr über `src/core/clock.py`)

@@ -34,6 +34,10 @@ const PROGRESS_EVERY = 5000;
 const REPLAY_BOT_INTERVAL = 1;
 /** Abweichung von Tick-Hoch/-Tief zum Kerzen-Hoch/-Tief in Punkten, ab der die Minute als abweichend zählt */
 const REPLAY_BAR_TOLERANCE_POINTS = 1.5;
+/** BKT-23: Ausführungsverzögerung des Brokers in ms: Füllung und Ausstieg im Replay nehmen die letzte Quote bis so lange nach der Auslösung (Plan 1109-K57.2) */
+export const REPLAY_FILL_LATENCY_MS = 1;
+/** BKT-23: Vorgabe für `RunModel.triggerReplay`; erst nach der Abnahme (Plan 1109-K57.3/K57.4) auf true, ein Zeilenwechsel */
+export const TRIGGER_REPLAY_DEFAULT = false;
 
 export interface RunModel {
   fill: FillModel;
@@ -53,6 +57,12 @@ export interface RunModel {
   askExtremes?: boolean;
   /** BKT-22: Füllpreise und Marken auf dem Kursraster der Minute (nur Spread „tick“, Minuten ohne Replay); Standard an */
   quoteGrid?: boolean;
+  /**
+   * BKT-23: Ein-/Ausstiegsminuten der eigenen Trades mit den echten Ticks nachspielen (der Auftrag holt sie in mehreren
+   * Durchgängen vom Worker) und dort Füllung/Ausstieg mit Ausführungsverzögerung rechnen. Wirkt nur mit Spread „tick“,
+   * M1-Daten und Replay-Karte; Vorgabe TRIGGER_REPLAY_DEFAULT.
+   */
+  triggerReplay?: boolean;
 }
 
 /** Fraktal, das vor `from` schon gehandelt wurde (Order gefüllt oder gelöscht): der Lauf legt dafür keine Order mehr */
@@ -103,7 +113,11 @@ export interface RunResult {
   avgRange: number;
   missing: MissingRange[];
   path: PathMode;
+  /** BKT-23: Minutenbeginne (Sekunden), in denen Trades ein- oder ausgestiegen sind bzw. Positionen offen blieben und die noch nicht in der Replay-Karte stehen; leer ohne `triggerReplay` */
+  triggerMinutes?: number[];
 }
+
+export const triggerReplayOn = (model: Pick<RunModel, 'triggerReplay'>): boolean => model.triggerReplay ?? TRIGGER_REPLAY_DEFAULT;
 
 /** Zeitrahmen, die der bot für diese Zone liest (Spiegel von config.ts: fractal_timeframe Standard H4) */
 export function strategyTimeframes(zone: ZoneDict): Timeframe[] {
@@ -219,6 +233,7 @@ export function runBacktest(input: RunInput): RunResult {
     broker.warm({ time: rates.t[i], open: rates.o[i], high: rates.h[i], low: rates.l[i], close: rates.c[i], spread: rates.s[i] });
   }
 
+  const latency = triggerReplayOn(model);
   const state = new EngineState(
     () => broker.now,
     (entry) => log.add(entry.level, entry.code, entry.params, broker.now),
@@ -373,7 +388,10 @@ export function runBacktest(input: RunInput): RunResult {
         for (const trigger of broker.quoteTriggers()) {
           if (!broker.hasTarget(trigger)) continue;
           countEvent();
-          broker.fire(trigger, true);
+          // BKT-23: Ausführung zur letzten Quote bis REPLAY_FILL_LATENCY_MS nach dem Tick der Auslösung
+          let j = k;
+          if (latency) while (j + 1 < replay.ms.length && replay.ms[j + 1] <= replay.ms[k] + REPLAY_FILL_LATENCY_MS) j += 1;
+          broker.fire(trigger, true, j === k ? undefined : { bid: replay.bid[j], ask: replay.ask[j] });
           runBot();
           ran = true;
         }
@@ -422,6 +440,24 @@ export function runBacktest(input: RunInput): RunResult {
   input.onProgress?.(1);
 
   const trades = broker.trades;
+  const triggerMinutes: number[] = [];
+  if (latency && input.spread.mode === 'tick' && dataTimeframe === 'M1' && rates.replay) {
+    // BKT-23: Ein- und Ausstiegsminuten (auch offene Positionen), die es als Kerze im Zeitraum gibt und die noch kein Replay haben
+    const inRange = new Set<number>();
+    for (let i = first; i < end; i++) inRange.add(rates.t[i]);
+    const found = new Set<number>();
+    const add = (time: number | null) => {
+      if (time === null) return;
+      const minute = time - (((time % 60) + 60) % 60);
+      if (inRange.has(minute) && !rates.replay?.has(minute)) found.add(minute);
+    };
+    for (const trade of trades) {
+      add(trade.entryTime);
+      add(trade.exitTime);
+    }
+    for (const time of broker.openEntryTimes()) add(time);
+    triggerMinutes.push(...[...found].sort((a, b) => a - b));
+  }
   const summary: RunSummary = {
     realized: broker.realized,
     openResult: broker.openResult(),
@@ -445,5 +481,6 @@ export function runBacktest(input: RunInput): RunResult {
     avgRange: averageRange(rates, first, end),
     missing: rates.missing,
     path: model.path,
+    triggerMinutes,
   };
 }

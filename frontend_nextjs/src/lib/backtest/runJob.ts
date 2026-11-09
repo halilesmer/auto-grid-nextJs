@@ -4,20 +4,36 @@
  * Code, alles andere als `run.unexpected` mit der Meldung.
  */
 import { snapshotSymbol } from '@/lib/backtest/broker/costs';
-import { loadRates, type FetchJson } from '@/lib/backtest/candles/loadRates';
+import { loadReplayMinutes } from '@/lib/backtest/candles/loadReplay';
+import { loadRates, type FetchJson, type LoadedRates } from '@/lib/backtest/candles/loadRates';
 import type { PathMode } from '@/lib/backtest/candles/pathModel';
 import type { RunRequest, WorkerMessage } from '@/lib/backtest/protocol';
 import { RunError } from '@/lib/backtest/runContext';
-import { runBacktest, warmupSeconds } from '@/lib/backtest/runner';
+import { runBacktest, triggerReplayOn, warmupSeconds, type RunResult } from '@/lib/backtest/runner';
 
 /** Anteil des Fortschritts, der auf das Laden entfällt; der Rest ist der Lauf */
 const LOAD_SHARE = 0.3;
+
+/** BKT-23: Grenzen des Trigger-Replays je Lauf: Durchgänge, abgerufene Minuten und Ticks (Plan 1109-K57, Risiken) */
+export interface TriggerReplayLimits {
+  passes: number;
+  minutes: number;
+  ticks: number;
+}
+export const TRIGGER_REPLAY_LIMITS: TriggerReplayLimits = { passes: 4, minutes: 5000, ticks: 1_000_000 };
+
+/** Zeile ins fertige Protokoll eines Laufs hängen (der Lauf selbst kennt die Durchgänge nicht) */
+function addLog(result: RunResult, level: 'INFO' | 'WARN', code: string, params: Record<string, unknown>): void {
+  result.log.counts[code] = (result.log.counts[code] ?? 0) + 1;
+  result.log.lines.push({ level, code, params });
+}
 
 export async function runJob(
   request: RunRequest,
   post: (message: WorkerMessage) => void,
   fetchJson: FetchJson,
   onRates?: (rates: Awaited<ReturnType<typeof loadRates>>) => void,
+  limits: TriggerReplayLimits = TRIGGER_REPLAY_LIMITS,
 ): Promise<void> {
   const { runId, params } = request;
   try {
@@ -40,25 +56,78 @@ export async function runJob(
     });
     onRates?.(rates);
     const paths: PathMode[] = params.path === 'both' ? ['lowFirst', 'highFirst'] : [params.path];
-    const results = paths.map((path, index) =>
-      runBacktest({
-        zone: params.zone,
-        snapshot: snapshot.snapshot,
-        rates,
-        dataTimeframe: params.dataTimeframe,
-        from: params.from,
-        to: params.to,
-        spread: params.spread,
-        commissionPerLot: params.commissionPerLot,
-        model: { ...params.model, path },
-        startCapital: params.startCapital,
-        accountCurrency: params.accountCurrency,
-        zoneLabel: params.zoneLabel,
-        notes: [...snapshot.warnings, ...(params.notes ?? [])],
-        onProgress: (fraction) =>
-          post({ type: 'progress', runId, phase: 'run', fraction: LOAD_SHARE + ((index + fraction) / paths.length) * (1 - LOAD_SHARE) }),
-      }),
-    );
+    const wantTrigger = triggerReplayOn(params.model) && rates.replay !== undefined && rates.point !== null && rates.digits !== null;
+    const results: RunResult[] = [];
+    for (const [index, path] of paths.entries()) {
+      const slice = (fraction: number) => LOAD_SHARE + ((index + fraction) / paths.length) * (1 - LOAD_SHARE);
+      // Jeder Weg bekommt eine eigene Replay-Karte: sein Ergebnis hängt nur von seinen eigenen Trade-Minuten ab
+      const own: LoadedRates = wantTrigger ? { ...rates, replay: new Map(rates.replay) } : rates;
+      const requested = new Set<number>();
+      let fetchedMinutes = 0;
+      let fetchedTicks = 0;
+      let unavailable = false;
+      const dropped = new Set<number>();
+      let passes = 0;
+      let result: RunResult;
+      for (;;) {
+        passes += 1;
+        const passIndex = passes;
+        result = runBacktest({
+          zone: params.zone,
+          snapshot: snapshot.snapshot,
+          rates: own,
+          dataTimeframe: params.dataTimeframe,
+          from: params.from,
+          to: params.to,
+          spread: params.spread,
+          commissionPerLot: params.commissionPerLot,
+          model: { ...params.model, path },
+          startCapital: params.startCapital,
+          accountCurrency: params.accountCurrency,
+          zoneLabel: params.zoneLabel,
+          notes: [...snapshot.warnings, ...(params.notes ?? [])],
+          onProgress: (fraction) => post({ type: 'progress', runId, phase: 'run', fraction: slice(((passIndex - 1) + fraction) / (wantTrigger ? limits.passes : 1)) }),
+        });
+        if (!wantTrigger || unavailable || passes >= limits.passes) break;
+        const todo = (result.triggerMinutes ?? []).filter((minute) => !requested.has(minute) && !dropped.has(minute));
+        if (todo.length === 0) break;
+        // Bündelgrenze: früheste Minuten zuerst; was darüber liegt, bleibt im Kerzenweg
+        const room = Math.max(0, limits.minutes - requested.size);
+        const take = todo.slice(0, room);
+        for (const minute of todo.slice(room)) dropped.add(minute);
+        if (take.length === 0) break;
+        for (const minute of take) requested.add(minute);
+        const loaded = await loadReplayMinutes({
+          fetchJson,
+          accountId: params.accountId,
+          symbol: params.symbol.name,
+          minutes: take,
+          point: rates.point as number,
+          digits: rates.digits as number,
+          stop: (ticks) => fetchedTicks + ticks >= limits.ticks,
+        });
+        // Ein halber Abruf wird verworfen: das Ergebnis bleibt das des letzten vollständigen Durchgangs
+        if (loaded.unavailable) {
+          unavailable = true;
+          break;
+        }
+        for (const [minute, data] of loaded.minutes) own.replay?.set(minute, data);
+        for (const minute of loaded.skipped) dropped.add(minute);
+        fetchedMinutes += loaded.minutes.size;
+        fetchedTicks += [...loaded.minutes.values()].reduce((sum, m) => sum + m.ms.length, 0);
+        if (loaded.minutes.size === 0) break;
+      }
+      if (wantTrigger) {
+        if (unavailable) addLog(result, 'WARN', 'run.triggerReplayUnavailable', {});
+        if (fetchedMinutes > 0) addLog(result, 'INFO', 'run.triggerReplay', { passes, minutes: fetchedMinutes, ticks: fetchedTicks });
+        // Ein- und Ausstiegsminuten, die am Ende noch im Kerzenweg liegen (Grenze, Worker beschäftigt, Durchgangsgrenze); Minuten ohne Tick zählen nicht
+        const left = unavailable ? 0 : (result.triggerMinutes ?? []).filter((minute) => !requested.has(minute) || dropped.has(minute)).length;
+        if (left > 0) addLog(result, 'WARN', 'run.triggerReplayBudget', { minutes: fetchedMinutes, dropped: left });
+      }
+      delete result.triggerMinutes;
+      post({ type: 'progress', runId, phase: 'run', fraction: slice(1) });
+      results.push(result);
+    }
     post({ type: 'result', runId, results });
   } catch (error) {
     if (error instanceof RunError) post({ type: 'error', runId, code: error.code, params: error.params });
