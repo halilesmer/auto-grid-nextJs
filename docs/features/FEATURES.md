@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-09 · **223/250** abgehakt · ❌ 6 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-09 · **223/251** abgehakt · ❌ 6 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -14,7 +14,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 | # | Kategorie | Stand |
 |---|---|---|
-| 1 | **SYS** – Verbindung & Infrastruktur | 10/13 |
+| 1 | **SYS** – Verbindung & Infrastruktur | 10/14 |
 | 2 | **ACC** – Konten | 11/12 |
 | 3 | **USR** – Benutzer & Zugriff | 8/8 |
 | 4 | **SET** – Allgemeine Einstellungen | 6/6 |
@@ -86,6 +86,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - `crypto.randomUUID` gibt es nur in sicheren Kontexten (https, localhost). Öffnet das Telefon den Dev-Server über http im LAN (SYS-12), ist es nicht definiert, und die Seite stürzt beim Wählen eines Kontos ab (gespeicherte Indikatoren bekommen neue IDs). Alle neuen IDs (Setups, Indikatoren, Zeichnungen, Backtest-Anfragen) kommen deshalb aus randomId() in src/lib/randomId.ts: ohne randomUUID erzeugt es mit crypto.getRandomValues eine UUID v4 im selben Format (kein Math.random). ESLint verbietet crypto.randomUUID in src/ (no-restricted-properties); erlaubt ist nur der eine Aufruf in randomId(). Die sichtbare Oberfläche ändert sich nicht.
   - **Prüfung:** Die App im Telefon-Browser über http://<Hostname des Mac>:3000 öffnen (SYS-12), ein Konto wählen und „Setup Ekle“ drücken.
   - **Erwartet:** Die Seite lädt, das Konto lässt sich wählen, ein neues Setup erscheint, und /chart zeigt die Indikatoren ohne Fehlerseite.
+- [ ] **SYS-14** Kein Warten im Vordergrund (Claude-Hook) — 🖥️ e2e ⏳
+  - hooks/claude/pre-bash-wait.sh läuft als PreToolUse-Hook vor jedem Bash-Aufruf von Claude Code (.claude/settings.json). Ohne run_in_background lehnt er eine until- oder while-Schleife mit sleep <Zahl> ab, ebenso ein sleep von 60 s oder mehr (Exit 2, Begründung auf stderr: im Hintergrund starten oder Monitor nutzen). Grund: solche Schleifen hielten Sitzungen bis zum Werkzeug-Timeout von 590 s fest, die Nachricht des Benutzers wartete so lange (Diagnose 2026-11-09). Ein Befehl mit timeout N (N ≤ 120 s) davor ist erlaubt, ebenso jeder Befehl mit run_in_background. Wortgrenzen sind Leerraum, ; & | ( und Anführungszeichen, damit auch bash -c "while …" erkannt wird; Wörter innerhalb eines Bezeichners (z. B. --until) zählen nicht.
+  - **Prüfung:** In einer Claude-Code-Sitzung dieses Projekts einen Befehl until false; do sleep 5; done im Vordergrund ausführen lassen. → Denselben Befehl mit run_in_background ausführen lassen.
+  - **Erwartet:** Der Vordergrund-Befehl startet nicht; Claude bekommt die Meldung „pre-bash-wait (SYS-14)“ mit dem Hinweis auf Hintergrund oder Monitor. Im Hintergrund startet er normal.
 - [x] **SYS-06** MT5-Verbindung (Kaltstart, Zeitbudget, Python-Integration) — 🧪 unit ✅ 2026-11-03 · 🔌 api ✅ 2026-11-03 · 👤 manuell ✅ 2026-10-16
   - Worker (/start, Symbolabfrage) und bot_runner verbinden sich über connect_to_mt5_with_timeout. Das Timeout ist ein Gesamtbudget (Warten auf die MT5-Sperre, initialize-Versuche, Neustart eines hängenden Terminals); danach wird nicht weiter versucht, /start antwortet also nach rund 120 s (+ Login). Bei IPC-Fehlern wird nur ein terminal64.exe desselben Pfads beendet, das älter als 180 s ist; ein startendes Terminal wird abgewartet. Die kurze Symbolabfrage (15 s) beendet nie ein Terminal. -10004 bei initialize heißt „keine IPC-Verbindung“, nicht „falsches Passwort“. Vor initialize wird der Python-Kanal des Terminals geprüft (named pipe MT5.Terminal.<SHA-256 des Pfads>). Ist das Terminal älter als 30 s und hat keinen Kanal, ist in MT5 unter Optionen → Community „Python integration“ abgewählt; dann kommt sofort eine klare Meldung statt 60 s Warten pro Versuch, und kein Terminal wird beendet. Auf einem VPS mit mehreren Terminals zählt der Worker die Kanäle. Fehlt der eigene Kanal und gibt es weniger Terminal-Kanäle als Terminals, die älter als 30 s sind, kommt dieselbe Meldung; hat jedes alte Terminal einen Kanal (Namensberechnung passt nicht), wird wie bisher verbunden. Ohne Python-Kanal wartet initialize fest 60 s, egal welches Timeout; ein weiterer Versuch oder ein Terminal-Neustart startet deshalb nur, wenn noch so viel Budget übrig ist. Der WebSocket-Stream ruft MT5 nicht auf, solange eine Verbindung die MT5-Sperre hält, und zeigt dann die Bot-Metriken.
   - **Prüfung:** Auf der Seite „VPS“ den VPS neu starten, MT5 nicht von Hand öffnen. → Sobald der Worker erreichbar ist, Konto wählen, eine Zone öffnen (Symbolliste) und sofort „Start Bot“ klicken. → Nur DEMO, Bot vorher stoppen: Per RDP in MT5 Extras → Optionen → Community „Python-Integration“ abwählen, MT5 beenden und neu starten, „Start Bot“ klicken. Weitere Terminals anderer Konten laufen dabei weiter (Fehler trat nur mit mehreren Terminals auf). Danach den Haken wieder setzen und MT5 neu starten.

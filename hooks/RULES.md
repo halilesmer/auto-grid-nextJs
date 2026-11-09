@@ -89,6 +89,13 @@ Katalog: `docs/features/features.yaml` (tek doğru kaynak) → `docs/features/FE
 
 14. **[elle]** After the Claude app restarts, examine each linked session: a background run that stopped with `Exit code 137` does not send a notification. Start the run again. The next run removes the stale lock and the orphan test server of its checkout.
 
+15. **[otomatik]** (in `hooks/claude/pre-bash-wait.sh`, SYS-14) Do not wait in the foreground. A foreground Bash command that waits blocks the session until the tool timeout (up to 10 min), and the messages of the user wait in the queue. The hook stops these commands when `run_in_background` is not set: an `until` or `while` loop that contains `sleep <number>`, and a `sleep` of 60 s or more. A command that starts with `timeout N` (N ≤ 120 s) is permitted. To wait for a test run, start the run with `run_in_background: true` and continue when the notification comes. To wait for a condition, use the Monitor tool.
+
+    ```bash
+    # blocked:   until grep -q FINISHED run.log; do sleep 10; done
+    # permitted: timeout 60 bash -c 'until curl -s localhost:3300 >/dev/null; do sleep 1; done'
+    ```
+
 ## 5. Arayüz: bilgi ipuçları (tooltip) zorunlu
 
 Her ayar, alan, anahtar, buton, sekme ve menü öğesi ne işe yaradığını kendisi anlatır; kullanıcı belgeye bakmak zorunda kalmaz.
