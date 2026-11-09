@@ -1,6 +1,10 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
+import { Info } from 'lucide-react';
+
 import { Alert } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { useFormat, useT, type MessageKey } from '@/i18n';
 import { MAX_TOTAL_BARS, type MissingRange } from '@/lib/analysis/candles';
 
@@ -26,6 +30,7 @@ export function DataQualityBanner({
   scroll = false,
   allHistory = false,
   limit = false,
+  chip = false,
 }: {
   missing: MissingRange[];
   clipped: boolean;
@@ -39,6 +44,8 @@ export function DataQualityBanner({
   allHistory?: boolean;
   /** Gesamtgrenze MAX_TOTAL_BARS erreicht (nur mit scroll): bleibt stehen */
   limit?: boolean;
+  /** Der Hinweis „gekürzt“ ist ein Einzeilen-Chip; ein Klick öffnet den ganzen Text (1107-A21.12). Warnungen bleiben ganz sichtbar */
+  chip?: boolean;
 }) {
   const t = useT();
   const fmt = useFormat();
@@ -61,7 +68,8 @@ export function DataQualityBanner({
           </ul>
         </Alert>
       )}
-      {clipped && loadedFrom !== null && (
+      {clipped && loadedFrom !== null && chip && <ClippedChip title={t(scroll ? 'analysis.data.scroll.title' : 'analysis.data.clipped.title')} text={t(clippedText, { from: fmt.mt5DateTime(loadedFrom) })} />}
+      {clipped && loadedFrom !== null && !chip && (
         <Alert tone="info" title={t(scroll ? 'analysis.data.scroll.title' : 'analysis.data.clipped.title')}>
           {t(clippedText, { from: fmt.mt5DateTime(loadedFrom) })}
         </Alert>
@@ -75,6 +83,34 @@ export function DataQualityBanner({
         <Alert tone="warning" title={t('analysis.data.dbFull.title')}>
           {t('analysis.data.dbFull.text')}
         </Alert>
+      )}
+    </div>
+  );
+}
+
+/** Einzeiliger Chip links oben auf dem Chart; Klick/Tipp öffnet den vollen Text, Escape schließt (1107-A21.12) */
+function ClippedChip({ title, text }: { title: string; text: string }) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    const away = (e: PointerEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('keydown', key);
+    document.addEventListener('pointerdown', away);
+    return () => { document.removeEventListener('keydown', key); document.removeEventListener('pointerdown', away); };
+  }, [open]);
+  return (
+    <div ref={box} className="pointer-events-none flex max-w-full flex-col items-start gap-1" data-testid="data-quality-chip-box">
+      <Button size="xs" variant="outline" className="pointer-events-auto max-w-[10.5rem] bg-background/95 text-info sm:max-w-xs" hint={t('analysis.data.chip.hint')} aria-expanded={open} data-testid="data-quality-chip" onClick={() => setOpen(!open)}>
+        <Info size={12} className="shrink-0" aria-hidden="true" />
+        <span className="truncate">{title}</span>
+      </Button>
+      {open && (
+        <div data-testid="data-quality-chip-text" className="pointer-events-auto w-full max-w-md">
+          <Alert tone="info" title={title}>{text}</Alert>
+        </div>
       )}
     </div>
   );

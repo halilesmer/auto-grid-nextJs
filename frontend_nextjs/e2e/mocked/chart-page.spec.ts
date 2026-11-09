@@ -104,6 +104,8 @@ for (const viewport of VIEWPORTS) {
       await expect(noSetupCard.getByTestId('chart-card-no-setup')).toBeVisible();
       await expect(page.getByTestId('chart-stat-price')).toHaveCount(0);
       await noOverflow(page);
+      // The open card stands next to the chart (1107-A21.18) and narrows it: close it again, the checks below are about the full-width bar
+      await noSetupCard.getByRole('button', { name: msg('chart.card.collapse'), exact: true }).click();
 
       const surface = await page.getByTestId('formation-surface').boundingBox();
       const box = await chart.boundingBox();

@@ -118,10 +118,15 @@ test.describe('UI-14 Eine Seite Chart', () => {
       test(`${name}, ${width} px: rechts bleibt kein leerer Streifen`, { tag: '@UI-14' }, async ({ page, worker }) => {
         await page.setViewportSize({ width, height: 900 });
         await open(page, worker, name, url);
-        // Es gibt weder Leiste noch Seitenleiste mehr (U4-4b): die Chartfläche reicht bis zum rechten Fensterrand
+        // Es gibt weder Leiste noch Seitenleiste mehr (U4-4b). Ab 1024 px steht die offene Karte neben dem Chart (1107-A21.18):
+        // Chartfläche und Karte grenzen aneinander, die Karte reicht bis zum Fensterrand, dazwischen und rechts bleibt kein Streifen
         const box = await page.getByTestId('formation-main').boundingBox();
         await expect(page.locator('[data-testid="favorites-strip"], [data-testid="formation-sidebar"]')).toHaveCount(0);
-        expect(box!.x + box!.width, 'rechte Kante der Chartfläche = Fensterrand').toBeCloseTo(width, 0);
+        if (width >= 1024) {
+          const card = await page.getByTestId('chart-floating-card').boundingBox();
+          expect(box!.x + box!.width, 'Chartfläche endet an der Karte').toBeCloseTo(card!.x, 0);
+          expect(card!.x + card!.width, 'rechte Kante der Karte = Fensterrand').toBeCloseTo(width, 0);
+        } else expect(box!.x + box!.width, 'rechte Kante der Chartfläche = Fensterrand').toBeCloseTo(width, 0);
       });
     }
   }

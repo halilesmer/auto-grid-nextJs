@@ -182,5 +182,5 @@ DEMO account, read-only (`hooks/RULES.md` §3): formation and setup on H4, empty
 - [x] U4-4a switch (`2026-11-08-chart-u4-4a-switch.md`)
 - [x] U4-4b one card (`2026-11-08-chart-u4-4b-one-card.md`; open point: the open card covers the formation from 1024 px)
 - [x] U4-5 remove the old shells (`2026-11-08-chart-u4-5-remove-shells.md`)
-- [ ] U4-5b fixes
+- [x] U4-5b fixes
 - [ ] U4-6 live check and signature of UI-22

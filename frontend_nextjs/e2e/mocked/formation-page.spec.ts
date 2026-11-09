@@ -808,9 +808,9 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
       if (theme === 'dark') await expect(page.locator('html')).toHaveClass(/dark/);
       else await expect(page.locator('html')).not.toHaveClass(/dark/);
       const chart = await page.getByTestId('formation-chart').boundingBox();
-      // Die Karte ist offen (erster Besuch ab lg) und schwebt über dem Chart: 1100 − 52
+      // Die Karte ist offen (erster Besuch ab lg) und steht neben dem Chart: 1100 − 52 − 320
       // Hier ist der Container schmaler als 71 rem: der Chart endet über der Werkzeugkarte (UI-11), mit der Reserve füllt er die Seite
-      expect({ ...chart, height: chart!.height + (await cardReserve(page)) }).toEqual({ x: 52, y: 56, width: 1048, height: 844 });
+      expect({ ...chart, height: chart!.height + (await cardReserve(page)) }).toEqual({ x: 52, y: 56, width: 728, height: 844 });
       const rail = await page.getByTestId('drawing-toolbar').boundingBox();
       expect(rail).toEqual({ x: 0, y: 56, width: 52, height: 844 });
       expect(await page.getByTestId('app-nav').boundingBox()).toEqual({ x: 0, y: 0, width: 1100, height: 56 });
@@ -821,9 +821,9 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
         expect(box!.x + box!.width).toBeLessThanOrEqual(chart!.x + chart!.width);
         expect(box!.y + box!.height).toBeLessThanOrEqual(900);
       }
-      // Die Karte schwebt über dem Chart, bleibt aber im Fenster
+      // Die Karte liegt rechts neben dem Chart, nicht darüber
       const sidebar = (await page.getByTestId('chart-floating-card').boundingBox())!;
-      expect(sidebar.x).toBeGreaterThanOrEqual(chart!.x);
+      expect(sidebar.x).toBeGreaterThanOrEqual(chart!.x + chart!.width);
       expect(sidebar.x + sidebar.width).toBeLessThanOrEqual(1100);
       expect(sidebar.y).toBeGreaterThanOrEqual(56);
       expect(sidebar.y + sidebar.height).toBeLessThanOrEqual(900);
@@ -847,11 +847,14 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
         await page.setViewportSize({ width: 375, height: 812 });
         await expect(page.getByTestId('formation-status-chip')).toBeInViewport();
         await page.screenshot({ path: test.info().outputPath('formation-mobile-light.png') });
-        await page.setViewportSize({ width: 1440, height: 900 });
+        await page.setViewportSize({ width: 1100, height: 900 });
       }
       // Desktoplinks sind direkt in der Kopfzeile erreichbar.
       await expect(page.getByTestId('nav-menu')).toBeHidden();
       await expect(page.getByTestId('app-nav').getByRole('link', { name: msg('nav.chart', {}, 'de'), exact: true })).toBeVisible();
+      // At 1100 px the open card leaves the chart 728 px wide and the tabs stand in the arrow menu (reachable, test in chart-one-chart.spec.ts);
+      // this step clicks the tab in the desktop bar, so it goes to 1440 px
+      await page.setViewportSize({ width: 1440, height: 900 });
       await page.getByRole('tab', { name: msg('analysis.tab.stats', {}, 'de') }).click();
       await expect(page).toHaveURL(/tab=stats/);
       await expect(page.getByTestId('chart-page')).toHaveCount(0);
@@ -966,7 +969,7 @@ test.describe('FRM-27 Formationsalarm', () => {
   });
 
   test('Eine Formation, die nach dem Einschalten gültig wird, wird einmal gemeldet, nicht nach dem Neuladen', { tag: '@FRM-27' }, async ({ page, worker }) => {
-    // 1107-A21: the page also loads the chart candles for each of the 15-minute jumps; the test needs more time than before
+    // 1107-A21.15: kept at 60 s. A clock jump of 15 minutes fires the 60-second tail refresh of every rates hook 15 times (about 50 requests per jump, see journal 2026-11-08-chart-u4-5b-fixes); the test body takes 20 s on a free machine, 40 s under load
     test.setTimeout(60_000);
     await page.clock.install();
     await openPage(page, worker, `${URL}&form=GAR`, FORMING_NOW);
@@ -2179,27 +2182,29 @@ test.describe('FRM-37 Seitenleiste mit Reitern Bedingungen und Favoriten', () =>
       return { main: box('formation-main'), card: box('chart-floating-card'), strip: box('favorites-strip') };
     });
 
-  for (const width of [1440, 1100]) {
-    test(`Die offene Karte schwebt über dem Chart; der Chart behält die volle Breite (${width} px)`, { tag: '@FRM-37' }, async ({ page, worker }) => {
+  for (const width of [1440, 1100, 1024]) {
+    test(`Die offene Karte steht neben dem Chart; der Chart ist um die Kartenbreite schmaler (${width} px)`, { tag: '@FRM-37' }, async ({ page, worker }) => {
       await page.setViewportSize({ width, height: 800 });
       await openPage(page, worker, `${URL}&form=GAR`);
       // Erster Besuch ab lg: offen auf „Bedingungen“
       await expect(page.getByTestId('conditions-panel')).toBeVisible();
       const open = await geometry(page);
       expect(open.strip, 'es gibt keinen Favoritenstreifen mehr').toBeNull();
-      expect(open.main!.width).toBe(width);
+      expect(open.main!.width).toBe(width - 320);
       expect(open.card!.width).toBe(320);
+      expect(open.card!.left).toBeGreaterThanOrEqual(open.main!.right);
       expect(open.card!.right).toBeLessThanOrEqual(width);
       const chart = (await page.getByTestId('formation-chart').boundingBox())!;
+      expect(chart.x + chart.width).toBeLessThanOrEqual(open.card!.left);
       await page.getByTestId('chart-floating-card').getByRole('button', { name: msg('chart.card.collapse'), exact: true }).click();
       await expect(page.getByTestId('chart-card-tab-conditions')).toHaveCount(0);
       const closed = await geometry(page);
       expect(closed.main!.width).toBe(width);
-      expect((await page.getByTestId('formation-chart').boundingBox())!.width).toBe(chart.width);
+      expect((await page.getByTestId('formation-chart').boundingBox())!.width).toBe(chart.width + 320);
     });
   }
 
-  test('Mit größerer Schrift im Browser (20 px) bleibt die offene Karte im Fenster', { tag: '@FRM-37' }, async ({ page, worker }) => {
+  test('Mit größerer Schrift im Browser (20 px) überlappt der Chart die offene Karte nicht', { tag: '@FRM-37' }, async ({ page, worker }) => {
     await page.setViewportSize({ width: 1440, height: 800 });
     await openPage(page, worker, `${URL}&form=GAR`);
     await expect(page.getByTestId('conditions-panel')).toBeVisible();
@@ -2208,8 +2213,12 @@ test.describe('FRM-37 Seitenleiste mit Reitern Bedingungen und Favoriten', () =>
       document.documentElement.style.fontSize = '20px';
     });
     const open = await geometry(page);
+    expect(open.main!.right).toBeLessThanOrEqual(open.card!.left);
     expect(open.card!.right).toBeLessThanOrEqual(1440);
-    expect(open.card!.left).toBeGreaterThanOrEqual(0);
+    await expect.poll(async () => {
+      const chart = (await page.getByTestId('formation-chart').boundingBox())!;
+      return chart.x + chart.width;
+    }).toBeLessThanOrEqual(open.card!.left);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   });
 
