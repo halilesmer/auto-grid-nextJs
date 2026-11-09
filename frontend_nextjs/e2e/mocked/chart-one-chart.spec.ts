@@ -303,4 +303,21 @@ test.describe('UI-22 Ein Chart ohne Modi', () => {
       expect(await noOverflow(page)).toBe(true);
     });
   }
+  test('Gleiche Kerzen-Anfragen werden geteilt: nach 60 s ein Nachladen je Zeitrahmen und Ende, nicht eines je Hook', { tag: '@UI-22' }, async ({ page, worker }) => {
+    // 1107-A21.19: chart, formation search and trend line read the same H4 range; they share one request and one 60-second refresh
+    await page.clock.install();
+    await open(page, worker, '&symbol=EURUSD&tf=H4');
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    const tf = (q: string, name: string) => new URLSearchParams(q).get('timeframe') === name;
+    const before = worker.ratesQueries.length;
+    await page.clock.runFor(60_000);
+    await expect.poll(() => worker.ratesQueries.slice(before).filter((q) => tf(q, 'H4')).length).toBeGreaterThanOrEqual(1);
+    // Real time (the fake clock does not move it): a duplicate request would arrive in the same moment
+    await page.waitForTimeout(500);
+    const after = worker.ratesQueries.slice(before);
+    const h4 = after.filter((q) => tf(q, 'H4'));
+    expect(h4.length).toBe(1);
+    // A second request with the same query would be a duplicate
+    expect(new Set(after).size).toBe(after.length);
+  });
 });
