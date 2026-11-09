@@ -262,6 +262,39 @@ export class IndicatorRenderer {
   /** Stretch factor of each pane before a pane was maximized; keyed by the pane, not by its number. */
   private stretchBeforeMaximize: { pane: IPaneApi<Time>; stretch: number }[] | null = null;
   private watermark: ITextWatermarkPluginApi<Time> | null = null;
+  /** Saved height of each oscillator pane as a part of the price pane, keyed by pane id (per product, from the chart document). */
+  private savedParts: Readonly<Record<string, number>> = {};
+  /** Collapsed pane ids of the last layout; their height is not the user's choice and is never measured. */
+  private collapsedIds: ReadonlySet<string> = new Set();
+  /** Saved pane heights for the next layout. It does not move panes that are drawn already: the user's drag set them. */
+  setPaneParts(parts: Readonly<Record<string, number>> | undefined) { this.savedParts = parts ?? {}; }
+  /** Pane parts as the last layout (or the last accepted drag) left them; a drag is a difference from these. */
+  private laidParts: Record<string, number> = {};
+  /**
+   * Height of each open oscillator pane as a part of the price pane, read from the chart now (after the user dragged a separator).
+   * Returns null while a pane is maximized, when no oscillator pane is open, or when nothing changed since the last layout.
+   */
+  measurePaneParts(): Record<string, number> | null {
+    const parts = this.readPaneParts();
+    if (!parts) return null;
+    const changed = Object.entries(parts).some(([id, part]) => Math.abs((this.laidParts[id] ?? 0) - part) >= 0.002);
+    this.laidParts = parts;
+    return changed ? parts : null;
+  }
+  private readPaneParts(): Record<string, number> | null {
+    if (this.maximizedPaneId !== null || this.binding.isDisposed()) return null;
+    const panes = this.binding.chart.panes(), base = panes[0]?.getStretchFactor();
+    if (!base) return null;
+    const parts: Record<string, number> = {};
+    for (const id of this.paneSeries.keys()) {
+      if (this.collapsedIds.has(id)) continue;
+      const index = this.paneIndexOf(id);
+      if (index === null || index === 0) continue;
+      const part = panes[index].getStretchFactor() / base;
+      if (Number.isFinite(part) && part > 0) parts[id] = Math.round(part * 1000) / 1000;
+    }
+    return Object.keys(parts).length ? parts : null;
+  }
   constructor(private binding: ChartBinding, private systemSeries?: SystemSeriesRefs) {}
   /**
    * `systems` are the system oscillators of switched-on layers; `order` is the pane order from top to bottom (pane ids of
@@ -417,14 +450,21 @@ export class IndicatorRenderer {
     if (!plot || this.binding.isDisposed()) return null;
     try { return plot.getPane().paneIndex(); } catch { return null; }
   }
-  /** Every open oscillator pane gets half the height of the price pane; a room too small for that keeps the price pane at its minimum. */
+  /**
+   * An open oscillator pane with a saved height (per product) gets it again. Every other open pane gets half the height of the
+   * price pane; a room too small for that keeps the price pane at its minimum.
+   */
   private applyPaneParts(collapsed: ReadonlySet<number>) {
     const panes = this.binding.chart.panes(), base = panes[0]?.getStretchFactor() || 1;
-    const open = panes.map((_, index) => index).filter(index => index > 0 && !collapsed.has(index));
+    const saved = new Map<number, number>();
+    for (const [id, part] of Object.entries(this.savedParts)) { const index = this.paneIndexOf(id); if (index !== null && index > 0 && part > 0) saved.set(index, part); }
+    const open = panes.map((_, index) => index).filter(index => index > 0 && !collapsed.has(index) && !saved.has(index));
     const room = this.binding.host.clientHeight - TIME_AXIS_PX - panes.length /* 1 px separator each */ - collapsed.size * COLLAPSED_PANE_PX;
+    const savedSum = [...saved].reduce((sum, [index, part]) => collapsed.has(index) ? sum : sum + part, 0);
     let part = OSCILLATOR_PANE_PART;
-    if (room > MIN_PRICE_PANE_PX && open.length && room / (1 + part * open.length) < MIN_PRICE_PANE_PX) part = (room - MIN_PRICE_PANE_PX) / (open.length * MIN_PRICE_PANE_PX);
+    if (room > MIN_PRICE_PANE_PX && open.length && room / (1 + savedSum + part * open.length) < MIN_PRICE_PANE_PX) part = Math.max(0.05, (room / MIN_PRICE_PANE_PX - 1 - savedSum) / open.length);
     for (const index of open) panes[index].setStretchFactor(base * part);
+    for (const [index, value] of saved) if (!collapsed.has(index)) panes[index].setStretchFactor(base * value);
   }
   /** One pane with one series for a system oscillator; its series goes to `systemSeries` for the drawing layer. */
   private buildSystem(system: SystemPaneModel, theme: ReturnType<typeof readChartColors>) {
@@ -468,6 +508,7 @@ export class IndicatorRenderer {
     this.restoreStretch();
     // pane.setHeight() reads the last layout, which new panes do not have yet. Stretch factors need no layout.
     const collapsed = new Set([...collapsedIds].map(id => this.paneIndexOf(id)).filter((index): index is number => index !== null));
+    this.collapsedIds = collapsedIds;
     this.applyPaneParts(collapsed);
     const openStretch = panes.reduce((sum, pane, index) => collapsed.has(index) ? sum : sum + pane.getStretchFactor(), 0);
     const roomForOpenPanes = Math.max(1, this.binding.host.clientHeight - collapsed.size * COLLAPSED_PANE_PX);
@@ -486,6 +527,7 @@ export class IndicatorRenderer {
       this.hiddenRows = [...rows];
     }
     this.maximizedPaneId = maximizedPaneId;
+    this.laidParts = this.readPaneParts() ?? {};
   }
   /** Pane rows hidden while a pane is maximized */
   private hiddenRows: HTMLElement[] = [];

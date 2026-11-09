@@ -18,7 +18,15 @@ export interface ChartDocument { drawings: string; indicators: Indicator[]; imag
   /** Bereiche von oben nach unten (System-Bereiche `rsi` und `wave` und die `paneId` der Nutzer-Oszillatoren); fehlt er, gilt die Standardreihenfolge (UI-11) */
   paneOrder?: string[];
   /** Ausgeblendet (Auge) und eingeklappt je System-Bereich */
-  systemPanes?: SystemPaneStates }
+  systemPanes?: SystemPaneStates;
+  /** Height of each oscillator pane as a part of the price pane, keyed by pane id; set when the user drags a separator (UI-24) */
+  paneHeights?: Record<string, number> }
+/** Saved pane heights: only finite, positive parts; null when nothing valid remains. */
+export function parsePaneHeights(raw: unknown): Record<string, number> | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const parts = Object.fromEntries(Object.entries(raw).filter(([, v]) => typeof v === 'number' && Number.isFinite(v) && v > 0 && v < 100).slice(0, 50));
+  return Object.keys(parts).length ? parts : null;
+}
 const EMPTY: ChartDocument = { drawings: '[]', indicators: [], images: {}, overlays: {}, alarms: [] };
 export const WORKSPACE_STORAGE_KEY = 'grid-robot-chart-workspaces-v1';
 /**
@@ -57,8 +65,8 @@ export function parseStoredDocument(unknownDoc: unknown, version: unknown): Char
   const visibleTime = saved && typeof saved.from === 'number' && Number.isFinite(saved.from) && typeof saved.to === 'number' && Number.isFinite(saved.to) && saved.from < saved.to ? { from: saved.from, to: saved.to } : undefined;
   const alarms = Array.isArray(d.alarms) ? d.alarms.flatMap(item => item && typeof item === 'object' && typeof item.id === 'string' && typeof item.indicatorId === 'string' && (item.direction === 'above' || item.direction === 'below') && typeof item.value === 'number' && Number.isFinite(item.value) ? [{ id: item.id, indicatorId: item.indicatorId, direction: item.direction, value: item.value, armed: item.armed !== false }] : []).slice(0, 50) : [];
   const migrated = version === 1 ? migrateSystemRsi(parseIndicators(d.indicators), parsePaneOrder(d.paneOrder), d.systemPanes) : { indicators: parseIndicators(d.indicators), paneOrder: parsePaneOrder(d.paneOrder) };
-  const paneOrder = migrated.paneOrder, systemPanes = parseSystemPanes(d.systemPanes);
-  return { drawings: typeof d.drawings === 'string' ? d.drawings : '[]', indicators: migrated.indicators, images, overlays, alarms, ...(d.appearance === undefined ? {} : { appearance: parseAppearance(d.appearance) }), ...(visibleTime ? { visibleTime } : {}), ...(paneOrder ? { paneOrder } : {}), ...(systemPanes ? { systemPanes } : {}) };
+  const paneOrder = migrated.paneOrder, systemPanes = parseSystemPanes(d.systemPanes), paneHeights = parsePaneHeights(d.paneHeights);
+  return { drawings: typeof d.drawings === 'string' ? d.drawings : '[]', indicators: migrated.indicators, images, overlays, alarms, ...(d.appearance === undefined ? {} : { appearance: parseAppearance(d.appearance) }), ...(visibleTime ? { visibleTime } : {}), ...(paneOrder ? { paneOrder } : {}), ...(systemPanes ? { systemPanes } : {}), ...(paneHeights ? { paneHeights } : {}) };
 }
 export const emptyChartDocument = (): ChartDocument => ({ ...EMPTY, indicators: [], images: {}, overlays: {}, alarms: [] });
 interface State {
