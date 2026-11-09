@@ -43,6 +43,9 @@ class GridState:
     market_closed_until: Dict[str, float] = field(default_factory=dict)
     # Sembol → monotonic bitiş: iptal 10018 ile reddedilince Mutlak Temizlik beklenir (ENG-33)
     cancel_closed_until: Dict[str, float] = field(default_factory=dict)
+    # Bölge magic → (hedef yön, monotonic sonraki deneme): bölge çıkışında reddedilen pozisyon
+    # kapatmaları (grid_order_manager.retry_exit_closes, ENG-10)
+    exit_close_pending: Dict[int, tuple] = field(default_factory=dict)
     # Bölge → dışarıdan silinen emirlerin zamanları (monotonic, kayan pencere)
     vanished_times: Dict[int, list] = field(default_factory=dict)
     # Kaldırılan fraktal ek kurgularının emirleri için kullanıcı kararı: "delete" / "keep" / "" (bekliyor)
@@ -84,6 +87,7 @@ class GridState:
         self.fractal_logged.clear()
         self.placed_orders.clear()
         self.market_closed_until.clear()
+        self.exit_close_pending.clear()
         self.vanished_times.clear()
         self.ui_remap_pending = None
         self.netting_conflict_logged = None

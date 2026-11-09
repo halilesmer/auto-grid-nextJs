@@ -141,3 +141,55 @@ def test_neustart_aus_dem_dashboard_nimmt_die_zone_wieder_auf(fake_mt5, ui_state
     engine.tick()
     assert engine.active_zones_state[0] == "START"
     assert len(m.robot_orders()) > 0
+
+
+@pytest.mark.feature("ENG-10")
+def test_abgelehntes_schliessen_wird_wiederholt(fake_mt5, ui_state_file):
+    """Reddedilen kapatma (ör. requote) unutulmaz: bekleme süresinden sonra yeniden denenir."""
+    from src.core import clock
+
+    m = fake_mt5
+    now = [1000.0]
+    clock.set_clock(lambda: now[0])
+    try:
+        zone = make_zone(order_type="BOTH", clear_on_exit=True, clear_scope="Tüm İşlemler")
+        engine = EngineHarness(m, [zone])
+        engine.tick()
+        pos = m.add_position("USOUSD", m.POSITION_TYPE_BUY, 96.5, tp=96.6, magic=MAGIC_ZONE_1)
+        m.set_price("USOUSD", 111.0, fill=False)
+        m.reject(10004, 1)
+        engine.tick()
+        assert pos in m.positions and engine.active_zones_state.get(0) == "AUTO_CLEAR"
+        engine.tick()  # bekleme süresi dolmadı: denenmez
+        assert pos in m.positions
+        now[0] += 11
+        engine.tick()
+        assert pos not in m.positions
+        assert m.robot_orders() == []
+    finally:
+        clock.set_clock(None)
+
+
+@pytest.mark.feature("ENG-10")
+def test_neustart_der_zone_verwirft_offenes_schliessen(fake_mt5, ui_state_file):
+    """Kullanıcı bölgeyi yeniden başlatırsa bekleyen kapatma düşer; pozisyon kapatılmaz."""
+    from src.core import clock
+
+    m = fake_mt5
+    now = [1000.0]
+    clock.set_clock(lambda: now[0])
+    try:
+        zone = make_zone(order_type="BOTH", clear_on_exit=True, clear_scope="Tüm İşlemler")
+        engine = EngineHarness(m, [zone])
+        engine.tick()
+        pos = m.add_position("USOUSD", m.POSITION_TYPE_BUY, 96.5, tp=96.6, magic=MAGIC_ZONE_1)
+        m.set_price("USOUSD", 111.0, fill=False)
+        m.reject(10004, 1)
+        engine.tick()
+        ui_state_file.write_text(json.dumps({"0": "START"}))
+        m.set_price("USOUSD", 96.55, fill=False)
+        now[0] += 11
+        engine.tick()
+        assert pos in m.positions
+    finally:
+        clock.set_clock(None)

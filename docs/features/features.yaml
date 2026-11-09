@@ -841,7 +841,7 @@ kategorien:
 
       - id: ENG-10
         titel: Bereinigung beim Verlassen der Zone
-        beschreibung: "Mit clear_on_exit: Richtung (clear_exit_side), Umfang („Sadece Bekleyen Emirler“ oder „Tüm İşlemler“ = auch Positionen schließen) und Zielseite (BUY/SELL/alle). Danach steht die Zone auf AUTO_CLEAR: keine neuen Orders – auch nicht, wenn der Kurs zurückkommt – bis „Yeniden Başlat“ im Dashboard (oder Bot-Neustart)."
+        beschreibung: "Mit clear_on_exit: Richtung (clear_exit_side), Umfang („Sadece Bekleyen Emirler“ oder „Tüm İşlemler“ = auch Positionen schließen) und Zielseite (BUY/SELL/alle). Danach steht die Zone auf AUTO_CLEAR: keine neuen Orders – auch nicht, wenn der Kurs zurückkommt – bis „Yeniden Başlat“ im Dashboard (oder Bot-Neustart). Lehnt MT5 das Schließen einer Position ab (Requote, Markt geschlossen), versucht der Bot es alle 10 s (bei 10018 alle 60 s) erneut, bis die Position zu ist oder die Zone neu gestartet wird."
         code: [worker_python/src/core/grid_order_manager.py, worker_python/src/core/grid_orchestrator.py, worker_python/src/core/grid_zone_selector.py, frontend_nextjs/src/components/zone/ZoneHeader.tsx]
         tiers: [unit, live]
         pruefung:

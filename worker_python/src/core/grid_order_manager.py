@@ -18,8 +18,13 @@ from src.core.grid_orders import (
     zone_index_by_magic,
     zone_magic,
 )
+from src.core import clock
 from src.core.state import state
-from src.utils.trade_utils import safe_send_order
+from src.utils.trade_utils import safe_send_order, TradeState
+
+MARKET_CLOSED_RETCODE = 10018
+# Reddedilen çıkış kapatması bu kadar saniye sonra yeniden denenir (10018'de piyasa kapalı aralığı)
+EXIT_CLOSE_RETRY_SECONDS = 10
 
 
 def clean_zombie_orders(mt5, robot_orders, zones, active_zones_state):
@@ -290,49 +295,92 @@ def handle_zone_exit(
     # Arayüz "Tüm İşlemler" kaydeder; "Pozisyon"/"Tümü"/"Hepsi" eski (Streamlit) değerler.
     # "Tüm" kontrolü olmadan "Tüm İşlemler" seçiliyken pozisyonlar hiç kapatılmıyordu.
     if any(key in scope for key in ("Tüm", "Pozisyon", "Hepsi")):
-        kapatilan_poz_sayisi = 0
-        for pos in robot_positions:
-            if pos.magic == target_magic:
-                if (
-                    target == "Farketmez (Hepsi)"
-                    or (
-                        target == "Sadece BUY İşlemleri"
-                        and pos.type == mt5.POSITION_TYPE_BUY
-                    )
-                    or (
-                        target == "Sadece SELL İşlemleri"
-                        and pos.type == mt5.POSITION_TYPE_SELL
-                    )
-                ):
-                    tick = mt5.symbol_info_tick(pos.symbol)
-                    if tick:
-                        close_type = (
-                            mt5.ORDER_TYPE_SELL
-                            if pos.type == mt5.POSITION_TYPE_BUY
-                            else mt5.ORDER_TYPE_BUY
-                        )
-                        close_price_val = (
-                            tick.bid
-                            if pos.type == mt5.POSITION_TYPE_BUY
-                            else tick.ask
-                        )
-                        req = {
-                            "action": mt5.TRADE_ACTION_DEAL,
-                            "position": pos.ticket,
-                            "symbol": pos.symbol,
-                            "volume": pos.volume,
-                            "type": close_type,
-                            "price": close_price_val,
-                            "deviation": MAX_DEVIATION,
-                            "magic": pos.magic,
-                            "comment": "Zone_Exit_Close",
-                            "type_time": mt5.ORDER_TIME_GTC,
-                            "type_filling": filling_mode.get(
-                                pos.symbol, mt5.ORDER_FILLING_IOC
-                            ),
-                        }
-                        safe_send_order(mt5, req, log_message)
-                        kapatilan_poz_sayisi += 1
-        log_message(f"💥 Toplam {kapatilan_poz_sayisi} adet {target} açık pozisyonu kapatıldı.")
+        closed, failed = _close_zone_positions(mt5, robot_positions, target_magic, target, filling_mode)
+        log_message(f"💥 Toplam {closed} adet {target} açık pozisyonu kapatıldı.")
+        if failed:
+            _schedule_exit_close_retry(target_magic, target)
+            log_message(
+                f"⚠️ {zone_label(active_zone_idx)}: {failed} pozisyon kapatılamadı (MT5 reddetti). "
+                "Kapanana kadar yeniden denenecek.",
+                "ERROR",
+            )
 
     return True
+
+
+def _targets_position(mt5, pos, target):
+    return (
+        target == "Farketmez (Hepsi)"
+        or (target == "Sadece BUY İşlemleri" and pos.type == mt5.POSITION_TYPE_BUY)
+        or (target == "Sadece SELL İşlemleri" and pos.type == mt5.POSITION_TYPE_SELL)
+    )
+
+
+def _close_zone_positions(mt5, robot_positions, target_magic, target, filling_mode):
+    """Bölgenin (magic) hedef yöndeki pozisyonlarını piyasa emriyle kapatır.
+    Dönüş: (kapatılan, kapatılamayan). Tick yoksa ya da MT5 reddederse kapatılamayan sayılır."""
+    closed = failed = 0
+    for pos in robot_positions:
+        if pos.magic != target_magic or not _targets_position(mt5, pos, target):
+            continue
+        tick = mt5.symbol_info_tick(pos.symbol)
+        if not tick:
+            failed += 1
+            continue
+        is_buy = pos.type == mt5.POSITION_TYPE_BUY
+        req = {
+            "action": mt5.TRADE_ACTION_DEAL,
+            "position": pos.ticket,
+            "symbol": pos.symbol,
+            "volume": pos.volume,
+            "type": mt5.ORDER_TYPE_SELL if is_buy else mt5.ORDER_TYPE_BUY,
+            "price": tick.bid if is_buy else tick.ask,
+            "deviation": MAX_DEVIATION,
+            "magic": pos.magic,
+            "comment": "Zone_Exit_Close",
+            "type_time": mt5.ORDER_TIME_GTC,
+            "type_filling": filling_mode.get(pos.symbol, mt5.ORDER_FILLING_IOC),
+        }
+        if safe_send_order(mt5, req, log_message):
+            closed += 1
+        else:
+            failed += 1
+    return closed, failed
+
+
+def _schedule_exit_close_retry(target_magic, target):
+    delay = (
+        state.MARKET_CLOSED_CHECK_INTERVAL
+        if TradeState.last_retcode == MARKET_CLOSED_RETCODE
+        else EXIT_CLOSE_RETRY_SECONDS
+    )
+    state.exit_close_pending[target_magic] = (target, clock.monotonic() + delay)
+
+
+def retry_exit_closes(mt5, zones, robot_positions, active_zones_state, filling_mode):
+    """Bölge çıkışında (clear_scope "Tüm İşlemler") MT5'in reddettiği kapatmaları yeniden dener.
+
+    Eskiden sonuç okunmuyordu: tek bir red (requote, piyasa kapalı) pozisyonu açık bırakıyor,
+    log "kapatıldı" diyordu ve bölge AUTO_CLEAR olduğu için bir daha denenmiyordu. Bölge silinirse
+    ya da kullanıcı onu yeniden başlatırsa (artık AUTO_CLEAR değil) bekleyen kapatma düşer.
+    """
+    if not state.exit_close_pending:
+        return
+    index_by_magic = zone_index_by_magic(zones)
+    for magic, (target, retry_at) in list(state.exit_close_pending.items()):
+        zone_idx = index_by_magic.get(magic)
+        if zone_idx is None or active_zones_state.get(zone_idx) != "AUTO_CLEAR":
+            del state.exit_close_pending[magic]
+            continue
+        if clock.monotonic() < retry_at:
+            continue
+        closed, failed = _close_zone_positions(mt5, robot_positions, magic, target, filling_mode)
+        if failed:
+            _schedule_exit_close_retry(magic, target)
+            continue
+        del state.exit_close_pending[magic]
+        if closed:  # 0: pozisyon bu arada kendi TP/SL'iyle kapandı
+            log_message(
+                f"💥 {zone_label(zone_idx, zones)}: bölge çıkışında kapatılamayan {closed} pozisyon şimdi kapatıldı.",
+                zone_id=zone_log_id(zones[zone_idx], zone_idx),
+            )
