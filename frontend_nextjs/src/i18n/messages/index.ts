@@ -14,6 +14,7 @@ import lineStyle from './lineStyle';
 import indicatorDialog from './indicatorDialog';
 import livecompare from './livecompare';
 import logs from './logs';
+import media from './media';
 import news from './news';
 import settings from './settings';
 import spread from './spread';
@@ -27,7 +28,7 @@ import trendLine from './trendLine';
 import tools from './tools';
 
 // Yeni bölüm: dosyayı ekle, buraya import et ve aşağıdaki listeye koy.
-const areas = [common, dashboard, bot, settings, logs, errors, account, zone, ui, chart, analysis, backtest, livecompare, csvimport, vps, connection, users, spread, formation, workspace, toolbar, hints, news, lineStyle, trendLine, indicatorDialog, tools] as const;
+const areas = [common, dashboard, bot, settings, logs, errors, account, zone, ui, chart, analysis, backtest, livecompare, csvimport, vps, connection, users, spread, formation, workspace, toolbar, hints, news, lineStyle, trendLine, indicatorDialog, tools, media] as const;
 
 type Union2Intersection<U> = (U extends unknown ? (k: U) => void : never) extends (k: infer I) => void ? I : never;
 

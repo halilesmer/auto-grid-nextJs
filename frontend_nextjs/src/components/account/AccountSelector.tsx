@@ -201,6 +201,7 @@ export default function AccountSelector({ menuExtra }: { menuExtra?: ReactNode }
           mt5ScanError={mt5ScanError}
           onSubmit={handleSubmit}
           onEditExisting={duplicateAccount ? handleEditExisting : undefined}
+          media={{ open: modalOpen, accountId: isEditing && activeAccount ? String(activeAccount.id) : null }}
         />
         {/* Form <dialog>'u showModal ile top layer'da; soru onun içinde olmalı, yoksa arkasında kalır */}
         <ConfirmModal

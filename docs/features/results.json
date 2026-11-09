@@ -121,6 +121,20 @@
       "tests": 14
     }
   },
+  "ACC-12": {
+    "e2e": {
+      "datum": "2026-11-09",
+      "status": "passed",
+      "tests": 3
+    }
+  },
+  "ACC-13": {
+    "e2e": {
+      "datum": "2026-11-09",
+      "status": "passed",
+      "tests": 2
+    }
+  },
   "ANA-01": {
     "e2e": {
       "datum": "2026-11-06",

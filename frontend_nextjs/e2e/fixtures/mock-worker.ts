@@ -30,6 +30,38 @@ interface Reply {
   delayMs?: number;
 }
 
+/** Datei im Medienspeicher (Spiegel von worker_python/src/utils/account_media.py). */
+export interface MockMedia {
+  id: string;
+  name: string;
+  kind: 'image' | 'pdf' | 'note';
+  mime: string;
+  size: number;
+  created_at: string;
+  bytes: Buffer;
+}
+
+const MEDIA_MAX = { image: 10 * 1024 * 1024, pdf: 10 * 1024 * 1024, note: 1024 * 1024 };
+const MEDIA_LIMIT = 3;
+
+/** Wie account_media.classify: der Typ kommt aus den ersten Bytes (PDF, PNG, JPEG, WebP) oder aus .txt/.md mit gültigem UTF-8. */
+function classifyMedia(name: string, bytes: Buffer): { kind: MockMedia['kind']; mime: string } | null {
+  const head = bytes.subarray(0, 12);
+  if (head.subarray(0, 5).toString('latin1') === '%PDF-') return { kind: 'pdf', mime: 'application/pdf' };
+  if (head.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return { kind: 'image', mime: 'image/png' };
+  if (head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff) return { kind: 'image', mime: 'image/jpeg' };
+  if (head.subarray(0, 4).toString('latin1') === 'RIFF' && head.subarray(8, 12).toString('latin1') === 'WEBP') return { kind: 'image', mime: 'image/webp' };
+  if (/\.(txt|md)$/i.test(name) && !bytes.includes(0)) {
+    try {
+      new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+      return { kind: 'note', mime: name.toLowerCase().endsWith('.md') ? 'text/markdown' : 'text/plain' };
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 /** Wer die Anfrage stellt: Admin (E2E_API_KEY) oder ein Benutzer mit persönlichem Schlüssel. */
 interface Principal {
   role: 'admin' | 'user';
@@ -220,6 +252,12 @@ export class MockWorker {
   readonly ratesQueries: string[] = [];
   /** Rohkörper der laufenden Anfrage (Chunk-Upload des CSV-Imports) */
   private rawBody = '';
+  private rawBuffer: Buffer = Buffer.alloc(0);
+  /** ACC-12/13: Medien je Konto (Spiegel von data/media/<Konto>/) */
+  readonly media: Record<string, MockMedia[]> = {};
+  private mediaSeq = 0;
+  /** Verzögerung der Datei-Antwort (GET .../media/{id}) in ms, damit der Ladezustand sichtbar bleibt */
+  mediaDownloadDelayMs = 0;
   /** URLs aller WebSocket-Verbindungen (inkl. Reconnects). */
   readonly wsUrls: string[] = [];
   /** Offene Streams und ihr Konto aus ?account_id= (null: ohne Parameter → erstes Konto). */
@@ -248,6 +286,15 @@ export class MockWorker {
   setOwner(accountId: string, ownerId: string | null) {
     const account = this.state.accounts.find((a) => String(a.id) === accountId);
     if (account) account.owner = ownerId;
+  }
+
+  /** Legt eine Datei direkt im Medienspeicher ab (ohne Upload-Aufruf), z. B. für Tests der Liste und Vorschau. */
+  seedMedia(accountId: string, name: string, bytes: Buffer, createdAt = '2026-11-05T10:00:00Z'): MockMedia {
+    const info = classifyMedia(name, bytes);
+    if (!info) throw new Error(`seedMedia: unbekannter Typ für ${name}`);
+    const item: MockMedia = { id: (++this.mediaSeq).toString(16).padStart(12, '0'), name, ...info, size: bytes.length, created_at: createdAt, bytes };
+    (this.media[accountId] ??= []).push(item);
+    return item;
   }
 
   callsTo(method: string, path: string | RegExp): WorkerCall[] {
@@ -336,7 +383,8 @@ export class MockWorker {
     }
     this.calls.push({ method, path: url.pathname, query: url.searchParams, body });
 
-    this.rawBody = request.postDataBuffer()?.toString('utf8') ?? '';
+    this.rawBuffer = request.postDataBuffer() ?? Buffer.alloc(0);
+    this.rawBody = this.rawBuffer.toString('utf8');
     const headers = await request.allHeaders();
     const principal = this.principalOf(headers['x-api-key']);
     if (!principal) {
@@ -366,12 +414,72 @@ export class MockWorker {
       });
     }
 
+    const mediaReply = this.mediaRoute(method, url);
+    if (mediaReply) {
+      if ('file' in mediaReply) {
+        if (this.mediaDownloadDelayMs) await new Promise((resolve) => setTimeout(resolve, this.mediaDownloadDelayMs));
+        const { file } = mediaReply;
+        return route.fulfill({
+          status: 200,
+          headers: {
+            ...CORS_HEADERS,
+            'content-type': file.mime,
+            'content-disposition': `inline; filename*=UTF-8''${encodeURIComponent(file.name)}`,
+            'x-content-type-options': 'nosniff',
+            'content-security-policy': 'sandbox',
+            'cache-control': 'private, max-age=31536000, immutable',
+          },
+          body: file.bytes,
+        });
+      }
+      return this.reply(route, mediaReply);
+    }
+
     const reply = this.dispatch(method, url, body, principal);
     if (!reply) {
       this.unhandled.push(`${method} ${url.pathname}`);
       return this.reply(route, { status: 404, body: { detail: 'Not Found' } });
     }
     return this.reply(route, reply);
+  }
+
+  /** ACC-12: Liste, Hochladen (roher Body), Herunterladen, Löschen wie worker_python/src/api/media.py. */
+  private mediaRoute(method: string, url: URL): Reply | { file: MockMedia } | null {
+    const seg = url.pathname.replace(/^\/api/, '').split('/').filter(Boolean);
+    if (seg[0] !== 'accounts' || seg[2] !== 'media' || seg.length > 4) return null;
+    const accountId = seg[1];
+    if (!this.state.accounts.some((a) => String(a.id) === accountId)) return { status: 404, body: { detail: `Account '${accountId}' not found` } };
+    const items = (this.media[accountId] ??= []);
+    const pub = (m: MockMedia) => ({ id: m.id, name: m.name, kind: m.kind, mime: m.mime, size: m.size, created_at: m.created_at });
+    if (seg.length === 3 && method === 'GET') return { status: 200, body: { items: items.map(pub), limit: MEDIA_LIMIT, max_bytes: MEDIA_MAX } };
+    if (seg.length === 3 && method === 'POST') {
+      const name = (url.searchParams.get('name') ?? '').replace(/[\\/\0]/g, '_').trim().slice(0, 120);
+      if (!name) return { status: 422, body: { detail: 'Invalid file name' } };
+      if (this.rawBuffer.length > MEDIA_MAX.image) return { status: 413, body: { detail: 'File is too large' } };
+      if (items.length >= MEDIA_LIMIT) return { status: 409, body: { detail: `At most ${MEDIA_LIMIT} files per account` } };
+      if (this.rawBuffer.length === 0) return { status: 422, body: { detail: 'File is empty' } };
+      const info = classifyMedia(name, this.rawBuffer);
+      if (!info) return { status: 415, body: { detail: 'Unsupported file type' } };
+      if (this.rawBuffer.length > MEDIA_MAX[info.kind]) return { status: 413, body: { detail: 'File is too large' } };
+      const item: MockMedia = {
+        id: (++this.mediaSeq).toString(16).padStart(12, '0'),
+        name,
+        ...info,
+        size: this.rawBuffer.length,
+        created_at: new Date(nowMs()).toISOString().replace(/\.\d+Z$/, 'Z'),
+        bytes: this.rawBuffer,
+      };
+      items.push(item);
+      return { status: 201, body: pub(item) };
+    }
+    const item = items.find((m) => m.id === seg[3]);
+    if (seg.length === 4 && !item) return { status: 404, body: { detail: 'Media not found' } };
+    if (seg.length === 4 && item && method === 'GET') return { file: item };
+    if (seg.length === 4 && item && method === 'DELETE') {
+      this.media[accountId] = items.filter((m) => m !== item);
+      return { status: 200, body: { deleted: item.id } };
+    }
+    return null;
   }
 
   private async reply(route: Route, { status, body, delayMs }: Reply) {
@@ -394,6 +502,7 @@ export class MockWorker {
   private scopedAccountId(method: string, url: URL): string | null {
     const seg = url.pathname.replace(/^\/api/, '').split('/').filter(Boolean);
     if (seg[0] === 'logs' && seg[1] === 'download') return seg[2] ?? null;
+    if (seg[0] === 'accounts' && seg[2] === 'media') return seg[1];
     if (['settings', 'ui-state', 'symbols', 'logs', 'favorites'].includes(seg[0]) && seg.length === 2) return seg[1];
     if (seg[0] === 'ui-prefs' && (seg.length === 2 || seg.length === 3)) return seg[1];
     if (seg[0] === 'market' && seg.length === 3) return seg[1];
