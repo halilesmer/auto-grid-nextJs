@@ -234,6 +234,38 @@ test.describe('UI-22 Ein Chart ohne Modi', () => {
     await expect(cardTab(page, 'conditions')).toHaveCount(0);
   });
 
+  // 1107-A21.21: the collapsed card header must not cover the price scale of the candle pane
+  for (const width of [1024, 1100, 1440]) {
+    test(`Die zugeklappte Karte überdeckt die Preisachse nicht (${width} px)`, { tag: '@UI-22' }, async ({ page, worker }) => {
+      await page.setViewportSize({ width, height: 768 });
+      await page.addInitScript(() => localStorage.setItem('grid-robot-formation-sidebar', JSON.stringify({ open: false, tab: 'conditions' })));
+      // Long prices make the price scale wider than the 84 px the closed card used to keep free (the defect of A21.21)
+      serve(worker);
+      worker.state.ratesSeries!.H4 = worker.state.ratesSeries!.H4.map(([t, o, h, l, c]) => [t, o * 1e7, h * 1e7, l * 1e7, c * 1e7]);
+      worker.state.ratesSeries!.M15 = worker.state.ratesSeries!.M15.map(([t, o, h, l, c]) => [t, o * 1e7, h * 1e7, l * 1e7, c * 1e7]);
+      await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H4`);
+      await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-bars', /^[1-9]\d*$/);
+      // card and price scale are read together; the scale width settles one frame after the data
+      const overlap = async () => {
+        let last = Infinity;
+        await expect.poll(async () => {
+          const card = (await page.getByTestId('chart-floating-card').boundingBox())!;
+          const scale = await page.getByTestId('analysis-chart').evaluate((el) => {
+            const cell = el.querySelector('table tr:first-child td:last-child')!.getBoundingClientRect();
+            return { x: cell.x, width: cell.width };
+          });
+          last = scale.width > 84 ? card.x + card.width - scale.x : Infinity;
+          return last;
+        }).toBeLessThanOrEqual(0);
+        return last;
+      };
+      expect(await overlap()).toBeLessThanOrEqual(0);
+      await page.reload();
+      await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-bars', /^[1-9]\d*$/);
+      expect(await overlap()).toBeLessThanOrEqual(0);
+    });
+  }
+
   test('Jeder Reiter zeigt seinen Inhalt; der gewählte Reiter bleibt im Browser', { tag: '@UI-22' }, async ({ page, worker }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await open(page, worker, '&symbol=EURUSD&form=GAR');
