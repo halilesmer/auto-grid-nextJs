@@ -49,7 +49,35 @@ Rejected: multipart upload (needs a new dependency; the raw body pattern exists 
 | S0 | Design as an Artifact, main session | open |
 | S1 | Worker API, tests, ACC-12 | this PR |
 | S2 | Frontend: `src/components/account/media/` (`AccountMedia`, `MediaSlot`, `MediaPreviewDialog`, `useAccountMedia`), `src/services/mediaApi.ts`, lazy download as blob, mock worker, e2e ACC-12 and ACC-13 | open |
-| S3 | Live test on the VPS and sign-off | open |
+| S3 | Live test on the VPS and sign-off | done 2026-11-09 |
 
 ## Open points
-S2 to S3 are open. ACC-13 (lazy preview) comes with S2.
+No open points.
+
+## Live test (2026-11-09, S3)
+Worker on the VPS: v0.7.519, which includes the merge of S2. Browser: built-in browser on `localhost:3000`, connected to the live worker.
+
+Account: a DEMO account (checked with `env_type`) without a running bot. The first test account had a running bot. The edit form is locked while a bot runs (ACC-04), so the Media section cannot open. The bot was not stopped.
+
+Result of the UI flow (ACC-13):
+- The form opened with no file download. The network log shows only list requests (`GET .../media`).
+- Upload of a 200 B PDF, a 7.6 MB JPEG (4000 x 3000) and a .txt: each card shows up. The JPEG card shows "3 MB". The preview shows 2560 x 1920 pixels. The browser scaled it down before the upload.
+- A click on the card opened the preview. The file came from one `GET .../media/<id>`, and only then.
+- A 4th file gave the message "At most 3 files" in the UI.
+- Escape closed only the preview. The form stayed open.
+
+Result of the API checks (ACC-12), with `X-API-Key`:
+- Each download has `X-Content-Type-Options: nosniff`, `Content-Security-Policy: sandbox` and `Cache-Control: private, max-age=31536000, immutable`.
+- A 4th upload gives 409. SVG, HTML and HEIC give 415 (checked with a free slot).
+- Delete gives 200. At the end the account had no media files.
+- `media.py` and `account_media.py` use only `get_media_dir`. The calls do not touch bot settings or the account list.
+
+Not tried: no file larger than 10 MB (413) and no PNG. The mocked tests and the worker tests cover them.
+
+## Read-only live suite (same day)
+`run.sh live` found two red tests that had no link to media. Both were old test assumptions, not product defects:
+- MET-03: `/chart` opens the stream only for a selected account, and the account comes from `?account=`. The test now opens `/chart?account=<id>`. The floating card starts closed (UI-22), so the test opens it before it reads the price.
+- MET-01: the test read the Turkish number `4.102,17` as 4.1, and it compared the first card with the price of another symbol. It now parses the display format and compares with `symbol_prices` of the card symbol.
+After the fix `run.sh live MET` gives 2 passed.
+
+Lesson: a live test that does not select the account itself can pass by accident. Select the account in the URL or in the UI.

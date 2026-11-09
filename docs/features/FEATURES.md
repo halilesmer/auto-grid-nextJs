@@ -35,27 +35,27 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 1. SYS – Verbindung & Infrastruktur
 
-- [x] **SYS-01** Worker erreichbar (REST über ngrok) — 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **SYS-01** Worker erreichbar (REST über ngrok) — 🌐 live ✅ 2026-11-09 · 👤 manuell ✅ 2026-09-23
   - Das Frontend erreicht den Worker über die im Browser gespeicherte Verbindung (Adresse + /api); axios sendet den ngrok-skip-browser-warning-Header. NEXT_PUBLIC_API_URL/NEXT_PUBLIC_WORKER_API_KEY sind nur noch der Startwert für die lokale Entwicklung (siehe SYS-07).
   - **Prüfung:** Worker auf dem VPS starten (start.bat), Frontend lokal starten (npm run dev:frontend). → http://localhost:3000 öffnen.
   - **Erwartet:** Kontoliste lädt, im Log-Bereich steht der Worker als online.
   - 📝 Claude im App-Browser: /api/accounts 200 über ngrok, DEMO-Konto A im Dropdown, 'Worker online'
-- [x] **SYS-02** WebSocket-Stream + Reconnect — 🖥️ e2e ✅ 2026-11-05 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **SYS-02** WebSocket-Stream + Reconnect — 🖥️ e2e ✅ 2026-11-05 · 🌐 live ✅ 2026-11-09 · 👤 manuell ✅ 2026-09-23
   - Verbindung zu /ws/stream; Nachrichten METRICS, LIVE_DATA, LOG werden in die Stores geleitet; bei Abbruch automatischer Reconnect.
   - **Prüfung:** Dashboard öffnen, DevTools → Network → WS prüfen. → Worker kurz neu starten.
   - **Erwartet:** WS verbindet sich, nach dem Neustart verbindet er sich von selbst wieder.
   - 📝 Claude im App-Browser: WS offen nach ~0,1 s, 1 Nachricht/s; nach Worker-Neustart 4 Fehlversuche mit Backoff 2/4/8/16 s, dann verbunden (~60 s). Inhalt fehlerhaft → siehe MET-03
-- [x] **SYS-03** Plattform-Erkennung — 🔌 api ✅ 2026-11-03 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **SYS-03** Plattform-Erkennung — 🔌 api ✅ 2026-11-03 · 🌐 live ✅ 2026-11-09 · 👤 manuell ✅ 2026-09-23
   - GET /system/platform meldet, ob der Worker unter Windows läuft (auch als einfacher Health-Check, siehe docs/NGrok). Der Health-Check antwortet auch während eine Update-Prüfung auf Git wartet.
   - **Prüfung:** GET /api/system/platform (mit X-API-Key) über ngrok aufrufen.
   - **Erwartet:** Antwort {"platform": "win32", "is_windows": true}.
   - 📝 Claude: /system/platform → 200 {is_windows: true, platform: win32}; 'Mac Test Mode'-Leiste nicht sichtbar
-- [x] **SYS-04** MT5-Terminal-Scanner — 🔌 api ✅ 2026-11-03 · 🖥️ e2e ✅ 2026-11-05 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **SYS-04** MT5-Terminal-Scanner — 🔌 api ✅ 2026-11-03 · 🖥️ e2e ✅ 2026-11-05 · 🌐 live ✅ 2026-11-09 · 👤 manuell ✅ 2026-09-23
   - GET /system/scan-mt5 sucht terminal64.exe auf dem VPS; der Konto-Dialog bietet die Pfade zur Auswahl an (Rescan, eigener Pfad).
   - **Prüfung:** „Neues Konto“ öffnen, Feld MT5-Pfad ansehen, „Rescan“ klicken. → Checkbox „eigener Pfad“ aktivieren.
   - **Erwartet:** Installierte Terminals erscheinen in der Liste; mit „eigener Pfad“ erscheint ein Textfeld.
   - 📝 Claude: /system/scan-mt5 → 200 in 83 ms, 1 Terminal (Pfad = Testkonto); Dialog lädt Pfad beim Öffnen, Rescan fragt erneut ab, 'Manuel Gir' ersetzt Auswahl durch Textfeld; Dialog ohne Speichern geschlossen
-- [x] **SYS-05** API-Schlüssel (WORKER_API_KEY) — 🔌 api ✅ 2026-11-03 · 🌐 live ✅ 2026-09-24
+- [x] **SYS-05** API-Schlüssel (WORKER_API_KEY) — 🔌 api ✅ 2026-11-03 · 🌐 live ✅ 2026-11-09
   - Ist WORKER_API_KEY auf dem VPS gesetzt, braucht jede /api/*-Anfrage den Header X-API-Key und /ws/stream den Query-Parameter api_key; das Frontend sendet den im Browser gespeicherten Schlüssel mit (SYS-07). Ohne Variable bleibt der Worker offen (mit Warnung beim Start). WORKER_API_KEY ist der Admin-Schlüssel; Benutzer bekommen eigene Schlüssel (USR-01).
   - **Prüfung:** WORKER_API_KEY auf dem VPS setzen, Worker neu starten. → Dashboard mit passendem Schlüssel verbinden (SYS-07); danach die ngrok-URL /api/accounts direkt im Browser aufrufen.
   - **Erwartet:** Dashboard funktioniert normal; der direkte Aufruf ohne Schlüssel liefert 401.
@@ -99,62 +99,64 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 2. ACC – Konten
 
-- [x] **ACC-01** Kontoliste laden — 🔌 api ✅ 2026-11-03 · 🖥️ e2e ✅ 2026-11-05 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **ACC-01** Kontoliste laden — 🔌 api ✅ 2026-11-09 · 🖥️ e2e ✅ 2026-11-09 · 🌐 live ✅ 2026-11-09 · 👤 manuell ✅ 2026-09-23
   - GET /accounts liefert alle Konten aus configs/accounts.json; das Dropdown zeigt sie an und schreibt sie in useAccountStore.
   - **Prüfung:** Dashboard öffnen, Dropdown „Select Account“ aufklappen.
   - **Erwartet:** Alle registrierten Konten erscheinen (inkl. DEMO-Testkonto).
   - 📝 Claude: /accounts → 1 Konto (A, DEMO, Demo-Server), Dropdown zeigt genau dieses
-- [x] **ACC-02** Konto anlegen + Validierung — 🔌 api ✅ 2026-11-03 · 🖥️ e2e ✅ 2026-11-05
+- [x] **ACC-02** Konto anlegen + Validierung — 🔌 api ✅ 2026-11-09 · 🖥️ e2e ✅ 2026-11-09
   - Dialog „New MT5 Account“; Pflichtfelder Name, Login, Passwort, Server, MT5-Pfad; Notizen max. 1000 Zeichen; POST /accounts.
   - **Prüfung:** „Add new account“ klicken, leer absenden. → (Nur mit einem Wegwerf-Konto!) Alle Felder ausfüllen und speichern.
   - **Erwartet:** Leeres Formular zeigt Pflichtfeld-Fehler; gültiges Konto erscheint danach im Dropdown.
-- [x] **ACC-03** Doppelter Login — 🔌 api ✅ 2026-11-03 · 🖥️ e2e ✅ 2026-11-05
+- [x] **ACC-03** Doppelter Login — 🔌 api ✅ 2026-11-09 · 🖥️ e2e ✅ 2026-11-09
   - Gleicher Login wie ein bestehendes Konto → Rückfrage „bestehendes Konto bearbeiten?“; der Worker antwortet mit 409 (RFC-7807-Problem).
   - **Prüfung:** Neues Konto mit dem Login eines vorhandenen Kontos anlegen.
   - **Erwartet:** Browser-Rückfrage erscheint; es entsteht kein zweites Konto.
-- [x] **ACC-04** Konto bearbeiten — 🔌 api ✅ 2026-11-03 · 🖥️ e2e ✅ 2026-11-05
+- [x] **ACC-04** Konto bearbeiten — 🔌 api ✅ 2026-11-09 · 🖥️ e2e ✅ 2026-11-09
   - PUT /accounts/{id}; gesperrt, solange der Bot läuft.
   - **Prüfung:** Konto wählen, „Edit account“, Notiz ändern, speichern.
   - **Erwartet:** Änderung bleibt nach Neuladen erhalten; bei laufendem Bot ist der Button deaktiviert.
-- [x] **ACC-05** Konto löschen — 🔌 api ✅ 2026-11-03 · 🖥️ e2e ✅ 2026-11-05
+- [x] **ACC-05** Konto löschen — 🔌 api ✅ 2026-11-09 · 🖥️ e2e ✅ 2026-11-09
   - DELETE /accounts/{id} nach Bestätigung („Delete Account“); gesperrt, solange der Bot läuft. Es verschwindet nur der Kontoeintrag: Deal-Archiv, Berichte, CSV-Importe und Favoriten bleiben (1107-A6.3) und sind nach dem erneuten Anlegen derselben Kennung wieder da, aber nur für denselben Besitzer: legt ein anderer Benutzer die Kennung an (oder benennt sein Konto darauf um), wird das Deal-Archiv verworfen.
   - **Prüfung:** (Nur Wegwerf-Konto!) „Delete account“ → bestätigen.
   - **Erwartet:** Konto verschwindet aus dem Dropdown; bei laufendem Bot ist der Button deaktiviert. Legt man dieselbe Kennung wieder an, sind Deal-Archiv, Berichte, CSV-Importe und Favoriten wieder da.
-- [x] **ACC-06** Kontoauswahl lädt Einstellungen — 🖥️ e2e ✅ 2026-11-05 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **ACC-06** Kontoauswahl lädt Einstellungen — 🖥️ e2e ✅ 2026-11-09 · 🌐 live ✅ 2026-11-09 · 👤 manuell ✅ 2026-09-23
   - Auswahl im Dropdown lädt GET /settings/{id} in useSettingsStore; ohne Konto erscheint der Leerzustand „No account selected“.
   - **Prüfung:** Seite ohne Auswahl öffnen, dann das DEMO-Konto wählen.
   - **Erwartet:** Zuerst Leerzustand, danach erscheinen Zonen und allgemeine Einstellungen des Kontos.
   - 📝 Claude: ohne Auswahl Leerzustand; nach Auswahl /settings/{id} geladen, UI = API (1 Zone USOUSD BOTH 20–200, Step 0.1, Lot 0.01, TP 0.1, SL 0; Intervall 1 s)
-- [x] **ACC-07** LIVE/DEMO-Kennzeichnung — 🖥️ e2e ✅ 2026-11-05 · 👤 manuell ✅ 2026-09-23
+- [x] **ACC-07** LIVE/DEMO-Kennzeichnung — 🖥️ e2e ✅ 2026-11-09 · 👤 manuell ✅ 2026-09-23
   - Badge (DEMO/LIVE) am Anfang der Steuerleiste und Kennzeichnung DEMO/LIVE je Eintrag der Kontoliste, beides aus env_type des Kontos.
   - **Prüfung:** DEMO-Konto wählen.
   - **Erwartet:** Badge zeigt DEMO, nicht LIVE.
   - 📝 Claude: Header-Badge TEST, Badge neben Dropdown DEMO (env_type DEMO). Hinweis: ohne Kontoauswahl zeigt der Header ebenfalls TEST
-- [x] **ACC-08** LIVE/DEMO-Sicherheitsprüfung — 🧪 unit ✅ 2026-11-03
+- [x] **ACC-08** LIVE/DEMO-Sicherheitsprüfung — 🧪 unit ✅ 2026-11-09
   - Ein als LIVE markiertes Konto darf nur mit einem echten, ein DEMO-Konto nur mit einem Demo-Server verbinden – sonst wird die Verbindung verweigert.
   - **Prüfung:** Nicht manuell testen (würde ein falsch markiertes Konto erfordern).
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ACC-09** Passwort nie in API-Antworten — 🔌 api ✅ 2026-11-03
+- [x] **ACC-09** Passwort nie in API-Antworten — 🔌 api ✅ 2026-11-09
   - Der Worker gibt MT5-Passwörter in keiner Antwort zurück (Liste, Anlegen, Bearbeiten, 409-Problem), sondern nur has_password. Leeres Passwort beim Bearbeiten = unverändert.
   - **Prüfung:** DevTools → Network → Antwort von /api/accounts ansehen. → Konto bearbeiten, Passwortfeld leer lassen, speichern.
   - **Erwartet:** Kein Feld „password“ in der Antwort; das Konto verbindet sich danach weiterhin (Passwort unverändert).
-- [x] **ACC-10** Kontowechsel zeigt nur Daten des gewählten Kontos — 🔌 api ✅ 2026-11-03 · 🖥️ e2e ✅ 2026-11-05 · 🌐 live ✅ 2026-10-16
+- [x] **ACC-10** Kontowechsel zeigt nur Daten des gewählten Kontos — 🔌 api ✅ 2026-11-09 · 🖥️ e2e ✅ 2026-11-09 · 🌐 live ✅ 2026-11-09
   - Beim Wechsel des Kontos werden Laufzeitdaten (Bot-Status, Preis, G/V, Positionen) zurückgesetzt, statt die Werte des vorherigen Kontos stehen zu lassen. Der WS-Stream folgt dem gewählten Konto (/ws/stream?account_id=, neu verbunden beim Wechsel); der Worker sendet jeder Verbindung nur ihr Konto – aus der MT5-Abfrage des API-Prozesses nur, wenn dessen Terminal an diesem Konto angemeldet ist, sonst aus der Metrikdatei des Bot-Prozesses. WS-Metriken tragen account_id; Metriken eines anderen Kontos (älterer Worker) ignoriert das Frontend.
   - **Prüfung:** Konto mit laufendem Bot wählen, dann auf ein Konto wechseln, dessen Bot nicht läuft. → Zweites Konto mit laufendem Bot wählen, /chart bzw. /chart (Modus Formation) öffnen; DevTools → WS-URL und Nachrichten ansehen.
   - **Erwartet:** Das zweite Konto zeigt „Gestoppt“ und keine Preise/Positionen des ersten Kontos; zurück auf das erste Konto zeigt wieder dessen Status. Mit laufendem Bot bekommt das zweite Konto eigene Stream-Metriken (Live-Preis im Chart; die WS-URL enthält account_id=<Konto>, jede METRICS-Nachricht dessen account_id).
-- [x] **ACC-11** Kein Login im MT5-Terminal eines anderen Kontos — 🧪 unit ✅ 2026-11-03 · 👤 manuell ✅ 2026-10-16
+- [x] **ACC-11** Kein Login im MT5-Terminal eines anderen Kontos — 🧪 unit ✅ 2026-11-09 · 👤 manuell ✅ 2026-10-16
   - mt5.login() stellt das verbundene Terminal auf ein anderes Konto um. Ist mt5_path eingetragen, aber nicht vorhanden, verbinden Worker (/start, Symbolabfrage) und Bot-Reconnect nicht mehr ohne Pfad mit irgendeinem laufenden Terminal, sondern melden „[CONFIG] MT5 terminal yolu bulunamadı“. Vor jedem Login wird terminal_info().path mit den mt5_path-Einträgen in accounts.json verglichen; gehört das Terminal einem anderen Konto (und nicht auch diesem), wird nicht eingeloggt („[TERMINAL] … hesabına ait“). Ein Konto ohne mt5_path kann sich daher nicht im Terminal eines Kontos mit eingetragenem Pfad anmelden. Der Bot prüft in jeder Runde vor Fernbefehlen und Handel account_info().login; ist sein Terminal auf ein fremdes Konto umgestellt, handelt er nicht („MT5 terminali başka bir hesaba … geçmiş“) und meldet sich wieder am eigenen Konto an; wird der Login abgelehnt, trennt er sich vom Terminal. Anlass 29.09.2026, 20:41 – T34 (DEMO-Konto A) wurde kurz auf DEMO-Konto B angemeldet.
   - **Prüfung:** Nur DEMO. Zwei Konten mit je eigenem Terminal, Bot von Konto 1 läuft. → Bei Konto 2 im Bearbeiten-Dialog einen nicht existierenden MT5-Pfad eintragen, speichern und für Konto 2 eine Zone öffnen (Symbolliste) bzw. „Bot starten“ klicken. → Danach den richtigen Pfad wieder eintragen.
   - **Erwartet:** Konto 2 zeigt „[CONFIG] MT5 terminal yolu bulunamadı …“; das Journal von Terminal 1 enthält keine Anmeldung von Konto 2, der Bot von Konto 1 läuft ohne „BAĞLANTISI KOPTU“ weiter.
   - 📝 v0.7.229, VPS mit 4 Terminals, DEMO: Konto 2 mit nicht vorhandenem mt5_path → /start sofort [CONFIG] MT5 terminal yolu bulunamadı; Journal von Terminal 1 ohne fremden Login; Bot von Konto 1 lief weiter (BAĞLANTISI KOPTU: 0). Symbolliste kein Prüfweg (Cache 1 h).
-- [x] **ACC-12** Medien im Konto (max. 3, PDF/Bild/Notiz) *(teilweise)* — 🔌 api ⏳ · 🖥️ e2e ✅ 2026-11-09 · 🌐 live ⏳
+- [x] **ACC-12** Medien im Konto (max. 3, PDF/Bild/Notiz) *(teilweise)* — 🔌 api ✅ 2026-11-09 · 🖥️ e2e ✅ 2026-11-09 · 🌐 live ⏳ · 👤 manuell ✅ 2026-11-09
   - Je Konto höchstens 3 Dateien (PDF, PNG/JPEG/WebP, Notiz .txt/.md). API unter /accounts/{id}/media: Liste (ohne Dateiinhalt), Hochladen als roher Body (?name=), Herunterladen, Löschen. Der Typ kommt aus den ersten Bytes, nicht aus Endung oder Client-MIME; alles andere (SVG, HTML, GIF, HEIC) ergibt 415. Grenzen: Bild und PDF 10 MB, Notiz 1 MB (413), vierte Datei 409. Download mit nosniff, CSP sandbox und unveränderlichem Cache. Fremde Konten sind 404 (Administrator darf alles). Beim Löschen des Kontos bleiben die Medien; legt ein anderer Besitzer dieselbe Kennung an, werden sie verworfen (1107-A20.4, wie 1107-A6.3).
   - **Prüfung:** Nur DEMO-Konto. Mit dem Admin-Schlüssel per curl eine kleine PNG-Datei an POST /api/accounts/<Konto>/media?name=test.png senden, dann GET /api/accounts/<Konto>/media und GET .../media/<id> aufrufen. → Eine vierte Datei senden; die Testdatei danach mit DELETE entfernen.
   - **Erwartet:** Upload antwortet 201, die Liste zeigt die Datei ohne Inhalt, der Download liefert dieselben Bytes mit den Sicherheitsheadern; die vierte Datei ergibt 409; nach DELETE ist die Liste leer.
-- [x] **ACC-13** Medien im Kontoformular, Vorschau lädt erst beim Anklicken *(teilweise)* — 🖥️ e2e ✅ 2026-11-09 · 🌐 live ⏳
+  - 📝 Canlı DEMO: yükleme/listeleme/indirme başlıkları (nosniff, CSP sandbox, immutable), 4. dosya 409, SVG/HTML/HEIC 415, silme 200; v0.7.519
+- [x] **ACC-13** Medien im Kontoformular, Vorschau lädt erst beim Anklicken *(teilweise)* — 🖥️ e2e ✅ 2026-11-09 · 🌐 live ⏳ · 👤 manuell ✅ 2026-11-09
   - Im Bearbeiten-Dialog eines Kontos (unter den Notizen, nur bei gespeichertem Konto; beim neuen Konto steht ein Hinweis) zeigt der Abschnitt „Medien“ die Dateien als Karten mit Typ-Symbol, Name, Größe und Datum (ohne Vorschaubild). Beim Öffnen läuft nur die Listenabfrage; die Datei selbst lädt erst ein Klick auf die Karte, als Blob mit API-Schlüssel (axiosInstance, nie eine Worker-URL in <img>/window.open). Die Vorschau zeigt Bild (<img>, Einpassen/Originalgröße), PDF (iframe) oder Notiz als Klartext (<pre>, kein HTML/Markdown); „Neuer Tab“ und „Herunterladen“ im Kopf, Schließen bricht den Ladevorgang ab. Eine einmal geöffnete Datei lädt in dieser Sitzung nicht erneut (höchstens 3 Blob-URLs, beim Schließen des Abschnitts freigegeben). Datei wählen oder ziehen lädt sofort hoch, immer nur eine gleichzeitig; JPEG/WebP über 2 MB werden vorher im Browser auf 2560 px Kantenlänge verkleinert (PNG nicht). Löschen fragt mit ConfirmModal. Escape schließt bei offener Vorschau oder Frage nur diese, nicht das Kontoformular (1107-A20, 1108-A1).
   - **Prüfung:** Nur DEMO-Konto, Worker auf dem VPS aktuell. Konto bearbeiten, im Abschnitt „Medien“ eine kleine PNG-Datei und ein PDF hinzufügen. DevTools → Network offen halten. → Formular schließen und neu öffnen; danach die Karten nacheinander anklicken. Escape in der Vorschau drücken.
   - **Erwartet:** Beim Öffnen des Formulars gibt es nur die Listenabfrage, keine Dateiabfrage. Jeder Klick auf eine Karte lädt genau einmal und zeigt Bild bzw. PDF; ein zweites Öffnen derselben Karte erzeugt keine neue Abfrage. Escape schließt nur die Vorschau, das Formular bleibt. Die Testdateien danach löschen.
+  - 📝 Canlı DEMO (çalışmayan hesap, UI): form açılırken indirme yok, PDF+2560px JPEG+txt yüklendi, karta tıklayınca tek GET, 4. dosya reddi, Escape yalnız önizlemeyi kapatır
 
 ## 3. USR – Benutzer & Zugriff
 
@@ -193,7 +195,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 4. SET – Allgemeine Einstellungen
 
-- [x] **SET-01** Einstellungen laden — 🔌 api ✅ 2026-11-03 · 🖥️ e2e ✅ 2026-11-05 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **SET-01** Einstellungen laden — 🔌 api ✅ 2026-11-03 · 🖥️ e2e ✅ 2026-11-05 · 🌐 live ✅ 2026-11-09 · 👤 manuell ✅ 2026-09-23
   - GET /settings/{id} liest configs/settings_{id}*.json (verschachteltes „settings“ wird ausgepackt).
   - **Prüfung:** Konto wählen.
   - **Erwartet:** Zonen und Kontroll-Intervall entsprechen der Datei auf dem VPS.
@@ -225,7 +227,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 5. SYM – Symbole
 
-- [x] **SYM-01** Symbolliste + Cache — 🧪 unit ✅ 2026-11-03 · 🔌 api ✅ 2026-11-03 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **SYM-01** Symbolliste + Cache — 🧪 unit ✅ 2026-11-03 · 🔌 api ✅ 2026-11-03 · 🌐 live ✅ 2026-11-09 · 👤 manuell ✅ 2026-09-23
   - GET /symbols/{id} liefert Broker-Symbole aus broker_symbols.json; 1-h-Cache, bei Ablauf wird die alte Liste geliefert und im Hintergrund aktualisiert (doppelte Anfragen werden zusammengelegt). Solange /start oder /stop für das Konto läuft, verbindet sich die Abfrage nicht selbst mit MT5 (alte Liste bzw. leer); /start füllt den Cache.
   - **Prüfung:** Zone öffnen, ins Symbolfeld klicken.
   - **Erwartet:** Symbolliste des Brokers erscheint schnell (auch bei wiederholtem Öffnen).
@@ -282,7 +284,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Schalter an → Auswahlfelder prüfen; Auslöser „Mum Kapanışı“ wählen.
   - **Erwartet:** Die vier Auswahlfelder erscheinen erst mit dem Schalter; Zeitrahmen nur bei Kerzenschluss.
   - 📝 Claude (Test-Zone): Schalter aus → 4 Auswahlfelder weg, an → wieder da; BUY (Yukarı)/Hepsi/Tüm İşlemler; 'Mum Kapanışı' blendet Zaman Dilimi (M1–D1) ein, H1 gespeichert
-- [x] **ZON-08** Start/Pause pro Zone — 🔌 api ✅ 2026-11-03 · 🖥️ e2e ✅ 2026-11-05 · 🌐 live ✅ 2026-09-24
+- [x] **ZON-08** Start/Pause pro Zone — 🔌 api ✅ 2026-11-03 · 🖥️ e2e ✅ 2026-11-05 · 🌐 live ✅ 2026-11-09
   - Button im Zonenkopf (Başladı / Başla / Hazır / Kapalı) setzt is_active (POST /settings) und START/PAUSE in ui_state (POST /ui-state); Warnung bei ungültigem Symbol oder ungespeicherter Zone.
   - **Prüfung:** Test-Zone starten und wieder pausieren. → Neue, ungespeicherte Zone starten.
   - **Erwartet:** Label wechselt passend; ungespeicherte Zone zeigt eine Warnung.
@@ -350,12 +352,12 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 7. BOT – Bot-Steuerung
 
-- [x] **BOT-01** Bot starten *(teilweise)* — 🌐 live ⏭️ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **BOT-01** Bot starten *(teilweise)* — 🌐 live ⏭️ 2026-11-09 · 👤 manuell ✅ 2026-09-23
   - POST /start verbindet MT5 (Timeout 120 s), cached die Symbole, startet bot_runner.py als eigenen Prozess und stellt ihn unter Watchdog. UI-Timeout für „Connecting“ 180 s.
   - **Prüfung:** DEMO-Konto wählen, „Start Bot“.
   - **Erwartet:** Status wechselt über „Connecting“ zu „Running“, Markt offen/geschlossen wird angezeigt.
   - 📝 Claude (DEMO-Konto A): 'Start Bot' → Connecting → Running nach 5 s; Log: MT5-Login ok, 812 Symbole gecacht, Subprozess gestartet, Zone 0 aus Magic-Numbers als START wiederhergestellt, 'Yeni Bölgeye Girildi: Bölge 1'; keine Alarme, Zone 'Başladı'
-- [x] **BOT-02** Bot stoppen *(teilweise)* — 🌐 live ⏭️ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **BOT-02** Bot stoppen *(teilweise)* — 🌐 live ⏭️ 2026-11-09 · 👤 manuell ✅ 2026-09-23
   - POST /stop nimmt den Bot aus dem Watchdog und beendet den Prozess; Positionen und Orders bleiben unangetastet. Bestätigung „Disconnect MT5“.
   - **Prüfung:** „Stop Bot“ → bestätigen; in MT5 die offenen Positionen prüfen.
   - **Erwartet:** Status „Stopped“; Positionen sind noch da.
@@ -401,7 +403,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - extract_zone_config liest order_type, grid_step, lot_size und sell_lot_size (nie 0 - mindestens volume_min des Symbols beim Broker und auf dessen Lot-Schritt gerundet, nach oben auf 5,0 begrenzt; ohne Symbolinfos gilt 0,01 als Minimum), TP/SL, Symbol, sync_buy_sell, sell_*-Overrides, max_positions, is_active.
   - **Prüfung:** Nicht manuell testen.
   - **Erwartet:** Abgedeckt durch Unit-Tests.
-- [x] **ENG-05** Order-Platzierung LIMIT/STOP + TP/SL *(teilweise)* — 🧪 unit ✅ 2026-11-03 · 🌐 live ⏭️ 2026-09-24
+- [x] **ENG-05** Order-Platzierung LIMIT/STOP + TP/SL *(teilweise)* — 🧪 unit ✅ 2026-11-03 · 🌐 live ⏭️ 2026-11-09
   - Fehlende Level bekommen Pending Orders mit TP/SL; LIMIT oder STOP je nach Seite des Marktes; Toleranz 0,45 × Gridabstand; als belegt zählen nur Orders und Positionen dieser Zone (eigene magic) und manuelle Positionen – Orders und Positionen anderer Zonen/Setups desselben Symbols belegen kein Level.
   - **Prüfung:** Test-Zone (0,01 Lot) um den aktuellen Preis starten.
   - **Erwartet:** BUY LIMIT unter / BUY STOP über dem Preis (bzw. SELL umgekehrt), jeweils mit TP/SL.
@@ -409,7 +411,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Orders außerhalb des Fensters oder mit falschem Lot/TP/SL werden gelöscht (erwartetes Lot berücksichtigt Teilausführungen). Die Toleranz zur Stufe beträgt 0,4 Schritt im festen Raster und im positionsgebundenen Modus (step_by_loss/instant_entry) nur den Rundungsspielraum, damit Orders des alten Ankers nicht stehen bleiben.
   - **Prüfung:** Bei laufendem Bot TP der Zone ändern und speichern.
   - **Erwartet:** Alte Orders werden gelöscht und mit neuem TP neu gesetzt.
-- [x] **ENG-07** Maximale Positionen — 🧪 unit ✅ 2026-11-03 · 🌐 live ✅ 2026-10-16
+- [x] **ENG-07** Maximale Positionen *(teilweise)* — 🧪 unit ✅ 2026-11-03 · 🌐 live ⏭️ 2026-11-09
   - Ist max_positions erreicht, werden die Pending Orders der Zone gelöscht; die Warnung erscheint einmal (erneut nur, wenn sich die Zahl ändert), nicht bei jedem Tick. Auch der Restlot-Nachschub (ENG-08) setzt dann nichts.
   - **Prüfung:** Maks Pozisyon = 1 setzen und eine Position füllen lassen.
   - **Erwartet:** Danach keine Pending Orders mehr in dieser Zone.
@@ -421,7 +423,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Orders pausierter, bereinigter, inaktiver Zonen oder mit falschem Symbol werden gelöscht.
   - **Prüfung:** Zone mit offenen Orders pausieren.
   - **Erwartet:** Ihre Pending Orders verschwinden.
-- [x] **ENG-10** Bereinigung beim Verlassen der Zone *(teilweise)* — 🧪 unit ✅ 2026-11-03 · 🌐 live ⏭️ 2026-09-24
+- [x] **ENG-10** Bereinigung beim Verlassen der Zone *(teilweise)* — 🧪 unit ✅ 2026-11-03 · 🌐 live ⏭️ 2026-11-09
   - Mit clear_on_exit: Richtung (clear_exit_side), Umfang („Sadece Bekleyen Emirler“ oder „Tüm İşlemler“ = auch Positionen schließen) und Zielseite (BUY/SELL/alle). Danach steht die Zone auf AUTO_CLEAR: keine neuen Orders – auch nicht, wenn der Kurs zurückkommt – bis „Yeniden Başlat“ im Dashboard (oder Bot-Neustart).
   - **Prüfung:** Test-Zone knapp um den Preis legen, „temizle“ an, warten bis der Preis sie verlässt. → Warten, bis der Preis zurückkommt; dann „Yeniden Başlat“ in der Zone klicken.
   - **Erwartet:** Orders (bei „Tüm İşlemler“ auch Positionen) werden entfernt; die Zone zeigt „Otomatik temizlendi“ und setzt keine Orders mehr, bis „Yeniden Başlat“ geklickt wird.
@@ -522,7 +524,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 9. MET – Live-Daten & Diagramm
 
-- [x] **MET-01** Kennzahlenleiste — 🖥️ e2e ✅ 2026-11-05 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **MET-01** Kennzahlenleiste — 🖥️ e2e ✅ 2026-11-05 · 🌐 live ✅ 2026-11-09 · 👤 manuell ✅ 2026-09-23
   - Drei einzeilige Kacheln (Icon, Label mit Hinweis, Wert rechts) für Floating P/L, Offene Positionen, Pending Orders mit animierten Ziffern; der Motorstatus steht neben dem Label der P/L-Kachel, statische Erklärungen im Hinweis.
   - **Prüfung:** Bot laufen lassen, Werte mit MT5 vergleichen.
   - **Erwartet:** Werte stimmen mit MT5 überein und aktualisieren sich.
@@ -531,7 +533,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Die Analyse-Seite zeigt im Setup-Modus Preis, RSI, P/L und Positionen aus den WebSocket-METRICS über dem Chart.
   - **Prüfung:** /chart im Setup-Modus öffnen, während der Bot läuft.
   - **Erwartet:** Die Werte erscheinen und aktualisieren sich aus dem Stream.
-- [x] **MET-03** WebSocket-Metriken des Workers — 🧪 unit ✅ 2026-11-03 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **MET-03** WebSocket-Metriken des Workers — 🧪 unit ✅ 2026-11-03 · 🌐 live ✅ 2026-11-09 · 👤 manuell ✅ 2026-09-23
   - ws_server sendet jeder Verbindung jede Sekunde Preis, RSI, MACD, P/L, Positionen für ihr Konto (?account_id=, ohne Parameter das erste Konto) und dessen Zone 0; jede METRICS-Nachricht trägt account_id (siehe ACC-10). RSI/MACD gibt es nur, wenn das MT5-Terminal des API-Prozesses an diesem Konto angemeldet ist; sonst Preis/P/L aus der Metrikdatei des Bots.
   - **Prüfung:** DevTools → WS-Nachrichten ansehen.
   - **Erwartet:** Jede Sekunde eine METRICS-Nachricht mit Preis und RSI.
@@ -543,7 +545,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 
 ## 10. LOG – Logs
 
-- [x] **LOG-01** Log-Tabs laden — 🔌 api ✅ 2026-11-03 · 🖥️ e2e ✅ 2026-11-05 · 🌐 live ✅ 2026-09-24 · 👤 manuell ✅ 2026-09-23
+- [x] **LOG-01** Log-Tabs laden — 🔌 api ✅ 2026-11-03 · 🖥️ e2e ✅ 2026-11-05 · 🌐 live ✅ 2026-11-09 · 👤 manuell ✅ 2026-09-23
   - Tabs Activity, Robot Logs, MT5 Terminal; GET /logs/{id}?log_type=all&lines=200; ohne laufenden Bot wird mt5_connected=false erzwungen.
   - **Prüfung:** Alle drei Tabs öffnen, „Refresh“.
   - **Erwartet:** Jeder Tab zeigt seine Logs.
@@ -871,7 +873,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Im Modus Frei USOUSD, M1, „Son 3 ay“ wählen und den Chart nach links ziehen, bis der Zeitraumbeginn erreicht ist (Anzeige „Aralığın başı“). → Beim Nachladen die Ansicht beobachten (kein Sprung) und den Hinweis „gekürzt“ lesen; die Liste „fehlt“ bleibt leer. → „Son 12 ay“ (rund 360.000 M1-Kerzen): der Chart stoppt bei rund 220.000 bis 240.000 Kerzen mit der Warnung „Mum sınırına ulaşıldı“. → „Tümü“ mit W1 oder D1: bis zum Beginn der MT5-Historie ziehen (Anzeige „MT5 geçmişinin başı“).
   - **Erwartet:** Die Kerzen kommen seitenweise ohne Sprung der Ansicht; am Zeitraumbeginn bzw. am Beginn der MT5-Historie hört das Laden auf und die Anzeige links nennt den Grund; die Kerzenzahl bleibt unter 240.000, danach bleibt die Warnung stehen.
   - 📝 DEMO canlı 2026-11-07: M1 Tümü birden çok sayfa; M1 2025-11 doğrudan yüklenir, uyarı yok; D1 Tümü: eski sayfa 200, MT5 geçmişinin başı hapı 22.01.13, görünen aralığın sağ ucu sabit. Aralık başı/sınır hapı canlıda ölçülemedi (yük), sahte worker testleri kapsar.
-- [x] **ANA-13** Zeit-Check und Login-Schonung (Schritt 0) — 🧪 unit ✅ 2026-11-04 · 🔌 api ✅ 2026-11-04 · 🌐 live ✅ 2026-10-01 · 👤 manuell ✅ 2026-10-01
+- [x] **ANA-13** Zeit-Check und Login-Schonung (Schritt 0) — 🧪 unit ✅ 2026-11-04 · 🔌 api ✅ 2026-11-04 · 🌐 live ✅ 2026-11-09 · 👤 manuell ✅ 2026-10-01
   - GET /market/{id}/time-check (nur Admin, nur lesend) liefert für ein Symbol (Standard: das der ersten Zone) die Tick-Zeit (Brokerzeit) und die echte UTC des VPS, daraus den Broker-Abstand (aus dem Tick des Symbols, bei geschlossenem Markt aus einem frischeren der Marktübersicht; auf halbe Stunden gerundet, „verlässlich“ nur bei frischem Tick), die letzten 3 M1-Kerzen aus copy_rates_range, den letzten Trade-Deal (7 Tage, sonst 90 Tage), Kontomodell (hedging/netting) und Kontowährung sowie Berechnungsart, Gewinnwährung und Dreifach-Swap-Tag des Symbols. Damit wird vor dem Bau der Analyse-Seite geprüft, dass Zeiten in MT5, API und Datenbank zusammenpassen (docs/analyse-regeln.md). Der Check verbindet sich ohne Terminal-Neustart und ohne erneuten Login; ist das Konto gerade in /start oder /stop, kommt 409, ist MT5 nicht erreichbar 503 mit Grund; MT5-Fehler einzelner Abfragen stehen in errors. Datenabrufe (Zeit-Check, Symbolliste) verbinden sich mit data_query: kein mt5.login(), wenn das Terminal schon in diesem Konto und auf diesem Server angemeldet ist (dafür wird bis zu 3 s auf die Kontodaten gewartet; ein Login baut die Sitzung neu auf und könnte den dort laufenden Bot kurz trennen), und kein Kontowechsel auf einem Terminal, auf dem der Bot eines anderen Kontos läuft.
   - **Prüfung:** Worker auf dem VPS mit diesem Stand neu starten; DEMO-Konto, Bot läuft, Markt offen. → Auf dem Mac `scripts/features/run.sh live ANA-13` ausführen und die Zeilen „Zeit-Check“ lesen. → Per RDP in MT5 unter Werkzeuge → Historie den genannten letzten Deal suchen; in der Marktübersicht die Serverzeit ansehen. → Im MT5-Journal und im Bot-Log nachsehen, ob während des Checks etwas passiert ist. → Ergebnisse in docs/analyse-regeln.md (Tabelle „Messergebnisse“) eintragen.
   - **Erwartet:** Ticket und Uhrzeit des letzten Deals stimmen sekundengenau mit MT5 überein, Tick- und Kerzenzeit passen zur Serverzeit in MT5, der Broker-Abstand ist eine glatte Zahl (z. B. UTC+3) und „verlässlich“. Das Kontomodell ist „hedging“. Im MT5-Journal erscheint keine neue Zeile „authorized on …“, der Bot-Log zeigt keinen Verbindungsabbruch.
