@@ -1543,16 +1543,16 @@
   },
   "UI-07": {
     "e2e": {
-      "datum": "2026-11-06",
+      "datum": "2026-11-09",
       "status": "passed",
-      "tests": 36
+      "tests": 1
     }
   },
   "UI-08": {
     "e2e": {
-      "datum": "2026-11-07",
+      "datum": "2026-11-09",
       "status": "passed",
-      "tests": 58
+      "tests": 2
     }
   },
   "UI-09": {
@@ -2009,6 +2009,13 @@
       "datum": "2026-11-05",
       "status": "passed",
       "tests": 5
+    }
+  },
+  "ZON-22": {
+    "e2e": {
+      "datum": "2026-11-09",
+      "status": "passed",
+      "tests": 25
     }
   }
 }
