@@ -2,7 +2,7 @@
 date: 2026-11-08
 author: Claude
 type: plan
-status: open
+status: done
 pr: []
 features: [UI-22, UI-14, UI-10, UI-13, UI-15, UI-17, ANA-26, ANA-27, FRM-18, FRM-37, FRM-38, FRM-42]
 areas: [frontend, tests, docs]
@@ -183,4 +183,4 @@ DEMO account, read-only (`hooks/RULES.md` §3): formation and setup on H4, empty
 - [x] U4-4b one card (`2026-11-08-chart-u4-4b-one-card.md`; open point: the open card covers the formation from 1024 px)
 - [x] U4-5 remove the old shells (`2026-11-08-chart-u4-5-remove-shells.md`)
 - [x] U4-5b fixes
-- [ ] U4-6 live check and signature of UI-22
+- [x] U4-6 live check and signature of UI-22 (2026-11-09, see `2026-11-09-chart-u4-6-live-check.md`)
