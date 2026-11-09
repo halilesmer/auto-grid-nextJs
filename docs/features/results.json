@@ -121,6 +121,20 @@
       "tests": 14
     }
   },
+  "ACC-12": {
+    "e2e": {
+      "datum": "2026-11-09",
+      "status": "passed",
+      "tests": 3
+    }
+  },
+  "ACC-13": {
+    "e2e": {
+      "datum": "2026-11-09",
+      "status": "passed",
+      "tests": 2
+    }
+  },
   "ANA-01": {
     "e2e": {
       "datum": "2026-11-06",
@@ -368,14 +382,14 @@
       "tests": 50
     },
     "e2e": {
-      "datum": "2026-11-09",
+      "datum": "2026-11-07",
       "status": "passed",
       "tests": 17
     }
   },
   "BKT-06": {
     "e2e": {
-      "datum": "2026-11-09",
+      "datum": "2026-11-07",
       "status": "passed",
       "tests": 2
     }
@@ -1127,8 +1141,8 @@
   },
   "FRM-47": {
     "e2e": {
-      "datum": "2026-11-09",
-      "status": "passed",
+      "datum": "2026-11-08",
+      "status": "failed",
       "tests": 20
     }
   },
