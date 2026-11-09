@@ -9,6 +9,9 @@ export interface StartSetup {
   take_profit?: number | string | null;
   sell_stop_loss?: number | string | null;
   sell_take_profit?: number | string | null;
+  /** Grid-Schritt; 0,5 × Schritt ist die größte Abweichung, die als Fill-Verschiebung gilt (sonst: Einstellung geändert) */
+  grid_step?: number | string | null;
+  sell_grid_step?: number | string | null;
 }
 
 export interface StartState {
@@ -31,6 +34,8 @@ const num = (v: unknown): number => {
 function knownIsTpRatio(knownIsTp: boolean, slPerTp: number, tpPerSl: number): number {
   return knownIsTp ? slPerTp : tpPerSl;
 }
+/** Bot-Schwelle in grid_order_manager (`> 0.00001`); 1e-9 fängt Gleitkomma-Rauschen ab */
+const BOT_SLTP_EPS = 0.00001 + 1e-9;
 const positive = (v: number | null | undefined): number | undefined => (v != null && v > 0 ? v : undefined);
 
 /**
@@ -51,6 +56,7 @@ export function buildStartState(deals: readonly Deal[], magic: number, setup: St
   const positions: InitialPosition[] = [];
   const fractalDone: InitialFractalDone[] = [];
   let estimated = 0;
+  let settingChanged = 0;
   const round = (v: number) => Number(v.toFixed(digits));
 
   for (const group of byPosition.values()) {
@@ -65,6 +71,27 @@ export function buildStartState(deals: readonly Deal[], magic: number, setup: St
     const buy = open.type === TYPE_BUY;
     let sl = positive(open.open_sl);
     let tp = positive(open.open_tp);
+    if (!fractal) {
+      // Der Bot setzt SL/TP nach dem Fill vom Füllpreis aus neu (wie engine/orderManager.ts); open_sl/open_tp sind der Orderstand davor
+      const sl0 = num(buy ? setup.stop_loss : setup.sell_stop_loss);
+      const tp0 = num(buy ? setup.take_profit : setup.sell_take_profit);
+      const step = num(buy ? setup.grid_step : (setup.sell_grid_step ?? setup.grid_step));
+      const sign = buy ? 1 : -1;
+      let changed = false;
+      const fixLevel = (given: number | undefined, expected: number | undefined): number | undefined => {
+        if (given === undefined || expected === undefined || step <= 0) return given;
+        const diff = Math.abs(expected - given);
+        if (diff <= BOT_SLTP_EPS) return given; // der Bot lässt die Position unverändert
+        if (diff > 0.5 * step) {
+          changed = true; // Einstellung seit der Order vermutlich geändert: Orderstand behalten
+          return given;
+        }
+        return expected;
+      };
+      sl = fixLevel(sl, sl0 > 0 ? open.price - sign * sl0 : undefined);
+      tp = fixLevel(tp, tp0 > 0 ? open.price + sign * tp0 : undefined);
+      if (changed) settingChanged += 1;
+    }
     if (sl === undefined || tp === undefined) {
       estimated += 1;
       const sl0 = num(buy ? setup.stop_loss : setup.sell_stop_loss);
@@ -103,6 +130,8 @@ export function buildStartState(deals: readonly Deal[], magic: number, setup: St
       time: open.time,
     });
   }
-  const notes = estimated > 0 ? [{ code: 'run.startLevelsEstimated', params: { positions: estimated } }] : [];
+  const notes: StartState['notes'] = [];
+  if (estimated > 0) notes.push({ code: 'run.startLevelsEstimated', params: { positions: estimated } });
+  if (settingChanged > 0) notes.push({ code: 'run.startLevelsSettingChanged', params: { positions: settingChanged } });
   return { positions, fractalDone, estimated, notes };
 }

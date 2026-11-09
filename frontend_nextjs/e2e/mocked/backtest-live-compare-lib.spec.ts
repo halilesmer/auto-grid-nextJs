@@ -256,3 +256,56 @@ test('Vor dem Start geschlossene Fraktal-Position wird als erledigt gemerkt, nic
   expect(state.positions).toEqual([]);
   expect(state.fractalDone).toEqual([{ side: 'U', time: 1759999000 }]);
 });
+
+// ---- Startzustand Grid: SL/TP vom Füllpreis aus neu setzen, wie der Bot nach dem Fill (BKT-16, 1106-K54.1)
+const GRID_NOTE = (n: number) => ({ code: 'run.startLevelsSettingChanged', params: { positions: n } });
+const gridDeal = (over: Partial<Deal>) => dealOf({ magic: 200041, symbol: 'XAUUSD', position_id: 9001, ...over });
+const xauSetup = { entry_mode: 'grid', stop_loss: 12, take_profit: 6, grid_step: 1 };
+
+test('Grid: Buy-SL wird vom Füllpreis gesetzt, nicht vom Orderpreis', { tag: '@BKT-16' }, () => {
+  const state = buildStartState([gridDeal({ price: 4070.91, open_sl: 4059, open_tp: 4077 })], 200041, xauSetup, FROM, 2);
+  expect(state.positions[0]).toMatchObject({ side: 'buy', price: 4070.91, sl: 4058.91, tp: 4076.91 });
+  expect(state.estimated).toBe(0);
+  expect(state.notes).toEqual([]);
+});
+
+test('Grid: Buy-TP wird vom Füllpreis gesetzt (USOUSD)', { tag: '@BKT-16' }, () => {
+  const setup = { entry_mode: 'grid', stop_loss: 1, take_profit: 0.15, grid_step: 0.2 };
+  const state = buildStartState([gridDeal({ magic: 200050, symbol: 'USOUSD', price: 91.192, open_sl: 90.2, open_tp: 91.35 })], 200050, setup, FROM, 3);
+  expect(state.positions[0]).toMatchObject({ sl: 90.192, tp: 91.342 });
+});
+
+test('Grid: Sell vertauscht die Richtung und nimmt die Sell-Abstände', { tag: '@BKT-16' }, () => {
+  const setup = { entry_mode: 'grid', sell_stop_loss: 10, sell_take_profit: 4, sell_grid_step: 1 };
+  const state = buildStartState([gridDeal({ type: 1, price: 4065.03, open_sl: 4075, open_tp: 4061 })], 200041, setup, FROM, 2);
+  expect(state.positions[0]).toMatchObject({ side: 'sell', sl: 4075.03, tp: 4061.03 });
+});
+
+test('Grid: Abweichung höchstens 0,00001 (Bot-Schwelle) lässt open_sl/open_tp stehen (EURCHF)', { tag: '@BKT-16' }, () => {
+  const setup = { entry_mode: 'grid', stop_loss: 0.002, take_profit: 0.0007, grid_step: 0.0008 };
+  const state = buildStartState([gridDeal({ magic: 200044, symbol: 'EURCHF', price: 0.91439, open_sl: 0.9124, open_tp: 0.9151 })], 200044, setup, FROM, 5);
+  expect(state.positions[0]).toMatchObject({ sl: 0.9124, tp: 0.9151 });
+  expect(state.notes).toEqual([]);
+});
+
+test('Grid: Geänderte Einstellung (Abstand weit weg) lässt open_x stehen und schreibt einen Hinweis', { tag: '@BKT-16' }, () => {
+  const changed = { ...xauSetup, stop_loss: 20, take_profit: 10 };
+  const state = buildStartState([gridDeal({ price: 4070.91, open_sl: 4059, open_tp: 4077 })], 200041, changed, FROM, 2);
+  expect(state.positions[0]).toMatchObject({ sl: 4059, tp: 4077 });
+  expect(state.estimated).toBe(0);
+  expect(state.notes).toEqual([GRID_NOTE(1)]);
+});
+
+test('Fraktal: open_sl/open_tp bleiben, auch wenn der Füllpreis anders liegt', { tag: '@BKT-16' }, () => {
+  const setup = { entry_mode: 'fractal', stop_loss: 12, take_profit: 6, grid_step: 1 };
+  const state = buildStartState([gridDeal({ price: 4070.91, open_sl: 4059, open_tp: 4077 })], 200041, setup, FROM, 2);
+  expect(state.positions[0]).toMatchObject({ sl: 4059, tp: 4077 });
+  expect(state.notes).toEqual([]);
+});
+
+test('Grid: Fehlt open_x, gilt die bisherige Schätzung', { tag: '@BKT-16' }, () => {
+  const state = buildStartState([gridDeal({ price: 4070.91, open_sl: null, open_tp: null })], 200041, xauSetup, FROM, 2);
+  expect(state.positions[0]).toMatchObject({ sl: 4058.91, tp: 4076.91 });
+  expect(state.estimated).toBe(1);
+  expect(state.notes).toEqual([{ code: 'run.startLevelsEstimated', params: { positions: 1 } }]);
+});
