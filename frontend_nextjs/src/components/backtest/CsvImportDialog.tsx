@@ -18,6 +18,7 @@ import {
   type CsvImport,
   type CsvLineError,
 } from '@/services/csvImportApi';
+import { handleDecimalKeyDown, handleDecimalPaste } from '@/components/ui/NumberInput';
 
 /** Gleiche Grenze wie der Worker (csv_import.MAX_FILE_BYTES) */
 const MAX_FILE_MB = 150;
@@ -199,6 +200,8 @@ export function CsvImportDialog({ open, accountId, defaultSymbol, onClose, onImp
           <InputField label={t('csv.offset')} hint={t('csv.offset.hint')}>
             <input
               type="number"
+              onKeyDown={handleDecimalKeyDown}
+              onPaste={handleDecimalPaste}
               step={1}
               min={-MAX_OFFSET_HOURS}
               max={MAX_OFFSET_HOURS}

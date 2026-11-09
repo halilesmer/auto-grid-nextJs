@@ -15,6 +15,7 @@ import { isDefaultDockLayout } from '@/lib/chart-workspace/dock';
 import { cn } from '@/lib/utils';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
 import { appearanceColors } from './runtime';
+import { handleDecimalKeyDown, handleDecimalPaste } from '@/components/ui/NumberInput';
 
 function settingMax(k: SettingKey) { if (k === 'fontSize') return 24; return k === 'opacity' ? 100 : 35; }
 export const fieldClass = 'w-full min-w-0 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground';
@@ -29,7 +30,7 @@ export function Choice({ name, value, options, onChange }: { name: MessageKey; v
 }
 export function Numeric({ name, value, min = 0, max = 5000, step = 1, onChange }: { name: MessageKey; value: number; min?: number; max?: number; step?: number; onChange: (v: number) => void }) {
   const t = useT();
-  return <InputField label={t(name)} hint={t(`${name}.hint` as MessageKey)}><input aria-label={t(name)} className={fieldClass} type="number" min={min} max={max} step={step} value={value} onChange={e => { if (e.target.value === '') return; const raw = Number(e.target.value); if (Number.isFinite(raw)) onChange(Math.max(min, Math.min(max, Math.round(raw / step) / (1 / step)))); }} /></InputField>;
+  return <InputField label={t(name)} hint={t(`${name}.hint` as MessageKey)}><input aria-label={t(name)} className={fieldClass} type="number" onKeyDown={handleDecimalKeyDown} onPaste={handleDecimalPaste} min={min} max={max} step={step} value={value} onChange={e => { if (e.target.value === '') return; const raw = Number(e.target.value); if (Number.isFinite(raw)) onChange(Math.max(min, Math.min(max, Math.round(raw / step) / (1 / step)))); }} /></InputField>;
 }
 export function ColorField({ name, value, onChange }: { name: MessageKey; value: string; onChange: (v: string) => void }) {
   const t = useT();
@@ -47,7 +48,7 @@ function RowSelect({ name, value, options, onChange }: { name: MessageKey; value
 }
 function RowNumber({ name, value, min, max, onChange }: { name: MessageKey; value: number; min: number; max: number; onChange: (v: number) => void }) {
   const t = useT();
-  return <Tooltip content={t(`${name}.hint` as MessageKey)}><input aria-label={t(name)} className={cn(rowFieldClass, 'w-20 px-2.5 text-right tabular-nums')} type="number" min={min} max={max} value={value} onChange={e => { if (e.target.value === '') return; const raw = Number(e.target.value); if (Number.isFinite(raw)) onChange(Math.max(min, Math.min(max, Math.round(raw)))); }} /></Tooltip>;
+  return <Tooltip content={t(`${name}.hint` as MessageKey)}><input aria-label={t(name)} className={cn(rowFieldClass, 'w-20 px-2.5 text-right tabular-nums')} type="number" onKeyDown={handleDecimalKeyDown} onPaste={handleDecimalPaste} min={min} max={max} value={value} onChange={e => { if (e.target.value === '') return; const raw = Number(e.target.value); if (Number.isFinite(raw)) onChange(Math.max(min, Math.min(max, Math.round(raw)))); }} /></Tooltip>;
 }
 function RowRange({ name, value, onChange }: { name: MessageKey; value: number; onChange: (v: number) => void }) {
   const t = useT();

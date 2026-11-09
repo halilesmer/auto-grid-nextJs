@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ChangeEvent, type ComponentPropsWithoutRef, type FocusEvent } from 'react';
+import { useState, type ChangeEvent, type ClipboardEvent, type ComponentPropsWithoutRef, type FocusEvent, type KeyboardEvent } from 'react';
 
 type NumberInputProps = Omit<ComponentPropsWithoutRef<'input'>, 'type' | 'value'> & {
   value: number | undefined;
@@ -16,6 +16,24 @@ const clip = (text: string, maxDecimals: number | undefined) => {
   return maxDecimals > 0 ? `${int}.${frac.slice(0, maxDecimals)}` : int;
 };
 
+/**
+ * Dezimaltrenner: Komma und Punkt gelten beide. `type="number"` nimmt je nach Browser-Sprache
+ * nur eines davon an (sonst wird der Wert leer); deshalb wird ein getipptes oder eingefügtes
+ * Komma als Punkt eingesetzt. execCommand('insertText') hält Cursor, Undo und das input-Ereignis.
+ */
+export function handleDecimalKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+  if (e.key !== ',' || e.ctrlKey || e.metaKey || e.altKey) return;
+  e.preventDefault();
+  document.execCommand('insertText', false, '.');
+}
+
+export function handleDecimalPaste(e: ClipboardEvent<HTMLInputElement>) {
+  const text = e.clipboardData.getData('text');
+  if (!text.includes(',')) return;
+  e.preventDefault();
+  document.execCommand('insertText', false, text.replace(/,/g, '.'));
+}
+
 const toText = (value: number | undefined) =>
   value === undefined || Number.isNaN(value) ? '' : String(value);
 
@@ -25,14 +43,16 @@ const toText = (value: number | undefined) =>
  * Löschen der letzten Ziffer sofort auf "0" zurück. Der Entwurf darf leer sein,
  * erst beim Verlassen des Feldes wird der echte Wert angezeigt.
  */
-export function NumberInput({ value, maxDecimals, onChange, onBlur, ...rest }: NumberInputProps) {
+export function NumberInput({ value, maxDecimals, onChange, onBlur, onKeyDown, onPaste, ...rest }: NumberInputProps) {
   const [draft, setDraft] = useState(() => toText(value));
   const [prevValue, setPrevValue] = useState(value);
 
   // Wert von außen geändert (Symbolwechsel, Laden, Blur-Rundung): Entwurf angleichen.
   // Ein leerer Entwurf bleibt erhalten, damit das Löschen nicht sofort überschrieben wird.
+  // Object.is statt !==: NaN (leeres Feld) ist sich selbst ungleich und löste sonst
+  // bei jedem Rendern ein setPrevValue aus → „Too many re-renders“.
   let nextDraft = draft;
-  if (value !== prevValue) {
+  if (!Object.is(value, prevValue)) {
     setPrevValue(value);
     if (draft !== '' && Number(draft) !== value) nextDraft = toText(value);
   }
@@ -60,5 +80,15 @@ export function NumberInput({ value, maxDecimals, onChange, onBlur, ...rest }: N
     onBlur?.(e);
   };
 
-  return <input {...rest} type="number" value={draft} onChange={handleChange} onBlur={handleBlur} />;
+  return (
+    <input
+      {...rest}
+      type="number"
+      value={draft}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      onKeyDown={(e) => { handleDecimalKeyDown(e); onKeyDown?.(e); }}
+      onPaste={(e) => { handleDecimalPaste(e); onPaste?.(e); }}
+    />
+  );
 }
