@@ -88,3 +88,29 @@ export async function fetchQuotes(accountId: string, symbols: readonly string[],
   });
   return res.data.quotes;
 }
+
+/** GET /market/{id}/calc-context (TLS-01): Konto- und Margendaten für den Grid-Risiko-Rechner; nur lesend. */
+export interface CalcContext {
+  account_id: string;
+  symbol: string;
+  balance: number;
+  leverage: number;
+  currency: string;
+  /** Stop-out-Stufe des Kontos (Prozent oder Geld, je nach `margin_so_mode`); null = unbekannt */
+  margin_so_so: number | null;
+  /** MT5 ACCOUNT_STOPOUT_MODE_*: 0 Prozent, 1 Geld */
+  margin_so_mode: number | null;
+  bid: number;
+  ask: number;
+  /** Marge von 1 Lot (Kauf) beim Preis `margin_price`; null = MT5 konnte sie nicht berechnen */
+  margin_per_lot: number | null;
+  margin_price: number | null;
+}
+
+export async function fetchCalcContext(accountId: string, symbol: string, signal?: AbortSignal): Promise<CalcContext> {
+  const res = await axiosInstance.get<CalcContext>(`/market/${encodeURIComponent(accountId)}/calc-context`, {
+    params: { symbol },
+    signal,
+  });
+  return res.data;
+}

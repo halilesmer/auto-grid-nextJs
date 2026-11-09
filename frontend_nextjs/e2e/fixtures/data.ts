@@ -213,6 +213,8 @@ export function defaultState() {
     /** Kurse für /market/{id}/quotes; fehlt ein Produkt, liefert der Mock einen festen Standardkurs */
     /** Verzögerung der Antwort von /market/{id}/quotes in Millisekunden */
     quotesDelayMs: 0,
+    /** GET /market/{id}/calc-context (TLS-01): Konto- und Preisdaten; marginNull = MT5 kann die Marge nicht berechnen */
+    calcContext: { balance: 1050, leverage: 10, bid: 80, ask: 80.1, marginNull: false },
     quotes: {} as Record<string, { last: number; prev_close: number; digits: number } | null>,
     /** CSV-Importe je Konto (GET/POST /market/{id}/imports, B9); `text` = bisher hochgeladene Teile */
     csvImports: [] as CsvImportRow[],

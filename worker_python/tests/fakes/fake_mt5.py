@@ -122,6 +122,9 @@ class AccountInfo:
     margin: float = 0.0
     margin_free: float = 10000.0
     margin_level: float = 0.0  # MT5: 0 ohne offene Positionen
+    leverage: int = 100
+    margin_so_mode: int = 0  # ACCOUNT_STOPOUT_MODE_PERCENT
+    margin_so_so: float = 50.0  # Stop-out-Stufe
 
 
 @dataclass
@@ -340,6 +343,13 @@ class FakeMT5:
 
     def account_info(self):
         return self.account
+
+    def order_calc_margin(self, action, symbol, volume, price):
+        """Vereinfacht wie CFD: Preis * Volumen * Kontraktgröße / Hebel (None = Berechnung nicht möglich)."""
+        info = self.symbols.get(symbol)
+        if info is None or getattr(self, "margin_calc_fails", False):
+            return None
+        return price * volume * info.trade_contract_size / max(self.account.leverage, 1)
 
     def symbol_select(self, symbol, enable=True):
         return symbol in self.symbols

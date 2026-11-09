@@ -238,6 +238,25 @@ async def quotes(account_id: str, symbols: str = Query(..., max_length=QUOTES_MA
     return {"account_id": account_id, "quotes": found}
 
 
+@router.get("/market/{account_id}/calc-context", dependencies=[Depends(account_access)])
+async def calc_context(account_id: str, symbol: str = Query(..., min_length=1, max_length=40)):
+    """TLS-01: Grid-Risiko-Rechner. Bakiye, kaldıraç, stop-out seviyesi ve 1 lotun marjı.
+
+    Salt-okunur, veri sorgusu kipinde (çalışan botun oturumu değişmez). Emir açmaz.
+    """
+    symbol = symbol.strip()
+    if not symbol:
+        raise HTTPException(status_code=400, detail="Sembol boş")
+    account = _account_or_404(account_id)
+    if is_account_busy(account_id):
+        raise HTTPException(status_code=409, detail="Hesap şu an başlatılıyor/durduruluyor.")
+    try:
+        data = await asyncio.to_thread(mt5_market.calc_context, account, symbol)
+    except mt5_market.MarketDataError as exc:
+        raise HTTPException(status_code=exc.status, detail=exc.detail)
+    return {"account_id": account_id, **data}
+
+
 @router.get(
     "/market/{account_id}/ticks",
     dependencies=[Depends(require_admin), Depends(account_access)],
