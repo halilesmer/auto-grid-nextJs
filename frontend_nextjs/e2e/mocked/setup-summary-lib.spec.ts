@@ -89,11 +89,12 @@ test('Çıkış: yön, hedef, kapsam, tetikleyici; mum kapanışında zaman dili
     exit_condition: 'Anlık Fiyat',
   };
   expect(item(exit, 'exit')).toMatchObject({
-    value: 'zone.exit.side.down · zone.exit.target.buy · zone.exit.scope.pending · zone.exit.trigger.price',
+    value: 'zone.summary.exit.side.down · zone.summary.exit.target.buy · zone.summary.exit.scope.pending · zone.summary.exit.trigger.price',
+    full: 'zone.exit.side.down · zone.exit.target.buy · zone.exit.scope.pending · zone.exit.trigger.price',
     off: false,
   });
   expect(item({ ...exit, exit_condition: 'Mum Kapanışı', exit_timeframe: 'H1', clear_exit_side: 'Farketmez', clear_target_side: 'Farketmez (Hepsi)', clear_scope: 'Tüm İşlemler' }, 'exit')?.value)
-    .toBe('zone.exit.side.any · zone.exit.target.all · zone.exit.scope.all · zone.exit.trigger.candle H1');
+    .toBe('zone.summary.exit.side.any · zone.summary.exit.target.all · zone.summary.exit.scope.all · zone.summary.exit.trigger.candle H1');
 });
 
 test('Fraktal: grid alanları yok, fraktal alanları var; Kırılım kutusunda yalnız Spread', { tag: '@ZON-22' }, () => {

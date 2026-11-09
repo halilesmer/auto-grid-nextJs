@@ -173,6 +173,29 @@ test.describe('ZON-22 Zusammenfassung und Bearbeiten', () => {
   test.describe('375 px', () => {
     test.use({ viewport: { width: 375, height: 812 } });
 
+    test('Ausstieg-Chip: kurze Fassung, höchstens 2 Zeilen, volle Namen im aria-label', { tag: ['@ZON-22', '@UI-08'] }, async ({ worker, dashboard }) => {
+      worker.setZones(DEMO_ID, [
+        makeZone({
+          clear_on_exit: true,
+          clear_exit_side: 'SELL (Aşağı)',
+          clear_target_side: 'Sadece BUY İşlemleri',
+          clear_scope: 'Sadece Bekleyen Emirler',
+          exit_condition: 'Mum Kapanışı',
+          exit_timeframe: 'H1',
+        }),
+      ]);
+      await dashboard.open(DEMO_ID);
+      const chip = dashboard.zone(0).getByTestId('summary-exit');
+      await expect(chip).toContainText(msg('zone.summary.exit.side.down'));
+      await expect(chip).not.toContainText(msg('zone.exit.scope.pending'));
+      await expect(chip).toHaveAttribute('aria-label', new RegExp(msg('zone.exit.scope.pending')));
+      const lines = await chip.evaluate((el) => Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)));
+      expect(lines, 'höchstens 2 Zeilen').toBeLessThanOrEqual(2);
+      // kein Umbruch mitten im Wort: der Wert bricht nur an Leerzeichen
+      const breaksInWord = await chip.evaluate((el) => getComputedStyle(el.lastElementChild as Element).overflowWrap);
+      expect(breaksInWord, 'kein Umbruch im Wort').toBe('normal');
+    });
+
     test('Zusammenfassung läuft nicht über, Fußleiste steht unter dem Formular', { tag: ['@ZON-22', '@UI-08'] }, async ({ page, worker, dashboard }) => {
       worker.setZones(DEMO_ID, [
         makeZone({

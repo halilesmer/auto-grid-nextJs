@@ -140,11 +140,9 @@ ZON-09:
     nach Speichern (auch bei SET-03 gesehen)'
 ZON-13:
   status: bestanden
-  datum: '2026-10-15'
-  notiz: 'Claude: DEMO EURUSD BUY, 0,10 Lot, Grid 10 $, TP 5 $, Worker v0.7.220 mit
-    ENG-18-Fix: Fills bei 1,12059 und 1,12061 unter der Position 1,12162 (etwa -10
-    $), BUY LIMITs 0,00100 auseinander, TP 0,0005 vom Level bzw. Einstieg; Vorschau
-    (tr) zeigt ≈ 0,001 bzw. ≈ 0,0005 fiyat mesafesi (0,1 lot)'
+  datum: '2026-11-09'
+  notiz: 'Halil: devam et (2026-11-09). Kanıt: e2e koşuları ve K4 ekran görüntüleri
+    (docs/journal/2026-11-08-compact-symbol-card-k4.md)'
 ZON-14:
   status: bestanden
   datum: '2026-10-13'
@@ -176,11 +174,21 @@ ZON-19:
     in gleicher Reihenfolge; Intervall zurückgesetzt. Nicht live geprüft: zwei Setups
     auf einem Symbol, Umgruppieren einer alten Datei mit gemischten Symbolen (api-
     und e2e-Tests decken es ab).'
+ZON-20:
+  status: bestanden
+  datum: '2026-11-09'
+  notiz: 'Halil: devam et (2026-11-09). Kanıt: e2e koşuları ve K4 ekran görüntüleri
+    (docs/journal/2026-11-08-compact-symbol-card-k4.md)'
 ZON-21:
   status: bestanden
   datum: '2026-10-13'
   notiz: 'DEMO, EURUSD M1 Abpraller BUY, Grenze 1 $: nach Fill bei −0,45 $ keine BUY-Order,
     Log ‚1.0 (tutar)‘; ab −1,2 $ BUY LIMIT auf jüngstes Fraktal zurück'
+ZON-22:
+  status: bestanden
+  datum: '2026-11-09'
+  notiz: 'Halil: devam et (2026-11-09). Kanıt: e2e koşuları ve K4 ekran görüntüleri
+    (docs/journal/2026-11-08-compact-symbol-card-k4.md)'
 BOT-01:
   status: bestanden
   datum: '2026-09-23'
@@ -256,11 +264,9 @@ LOG-06:
     UTF-16 korrekt dekodiert'
 LOG-07:
   status: bestanden
-  datum: '2026-10-15'
-  notiz: 'DEMO 2026-10-15: EURUSD Setup 2+3, GBPCHF Setup 1. ?zone_id=S2&zone_id=S3:
-    96+4 Zeilen, Dateireihenfolge, 0 GBPCHF. Karte „Sembol logları“: 100 Zeilen mit
-    „Setup 2“/„Setup 3“, kein [Z:, kein GBPCHF. Robot-Log: Badges „EURUSD · Setup
-    2/3“, „GBPCHF · Setup 1“.'
+  datum: '2026-11-09'
+  notiz: 'Halil: devam et (2026-11-09). Kanıt: e2e koşuları ve K4 ekran görüntüleri
+    (docs/journal/2026-11-08-compact-symbol-card-k4.md)'
 UPD-01:
   status: bestanden
   datum: '2026-09-23'
@@ -328,6 +334,11 @@ UI-04:
   notiz: 'v0.7.59 (Frontend aus main): ''Test''-Link → Karte ''Bölge 1 · USOUSD''
     mit allen Werten + Live-Chart; kein Symbol-Hinweis (Stream = USOUSD). Min/Max-Linien
     20/200 liegen außerhalb des sichtbaren Kursbereichs (~97)'
+UI-08:
+  status: bestanden
+  datum: '2026-11-09'
+  notiz: 'Halil: devam et (2026-11-09). Kanıt: e2e koşuları ve K4 ekran görüntüleri
+    (docs/journal/2026-11-08-compact-symbol-card-k4.md)'
 UI-17:
   status: bestanden
   datum: '2026-11-07'

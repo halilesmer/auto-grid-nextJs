@@ -118,6 +118,38 @@ test.describe('ZON-20 Drei Kästen', () => {
   });
 });
 
+test.describe('ZON-20 Ausstieg-Kasten paarweise', () => {
+  const rowsOf = async (page: Page) => {
+    const selects = page.getByTestId('zone-exit-column').first().locator('select');
+    await expect(selects).toHaveCount(4);
+    const ys: number[] = [];
+    for (let i = 0; i < 4; i++) ys.push((await selects.nth(i).boundingBox())!.y);
+    return ys;
+  };
+
+  test('1440 px: vier Auswahlfelder als 2×2', { tag: '@ZON-20' }, async ({ page, worker, dashboard }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    worker.setZones(DEMO_ID, [makeZone({ clear_on_exit: true })]);
+    await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
+    const ys = await rowsOf(page);
+    expect(Math.abs(ys[0] - ys[1]), 'Paar 1 in einer Reihe').toBeLessThanOrEqual(1);
+    expect(Math.abs(ys[2] - ys[3]), 'Paar 2 in einer Reihe').toBeLessThanOrEqual(1);
+    expect(ys[2], 'Paar 2 unter Paar 1').toBeGreaterThan(ys[0] + 10);
+  });
+
+  test('390 px: vier Auswahlfelder untereinander', { tag: ['@ZON-20', '@UI-08'] }, async ({ page, worker, dashboard }) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    worker.setZones(DEMO_ID, [makeZone({ clear_on_exit: true })]);
+    await dashboard.open(DEMO_ID);
+    await openSetup(dashboard.zone());
+    const ys = await rowsOf(page);
+    expect(ys[1], 'untereinander').toBeGreaterThan(ys[0] + 10);
+    expect(ys[2], 'untereinander').toBeGreaterThan(ys[1] + 10);
+    expect(ys[3], 'untereinander').toBeGreaterThan(ys[2] + 10);
+  });
+});
+
 test.describe('UI-08 Kästen bei 375 px', () => {
   test.use({ viewport: { width: 375, height: 800 } });
 

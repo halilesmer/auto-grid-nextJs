@@ -13,7 +13,7 @@ export function ZoneExitFields({
 }: ZoneExitFieldsProps & { plain?: boolean }) {
   const t = useT();
   let fieldsClass = 'flex flex-wrap items-start gap-3';
-  if (plain) fieldsClass = zone.clear_on_exit ? 'grid grid-cols-1 gap-3 @[24rem]:grid-cols-2' : 'hidden';
+  if (plain) fieldsClass = zone.clear_on_exit ? 'grid grid-cols-1 gap-3 @[22rem]:grid-cols-2' : 'hidden';
 
   const clearSwitch = (
     <FieldSwitch

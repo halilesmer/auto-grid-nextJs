@@ -2,8 +2,8 @@
 date: 2026-11-08
 author: Claude
 type: plan
-status: open
-pr: []
+status: done
+pr: [455, 457, 461, 467]
 features: [ZON-20, ZON-13, ZON-22, LOG-07, UI-07, UI-08]
 areas: [frontend, tests, docs]
 ---
@@ -125,4 +125,4 @@ DEMO account, read-only (`hooks/RULES.md` §3): summary and edit, logs panel, ph
 - [x] K1 header and logs
 - [x] K2 fields
 - [x] K3 summary state (entry `2026-11-08-compact-symbol-card-k3.md`)
-- [ ] K4 check and signatures
+- [x] K4 check and signatures (entry `2026-11-08-compact-symbol-card-k4.md`)
