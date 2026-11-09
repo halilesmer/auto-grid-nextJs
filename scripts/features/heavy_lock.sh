@@ -190,8 +190,15 @@ _hl_break() {  # $1 owner; Prozessbaum des Halters beenden, Sperre löschen
 _HL_MEM=""  # letzte Messung: "<used>M/<total>M (<pct>%), frei <level>%"
 _hl_mem_bad() {  # wahr bei Speicherdruck jetzt; ohne macOS-Werte nie
   local level swap used total pct
-  level=$(sysctl -n kern.memorystatus_level 2>/dev/null) || return 1
-  swap=$(sysctl -n vm.swapusage 2>/dev/null) || return 1
+  # Nur für Tests: HEAVY_LOCK_TEST_MEMLEVEL / HEAVY_LOCK_TEST_SWAPUSAGE ersetzen die sysctl-Werte
+  # (Format wie vm.swapusage), damit das Ergebnis nicht vom echten Swap der Maschine abhängt.
+  if [ -n "${HEAVY_LOCK_TEST_MEMLEVEL:-}" ] && [ -n "${HEAVY_LOCK_TEST_SWAPUSAGE:-}" ]; then
+    level=$HEAVY_LOCK_TEST_MEMLEVEL
+    swap=$HEAVY_LOCK_TEST_SWAPUSAGE
+  else
+    level=$(sysctl -n kern.memorystatus_level 2>/dev/null) || return 1
+    swap=$(sysctl -n vm.swapusage 2>/dev/null) || return 1
+  fi
   total=$(echo "$swap" | awk '{gsub("M","",$3); print int($3)}')
   used=$(echo "$swap" | awk '{gsub("M","",$6); print int($6)}')
   [ -n "$level" ] && [ "${total:-0}" -gt 0 ] || return 1

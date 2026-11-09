@@ -211,13 +211,15 @@ test.describe('Sperre für schwere Läufe', { tag: '@SYS-11' }, () => {
     await a.done;
   });
 
+  // Gemessene Werte kommen aus der Umgebung (HEAVY_LOCK_TEST_*), nie vom echten sysctl der Maschine.
+  const memForce = { HEAVY_LOCK_MEM_WINDOW: '0', HEAVY_LOCK_SKIP_MEM_CHECK: '0' };
+  const swapUsage = (total: string, used: string) => `total = ${total}M  used = ${used}M  free = 0.00M  (encrypted)`;
+
   test('Speicherprüfung: bei Druck Exit 76 und Sperre frei; SKIP_MEM_CHECK läuft', () => {
-    test.skip(process.platform !== 'darwin', 'kern.memorystatus_level gibt es nur auf macOS');
     const force = {
-      HEAVY_LOCK_SWAP_MAX: '0',
-      HEAVY_LOCK_MEM_MIN: '101',
-      HEAVY_LOCK_MEM_WINDOW: '0',
-      HEAVY_LOCK_SKIP_MEM_CHECK: '0',
+      ...memForce,
+      HEAVY_LOCK_TEST_MEMLEVEL: '5',
+      HEAVY_LOCK_TEST_SWAPUSAGE: swapUsage('1024.00', '1000.00'),
     };
     const r = run(['echo', 'nie'], force);
     expect(r.status).toBe(76);
@@ -227,6 +229,26 @@ test.describe('Sperre für schwere Läufe', { tag: '@SYS-11' }, () => {
     const skip = run(['echo', 'trotzdem'], { ...force, HEAVY_LOCK_SKIP_MEM_CHECK: '1' });
     expect(skip.status).toBe(0);
     expect(skip.stdout).toContain('trotzdem');
+  });
+
+  test('Speicherprüfung: ohne Swap (total 0) oder bei freiem Speicher kein Druck, Lauf startet', () => {
+    // kein Swap: kein Druck, auch bei sehr wenig freiem Speicher
+    const noSwap = run(['echo', 'ohne-swap'], {
+      ...memForce,
+      HEAVY_LOCK_TEST_MEMLEVEL: '5',
+      HEAVY_LOCK_TEST_SWAPUSAGE: swapUsage('0.00', '0.00'),
+    });
+    expect(noSwap.status).toBe(0);
+    expect(noSwap.stdout).toContain('ohne-swap');
+    // Swap voll, aber genug freier Speicher: kein Druck
+    const freeMem = run(['echo', 'viel-frei'], {
+      ...memForce,
+      HEAVY_LOCK_TEST_MEMLEVEL: '60',
+      HEAVY_LOCK_TEST_SWAPUSAGE: swapUsage('1024.00', '1000.00'),
+    });
+    expect(freeMem.status).toBe(0);
+    expect(freeMem.stdout).toContain('viel-frei');
+    expect(freeMem.stderr).not.toContain('Speicherdruck');
   });
 
   test('fremder owner ohne pid: Wartender löscht nicht, läuft erst nach Freigabe', async () => {
