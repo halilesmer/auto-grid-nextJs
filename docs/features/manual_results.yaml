@@ -458,3 +458,9 @@ NWS-01:
   notiz: 'VPS 2026-11-08 v0.7.491: /api/news/events available, not stale, de titles;
     CPI 2026-11-10 13:30Z dir down/up from forecast vs prev; past NFP/unemployment
     actual + impact_type positive'
+TLS-01:
+  status: bestanden
+  datum: '2026-11-09'
+  notiz: 'VPS v0.7.513, DEMO read-only: calc-context liefert Kontostand, Hebel 1:10,
+    Stop-out 50 %, Marge/Lot (USOUSD 879,90; Näherung-Hinweis weg), Menü mittig, 375
+    px ohne Überlauf, hell+dunkel ok. Handvergleich mit MT5-Orderdialog nicht gemacht.'
