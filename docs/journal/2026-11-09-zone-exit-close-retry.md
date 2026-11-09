@@ -3,7 +3,7 @@ date: 2026-11-09
 author: Claude
 type: fix
 status: open
-pr: []
+pr: [486]
 features: [ENG-10]
 areas: [worker]
 ---
