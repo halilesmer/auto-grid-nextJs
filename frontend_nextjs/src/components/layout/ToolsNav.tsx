@@ -62,7 +62,7 @@ export default function ToolsNav({ layout }: { layout: 'row' | 'panel' }) {
       size="md"
       align="left"
       panelClassName="w-80 p-1.5"
-      triggerProps={{ 'data-testid': 'nav-tools', className: cn('gap-2 px-3 text-xs', active ? 'text-foreground' : 'text-muted-foreground') }}
+      triggerProps={{ 'data-testid': 'nav-tools', className: cn('gap-2 px-2.5 text-xs xl:px-3', active ? 'text-foreground' : 'text-muted-foreground') }}
       icon={<><Wrench size={15} />{t('nav.tools')}<ChevronDown size={12} /></>}
     >
       <ToolItems />

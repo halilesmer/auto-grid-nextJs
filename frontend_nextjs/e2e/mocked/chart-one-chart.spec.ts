@@ -105,7 +105,7 @@ test.describe('UI-22 Ein Chart ohne Modi', () => {
     await expect(page.getByTestId('formation-forms-empty')).toContainText(msg('chart.formation.noneTf'));
   });
 
-  test('Alte Links: mode wird ignoriert, zone gibt das Symbol, tab=stats öffnet die Statistik', { tag: '@UI-22' }, async ({ page, worker }) => {
+  test('Alte Links: mode wird ignoriert, zone gibt das Symbol, tab=stats öffnet die Seite Statistik', { tag: ['@UI-22', '@UI-23'] }, async ({ page, worker }) => {
     serve(worker);
     for (const link of [`/chart?mode=formation&account=${DEMO_ID}&zone=${ZONE_ID}&form=GAR`, `/chart?mode=setup&account=${DEMO_ID}&zone=${ZONE_ID}&tf=H4`, `/chart?mode=free&account=${DEMO_ID}&symbol=EURUSD&tf=H4`]) {
       await page.goto(link);
@@ -114,6 +114,7 @@ test.describe('UI-22 Ein Chart ohne Modi', () => {
       await expect(page.locator('[data-testid^="chart-mode-"]')).toHaveCount(0);
     }
     await page.goto(`/chart?account=${DEMO_ID}&tab=stats&zone=${ZONE_ID}`);
+    await expect(page).toHaveURL(/\/stats\?/);
     await expect(page.getByTestId('stats-tab')).toBeVisible();
     await expect(page.getByTestId('analysis-chart')).toHaveCount(0);
   });
@@ -194,20 +195,14 @@ test.describe('UI-22 Ein Chart ohne Modi', () => {
   });
 
   for (const width of [1024, 1100]) {
-    test(`Bei offener Karte (${width} px) ist „Statistik“ erreichbar, auch im Pfeilmenü`, { tag: '@UI-22' }, async ({ page, worker }) => {
+    test(`Bei offener Karte (${width} px) ist „Statistik“ im Menü erreichbar, die Kopfleiste hat keine Reiter`, { tag: ['@UI-22', '@UI-23'] }, async ({ page, worker }) => {
       await page.setViewportSize({ width, height: 800 });
       await open(page, worker, '&symbol=EURUSD');
       await expect(cardTab(page, 'conditions')).toBeVisible();
-      const topbar = page.getByTestId('chart-topbar');
-      const direct = topbar.getByRole('tab', { name: msg('analysis.tab.stats') });
-      const more = topbar.locator('[data-dock-pkg="actions"]').getByTestId('dock-more');
-      await expect(direct.or(more).first()).toBeVisible();
-      if (await direct.isVisible()) await direct.click();
-      else {
-        await more.click();
-        await page.getByTestId('dock-more-menu').getByRole('tab', { name: msg('analysis.tab.stats') }).click();
-      }
-      await expect(page).toHaveURL(/tab=stats/);
+      await expect(page.getByTestId('chart-topbar').getByRole('tab')).toHaveCount(0);
+      await page.getByTestId('app-nav').getByRole('link', { name: msg('nav.stats'), exact: true }).click();
+      await expect(page).toHaveURL(/\/stats/);
+      await expect(page.getByTestId('analysis-page')).toBeVisible();
     });
   }
 

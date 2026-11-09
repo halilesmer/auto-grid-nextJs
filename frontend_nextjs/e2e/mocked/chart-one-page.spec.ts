@@ -77,9 +77,10 @@ test.describe('UI-14 Eine Seite Chart', () => {
     });
   }
 
-  test('Ein alter Statistik-Link (?tab=stats) öffnet die Statistik, nicht den Chart', { tag: '@UI-14' }, async ({ page, worker }) => {
+  test('Ein alter Statistik-Link (?tab=stats) öffnet die Seite Statistik, nicht den Chart', { tag: ['@UI-14', '@UI-23'] }, async ({ page, worker }) => {
     void worker;
     await page.goto(`/chart?account=${DEMO_ID}&tab=stats&zone=${ZONE_ID}`);
+    await expect(page).toHaveURL(/\/stats\?/);
     await expect(page.getByTestId('analysis-controls')).toBeVisible();
     await expect(page.getByTestId('stats-tab')).toBeVisible();
     await expect(page.getByTestId('chart-page')).toHaveCount(0);

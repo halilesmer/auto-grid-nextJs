@@ -615,6 +615,21 @@ def read_tick_replay(source: str, symbol: str, a: int, b: int) -> list[tuple[int
             "ORDER BY t_mt5", (source, symbol, a, b))]
 
 
+def store_replay_minutes(source: str, symbol: str, rows: list[tuple[int, str, bytes]]) -> bool:
+    """BKT-23: Trigger-Minuten (t, Art, Blob). Bestehende Zeilen (S/J aus BKT-20) werden nie überschrieben.
+
+    Datenbank voll → False."""
+    if is_full():
+        return False
+    if rows:
+        with writing() as conn:
+            conn.executemany(
+                "INSERT OR IGNORE INTO tick_replay VALUES (?,?,?,?,?)",
+                [(source, symbol, int(t), kind, blob) for t, kind, blob in rows],
+            )
+    return True
+
+
 def tick_coverage_summary(source: str, symbol: str) -> list[dict]:
     with reading() as conn:
         return [dict(r) for r in conn.execute(

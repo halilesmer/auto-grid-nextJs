@@ -70,6 +70,13 @@ REPLAY_S_RATIO = 3.0
 REPLAY_J_RATIO = 4.0
 REPLAY_MIN_MINUTES = 30
 REPLAY_MAX_TICKS_DAY = 30_000
+
+# BKT-23: Trigger-Minuten auf Abruf. Je Anfrage höchstens so viele Minuten und so viel Spanne; ein Abruf je 2 Stunden.
+REPLAY_REQ_MAX_MINUTES = 2000
+REPLAY_REQ_MAX_SPAN_SEC = 3 * 86400
+REPLAY_PIECE_SEC = 7200
+REPLAY_KIND_TRIGGER = "T"
+REPLAY_EMPTY_CACHE_AGE_SEC = 2 * 86400  # Minuten ohne Tick nur speichern, wenn sie so alt sind (Terminal lädt evtl. noch)
 # BKT-22: Kursraster (Tickschritt in Punkten), Kandidaten groß → klein; ab GRID_SHARE aller Schritte teilbar = Raster
 GRID_CANDIDATES = (100, 50, 25, 20, 10, 5, 4, 2)
 GRID_SHARE = 0.99
@@ -589,6 +596,141 @@ def _get_rates(account: dict, source: str, symbol: str, timeframe: str, a: int, 
         if tick_replay:
             result["replay"] = _replay_columns(source, symbol, a, rows[-1]["time"] + 60 if rows else a)
     return result
+
+
+def parse_replay_minutes(start: int, m: str) -> list[int]:
+    """BKT-23: `m` = Minutenabstände, der erste zu `start`, jeder weitere zur Vorminute ("0,5,1" → start, +5, +6 Minuten).
+
+    Gibt aufsteigende Minuten (Sekunden, MT5-Zeit) zurück. ValueError bei Formfehlern und Grenzüberschreitung."""
+    if start < 0 or start % 60:
+        raise ValueError("start muss eine volle Minute sein")
+    parts = m.split(",") if m else []
+    if not parts:
+        raise ValueError("m ist leer")
+    if len(parts) > REPLAY_REQ_MAX_MINUTES:
+        raise ValueError(f"Höchstens {REPLAY_REQ_MAX_MINUTES} Minuten")
+    out: list[int] = []
+    cur = start
+    for i, p in enumerate(parts):
+        if not p.isdigit():
+            raise ValueError("m: nur nichtnegative ganze Zahlen")
+        d = int(p)
+        if i and d == 0:
+            raise ValueError("m: doppelte Minute")
+        cur += d * 60
+        out.append(cur)
+    if out[-1] - out[0] > REPLAY_REQ_MAX_SPAN_SEC:
+        raise ValueError("Die Minuten dürfen höchstens 3 Tage auseinanderliegen")
+    return out
+
+
+def tick_rows_by_minute(rows, point: float) -> dict[int, tuple[list[int], list[int], list[int]]]:
+    """Ticks → {Minute (s): (ms in der Minute, Bid, Ask)} in ganzen Punkten; ungültige Quotes entfallen."""
+    out: dict[int, tuple[list[int], list[int], list[int]]] = {}
+    for row in rows:
+        bid, ask = float(row["bid"]), float(row["ask"])
+        if not (bid > 0 and ask > 0 and ask >= bid):
+            continue
+        t = int(row["time_msc"])
+        m = t - t % 60000
+        cols = out.setdefault(m // 1000, ([], [], []))
+        cols[0].append(t - m)
+        cols[1].append(round(bid / point))
+        cols[2].append(round(ask / point))
+    return out
+
+
+def _fetch_minute_piece(account: dict, symbol: str, x: int, y: int) -> dict[int, tuple[list[int], list[int], list[int]]]:
+    """Ticks [x, y) auf einmal; nur die Minuten-Gruppierung, kein Vorlauf (Tetik-Replay braucht keinen Spread)."""
+
+    def collect(mt5):
+        mm._check_account(mt5, account)
+        info = mt5.symbol_info(symbol)
+        if info is None:
+            raise mm.MarketDataError(f"[SYMBOL] {symbol} bu hesapta bulunamadı.", status=404)
+        if not getattr(info, "visible", True):
+            mt5.symbol_select(symbol, True)
+        errors: list[str] = []
+        rows = mt5.copy_ticks_range(symbol, x, y - 1, mt5.COPY_TICKS_ALL)
+        if mm._mt5_error(mt5, "copy_ticks_range", rows, errors):
+            raise mm.MarketDataError(f"[TICKS] {errors[0]}")
+        point = float(getattr(info, "point", 0) or 0)
+        if point <= 0:
+            raise mm.MarketDataError(f"[SYMBOL] {symbol} için point değeri yok.")
+        return tick_rows_by_minute(rows if rows is not None else [], point)
+
+    return mm._connected(account, collect)
+
+
+def get_replay_minutes(account: dict, symbol: str, minutes: list[int], busy: bool = False) -> dict:
+    """BKT-23: Ticks der gewünschten Minuten (Spalten wie `_replay_columns`, dazu `missing`).
+
+    Vorhandene Zeilen (S/J aus BKT-20, frühere T) kommen aus der Datenbank; nur fehlende Minuten werden in
+    2-Stunden-Stücken aus MT5 geholt und als Art T gespeichert. Minuten ohne Tick fehlen in der Antwort."""
+    source = str(account.get("server") or "")
+    wanted = set(minutes)
+    have = {t: (kind, blob) for t, kind, blob in db.read_tick_replay(source, symbol, minutes[0], minutes[-1] + 60)
+            if t in wanted}
+    todo = [t for t in minutes if t not in have]
+    missing: list[dict] = []
+    pieces: list[tuple[int, int, list[int]]] = []
+    for t in todo:
+        if pieces and t < pieces[-1][0] + REPLAY_PIECE_SEC:
+            pieces[-1][2].append(t)
+            pieces[-1] = (pieces[-1][0], t + 60, pieces[-1][2])
+        else:
+            pieces.append((t, t + 60, [t]))
+    if pieces and busy:
+        missing = [{"from": x, "to": y, "reason": "busy"} for x, y, _ in pieces]
+        pieces = []
+    deadline = time.monotonic() + TICK_BUDGET_SEC
+    fetched = 0
+    old_before = time.time() - REPLAY_EMPTY_CACHE_AGE_SEC
+    for i, (x, y, wanted_here) in enumerate(pieces):
+        if fetched and time.monotonic() >= deadline:
+            missing += [{"from": p, "to": q, "reason": "budget"} for p, q, _ in pieces[i:]]
+            break
+        if fetched:
+            time.sleep(TICK_PAUSE_SEC)
+        if not _FETCH_SLOT.acquire(timeout=FETCH_WAIT_SEC):
+            missing += [{"from": p, "to": q, "reason": "busy"} for p, q, _ in pieces[i:]]
+            break
+        fetched += 1
+        try:
+            got = _fetch_minute_piece(account, symbol, x, y)
+        except mm.MarketDataError as exc:
+            if exc.status in (400, 404):  # Sembol/Konfiguration falsch: nicht als „fehlend“ verschweigen
+                raise
+            missing.append({"from": x, "to": y, "reason": "error", "detail": exc.detail})
+            continue
+        finally:
+            _FETCH_SLOT.release()
+        rows = []
+        for t in wanted_here:
+            cols = got.get(t)
+            if cols:
+                rows.append((t, REPLAY_KIND_TRIGGER, encode_replay(*cols)))
+                have[t] = (REPLAY_KIND_TRIGGER, rows[-1][2])
+            elif t < old_before:
+                rows.append((t, REPLAY_KIND_TRIGGER, encode_replay([], [], [])))  # Minute hat keinen Tick: nicht erneut fragen
+                have[t] = (REPLAY_KIND_TRIGGER, rows[-1][2])
+        db.store_replay_minutes(source, symbol, rows)
+    out = {"t": [], "kind": [], "off": [0], "ms": [], "b": [], "a": []}
+    for t in minutes:
+        if t not in have:
+            continue
+        kind, blob = have[t]
+        ms, bid, ask = decode_replay(blob)
+        if not ms:
+            continue
+        out["t"].append(t)
+        out["kind"].append(kind)
+        out["ms"] += ms
+        out["b"] += bid
+        out["a"] += ask
+        out["off"].append(len(out["ms"]))
+    out["missing"] = sorted(missing, key=lambda m: m["from"])
+    return out
 
 
 def _replay_columns(source: str, symbol: str, a: int, b: int) -> dict:

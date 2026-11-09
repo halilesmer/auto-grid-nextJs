@@ -9,7 +9,7 @@ import type { Deal } from '../../src/lib/analysis/tradePairing';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, LIVE_ID, ZONE_ID, expect, makeZone, test, type MockWorker } from '../fixtures/test';
 
-const URL = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tab=stats`;
+const URL = `/stats?account=${DEMO_ID}&zone=${ZONE_ID}`;
 const DAY = 86400;
 const H = 3600;
 
@@ -115,7 +115,7 @@ test.describe('ANA-09 Statistik-Tab', () => {
     expect(await unhinted(page)).toEqual([]);
 
     // Kontowechsel: keine alten Zahlen
-    await page.goto(`/chart?account=${LIVE_ID}&tab=stats`);
+    await page.goto(`/stats?account=${LIVE_ID}`);
     await expect(page.getByTestId('stats-empty')).toBeVisible();
     await expect(page.getByTestId('stat-trades-value')).toHaveText('0 / 0');
   });
@@ -181,7 +181,7 @@ test.describe('ANA-14 Statistik je Symbol und Setup', () => {
 
   test('Setups eines Symbols vergleichen; Konto je Symbol', { tag: '@ANA-14' }, async ({ page, worker }) => {
     seedSetups(worker);
-    await page.goto(`/chart?account=${DEMO_ID}&zone=zone-uso-2&tab=stats`);
+    await page.goto(`/stats?account=${DEMO_ID}&zone=zone-uso-2`);
 
     // Vorauswahl aus der Adresse: zweites Setup von USOUSD, benannt wie auf der Symbolkarte
     const box = page.getByRole('combobox', { name: msg('analysis.stats.scope') });

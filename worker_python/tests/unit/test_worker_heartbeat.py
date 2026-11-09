@@ -54,3 +54,15 @@ def test_heartbeat_can_be_disabled(monkeypatch):
     assert worker_obs.start_heartbeat(None) is None
     monkeypatch.delenv("WORKER_HEARTBEAT")
     assert worker_obs.heartbeat_enabled()
+
+
+@pytest.mark.feature("ANA-04")
+def test_obs_log_follows_replaced_stdout(monkeypatch):
+    """console_tee ersetzt sys.stdout nach dem Import: das Log muss trotzdem im neuen Strom landen."""
+    import io
+    import sys
+
+    buf = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", buf)
+    worker_obs.obs_log.info("[rates-timing] probe")
+    assert "[rates-timing] probe" in buf.getvalue()
