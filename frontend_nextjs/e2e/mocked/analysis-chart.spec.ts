@@ -7,6 +7,7 @@
 import type { Page } from '@playwright/test';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, ZONE_ID, expect, makeZone, test, type MockWorker } from '../fixtures/test';
+import { cardRoot } from '../fixtures/card';
 
 const URL = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=M15`;
 const DAY = 86400;
@@ -18,7 +19,7 @@ function ratesCalls(worker: MockWorker) {
 /** Die Karte startet zu, solange eine Formation gezeichnet wird (UI-22): nach dem Scan aufklappen, dann steht „Übersicht“ da */
 async function openCard(page: Page) {
   await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
-  const card = page.getByTestId('chart-floating-card');
+  const card = cardRoot(page);
   const expand = card.getByRole('button', { name: msg('chart.card.expand'), exact: true });
   if (await expand.count()) await expand.click();
   await card.getByTestId('chart-card-tab-overview').click();

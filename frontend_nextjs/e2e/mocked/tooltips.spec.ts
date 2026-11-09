@@ -9,11 +9,12 @@ import { E2E_API_KEY, MOCK_API } from '../fixtures/env';
 import { DEMO_ID, RUNNING_METRICS, ZONE_ID, expect, makeZone, openSetup, test, type Dashboard } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 import { openConnectionDialog, openHeaderMenu, openPageMenu } from '../fixtures/header';
+import { cardRoot } from '../fixtures/card';
 
 /** Die Karte startet zu, solange eine Formation gezeichnet wird, und unter 1024 px (UI-22): nach dem Scan aufklappen */
 async function openCard(page: Page) {
   await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
-  const card = page.getByTestId('chart-floating-card');
+  const card = cardRoot(page);
   const expand = card.getByRole('button', { name: msg('chart.card.expand'), exact: true });
   if (await expand.count()) await expand.click();
   await card.getByTestId('chart-card-tab-overview').click();
@@ -264,7 +265,7 @@ test.describe('UI-07 Hinweise: Abdeckung', () => {
     expect(await unhinted(page)).toEqual([]);
     await page.getByRole('navigation').getByRole('link', { name: msg('nav.chart') }).click();
     await expect(page).toHaveURL(`/chart?account=${DEMO_ID}`);
-    await expect(page.getByTestId('chart-floating-card')).toBeVisible();
+    await expect(cardRoot(page)).toBeVisible();
     expect(await unhinted(page)).toEqual([]);
     await openCard(page);
     await expect(page.getByText(msg('chart.zone.priceRange'), { exact: true })).toBeVisible();

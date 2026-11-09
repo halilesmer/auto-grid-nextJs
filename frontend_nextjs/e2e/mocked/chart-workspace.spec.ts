@@ -6,6 +6,7 @@ import { OLDER_PAGE_BARS, OPEN_RANGE_BARS } from '../../src/lib/analysis/candles
 import { dragLeft, openNearLeftEdge, panToFirstCandle } from '../fixtures/chart-older';
 import { dialogTab, openDrawings } from '../fixtures/chart-dialog';
 import { formationRequests } from '../../src/lib/formation/requests';
+import { openCardTab } from '../fixtures/card';
 
 // These tests are about the chart itself. The side bar of the one chart starts open from 1024 px and takes 288 px (1107-A21, U4-4a): closed, the chart has its old width
 // `range=7d` was no preset: it fell back to the default range (30 days), which is "All" since 1107-A21. The tests mean seven days: `range=last7`.
@@ -36,7 +37,7 @@ test('Freier Chart lädt Broker-Symbol ohne Setup und stellt URL wieder her', { 
   await expect(page.getByTestId('workspace-indicator-values')).toContainText('EWO');
   // 1107-A21: the one chart reads the setups of the account to show the setup layers of the symbol (here: none, so the card says that the symbol has no setup)
   expect(worker.calls.filter(c => c.path === `/api/settings/${DEMO_ID}`).length).toBeGreaterThan(0);
-  await expect(page.getByTestId('chart-floating-card')).toContainText('EURUSD');
+  await expect(await openCardTab(page, 'overview')).toContainText('EURUSD');
   await page.reload();
   await expect(page.getByTestId('chart-workspace')).toHaveAttribute('data-context', /EURUSD/);
   expect(errors).toEqual([]);

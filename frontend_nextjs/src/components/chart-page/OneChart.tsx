@@ -11,6 +11,7 @@ import { LicenseInfo } from '@/components/analysis/LicenseInfo';
 import { ChartPage } from '@/components/chart-page/ChartPage';
 import { ChartNotice, ChartOverlays } from '@/components/chart-page/ChartOverlays';
 import { ChartCard } from '@/components/chart-page/ChartCard';
+import { ChartSideRail } from '@/components/chart-page/ChartSideRail';
 import { ChartTopBar, type ChartChrome } from '@/components/chart-page/ChartTopBar';
 import { ChartView } from '@/components/chart-page/ChartView';
 import { NoSetupNote, SetupOverview, SetupSwitches, SetupTrades } from '@/components/chart/SetupCardTabs';
@@ -31,9 +32,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useChartParams } from '@/hooks/useChartParams';
 import { useFavorites } from '@/hooks/useFavorites';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useFormationAlarm } from '@/hooks/useFormationAlarm';
 import { useFormationScan } from '@/hooks/useFormationScan';
-import { useFormationSidebar } from '@/hooks/useFormationSidebar';
+import { useFormationSidebar, type CardTab } from '@/hooks/useFormationSidebar';
 import { useMarketRates } from '@/hooks/useMarketRates';
 import { useSetupLayers } from '@/hooks/useSetupLayers';
 import { useSignalBars } from '@/hooks/useSignalBars';
@@ -89,8 +91,7 @@ interface OneChartProps {
 /**
  * Der eine Chart (plan 1107-A21, step U4-4a). Er löst die drei Modi Formation, Setup und Frei ab: das Symbol ist frei wählbar, alle neun Zeiteinheiten
  * stehen immer da, auf D1/H4/H1/M15 liegt die Formationsebene (Suche über alle Formationen, `useFormationScan`) auf den Kerzen, und die
- * Setup-Ebenen des Symbols (`useSetupLayers`) liegen auf demselben Chart. Seitenleiste (Bedingungen, Favoriten) und Setup-Karte bleiben
- * noch getrennt; Schritt U4-4b macht daraus eine Karte.
+ * Setup-Ebenen des Symbols (`useSetupLayers`) liegen auf demselben Chart. Die Karte (Bedingungen, Genel bakış, İşlemler) und die Favoriten stehen ab lg in der rechten Leiste mit Seitenpanel (`ChartSideRail`, 1107-A21.22); darunter schwebt die eine Karte.
  */
 export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec, clockReady, chrome }: OneChartProps) {
   const t = useT();
@@ -267,6 +268,18 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
   const hasFavorites = favorites.ready && favorites.symbols.length > 0;
   const results = useMemo(() => Object.fromEntries(favorites.symbols.filter((s) => found[s]).map((s) => [s, found[s]])), [favorites.symbols, found]);
   const sidebar = useFormationSidebar();
+  // From lg the card lives in the right rail and its panel (1107-A21.22); below lg it floats over the chart as before
+  const wide = useMediaQuery('(min-width: 1024px)');
+  // The button "Kart" reopens the card tab that was open last (the store holds one tab; "favorites" is the other button)
+  const lastCardTab = useRef<Exclude<CardTab, 'favorites'>>('conditions');
+  const toggleRail = (group: 'card' | 'favorites') => {
+    if (group === 'favorites') {
+      if (sidebar.tab !== 'favorites') lastCardTab.current = sidebar.tab;
+      sidebar.toggle('favorites');
+    } else {
+      sidebar.toggle(sidebar.tab !== 'favorites' ? sidebar.tab : lastCardTab.current);
+    }
+  };
   const [formFilter, setFormFilter] = useState<ScanFormation | null>(null);
   const favTf: ContextTimeframe = contextTf ?? 'H4';
   // A filter that the selected timeframe does not have no longer applies
@@ -443,6 +456,27 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
 
   const cardTitle = zone ? t('chart.zone.title', { n: layers.setupNo, symbol: zone.symbol || '—' }) : (symbolKey ?? t('nav.chart'));
   const noSetup = symbolKey && zones ? <NoSetupNote symbol={symbolKey} /> : null;
+  const conditionsNode = formationTf ? (
+    <FormationConditions list={list} hit={hit} loading={scan.loading} tf={favTf} digits={scan.digits} active={active} onSelect={(h) => setPicked(`${h.form}-${h.tf}`)} onActive={setActive} />
+  ) : (
+    <p className="px-3 py-2 text-xs text-muted-foreground" data-testid="conditions-off-tf">{t('chart.formation.offTf')}</p>
+  );
+  const favoritesAdd = <FavoritesAddButton onAdd={() => document.querySelector<HTMLInputElement>('[data-testid="formation-symbol"] input')?.focus()} />;
+  const favoritesNode = (
+    <FavoritesSidebar
+      accountId={accountId}
+      favorites={favorites.symbols}
+      rows={rows}
+      activeSymbol={urlSymbol}
+      timeframes={favoriteViews?.timeframes}
+      forms={favoriteViews?.forms}
+      asOfPast={pastAt !== null}
+      onPick={openFavorite}
+      onToggle={favorites.toggle}
+    />
+  );
+  const overviewNode = zone ? <SetupOverview accountId={accountId} zone={zone} timeframe={timeframe} onTimeframe={onTimeframe} prefs={prefs} data={ratesData} layers={layers} setups={setups} onSetup={setZone} /> : noSetup;
+  const tradesNode = zone ? <SetupTrades accountId={accountId} data={ratesData} layers={layers} /> : noSetup;
   const card = (
     <ChartCard
       title={cardTitle}
@@ -450,35 +484,15 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
       onOpenChange={sidebar.setOpen}
       tab={sidebar.tab}
       onTab={sidebar.selectTab}
-      conditions={
-        formationTf ? (
-          <FormationConditions list={list} hit={hit} loading={scan.loading} tf={favTf} digits={scan.digits} active={active} onSelect={(h) => setPicked(`${h.form}-${h.tf}`)} onActive={setActive} />
-        ) : (
-          <p className="px-3 py-2 text-xs text-muted-foreground" data-testid="conditions-off-tf">{t('chart.formation.offTf')}</p>
-        )
-      }
+      conditions={conditionsNode}
       favorites={
         <>
-          <div className="flex shrink-0 justify-end px-1.5 pt-1.5">
-            <FavoritesAddButton onAdd={() => document.querySelector<HTMLInputElement>('[data-testid="formation-symbol"] input')?.focus()} />
-          </div>
-          <div className="flex min-h-0 flex-1 flex-col" data-testid="favorites-panel">
-            <FavoritesSidebar
-              accountId={accountId}
-              favorites={favorites.symbols}
-              rows={rows}
-              activeSymbol={urlSymbol}
-              timeframes={favoriteViews?.timeframes}
-              forms={favoriteViews?.forms}
-              asOfPast={pastAt !== null}
-              onPick={openFavorite}
-              onToggle={favorites.toggle}
-            />
-          </div>
+          <div className="flex shrink-0 justify-end px-1.5 pt-1.5">{favoritesAdd}</div>
+          <div className="flex min-h-0 flex-1 flex-col" data-testid="favorites-panel">{favoritesNode}</div>
         </>
       }
-      overview={zone ? <SetupOverview accountId={accountId} zone={zone} timeframe={timeframe} onTimeframe={onTimeframe} prefs={prefs} data={ratesData} layers={layers} setups={setups} onSetup={setZone} /> : noSetup}
-      trades={zone ? <SetupTrades accountId={accountId} data={ratesData} layers={layers} /> : noSetup}
+      overview={overviewNode}
+      trades={tradesNode}
     />
   );
 
@@ -493,7 +507,7 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
       title={t('nav.chart')}
       testId="chart-page"
       pageProps={{ 'data-scan-ms': scan.scanMs ?? '', 'data-scan-runs': scan.scanRuns, 'data-favorites-scan-ms': favoritesScanMs ?? '' }}
-      panelShown={sidebar.open}
+      panelShown={wide && sidebar.open}
       topBar={
         <ChartTopBar
           account={chrome.account}
@@ -553,7 +567,7 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
       notices={null}
       floating={
         <>
-          <ChartOverlays notices={notices}>{card}</ChartOverlays>
+          <ChartOverlays notices={notices}>{!wide && card}</ChartOverlays>
           {/* Phone: the card starts closed; this button opens it (board 4). It sits outside the dock, so it does not take room from the tool packages */}
           <div className="pointer-events-auto absolute right-3 top-[calc(var(--chart-top,0px)+0.5rem)] z-[51] lg:hidden"><Button size="icon-sm" variant="outline" className="bg-background" hint={t('chart.card.open.hint')} aria-label={t('chart.card.open')} aria-expanded={sidebar.open} data-testid="chart-card-open" onClick={() => sidebar.setOpen(!sidebar.open)}><PanelRight size={15} aria-hidden="true" /></Button></div>
           {formationTf && (
@@ -575,7 +589,22 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
           )}
         </>
       }
-      panel={null}
+      panel={
+        wide ? (
+          <ChartSideRail
+            title={cardTitle}
+            open={sidebar.open}
+            tab={sidebar.tab}
+            onToggle={toggleRail}
+            onTab={sidebar.selectTab}
+            conditions={conditionsNode}
+            favorites={favoritesNode}
+            favoritesAction={favoritesAdd}
+            overview={overviewNode}
+            trades={tradesNode}
+          />
+        ) : null
+      }
     />
   );
 }

@@ -5,6 +5,7 @@
  */
 import type { Page } from '@playwright/test';
 import { DEMO_ID, ZONE_ID, expect, test } from '../fixtures/test';
+import { cardRoot } from '../fixtures/card';
 
 const PAGES = [
   { name: 'frei', url: `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`, bar: 'chart-topbar' },
@@ -56,7 +57,7 @@ test.describe('UI-12 Kopfleiste bei schmaler Breite', () => {
     void worker;
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto(PAGES[1].url);
-    const card = page.getByTestId('chart-floating-card');
+    const card = cardRoot(page);
     await expect(card).toBeVisible();
     await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-system-panes', '3');
     await expect.poll(async () => {

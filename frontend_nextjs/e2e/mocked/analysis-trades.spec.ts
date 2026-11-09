@@ -8,6 +8,7 @@ import type { Page } from '@playwright/test';
 import type { Deal } from '../../src/lib/analysis/tradePairing';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, ZONE_ID, expect, makeZone, test, type MockWorker } from '../fixtures/test';
+import { cardRoot } from '../fixtures/card';
 
 // Der Zeitraum der Zeilen unten ist „letzte 30 Tage“; der Standard des Charts ist seit UI-22 „Alle“
 const URL = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=M15&range=last30`;
@@ -83,7 +84,7 @@ async function openSettings(page: Page) {
 /** Die Karte startet zu, solange eine Formation gezeichnet wird (UI-22): nach dem Scan aufklappen */
 async function openCard(page: Page) {
   await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
-  const card = page.getByTestId('chart-floating-card');
+  const card = cardRoot(page);
   const expand = card.getByRole('button', { name: msg('chart.card.expand'), exact: true });
   if (await expand.count()) await expand.click();
   await card.getByTestId('chart-card-tab-overview').click();
@@ -93,7 +94,7 @@ async function openCard(page: Page) {
 /** Das Trade-Archiv liegt im Reiter „Trades“ der schwebenden Karte (UI-10) */
 async function openTradesTab(page: Page) {
   await openCard(page);
-  await page.getByTestId('chart-floating-card').getByRole('tab', { name: msg('chart.card.trades') }).click();
+  await cardRoot(page).getByRole('tab', { name: msg('chart.card.trades') }).click();
 }
 
 test.describe('ANA-08 Trades im Chart und Trade-Archiv', () => {

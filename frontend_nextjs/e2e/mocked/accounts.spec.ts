@@ -2,11 +2,12 @@
 import { DEMO_ID, LIVE_ID, MT5_PATH, expect, makeZone, test } from '../fixtures/test';
 import type { Page } from '@playwright/test';
 import { fmt, msg } from '../fixtures/i18n';
+import { cardRoot } from '../fixtures/card';
 
 /** Die Karte startet zu, solange eine Formation gezeichnet wird (UI-22): nach dem Scan aufklappen, dann steht „Übersicht“ mit den Live-Werten da */
 async function openCard(page: Page) {
   await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
-  const card = page.getByTestId('chart-floating-card');
+  const card = cardRoot(page);
   const expand = card.getByRole('button', { name: msg('chart.card.expand'), exact: true });
   if (await expand.count()) await expand.click();
   await card.getByTestId('chart-card-tab-overview').click();

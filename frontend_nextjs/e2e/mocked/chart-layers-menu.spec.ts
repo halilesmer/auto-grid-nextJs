@@ -10,6 +10,7 @@ import { groupZones, makeZone } from '../fixtures/data';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, ZONE_ID, expect, test, type MockWorker } from '../fixtures/test';
 import { fixtureTrend, seedFixtureTrend } from '../fixtures/formation-trend';
+import { cardRoot } from '../fixtures/card';
 
 // Formationen rechnen auf dem Trendzug des Nutzers (FRM-41); die Fixture zeigt ihre Formation mit ihrer Einstellung
 test.beforeEach(({ page }) => seedFixtureTrend(page, fixtureTrend('gar-buy-h4-01')));
@@ -34,7 +35,7 @@ async function open(page: Page, worker: MockWorker, name: string, url: string) {
 /** Die Karte ist unter 1024 px zu (UI-10): bei Bedarf aufklappen und „Übersicht“ wählen */
 async function openCard(page: Page) {
   await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
-  const expand = page.getByTestId('chart-floating-card').getByRole('button', { name: msg('chart.card.expand'), exact: true });
+  const expand = cardRoot(page).getByRole('button', { name: msg('chart.card.expand'), exact: true });
   if (await expand.count()) await expand.click();
   await page.getByTestId('chart-card-tab-overview').click();
   await expect(page.getByTestId('chart-card-overview')).toBeVisible();

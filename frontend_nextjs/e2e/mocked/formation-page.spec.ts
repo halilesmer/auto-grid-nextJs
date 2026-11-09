@@ -11,6 +11,7 @@ import { SCAN_FORMATIONS } from '../../src/lib/formation/scan';
 import { groupZones, makeZone } from '../fixtures/data';
 import { harmonic } from '../fixtures/formation-harmonic';
 import { H4, barsOf, zig } from '../fixtures/formation-rows';
+import { openCardTab } from '../fixtures/card';
 import { msg, type MessageKey } from '../fixtures/i18n';
 import { openHeaderMenu } from '../fixtures/header';
 import { DEMO_ID, LIVE_ID, ZONE_ID, expect, test, type MockWorker } from '../fixtures/test';
@@ -208,15 +209,9 @@ async function storeSidebar(page: Page, state: { open: boolean; tab: 'conditions
   await page.addInitScript((value) => localStorage.setItem('grid-robot-formation-sidebar', JSON.stringify(value)), state);
 }
 
-/** Die eine Karte (U4-4b): bei Bedarf aufklappen und den Reiter wählen */
+/** Die Karte (U4-4b, ab lg Leiste + Panel seit 1107-A21.22): bei Bedarf öffnen und den Reiter wählen; Favoriten sind ab lg ein eigenes Panel */
 async function showCardTab(page: Page, id: 'conditions' | 'favorites' | 'overview' | 'trades') {
-  const tab = page.getByTestId(`chart-card-tab-${id}`);
-  if (!(await tab.count())) {
-    const narrow = await page.getByTestId('chart-card-open').isVisible();
-    if (narrow) await page.getByTestId('chart-card-open').click();
-    else await page.getByTestId('chart-floating-card').getByRole('button', { name: msg('chart.card.expand'), exact: true }).click();
-  }
-  await tab.click();
+  await openCardTab(page, id);
 }
 
 test.describe('FRM-19 Kandidaten-Liste und Checkliste', () => {
@@ -778,7 +773,8 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
     // Container 1388 px (< 91rem): zwei Zeilen (UI-15, A13.7). Zeile 1 ist 38 px hoch (Mindesthöhe, auch ohne Pakete in Zeile 1), Zeile 2 trägt die Zeiteinheiten und Formationen.
     // UI-17 S2: die Werkzeuge sind Pakete und stehen standardmäßig in der unteren Leiste des Charts, nicht mehr in der Kopfleiste (Mass vorher: Werkzeuge in Zeile 1, y 56–94)
     const bar = (await page.getByTestId('chart-topbar').boundingBox())!;
-    expect(bar).toMatchObject({ x: 52, y: 56, width: 1388 });
+    // 1440 − 52 (Zeichenleiste) − 40 (rechte Leiste, 1107-A21.22); vorher 1388
+    expect(bar).toMatchObject({ x: 52, y: 56, width: 1348 });
     expect(bar.height).toBeLessThanOrEqual(70);
     const forms = (await page.getByTestId('formation-forms').boundingBox())!;
     // UI-17 S3: Zeile 2 ist eine DockRow (Mindesthöhe 28 px, Paketgruppe zentriert); Mass vorher 94, jetzt 96 (+2 px: Gruppenrahmen im Paket)
@@ -808,9 +804,9 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
       if (theme === 'dark') await expect(page.locator('html')).toHaveClass(/dark/);
       else await expect(page.locator('html')).not.toHaveClass(/dark/);
       const chart = await page.getByTestId('formation-chart').boundingBox();
-      // Die Karte ist offen (erster Besuch ab lg) und steht neben dem Chart: 1100 − 52 − 320
+      // Das Panel ist offen (erster Besuch ab lg) und steht neben dem Chart: 1100 − 52 − 40 (Leiste) − 288 (Panel)
       // Hier ist der Container schmaler als 71 rem: der Chart endet über der Werkzeugkarte (UI-11), mit der Reserve füllt er die Seite
-      expect({ ...chart, height: chart!.height + (await cardReserve(page)) }).toEqual({ x: 52, y: 56, width: 728, height: 844 });
+      expect({ ...chart, height: chart!.height + (await cardReserve(page)) }).toEqual({ x: 52, y: 56, width: 720, height: 844 });
       const rail = await page.getByTestId('drawing-toolbar').boundingBox();
       expect(rail).toEqual({ x: 0, y: 56, width: 52, height: 844 });
       expect(await page.getByTestId('app-nav').boundingBox()).toEqual({ x: 0, y: 0, width: 1100, height: 56 });
@@ -821,8 +817,8 @@ test.describe('FRM-23 seitenfüllender Arbeitsbereich', () => {
         expect(box!.x + box!.width).toBeLessThanOrEqual(chart!.x + chart!.width);
         expect(box!.y + box!.height).toBeLessThanOrEqual(900);
       }
-      // Die Karte liegt rechts neben dem Chart, nicht darüber
-      const sidebar = (await page.getByTestId('chart-floating-card').boundingBox())!;
+      // Das Panel liegt rechts neben dem Chart, nicht darüber (1107-A21.22)
+      const sidebar = (await page.getByTestId('chart-panel').boundingBox())!;
       expect(sidebar.x).toBeGreaterThanOrEqual(chart!.x + chart!.width);
       expect(sidebar.x + sidebar.width).toBeLessThanOrEqual(1100);
       expect(sidebar.y).toBeGreaterThanOrEqual(56);
@@ -2175,36 +2171,39 @@ test.describe('FRM-23 Werkzeugleiste des Charts liegt obenauf', () => {
   });
 });
 
-test.describe('FRM-37 Seitenleiste mit Reitern Bedingungen und Favoriten', () => {
+test.describe('FRM-37 Seitenleiste mit Reitern Bedingungen und Favoriten (ab lg Leiste + Panel, 1107-A21.22)', () => {
   const geometry = (page: Page) =>
     page.evaluate(() => {
       const box = (id: string) => document.querySelector(`[data-testid="${id}"]`)?.getBoundingClientRect() ?? null;
-      return { main: box('formation-main'), card: box('chart-floating-card'), strip: box('favorites-strip') };
+      return { main: box('formation-main'), card: box('chart-panel'), rail: box('chart-rail'), strip: box('favorites-strip') };
     });
 
   for (const width of [1440, 1100, 1024]) {
-    test(`Die offene Karte steht neben dem Chart; der Chart ist um die Kartenbreite schmaler (${width} px)`, { tag: '@FRM-37' }, async ({ page, worker }) => {
+    test(`Das offene Panel steht neben dem Chart; der Chart ist um Panel und Leiste schmaler (${width} px)`, { tag: '@FRM-37' }, async ({ page, worker }) => {
       await page.setViewportSize({ width, height: 800 });
       await openPage(page, worker, `${URL}&form=GAR`);
       // Erster Besuch ab lg: offen auf „Bedingungen“
       await expect(page.getByTestId('conditions-panel')).toBeVisible();
       const open = await geometry(page);
       expect(open.strip, 'es gibt keinen Favoritenstreifen mehr').toBeNull();
-      expect(open.main!.width).toBe(width - 320);
-      expect(open.card!.width).toBe(320);
+      expect(open.main!.width).toBe(width - 328);
+      expect(open.card!.width).toBe(288);
+      expect(open.rail!.width).toBe(40);
       expect(open.card!.left).toBeGreaterThanOrEqual(open.main!.right);
-      expect(open.card!.right).toBeLessThanOrEqual(width);
+      expect(open.rail!.left).toBeGreaterThanOrEqual(open.card!.right);
+      expect(open.rail!.right).toBeLessThanOrEqual(width);
       const chart = (await page.getByTestId('formation-chart').boundingBox())!;
       expect(chart.x + chart.width).toBeLessThanOrEqual(open.card!.left);
-      await page.getByTestId('chart-floating-card').getByRole('button', { name: msg('chart.card.collapse'), exact: true }).click();
+      await page.getByTestId('chart-rail-card').click();
       await expect(page.getByTestId('chart-card-tab-conditions')).toHaveCount(0);
       const closed = await geometry(page);
-      expect(closed.main!.width).toBe(width);
-      expect((await page.getByTestId('formation-chart').boundingBox())!.width).toBe(chart.width + 320);
+      expect(closed.main!.width).toBe(width - 40);
+      expect(closed.rail!.left).toBeGreaterThanOrEqual(closed.main!.right);
+      expect((await page.getByTestId('formation-chart').boundingBox())!.width).toBe(chart.width + 288);
     });
   }
 
-  test('Mit größerer Schrift im Browser (20 px) überlappt der Chart die offene Karte nicht', { tag: '@FRM-37' }, async ({ page, worker }) => {
+  test('Mit größerer Schrift im Browser (20 px) überlappt der Chart das offene Panel nicht', { tag: '@FRM-37' }, async ({ page, worker }) => {
     await page.setViewportSize({ width: 1440, height: 800 });
     await openPage(page, worker, `${URL}&form=GAR`);
     await expect(page.getByTestId('conditions-panel')).toBeVisible();
@@ -2214,7 +2213,8 @@ test.describe('FRM-37 Seitenleiste mit Reitern Bedingungen und Favoriten', () =>
     });
     const open = await geometry(page);
     expect(open.main!.right).toBeLessThanOrEqual(open.card!.left);
-    expect(open.card!.right).toBeLessThanOrEqual(1440);
+    expect(open.rail!.right).toBeLessThanOrEqual(1440);
+    expect(open.card!.right).toBeLessThanOrEqual(open.rail!.left);
     await expect.poll(async () => {
       const chart = (await page.getByTestId('formation-chart').boundingBox())!;
       return chart.x + chart.width;
@@ -2222,27 +2222,27 @@ test.describe('FRM-37 Seitenleiste mit Reitern Bedingungen und Favoriten', () =>
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   });
 
-  test('Reiter der Karte: jeder Reiter zeigt seinen Inhalt, die Kopfzeile klappt zu und auf, der Reiter wechselt ohne Schließen', { tag: '@FRM-37' }, async ({ page, worker }) => {
+  test('Leiste: „Karte“ zeigt Bedingungen, Übersicht und Trades, „Favoriten“ ein eigenes Panel; der Knopf klappt zu und auf, der Reiter wechselt ohne Schließen', { tag: '@FRM-37' }, async ({ page, worker }) => {
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     await openPage(page, worker, `${URL}&form=GAR`);
     const conditionsTab = page.getByTestId('chart-card-tab-conditions');
-    const favoritesTab = page.getByTestId('chart-card-tab-favorites');
+    const favoritesButton = page.getByTestId('chart-rail-favorites');
     await expect(conditionsTab).toHaveAttribute('aria-selected', 'true');
-    await expect(favoritesTab).toHaveAttribute('aria-selected', 'false');
+    await expect(page.getByTestId('chart-card-tab-favorites')).toHaveCount(0);
+    await expect(favoritesButton).toHaveAttribute('aria-pressed', 'false');
     await expect(page.getByTestId('favorites-panel')).toHaveCount(0);
-    await favoritesTab.click();
+    await favoritesButton.click();
     await expect(page.getByTestId('favorites-panel')).toBeVisible();
     await expect(page.getByTestId('conditions-panel')).toHaveCount(0);
-    await expect(favoritesTab).toHaveAttribute('aria-selected', 'true');
+    await expect(favoritesButton).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByTestId('favorites-add')).toBeVisible();
-    await conditionsTab.click();
+    await page.getByTestId('chart-rail-card').click();
     await expect(page.getByTestId('conditions-panel')).toBeVisible();
     await expect(page.getByTestId('favorites-add')).toHaveCount(0);
-    // Die Kopfzeile der Karte klappt sie zu und wieder auf, der Reiter bleibt
-    const collapse = page.getByTestId('chart-floating-card').getByRole('button', { name: msg('chart.card.collapse'), exact: true });
-    await collapse.click();
+    // Der Knopf „Karte“ klappt das Panel zu und wieder auf, der Reiter bleibt
+    await page.getByTestId('chart-rail-card').click();
     await expect(page.getByTestId('chart-card-tab-conditions')).toHaveCount(0);
-    await page.getByTestId('chart-floating-card').getByRole('button', { name: msg('chart.card.expand'), exact: true }).click();
+    await page.getByTestId('chart-rail-card').click();
     await expect(page.getByTestId('conditions-panel')).toBeVisible();
   });
 
@@ -2259,18 +2259,18 @@ test.describe('FRM-37 Seitenleiste mit Reitern Bedingungen und Favoriten', () =>
     await expect(chip).toHaveAttribute('aria-expanded', 'true');
     await expect(page.getByTestId('conditions-panel')).toBeVisible();
     // Auf dem Reiter Favoriten zählt der Knopf als zu und wechselt zurück zu den Bedingungen
-    await page.getByTestId('chart-card-tab-favorites').click();
+    await page.getByTestId('chart-rail-favorites').click();
     await expect(chip).toHaveAttribute('aria-expanded', 'false');
     await chip.click();
     await expect(page.getByTestId('conditions-panel')).toBeVisible();
   });
 
-  test('Status-Knopf: unter 79rem Chartbreite (1264 px) kompakt mit Symbolen, ab 79rem Pille und Zähler; Werkzeuge stehen unten ohne Überlappung', { tag: '@FRM-37' }, async ({ page, worker }) => {
+  test('Status-Knopf: unter 79rem Chartbreite (1264 px; Seite 1300 px mit 40 px Leiste) kompakt mit Symbolen, ab 79rem Pille und Zähler; Werkzeuge stehen unten ohne Überlappung', { tag: '@FRM-37' }, async ({ page, worker }) => {
     await storeSidebar(page, { open: false, tab: 'conditions' });
-    await page.setViewportSize({ width: 1260, height: 900 });
+    await page.setViewportSize({ width: 1300, height: 900 });
     await openPage(page, worker, `${URL}&form=GAR`);
     const chip = page.getByTestId('formation-status-chip');
-    // Chartbereich 1260 px: kompakt
+    // Chartbereich 1260 px (Seite 1300 px minus 40 px Leiste): kompakt
     await expect(chip.getByTestId('status-verdict-icon')).toBeVisible();
     await expect(chip.getByTestId('status-verdict-icon')).toHaveAttribute('data-verdict', 'valid');
     await expect(chip.getByTestId('status-counts')).toBeHidden();
@@ -2284,7 +2284,7 @@ test.describe('FRM-37 Seitenleiste mit Reitern Bedingungen und Favoriten', () =>
     expect(tools.y).toBeGreaterThanOrEqual(topbar.y + topbar.height);
     expect(compact.y + compact.height).toBeLessThanOrEqual(topbar.y + topbar.height);
     // Chartbereich 1264 px: Pille und Zähler
-    await page.setViewportSize({ width: 1264, height: 900 });
+    await page.setViewportSize({ width: 1304, height: 900 });
     await expect(chip.getByTestId('status-verdict')).toBeVisible();
     await expect(chip.getByTestId('status-counts')).toBeVisible();
     await expect(chip.getByTestId('status-verdict-icon')).toBeHidden();
@@ -2307,10 +2307,10 @@ test.describe('FRM-37 Seitenleiste mit Reitern Bedingungen und Favoriten', () =>
     await page.setViewportSize({ width: 1280, height: 800 });
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     await openPage(page, worker, `${URL}&form=GAR`);
-    await page.getByTestId('chart-card-tab-favorites').click();
+    await page.getByTestId('chart-rail-favorites').click();
     await page.reload();
     await expect(page.getByTestId('favorites-panel')).toBeVisible();
-    await page.getByTestId('chart-floating-card').getByRole('button', { name: msg('chart.card.collapse'), exact: true }).click();
+    await page.getByTestId('chart-rail-favorites').click();
     await page.reload();
     await expect(page.getByTestId('chart-topbar')).toBeVisible();
     await expect(page.getByTestId('chart-card-tab-conditions')).toHaveCount(0);
@@ -2360,10 +2360,10 @@ test.describe('FRM-37 Seitenleiste mit Reitern Bedingungen und Favoriten', () =>
     await expect(page.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', (await conditionsTab.getAttribute('id'))!);
     await conditionsTab.focus();
     await conditionsTab.press('ArrowRight');
-    await expect(page.getByTestId('chart-card-tab-favorites')).toBeFocused();
-    await expect(page.getByTestId('chart-card-tab-favorites')).toHaveAttribute('aria-selected', 'true');
-    await expect(page.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', (await page.getByTestId('chart-card-tab-favorites').getAttribute('id'))!);
-    await page.getByTestId('chart-card-tab-favorites').press('ArrowLeft');
+    await expect(page.getByTestId('chart-card-tab-overview')).toBeFocused();
+    await expect(page.getByTestId('chart-card-tab-overview')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', (await page.getByTestId('chart-card-tab-overview').getAttribute('id'))!);
+    await page.getByTestId('chart-card-tab-overview').press('ArrowLeft');
     await expect(conditionsTab).toBeFocused();
     await expect(page.getByTestId('conditions-panel')).toBeVisible();
     // Der Status-Knopf verweist nur auf den Inhalt, wenn er da ist

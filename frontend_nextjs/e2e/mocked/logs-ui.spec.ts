@@ -5,11 +5,12 @@ import type { Page } from '@playwright/test';
 import { DEMO_ID, ZONE_ID, expect, makeZone, openSetup, test } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 import { openHeaderMenu, openPageMenu } from '../fixtures/header';
+import { cardRoot } from '../fixtures/card';
 
 /** Die Karte startet zu, solange eine Formation gezeichnet wird, und unter 1024 px (UI-22): nach dem Scan aufklappen */
 async function openCard(page: Page) {
   await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
-  const card = page.getByTestId('chart-floating-card');
+  const card = cardRoot(page);
   const expand = card.getByRole('button', { name: msg('chart.card.expand'), exact: true });
   if (await expand.count()) await expand.click();
   await card.getByTestId('chart-card-tab-overview').click();
@@ -305,8 +306,8 @@ test.describe('UI Oberfläche', () => {
     await page.getByRole('navigation').getByRole('link', { name: msg('nav.chart') }).click();
     await expect(page).toHaveURL(`/chart?account=${DEMO_ID}`);
     await expect(page.getByTestId('free-chart-panel')).toBeVisible();
-    await expect(page.getByTestId('chart-floating-card')).toBeVisible();
-    await expect(page.getByTestId('chart-floating-card')).toContainText('USOUSD');
+    await expect(cardRoot(page)).toBeVisible();
+    await expect(cardRoot(page)).toContainText('USOUSD');
     await openCard(page);
     await expect(page.getByText('90 – 110')).toBeVisible();
 

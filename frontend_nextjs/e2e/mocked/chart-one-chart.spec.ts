@@ -79,7 +79,7 @@ test.describe('UI-22 Ein Chart ohne Modi', () => {
     await open(page, worker, '&symbol=EURUSD&form=GAR');
     await expect(page.getByTestId('formation-overlay')).toBeAttached();
     // One card (U4-4b): open from lg, its tab "Overview" holds the setup of the symbol
-    await expect(page.getByTestId('chart-floating-card')).toContainText('EURUSD');
+    await expect(page.getByTestId('chart-panel')).toContainText('EURUSD');
     await cardTab(page, 'overview').click();
     await expect(page.getByTestId('chart-card-overview')).toBeVisible();
     await expect(page.getByTestId('formation-off-tf')).toHaveCount(0);
@@ -212,14 +212,38 @@ test.describe('UI-22 Ein Chart ohne Modi', () => {
   }
 
   // U4-4b: one card instead of side bar + setup card (decision 1107-A21.4)
-  const CARD_TABS = ['conditions', 'favorites', 'overview', 'trades'] as const;
+  const CARD_TABS = ['conditions', 'overview', 'trades'] as const;
 
-  test('Es gibt eine Karte mit vier Reitern; Seitenleiste und Favoritenstreifen sind weg', { tag: '@UI-22' }, async ({ page, worker }) => {
+  test('Ab lg gibt es eine rechte Leiste mit zwei Knöpfen und keine schwebende Karte (1107-A21.22)', { tag: '@UI-22' }, async ({ page, worker }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await open(page, worker, '&symbol=EURUSD');
-    await expect(page.getByTestId('chart-floating-card')).toHaveCount(1);
+    await expect(page.getByTestId('chart-floating-card')).toHaveCount(0);
+    await expect(page.getByTestId('chart-rail').getByRole('button')).toHaveCount(2);
+    await expect(page.getByTestId('chart-rail-card')).toHaveAccessibleName(msg('chart.rail.card'));
+    await expect(page.getByTestId('chart-rail-favorites')).toHaveAccessibleName(msg('chart.rail.favorites'));
+    // The card button opens a panel with three tabs; favourites are no tab but the other button
+    await expect(page.getByTestId('chart-panel')).toBeVisible();
     for (const id of CARD_TABS) await expect(cardTab(page, id)).toBeVisible();
+    await expect(cardTab(page, 'favorites')).toHaveCount(0);
     await expect(page.locator('[data-testid="formation-sidebar"], [data-testid="favorites-strip"], [data-testid^="sidebar-tab-"]')).toHaveCount(0);
+    await page.getByTestId('chart-rail-favorites').click();
+    await expect(page.getByTestId('favorites-panel')).toBeVisible();
+    await expect(page.getByTestId('chart-rail-favorites')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('chart-rail-card')).toHaveAttribute('aria-pressed', 'false');
+    await page.getByTestId('chart-rail-card').click();
+    await expect(page.getByTestId('chart-panel')).toHaveAttribute('data-panel', 'card');
+    await page.getByTestId('chart-rail-card').click();
+    await expect(page.getByTestId('chart-panel')).toHaveCount(0);
+    await expect(page.getByTestId('chart-rail')).toBeVisible();
+  });
+
+  test('Der Knopf „Karte“ öffnet den zuletzt gewählten Kartenreiter wieder', { tag: '@UI-22' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await open(page, worker, '&symbol=EURUSD');
+    await cardTab(page, 'trades').click();
+    await page.getByTestId('chart-rail-favorites').click();
+    await page.getByTestId('chart-rail-card').click();
+    await expect(cardTab(page, 'trades')).toHaveAttribute('aria-selected', 'true');
   });
 
   test('Die Karte ist beim ersten Besuch ab 1024 px offen, darunter zu', { tag: '@UI-22' }, async ({ page, worker }) => {
@@ -234,44 +258,50 @@ test.describe('UI-22 Ein Chart ohne Modi', () => {
     await expect(cardTab(page, 'conditions')).toHaveCount(0);
   });
 
-  // 1107-A21.21: the collapsed card header must not cover the price scale of the candle pane
+  // 1107-A21.22 (replaces the A21.18/A21.21 geometry of the floating card): the panel narrows the chart; it never covers the chart or its price scale
   for (const width of [1024, 1100, 1440]) {
-    test(`Die zugeklappte Karte überdeckt die Preisachse nicht (${width} px)`, { tag: '@UI-22' }, async ({ page, worker }) => {
-      await page.setViewportSize({ width, height: 768 });
-      await page.addInitScript(() => localStorage.setItem('grid-robot-formation-sidebar', JSON.stringify({ open: false, tab: 'conditions' })));
-      // Long prices make the price scale wider than the 84 px the closed card used to keep free (the defect of A21.21)
-      serve(worker);
-      worker.state.ratesSeries!.H4 = worker.state.ratesSeries!.H4.map(([t, o, h, l, c]) => [t, o * 1e7, h * 1e7, l * 1e7, c * 1e7]);
-      worker.state.ratesSeries!.M15 = worker.state.ratesSeries!.M15.map(([t, o, h, l, c]) => [t, o * 1e7, h * 1e7, l * 1e7, c * 1e7]);
-      await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H4`);
-      await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-bars', /^[1-9]\d*$/);
-      // card and price scale are read together; the scale width settles one frame after the data
-      const overlap = async () => {
-        let last = Infinity;
-        await expect.poll(async () => {
-          const card = (await page.getByTestId('chart-floating-card').boundingBox())!;
+    for (const panel of ['open', 'closed'] as const) {
+      test(`Panel und Leiste überdecken Chart und Preisachse nicht (${width} px, ${panel})`, { tag: '@UI-22' }, async ({ page, worker }) => {
+        await page.setViewportSize({ width, height: 768 });
+        await page.addInitScript((open) => localStorage.setItem('grid-robot-formation-sidebar', JSON.stringify({ open, tab: 'conditions' })), panel === 'open');
+        // Long prices make the price scale wide (the defect of A21.21 must stay fixed)
+        serve(worker);
+        worker.state.ratesSeries!.H4 = worker.state.ratesSeries!.H4.map(([t, o, h, l, c]) => [t, o * 1e7, h * 1e7, l * 1e7, c * 1e7]);
+        worker.state.ratesSeries!.M15 = worker.state.ratesSeries!.M15.map(([t, o, h, l, c]) => [t, o * 1e7, h * 1e7, l * 1e7, c * 1e7]);
+        await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H4`);
+        await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-bars', /^[1-9]\d*$/);
+        const boxes = async () => {
+          const main = (await page.getByTestId('formation-main').boundingBox())!;
+          const rail = (await page.getByTestId('chart-rail').boundingBox())!;
+          const sidePanel = panel === 'open' ? (await page.getByTestId('chart-panel').boundingBox())! : null;
           const scale = await page.getByTestId('analysis-chart').evaluate((el) => {
             const cell = el.querySelector('table tr:first-child td:last-child')!.getBoundingClientRect();
-            return { x: cell.x, width: cell.width };
+            return { right: cell.right, width: cell.width };
           });
-          last = scale.width > 84 ? card.x + card.width - scale.x : Infinity;
-          return last;
-        }).toBeLessThanOrEqual(0);
-        return last;
-      };
-      expect(await overlap()).toBeLessThanOrEqual(0);
-      await page.reload();
-      await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-bars', /^[1-9]\d*$/);
-      expect(await overlap()).toBeLessThanOrEqual(0);
-    });
+          return { main, rail, sidePanel, scale };
+        };
+        await expect.poll(async () => (await boxes()).scale.width).toBeGreaterThan(84);
+        const { main, rail, sidePanel, scale } = await boxes();
+        // Strict: the chart area ends at or before the panel (open) or the rail (closed); the price scale lies inside the chart area
+        expect(main.x + main.width).toBeLessThanOrEqual((sidePanel ?? rail).x + 0.5);
+        expect(scale.right).toBeLessThanOrEqual(main.x + main.width + 0.5);
+        if (sidePanel) {
+          expect(sidePanel.x + sidePanel.width).toBeLessThanOrEqual(rail.x + 0.5);
+          expect(sidePanel.width).toBeGreaterThan(200);
+        }
+        expect(rail.x + rail.width).toBeGreaterThanOrEqual(width - 0.5);
+        expect(await noOverflow(page)).toBe(true);
+      });
+    }
   }
 
   test('Jeder Reiter zeigt seinen Inhalt; der gewählte Reiter bleibt im Browser', { tag: '@UI-22' }, async ({ page, worker }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await open(page, worker, '&symbol=EURUSD&form=GAR');
     await expect(page.getByTestId('conditions-panel')).toBeVisible();
-    await cardTab(page, 'favorites').click();
+    await page.getByTestId('chart-rail-favorites').click();
     await expect(page.getByTestId('favorites-panel')).toBeVisible();
+    await page.getByTestId('chart-rail-card').click();
     await cardTab(page, 'overview').click();
     await expect(page.getByTestId('chart-card-overview')).toBeVisible();
     await cardTab(page, 'trades').click();
