@@ -319,8 +319,8 @@
   "ANA-27": {
     "e2e": {
       "datum": "2026-11-07",
-      "status": "failed",
-      "tests": 9
+      "status": "passed",
+      "tests": 7
     }
   },
   "BKT-01": {

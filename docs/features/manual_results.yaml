@@ -344,6 +344,10 @@ UI-17:
   datum: '2026-11-07'
   notiz: 'Inhaber hat am echten Handy selbst geprüft: bestanden (Stand v0.7.474 oder
     neuer). Automatisch: chart-dock-s5.spec.ts.'
+UI-22:
+  status: bestanden
+  datum: '2026-11-09'
+  notiz: DEMO salt okunur kontrol + Halil telefon geçti (2026-11-09, koordinatör aktarımı)
 ANA-04:
   status: bestanden
   datum: '2026-10-02'
