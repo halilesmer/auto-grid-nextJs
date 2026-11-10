@@ -437,6 +437,8 @@ def test_kalter_kurzer_erstzugriff_nimmt_nicht_den_schnellweg(client, broker, mo
     market_sync._tail_cache.clear()
     body = get_rates(client, LIVE - 600, LIVE + 120)  # Kerzen davor gespeichert, nur das Endstueck fehlt -> Schnellweg
     assert [c[3] for c in calls] == ["long", "fast"] and body["live_from"] == LIVE
+    # 1110-A3: das Endstueck wartet kurz; laedt das Terminal gerade Historie, kommt die Datenbank sofort
+    assert calls[1][2] <= market_sync.FAST_WAIT_SEC < market_sync.FETCH_BUDGET_SEC
 
 
 @pytest.mark.feature("ANA-04")

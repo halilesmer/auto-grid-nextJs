@@ -129,3 +129,22 @@ def test_kindausgabe_landet_in_eigener_logdatei(pool):
 def test_unbekannte_spur_wird_abgelehnt():
     with pytest.raises(ValueError):
         mt5_reader.run("rates_chunk", (), 1, lane="egal")
+
+
+@pytest.mark.feature("ANA-04")
+def test_schnellspur_wartet_nicht_auf_den_alten_job(monkeypatch):
+    # 1110-A3: das Terminal reiht die Aufrufe aller Prozesse ein; haengt der Schnellleser hinter einem kalten
+    # Abruf, darf jede weitere Anfrage nicht das ganze Budget warten, sondern antwortet sofort aus der Datenbank
+    env = dict(os.environ, MT5_READER_EXTRA_JOBS=JOBS)
+    pool = mt5_reader.ReaderPool(count=1, env=env)
+    try:
+        pool.call("sleep", (0, "warm"), 20)
+        with pytest.raises(mt5_reader.ReaderTimeout):
+            pool.call("sleep", (5, "haengt"), 0.1)
+        t0 = time.monotonic()
+        with pytest.raises(mt5_reader.ReaderTimeout):
+            pool.call("sleep", (0, "neu"), 3, wait_busy=False)
+        assert time.monotonic() - t0 < 0.3
+        assert pool.readers[0].pending_key == ("sleep", (5, "haengt"))  # der alte Job laeuft weiter
+    finally:
+        pool.close()

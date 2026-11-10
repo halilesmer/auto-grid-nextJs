@@ -43,6 +43,9 @@ FETCH_WAIT_SEC = 30
 # 1109-R1.1: Hoechstdauer der Abrufe einer Anfrage; danach kommen die bisherigen Stuecke mit next_from (partial="budget")
 FETCH_BUDGET_SEC = 8
 FIRST_CHUNK_MIN_WAIT_SEC = 2  # 1110-A2
+# 1110-A3: Endstueck eines warmen Diagramms (sonst 0,00 s). Laedt das Terminal gerade fremde Historie (reiht alle
+# Prozesse ein), kommt nach dieser Zeit die Datenbank mit "syncing" statt nach dem ganzen Budget
+FAST_WAIT_SEC = 2
 DEAL_CHUNK_SEC = 366 * 86400
 # Deal'lerin en yeni kenarı her seferinde yeniden eşitlenir: 24 saat örtüşme + broker farkı payı
 # (broker en fazla UTC−12; farkı bilmeden "broker şimdi − 24 sa" bundan önce olamaz)
@@ -565,6 +568,8 @@ def _get_rates(account: dict, source: str, symbol: str, timeframe: str, a: int, 
                 # FIRST_CHUNK_MIN_WAIT_SEC (die Wartezeit auf den Slot soll ein warmes Stueck nicht verdraengen).
                 floor = FIRST_CHUNK_MIN_WAIT_SEC if i == 0 else mt5_reader.MIN_WAIT_SEC
                 wait = max(floor, FETCH_BUDGET_SEC - (time.monotonic() - t_fetch))
+                if fast:
+                    wait = min(wait, FAST_WAIT_SEC)
                 part = mt5_reader.run("rates_chunk", (account, symbol, tf_name, x, y), wait,
                                       lane="fast" if fast else "long")
             except mt5_reader.ReaderTimeout:
