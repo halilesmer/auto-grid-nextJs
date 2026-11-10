@@ -48,6 +48,25 @@ Root cause:
 3. A warm H4 or M5 chart during a cold D1 fetch: no `busy`.
 4. Check that the `python -m src.utils.mt5_reader` processes (at most 3) do not stay after a worker restart (they stop when the API process closes the connection, at the latest when their current MT5 call ends).
 
+## Result on the VPS (v0.7.534)
+Same test as before: a cold D1 request from 1990 on a symbol that was not in the database, and in parallel 6 platform requests and 6 warm EURUSD H4 requests, 3 s apart.
+- Cold D1: first reply in 8.6 s, 0 candles, `syncing`, `partial: budget`. A reload after the terminal finished returned 5371 candles in 6.9 s. Measurement 1 passed.
+- Platform: 0.6 to 0.85 s during the cold fetch. Measurement 2 passed.
+- Warm H4: no `busy`, the candles came from the database. But each request took 8.0 s (before the fix: 0.7 to 1.2 s). Measurement 3 passed only partly.
+- Worker log: `mt5-reader-fast-1 rates_chunk timeout after 7.3s (job keeps running)`, then `mt5-reader-fast-1 late job done after 87.0s`. After the cold load, H4 took 0.06 s.
+
+Cause (plan code 1110-A3):
+- **The terminal puts the calls of all processes in a queue.** The newest chunk of the warm chart needs 0.00 s, but in the fast reader it waited 87 s behind the cold D1 load of the long reader. The reader processes remove the GIL problem, but not the queue in the terminal.
+- **The fast lane waited the full budget twice.** The first chunk waited the rest of the 8 s budget. Each next request waited the full budget in `Reader._drain()` for the job that was still running.
+
+Fix (1110-A3):
+- `market_sync.py`: the fast lane waits at most `FAST_WAIT_SEC` (2 s) for its chunk.
+- `mt5_reader.py`: `run(..., lane="fast")` does not wait for an earlier job that is still running (`wait_busy=False`). It raises `ReaderTimeout` at once, so the reply comes from the database with `syncing` for the newest chunk.
+- Tests: `test_schnellspur_wartet_nicht_auf_den_alten_job` (real child process), and `test_kalter_kurzer_erstzugriff_nimmt_nicht_den_schnellweg` checks the fast lane wait.
+- Trade-off: during a cold load, the newest candle of a warm chart can be up to one refresh old. Before, the chart waited 8 s for the same data.
+
+Measure on the VPS after the fix: during a cold D1 fetch, the first warm H4 request takes 2 s or less, and the next ones take less than 1 s.
+
 ## Open points
 - The measurements above (project owner).
 - Quotes and time check on a cold symbol (see Why).

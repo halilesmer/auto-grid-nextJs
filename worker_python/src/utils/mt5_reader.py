@@ -192,10 +192,11 @@ class Reader:
         self.pending_key = None
         return True
 
-    def call(self, job: str, args: tuple, timeout: float):
+    def call(self, job: str, args: tuple, timeout: float, wait_busy: bool = True):
+        """`wait_busy=False`: önceki iş sürüyorsa onu beklemeden `ReaderTimeout` (1110-A3, hızlı şerit)."""
         deadline = time.monotonic() + timeout
         key = (job, args)
-        if not self._drain(timeout):
+        if not self._drain(timeout if wait_busy else 0.0):
             raise ReaderTimeout(f"{self.name} hâlâ önceki işte")
         late, self.late = self.late, None
         if late is not None and late[0] == key:  # aynı iş: geç gelen sonuç boşa gitmez
@@ -255,13 +256,13 @@ class ReaderPool:
             self._locks[i].release()
             self._free.notify()
 
-    def call(self, job: str, args: tuple, timeout: float):
+    def call(self, job: str, args: tuple, timeout: float, wait_busy: bool = True):
         t0 = time.monotonic()
         i = self._take((job, args), timeout)
         if i is None:
             raise ReaderTimeout("tüm okuyucular meşgul")
         try:
-            return self.readers[i].call(job, args, max(MIN_WAIT_SEC, timeout - (time.monotonic() - t0)))
+            return self.readers[i].call(job, args, max(MIN_WAIT_SEC, timeout - (time.monotonic() - t0)), wait_busy)
         finally:
             self._give(i)
 
@@ -286,7 +287,9 @@ def mode() -> str:
 def run(job: str, args: tuple, timeout: float, lane: str = "long"):
     """İşi bir okuyucuda koşar; en çok `timeout` sn bekler (inline kipte sınırsız).
 
-    `lane="fast"`: sıcak grafiğin uç parçası; kendi okuyucusu var, uzun çekişlerin arkasında beklemez."""
+    `lane="fast"`: sıcak grafiğin uç parçası; kendi okuyucusu var, uzun çekişlerin arkasında beklemez.
+    Terminal tüm süreçlerin çağrılarını sıraya koyar (VPS 2026-11-10: hızlı iş, soğuk D1 yüklemesinin
+    arkasında 87 sn bekledi). Hızlı okuyucunun önceki işi sürüyorsa yeni iş beklemeden düşer (1110-A3)."""
     if job not in JOBS:
         raise ValueError(f"unknown reader job {job!r}")
     if lane not in LANES:
@@ -297,7 +300,7 @@ def run(job: str, args: tuple, timeout: float, lane: str = "long"):
         pool = _pools.get(lane)
         if pool is None:
             pool = _pools[lane] = ReaderPool(LANES[lane], prefix=f"mt5-reader-{lane}")
-    return pool.call(job, args, timeout)
+    return pool.call(job, args, timeout, wait_busy=lane != "fast")
 
 
 # --- alt süreç ---------------------------------------------------------
