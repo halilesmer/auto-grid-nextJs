@@ -3,7 +3,7 @@ date: 2026-11-10
 author: Claude
 type: fix
 status: done
-pr: []
+pr: [497]
 features: [ANA-17]
 areas: [frontend]
 ---
