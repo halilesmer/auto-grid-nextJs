@@ -3,7 +3,7 @@ date: 2026-11-10
 author: Claude
 type: fix
 status: done
-pr: []
+pr: [491]
 features: [SYS-11, SYS-10]
 areas: [tests, scripts]
 ---
