@@ -42,6 +42,7 @@ import {
 } from './primitives';
 import { TrendLineMenuHost } from './TrendLineMenu';
 import { OlderEdgeMark } from './OlderEdgeMark';
+import { LatestBarButton } from './LatestBarButton';
 
 /** Höchstzahl der Schenkel in `data-trend-segments` */
 const MAX_TEST_SEGMENTS = 40;
@@ -806,6 +807,7 @@ export function ChartCore({
           </div>
         )}
         {scene && !scene.binding.isDisposed() && renderOverlay?.(scene)}
+        <LatestBarButton binding={binding} />
         {olderEdge && <OlderEdgeMark binding={binding} state={olderEdge} firstTime={data.bars[0]?.time ?? null} />}
         {trendMenu}
       </div>

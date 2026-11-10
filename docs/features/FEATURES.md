@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-10 · **229/257** abgehakt · ❌ 5 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-10 · **230/258** abgehakt · ❌ 5 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -26,7 +26,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 10 | **LOG** – Logs | 7/7 |
 | 11 | **UPD** – System & Updates | 6/6 |
 | 12 | **VPS** – VPS-Fernsteuerung vom Mac | 8/10 |
-| 13 | **UI** – Oberfläche | 19/25 |
+| 13 | **UI** – Oberfläche | 20/26 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 24/27 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 18/23 |
 | 16 | **FRM** – Formationserkennung | 41/45 |
@@ -767,6 +767,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Halil 2026-11-10 (1110-A1): die Formationsreihe auf /chart zeigt nur Formationen mit gezähltem Treffer auf der gewählten Zeiteinheit (Badge) und die gewählte Formation. Formationen mit nur ungültigen oder frühen Kandidaten stehen im Menü hinter dem Pfeil-Knopf mit ihrer Anzahl; jede Zeile nennt den Zustand (ungültig / im Aufbau). Eine Wahl im Menü setzt die Formation und zeigt sie aktiv in der Reihe. Ohne gezählten Treffer steht nur der Knopf „Kandidaten n“; ohne Kandidat der Hinweis „keine Formation“.
   - **Prüfung:** Playwright-Test e2e/mocked/chart-formation-more.spec.ts (@UI-25) ausführen. → /chart öffnen, H1 wählen: nur Formationen mit Badge stehen in der Reihe; den Pfeil öffnen, eine Formation ohne Badge wählen.
   - **Erwartet:** Die Reihe hat nur Formationen mit Badge und die gewählte; das Menü zeigt die übrigen Kandidaten mit Zustand; nach der Wahl steht die Formation aktiv in der Reihe.
+- [x] **UI-26** Knopf „Zur letzten Kerze“ — 🖥️ e2e ✅ 2026-11-10
+  - Halil 2026-11-10: wer den Chart nach links verschoben hat, kommt mit einem runden Pfeil-Knopf (») schnell wieder ganz nach rechts. Der Knopf sitzt links der Preisachse über der Zeitachse und erscheint nur, wenn die letzte Kerze mehr als 3 Kerzen rechts aus dem sichtbaren Bereich ist. Klick: `scrollToRealTime()`, der Kerzenabstand (Zoom) bleibt, der Knopf verschwindet wieder. Mit Tooltip und Aria-Label (analysis.chart.latest).
+  - **Prüfung:** Playwright-Test e2e/mocked/chart-latest-bar.spec.ts (@UI-26) ausführen. → /chart öffnen, den Chart nach links ziehen: Knopf erscheint; klicken: Chart springt zur letzten Kerze, Zoom unverändert.
+  - **Erwartet:** Der Knopf ist nur sichtbar, solange die letzte Kerze außerhalb liegt; ein Klick bringt den Chart nach rechts, ohne den Zoom zu ändern.
 
 ## 14. ANA – Analyse (Chart, Statistik, Backtest)
 
