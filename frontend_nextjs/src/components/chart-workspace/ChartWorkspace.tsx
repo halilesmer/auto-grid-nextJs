@@ -15,6 +15,7 @@ import { alarmsAfterRemove, INDICATOR_KINDS, indicatorFormula, isOscillator, isS
 import { useChartWorkspaceStore, emptyChartDocument, type ChartDocument } from '@/store/useChartWorkspaceStore';
 import { useThemeStore } from '@/store';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
+import { extendFibHit } from '@/lib/chart-workspace/fibHit';
 import { ReplayDrawingVisibility } from '@/lib/chart-workspace/replayDrawings';
 import { withAlpha } from '@/lib/chartTheme';
 import type { Appearance, Section } from '@/lib/chart-workspace/settings';
@@ -279,7 +280,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   useEffect(() => {
     if (!binding || binding.isDisposed() || !state.hydrated) return;
     const m = new DrawingManager(binding.chart, binding.candles, { bars: () => live.current.drawingBars, magnet: 'weak', timeInfo: () => ({ timeZone: 'UTC', intraday: live.current.timeframeSec < 86400 }) });
-    manager.current = m;
+    manager.current = m; extendFibHit(m);
     const storeState = useChartWorkspaceStore.getState();
     const existing = storeState.documents[context.key] ?? defaults;
     const privateDoc = perProduct && existing.appearance === undefined ? { ...existing, appearance: storeState.appearance } : existing;

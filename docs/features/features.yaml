@@ -1780,9 +1780,9 @@ kategorien:
       - id: ANA-17
         titel: Senkrechte Zeichenwerkzeuge und verknüpfte Charts
         beschreibung: "Lightweight Charts v5 und lightweight-charts-drawing 0.6.2 verwenden Preis- und Brokerzeitanker. Die 52-px-Leiste bietet Werkzeuggruppen, Favoriten, Cursor, Messung, Bereichszoom, Magnet, Sperre, Sichtbarkeit und bestätigtes Löschen. Verknüpfung teilt Zeichnungen und lokale Bilder nur bei gleicher Quelle, gleichem Konto und exaktem Symbol; private Bestände bleiben erhalten. Volumenwerkzeuge sind ausgeschlossen."
-        code: [frontend_nextjs/src/components/chart-workspace/ChartWorkspace.tsx, frontend_nextjs/src/components/chart-workspace/DrawingToolbar.tsx, frontend_nextjs/src/components/chart-workspace/ChartGestureLayer.tsx, frontend_nextjs/src/lib/chart-workspace/linkedDrawings.ts, frontend_nextjs/src/lib/chart-workspace/replayDrawings.ts]
+        code: [frontend_nextjs/src/components/chart-workspace/ChartWorkspace.tsx, frontend_nextjs/src/components/chart-workspace/DrawingToolbar.tsx, frontend_nextjs/src/components/chart-workspace/ChartGestureLayer.tsx, frontend_nextjs/src/lib/chart-workspace/linkedDrawings.ts, frontend_nextjs/src/lib/chart-workspace/fibHit.ts, frontend_nextjs/src/lib/chart-workspace/replayDrawings.ts]
         tiers: [e2e]
-        pruefung: [Gruppenauswahl und Favoriten; Messung und Zoom; Magnet und Sperren; Sichtbarkeit; bestätigtes Löschen und Rückgängig; Zusammenführen und Trennen in Ansichten und Tabs; Bilder und Neuladen; Desktop und 375px in beiden Designs und Vollbild.]
+        pruefung: [Gruppenauswahl und Favoriten; Messung und Zoom; Magnet und Sperren; Sichtbarkeit; bestätigtes Löschen und Rückgängig; Fib-Ebenen außerhalb 0–1 anklicken, mit Entf/Rücktaste löschen (1110-A4.8); Zusammenführen und Trennen in Ansichten und Tabs; Bilder und Neuladen; Desktop und 375px in beiden Designs und Vollbild.]
         erwartet: Zeichenaktionen und Objektbearbeitung funktionieren und werden lokal gespeichert.
 
       - id: ANA-18
