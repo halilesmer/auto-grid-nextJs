@@ -1003,7 +1003,7 @@
   },
   "FRM-27": {
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-10",
       "status": "passed",
       "tests": 16
     }
@@ -1648,7 +1648,14 @@
     "e2e": {
       "datum": "2026-11-10",
       "status": "passed",
-      "tests": 3
+      "tests": 2
+    }
+  },
+  "UI-26": {
+    "e2e": {
+      "datum": "2026-11-10",
+      "status": "passed",
+      "tests": 1
     }
   },
   "UPD-01": {

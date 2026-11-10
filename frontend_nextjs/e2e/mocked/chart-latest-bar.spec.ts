@@ -1,10 +1,10 @@
 import { DEMO_ID, test, expect } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 
-// UI-25: after scrolling left, a round arrow button brings the chart back to the latest candle.
+// UI-26: after scrolling left, a round arrow button brings the chart back to the latest candle.
 test.beforeEach(({ page }) => page.addInitScript(() => localStorage.setItem('grid-robot-formation-sidebar', JSON.stringify({ open: false, tab: 'conditions' }))));
 
-test('Son muma dön düğmesi sola kaydırınca çıkar, tıklayınca kaybolur', { tag: '@UI-25' }, async ({ page, worker }) => {
+test('Son muma dön düğmesi sola kaydırınca çıkar, tıklayınca kaybolur', { tag: '@UI-26' }, async ({ page, worker }) => {
   void worker;
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=last7`);

@@ -1594,14 +1594,23 @@ kategorien:
           - "Playwright-Test e2e/mocked/chart-pane-heights.spec.ts (@UI-24) ausführen."
           - "/chart öffnen, RSI- und EWO-Bereich per Trennlinie verkleinern, Seite neu laden; dann ein anderes Symbol öffnen."
         erwartet: "Nach dem Neuladen haben RSI und EWO die gezogene Höhe; das andere Symbol zeigt seine eigenen Höhen."
-
       - id: UI-25
+        titel: "Formationsreihe: Treffer sichtbar, Kandidaten im Menü"
+        beschreibung: "Halil 2026-11-10 (1110-A1): die Formationsreihe auf /chart zeigt nur Formationen mit gezähltem Treffer auf der gewählten Zeiteinheit (Badge) und die gewählte Formation. Formationen mit nur ungültigen oder frühen Kandidaten stehen im Menü hinter dem Pfeil-Knopf mit ihrer Anzahl; jede Zeile nennt den Zustand (ungültig / im Aufbau). Eine Wahl im Menü setzt die Formation und zeigt sie aktiv in der Reihe. Ohne gezählten Treffer steht nur der Knopf „Kandidaten n“; ohne Kandidat der Hinweis „keine Formation“."
+        code: [frontend_nextjs/src/components/formation/FormationForms.tsx]
+        tiers: [e2e]
+        pruefung:
+          - "Playwright-Test e2e/mocked/chart-formation-more.spec.ts (@UI-25) ausführen."
+          - "/chart öffnen, H1 wählen: nur Formationen mit Badge stehen in der Reihe; den Pfeil öffnen, eine Formation ohne Badge wählen."
+        erwartet: "Die Reihe hat nur Formationen mit Badge und die gewählte; das Menü zeigt die übrigen Kandidaten mit Zustand; nach der Wahl steht die Formation aktiv in der Reihe."
+
+      - id: UI-26
         titel: "Knopf „Zur letzten Kerze“"
         beschreibung: "Halil 2026-11-10: wer den Chart nach links verschoben hat, kommt mit einem runden Pfeil-Knopf (») schnell wieder ganz nach rechts. Der Knopf sitzt links der Preisachse über der Zeitachse und erscheint nur, wenn die letzte Kerze mehr als 3 Kerzen rechts aus dem sichtbaren Bereich ist. Klick: `scrollToRealTime()`, der Kerzenabstand (Zoom) bleibt, der Knopf verschwindet wieder. Mit Tooltip und Aria-Label (analysis.chart.latest)."
         code: [frontend_nextjs/src/components/analysis/chart/LatestBarButton.tsx, frontend_nextjs/src/components/analysis/chart/ChartCore.tsx]
         tiers: [e2e]
         pruefung:
-          - "Playwright-Test e2e/mocked/chart-latest-bar.spec.ts (@UI-25) ausführen."
+          - "Playwright-Test e2e/mocked/chart-latest-bar.spec.ts (@UI-26) ausführen."
           - "/chart öffnen, den Chart nach links ziehen: Knopf erscheint; klicken: Chart springt zur letzten Kerze, Zoom unverändert."
         erwartet: "Der Knopf ist nur sichtbar, solange die letzte Kerze außerhalb liegt; ein Klick bringt den Chart nach rechts, ohne den Zoom zu ändern."
 

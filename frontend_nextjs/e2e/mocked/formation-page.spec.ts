@@ -996,7 +996,10 @@ test.describe('FRM-27 Formationsalarm', () => {
     await enable(page, ['GAR']);
     await remembered(page, 'EURUSD');
     // Auf eine andere Formation und Zeiteinheit wechseln, damit der Sprung sichtbar wird
-    await page.getByTestId('formation-form-BAT').click();
+    // At FORMING_NOW the Bat has no badge, so it is in the candidates menu (UI-25)
+    await page.getByTestId('formation-forms-more').click();
+    await page.getByTestId('formation-more-BAT').click();
+    await expect(page.getByTestId('formation-form-BAT')).toHaveAttribute('aria-pressed', 'true');
     await page.getByTestId('timeframe-H1').click();
     await advance(page, worker, NOW);
     await expect(page.getByText(gartley())).toBeVisible();

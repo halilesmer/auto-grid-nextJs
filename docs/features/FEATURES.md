@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-10 · **229/257** abgehakt · ❌ 5 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-10 · **230/258** abgehakt · ❌ 5 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -26,7 +26,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 10 | **LOG** – Logs | 7/7 |
 | 11 | **UPD** – System & Updates | 6/6 |
 | 12 | **VPS** – VPS-Fernsteuerung vom Mac | 8/10 |
-| 13 | **UI** – Oberfläche | 19/25 |
+| 13 | **UI** – Oberfläche | 20/26 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 24/27 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 18/23 |
 | 16 | **FRM** – Formationserkennung | 41/45 |
@@ -763,9 +763,13 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Halil 2026-11-09: zieht der Nutzer die Trennlinie eines Oszillator-Bereichs (RSI, EWO, eigene Oszillatoren), bleibt die Höhe nach dem Neuladen. Gespeichert wird im Chart-Dokument des Produkts (Konto, Symbol; `paneHeights`, Höhe je Bereichs-id als Teil des Preisbereichs). Nach jedem Loslassen der Maus misst der Chart die Bereiche; nur eine Änderung gegenüber dem letzten Aufbau wird gespeichert, ein Klick ohne Ziehen speichert nichts. Eingeklappte und maximierte Bereiche werden nicht gemessen. Bereiche ohne gespeicherte Höhe bekommen wie bisher die halbe Höhe des Preisbereichs. Ein anderes Produkt behält seine eigenen Höhen.
   - **Prüfung:** Playwright-Test e2e/mocked/chart-pane-heights.spec.ts (@UI-24) ausführen. → /chart öffnen, RSI- und EWO-Bereich per Trennlinie verkleinern, Seite neu laden; dann ein anderes Symbol öffnen.
   - **Erwartet:** Nach dem Neuladen haben RSI und EWO die gezogene Höhe; das andere Symbol zeigt seine eigenen Höhen.
-- [x] **UI-25** Knopf „Zur letzten Kerze“ — 🖥️ e2e ✅ 2026-11-10
+- [x] **UI-25** Formationsreihe: Treffer sichtbar, Kandidaten im Menü — 🖥️ e2e ✅ 2026-11-10
+  - Halil 2026-11-10 (1110-A1): die Formationsreihe auf /chart zeigt nur Formationen mit gezähltem Treffer auf der gewählten Zeiteinheit (Badge) und die gewählte Formation. Formationen mit nur ungültigen oder frühen Kandidaten stehen im Menü hinter dem Pfeil-Knopf mit ihrer Anzahl; jede Zeile nennt den Zustand (ungültig / im Aufbau). Eine Wahl im Menü setzt die Formation und zeigt sie aktiv in der Reihe. Ohne gezählten Treffer steht nur der Knopf „Kandidaten n“; ohne Kandidat der Hinweis „keine Formation“.
+  - **Prüfung:** Playwright-Test e2e/mocked/chart-formation-more.spec.ts (@UI-25) ausführen. → /chart öffnen, H1 wählen: nur Formationen mit Badge stehen in der Reihe; den Pfeil öffnen, eine Formation ohne Badge wählen.
+  - **Erwartet:** Die Reihe hat nur Formationen mit Badge und die gewählte; das Menü zeigt die übrigen Kandidaten mit Zustand; nach der Wahl steht die Formation aktiv in der Reihe.
+- [x] **UI-26** Knopf „Zur letzten Kerze“ — 🖥️ e2e ✅ 2026-11-10
   - Halil 2026-11-10: wer den Chart nach links verschoben hat, kommt mit einem runden Pfeil-Knopf (») schnell wieder ganz nach rechts. Der Knopf sitzt links der Preisachse über der Zeitachse und erscheint nur, wenn die letzte Kerze mehr als 3 Kerzen rechts aus dem sichtbaren Bereich ist. Klick: `scrollToRealTime()`, der Kerzenabstand (Zoom) bleibt, der Knopf verschwindet wieder. Mit Tooltip und Aria-Label (analysis.chart.latest).
-  - **Prüfung:** Playwright-Test e2e/mocked/chart-latest-bar.spec.ts (@UI-25) ausführen. → /chart öffnen, den Chart nach links ziehen: Knopf erscheint; klicken: Chart springt zur letzten Kerze, Zoom unverändert.
+  - **Prüfung:** Playwright-Test e2e/mocked/chart-latest-bar.spec.ts (@UI-26) ausführen. → /chart öffnen, den Chart nach links ziehen: Knopf erscheint; klicken: Chart springt zur letzten Kerze, Zoom unverändert.
   - **Erwartet:** Der Knopf ist nur sichtbar, solange die letzte Kerze außerhalb liegt; ein Klick bringt den Chart nach rechts, ohne den Zoom zu ändern.
 
 ## 14. ANA – Analyse (Chart, Statistik, Backtest)
@@ -1090,7 +1094,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - In der Kopfleiste steht hinter den Zeiteinheiten ein Kamera-Knopf mit Menü: als PNG herunterladen oder in die Zwischenablage kopieren. Das Bild entsteht im Browser (nichts wird gesendet), ist 1200 CSS-Pixel breit bei doppelter Auflösung und zeigt Kopf (Formation, Symbol, Zeiteinheit, Urteil, Scan-Zeitpunkt), den Chart samt Formationszeichnungen und alle Bedingungen mit Symbol, Wort und Messwert. Kerzen und Achsen kommen aus takeScreenshot(), die Zeichnungen sind ein SVG-Overlay und werden mit aufgelösten Theme-Farben darübergelegt. Ab 640 px Chart-Breite stehen die Bedingungen unter dem Chart, schmaler rechts daneben. Hell oder dunkel folgt dem App-Thema. Kein Kontoname, keine Kontonummer, kein LIVE/DEMO im Bild oder im Dateinamen. Ohne gewählten Kandidaten oder während der Suche ist der Knopf deaktiviert; Kopieren ist deaktiviert, wenn der Browser keine Bilder in die Zwischenablage legen kann.
   - **Prüfung:** Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-26) ausführen (PNG mit Zeichnungen und Dateiname, deaktivierter Knopf, Kopieren, 375 px).
   - **Erwartet:** Das PNG enthält die Zielzeichnung des Overlays, trägt Formation, Symbol, Zeiteinheit und Zeitpunkt im Dateinamen und nichts vom Konto; bei 375 px bleibt der Knopf sichtbar und die Seite scrollt nicht quer.
-- [x] **FRM-27** Seite Formasyon: Alarm bei gültiger Formation und Zielpunkt — 🖥️ e2e ✅ 2026-11-05
+- [x] **FRM-27** Seite Formasyon: Alarm bei gültiger Formation und Zielpunkt — 🖥️ e2e ✅ 2026-11-10
   - Hinter dem Kamera-Knopf steht eine Glocke mit Menü. Der Schalter „Alarm für <Produkt>“ gilt je Konto und Produkt und meldet, wenn eine Formation des Produkts gültig wird oder ihren Zielpunkt (D, bei CDT H2, bei der Libra K, bei der Kopf-Schulter B) erreicht; Ereignisse und Formationen sind wählbar, Meldung im Fenster ist Standard, Systemmeldung und Ton sind optional. Es gibt keine Worker-Änderung und keine Order. Gemeldet wird nur der Übergang zwischen zwei Suchläufen. Der Lauf kommt seit FRM-30 aus dem app-weiten FormationScanRunner (M15-Takt) und gilt auf jeder Seite, solange die App offen ist (Banner im Menü). Ein Produkt ohne gemerkten Stand (gerade eingeschaltet) merkt still; der gemerkte Stand liegt im Browser (höchstens 200 Treffer je Produkt), so kommt nach dem Neuladen nichts doppelt. Mehr als drei Meldungen in einem Durchlauf werden zu einer Sammelmeldung.
   - **Prüfung:** Playwright-Test e2e/mocked/formation-alarm-lib.spec.ts (@FRM-27) ausführen (Übergänge, stille Grundlinie, Schlüssel, Symbol der Meldung, abgewählte Ereignisse, Speichergrenze). → Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-27) ausführen (Banner, Meldung nach neuer M15-Kerze, keine Doppelmeldung nach Neuladen, Anzeigen-Knopf, Sammelmeldung, Alarm aus, 375 px).
   - **Erwartet:** Nach dem Einschalten erscheint zu einer Formation, die danach gültig wird oder ihren Zielpunkt erreicht, genau eine Meldung; derselbe Stand meldet nicht erneut, auch nicht nach dem Neuladen; ohne Alarm kommt nichts.
