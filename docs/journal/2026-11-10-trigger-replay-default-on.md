@@ -3,7 +3,7 @@ date: 2026-11-10
 author: Claude
 type: decision
 status: open
-pr: []
+pr: [495]
 features: [BKT-23]
 areas: [frontend, backtest]
 ---
@@ -42,7 +42,7 @@ Setup 200050 has one K4 trade that is a bot-timing case (class b). It stays in t
 The first failure came from missing data, not from the replay. So K57.3 and K57.4 close, and the default changes.
 
 ## Verification
-- Mocked e2e `backtest-trigger-replay-lib.spec.ts` (@BKT-23): see the PR for the `precheck.sh` result.
+- `precheck.sh` passed: catalog, worker pytest, lint, tsc and 3359 mocked e2e tests (0 failed).
 - VPS acceptance: the two runs above.
 
 ## Open points
