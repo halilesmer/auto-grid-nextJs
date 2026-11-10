@@ -33,6 +33,8 @@ interface DropdownMenuProps {
   panelClassName?: string;
   /** Panel höher als der freie Platz bis zum Fensterrand: kürzen und innen scrollen (z. B. Zeitraum-Kalender im Querformat des Handys, UI-17 S5). */
   fitHeight?: boolean;
+  /** Panel in der obersten Ebene (popover) unter dem Auslöser: für Auslöser in einem Scroll-Container, der ein absolutes Panel abschneiden würde (UI-25). */
+  floating?: boolean;
   /** Zusätzliche Attribute des Auslöser-Buttons (z. B. data-testid, Klassen). */
   triggerProps?: Omit<ButtonProps, 'hint' | 'variant' | 'size' | 'onClick' | 'aria-label' | 'aria-expanded' | 'children'> &
     Record<`data-${string}`, string>;
@@ -54,9 +56,11 @@ export function DropdownMenu({
   className,
   panelClassName,
   fitHeight = false,
+  floating = false,
   triggerProps,
   children,
 }: DropdownMenuProps) {
+  const popover = side === 'right' || floating;
   const [open, setOpen] = useState(false);
   const [placementRevision, setPlacementRevision] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
@@ -77,6 +81,13 @@ export function DropdownMenu({
       panel.style.width = `${Math.min(288, window.innerWidth - trigger.right - 12)}px`;
       panel.style.left = `${trigger.right + 4}px`;
       panel.style.top = `${Math.max(8, Math.min(trigger.top, window.innerHeight - panel.offsetHeight - 8))}px`;
+    } else if (floating) {
+      const trigger = ref.current?.getBoundingClientRect();
+      if (!trigger) return;
+      if (!panel.matches(':popover-open')) panel.showPopover();
+      panel.style.position = 'fixed'; panel.style.margin = '0'; panel.style.right = 'auto'; panel.style.bottom = 'auto';
+      panel.style.left = `${align === 'right' ? trigger.right - panel.offsetWidth : trigger.left}px`;
+      panel.style.top = side === 'top' ? `${trigger.top - panel.offsetHeight - 8}px` : `${trigger.bottom + 8}px`;
     }
     // Panel höher als der Platz zwischen Auslöser und Fensterrand (Handy im Querformat): auf den freien Platz kürzen, innen scrollen (UI-17 S5)
     if (fitHeight && side !== 'right') {
@@ -93,7 +104,7 @@ export function DropdownMenu({
     if (right > window.innerWidth - margin) dx = window.innerWidth - margin - right;
     if (left + dx < margin) dx = margin - left;
     if (dx) panel.style.translate = `${Math.round(dx)}px 0`;
-  }, [open, side, fitHeight, placementRevision]);
+  }, [open, side, align, floating, fitHeight, placementRevision]);
 
   useEffect(() => {
     if (!open) return;
@@ -116,7 +127,7 @@ export function DropdownMenu({
       // Fokus zurück auf den Auslöser, sonst verliert die Tastatur ihre Position
       ref.current?.querySelector('button')?.focus();
     };
-    const onScroll = (event: Event) => { if (side === 'right' && !panelRef.current?.contains(event.target as Node)) setPlacementRevision(n => n + 1); };
+    const onScroll = (event: Event) => { if (popover && !panelRef.current?.contains(event.target as Node)) setPlacementRevision(n => n + 1); };
     window.addEventListener('scroll', onScroll, true);
     window.addEventListener('resize', onScroll);
     document.addEventListener('mousedown', onDown);
@@ -127,11 +138,11 @@ export function DropdownMenu({
       document.removeEventListener('mousedown', onDown);
       window.removeEventListener('keydown', onKey, true);
     };
-  }, [open, side]);
+  }, [open, popover]);
 
   const panel = <AnimatePresence>
         {open && (
-          <MenuPanel panelRef={panelRef} popover={side === 'right'} className={cn('absolute z-50 w-56 overflow-hidden rounded-xl border border-border bg-popover shadow-2xl', side === 'top' ? 'bottom-full mb-2' : 'top-full mt-2', align === 'right' ? 'right-0' : 'left-0', panelClassName)}>
+          <MenuPanel panelRef={panelRef} popover={popover} className={cn('absolute z-50 w-56 overflow-hidden rounded-xl border border-border bg-popover shadow-2xl', side === 'top' ? 'bottom-full mb-2' : 'top-full mt-2', align === 'right' ? 'right-0' : 'left-0', panelClassName)}>
             <CloseContext.Provider value={() => setOpen(false)}>{children}</CloseContext.Provider>
           </MenuPanel>
         )}
