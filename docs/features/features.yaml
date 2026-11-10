@@ -1614,6 +1614,16 @@ kategorien:
           - "/chart öffnen, den Chart nach links ziehen: Knopf erscheint; klicken: Chart springt zur letzten Kerze, Zoom unverändert."
         erwartet: "Der Knopf ist nur sichtbar, solange die letzte Kerze außerhalb liegt; ein Klick bringt den Chart nach rechts, ohne den Zoom zu ändern."
 
+      - id: UI-27
+        titel: "Fibonacci-Einstellungsfenster mit Vorlagen"
+        beschreibung: "Halil 2026-11-10 (1110-A4, S1): ein Doppelklick auf eine Fibonacci-Retracement-Zeichnung (oder „Ayarlar…“ in Göstergeler ve çizimler → Çizimler) öffnet das Fenster wie in TradingView, Tab Stil: Trendlinie, Level-Linie, Verlängern, 24 Level mit Haken, Koeffizient und Farbe, eine Farbe, Hintergrund, Umkehren, Preise, Werte/Prozente, Beschriftung, Text, Schriftgröße, Log-Skala (nur bei logarithmischer Preisskala). Änderungen zeigen sich sofort; İptal stellt wieder her, Tamam speichert (ein Rückgängig-Schritt) und macht den Stil zum Start der nächsten Fib-Zeichnung. Menü Şablon: Farklı kaydet…, Varsayılanları uygula, eigene Vorlagen (Papierkorb mit Rückfrage; localStorage) und die feste Vorlage „Geniş Fib seti“ (24 Plätze). Koordinaten und Sichtbarkeit folgen in S2."
+        code: [frontend_nextjs/src/components/chart-workspace/FibSettingsDialog.tsx, frontend_nextjs/src/lib/chart-workspace/fibStyle.ts, frontend_nextjs/src/components/chart-workspace/ChartWorkspace.tsx, frontend_nextjs/src/store/useChartWorkspaceStore.ts]
+        tiers: [e2e]
+        pruefung:
+          - "Playwright-Test e2e/mocked/chart-fib-settings.spec.ts (@UI-27) ausführen."
+          - "/chart öffnen, eine Fibonacci-Zeichnung ziehen, doppelt darauf klicken: Fenster mit Tab Stil; ein Level abwählen und İptal drücken: Zeichnung unverändert; Şablon → Geniş Fib seti und Tamam: 18 Level an, 6 aus."
+        erwartet: "Das Fenster öffnet per Doppelklick; Änderungen wirken sofort, İptal verwirft sie, Tamam speichert; die feste Vorlage setzt alle 24 Plätze; Vorlagen lassen sich speichern, überschreiben und löschen; bei 375 px kein Überlauf."
+
   # ---------------------------------------------------------------------------
   - id: ANA
     titel: Analyse (Chart, Statistik, Backtest)

@@ -9,6 +9,7 @@ import { SYSTEM_RSI_ID, systemRsiIndicator, type Indicator } from '@/lib/chart-w
 import { defaultsOf } from '@/lib/chart-workspace/indicatorStyle';
 import { parseIndicatorDefaults, parseIndicators } from '@/lib/chart-workspace/indicatorStorage';
 import { parsePaneOrder, parseSystemPanes, type SystemPaneStates } from '@/lib/chart-workspace/paneOrder';
+import { FIB_KIND, parseDrawingDefaults, parseDrawingTemplates, type DrawingDefaults, type DrawingTemplates, type FibStyle } from '@/lib/chart-workspace/fibStyle';
 import { randomId } from '@/lib/randomId';
 
 /** Sichtbarer Zeitbereich als Kerzenzeit in Sekunden; fehlt er, zeigt der Chart alle Kerzen */
@@ -93,6 +94,12 @@ interface State {
   /** Look saved with "save as default", per indicator kind; new indicators start from it. */
   indicatorDefaults: Partial<Record<Indicator['kind'], Partial<Indicator>>>;
   saveIndicatorDefault: (indicator: Indicator) => void;
+  /** Fibonacci ayar penceresi (1110-A4): kullanıcı şablonları (tür → ad → stil) ve son onaylanan stil (yeni çizimler bununla başlar) */
+  drawingTemplates: DrawingTemplates;
+  drawingDefaults: DrawingDefaults;
+  saveDrawingTemplate: (name: string, style: FibStyle) => void;
+  deleteDrawingTemplate: (name: string) => void;
+  saveDrawingDefault: (style: FibStyle) => void;
   hydrated: boolean;
   storageError: boolean;
   hydrate: () => void;
@@ -135,7 +142,7 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
         for (const [id, data] of Object.entries(d.images)) if (localStorage.getItem(`${WORKSPACE_STORAGE_KEY}-image-${id}`) !== data) localStorage.setItem(`${WORKSPACE_STORAGE_KEY}-image-${id}`, data);
         return [key, { ...d, overlays: s.overlayPreview?.key === key ? s.overlayPreview.original : d.overlays, images: Object.fromEntries(Object.keys(d.images).map(id => [id, true])) }];
       }));
-      localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify({ version: STORAGE_VERSION, appearance: s.appearance, documents, templates: s.templates, favorites: s.favorites, indicatorDefaults: s.indicatorDefaults, links, toolbar, toolbarLayout, dockLayout }));
+      localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify({ version: STORAGE_VERSION, appearance: s.appearance, documents, templates: s.templates, favorites: s.favorites, indicatorDefaults: s.indicatorDefaults, drawingTemplates: s.drawingTemplates, drawingDefaults: s.drawingDefaults, links, toolbar, toolbarLayout, dockLayout }));
       // Delete orphan image bytes only after the replacement metadata is safely written.
       const prefix = `${WORKSPACE_STORAGE_KEY}-image-`, usedImages = new Set(Object.values(combined).flatMap(d => Object.keys(d.images)));
       for (let i = localStorage.length - 1; i >= 0; i--) { const key = localStorage.key(i); if (key?.startsWith(prefix) && !usedImages.has(key.slice(prefix.length))) localStorage.removeItem(key); }
@@ -155,7 +162,7 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
     } else write();
   };
   return {
-    links: {}, toolbar: {}, toolbarLayout: {}, dockLayout: defaultDockLayout(), appearance: { ...DEFAULT_APPEARANCE }, preview: null, overlayPreview: null, documents: {}, templates: {}, indicatorDefaults: {}, favorites: ['trend-line', 'horizontal-line', 'fib-retracement'], hydrated: false, storageError: false,
+    links: {}, toolbar: {}, toolbarLayout: {}, dockLayout: defaultDockLayout(), appearance: { ...DEFAULT_APPEARANCE }, preview: null, overlayPreview: null, documents: {}, templates: {}, indicatorDefaults: {}, drawingTemplates: {}, drawingDefaults: {}, favorites: ['trend-line', 'horizontal-line', 'fib-retracement'], hydrated: false, storageError: false,
     hydrate: () => {
       if (get().hydrated) return;
       try {
@@ -169,7 +176,7 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
           for (const [key, value] of Object.entries(raw.templates ?? {})) templates[key] = parseAppearance(value);
         }
         lastDocuments = documents;
-        set({ links: Object.fromEntries(Object.entries(raw?.links ?? {}).flatMap(([k, v]) => typeof v === 'string' && v.startsWith('@linked:') ? [[k, v]] : [])), toolbar: Object.fromEntries(Object.entries(raw?.toolbar ?? {}).map(([k, v]) => [k, parseToolbar(v)])), toolbarLayout: parseToolbarLayout(raw?.toolbarLayout), dockLayout: raw?.dockLayout ? parseDockLayout(raw.dockLayout) : migrateToolbarLayout(parseToolbarLayout(raw?.toolbarLayout)), hydrated: true, appearance: parseAppearance(raw?.appearance), documents, templates, indicatorDefaults: parseIndicatorDefaults(raw?.indicatorDefaults), favorites: Array.isArray(raw?.favorites) ? raw.favorites.filter((x: unknown) => typeof x === 'string') : get().favorites });
+        set({ links: Object.fromEntries(Object.entries(raw?.links ?? {}).flatMap(([k, v]) => typeof v === 'string' && v.startsWith('@linked:') ? [[k, v]] : [])), toolbar: Object.fromEntries(Object.entries(raw?.toolbar ?? {}).map(([k, v]) => [k, parseToolbar(v)])), toolbarLayout: parseToolbarLayout(raw?.toolbarLayout), dockLayout: raw?.dockLayout ? parseDockLayout(raw.dockLayout) : migrateToolbarLayout(parseToolbarLayout(raw?.toolbarLayout)), hydrated: true, appearance: parseAppearance(raw?.appearance), documents, templates, indicatorDefaults: parseIndicatorDefaults(raw?.indicatorDefaults), drawingTemplates: parseDrawingTemplates(raw?.drawingTemplates), drawingDefaults: parseDrawingDefaults(raw?.drawingDefaults), favorites: Array.isArray(raw?.favorites) ? raw.favorites.filter((x: unknown) => typeof x === 'string') : get().favorites });
         lastToolbar = get().toolbar; lastLinks = get().links; lastLayout = get().toolbarLayout; lastDock = get().dockLayout;
       } catch { set({ hydrated: true, storageError: true }); }
     },
@@ -204,6 +211,9 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
     },
     saveTemplate: (name, appearance) => { if (!name.trim()) return; set(s => ({ templates: { ...s.templates, [name.trim()]: parseAppearance(appearance) } })); persist(); },
     saveIndicatorDefault: indicator => { set(s => ({ indicatorDefaults: { ...s.indicatorDefaults, [indicator.kind]: defaultsOf(indicator) } })); persist(); },
+    saveDrawingTemplate: (name, style) => { const n = name.trim(); if (!n) return; set(s => ({ drawingTemplates: { ...s.drawingTemplates, [FIB_KIND]: { ...s.drawingTemplates[FIB_KIND], [n]: style } } })); persist(); },
+    deleteDrawingTemplate: name => { set(s => { const next = { ...s.drawingTemplates[FIB_KIND] }; delete next[name]; return { drawingTemplates: { ...s.drawingTemplates, [FIB_KIND]: next } }; }); persist(); },
+    saveDrawingDefault: style => { set(s => ({ drawingDefaults: { ...s.drawingDefaults, [FIB_KIND]: style } })); persist(); },
     setFavorites: favorites => { set({ favorites }); persist(); },
   };
 });

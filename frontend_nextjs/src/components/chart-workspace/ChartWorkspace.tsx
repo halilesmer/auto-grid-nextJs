@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { cacheImage, decodeImage, DrawingManager, OVERLAY_SPECS, setImageReader, type Drawing, type DrawingKind, type MagnetMode, type TableCellRef } from 'lightweight-charts-drawing';
+import { cacheImage, decodeImage, DrawingManager, OVERLAY_SPECS, setDefaultStyleOverride, setImageReader, type Drawing, type DrawingKind, type DrawingStyle, type MagnetMode, type TableCellRef } from 'lightweight-charts-drawing';
 import { CrosshairMode, type UTCTimestamp } from 'lightweight-charts';
 import { ChartSpline, Maximize2, Minimize2, Redo2, Scan, Settings2, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -30,7 +30,9 @@ import ConfirmModal from '@/components/ConfirmModal';
 import { DrawingToolbar } from './DrawingToolbar';
 import { ChartGestureLayer, type ZoomSnapshot } from './ChartGestureLayer';
 import { DockSurface } from './dock/DockSurface';
-import { DrawingPriorityContext } from './drawingPriority';
+import { DrawingPriorityContext, useToolGrace } from './drawingPriority';
+import { FibSettingsDialog } from './FibSettingsDialog';
+import { FIB_KIND } from '@/lib/chart-workspace/fibStyle';
 import { defaultToolbar, toolGroup, type ChartGesture } from '@/lib/chart-workspace/toolbar';
 import { linkedDrawingKey, type DrawingIdentity } from '@/lib/chart-workspace/linkedDrawings';
 import { randomId } from '@/lib/randomId';
@@ -87,6 +89,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const root = useRef<HTMLDivElement>(null), manager = useRef<DrawingManager | null>(null), renderer = useRef<IndicatorRenderer | null>(null);
   // Für Teile im Inneren (Trendmenü): ein aktives Werkzeug und eine Zeichnung unter der Maus haben Vorrang vor Linienmenüs
   const drawingPriority = useCallback(() => ({ toolActive: manager.current?.tool() != null, drawingHovered: manager.current?.hoveredId() != null }), []);
+  const toolRecent = useToolGrace(binding?.host ?? null, () => manager.current?.tool() != null);
   const drawingBars = useMemo(() => bars.map(b => ({ ...b, time: b.time as UTCTimestamp })), [bars]);
   const live = useRef({ drawingBars, until, timeframeSec });
   const replay = useRef(new ReplayDrawingVisibility());
@@ -105,6 +108,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const [historySize, setHistorySize] = useState({ undo: 0, redo: 0 });
   const [revision, setRevision] = useState(0), [selected, setSelected] = useState<string[]>([]), [tool, setTool] = useState<DrawingKind | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false), [settingsSection, setSettingsSection] = useState<Section>('symbol'), [indicatorsOpen, setIndicatorsOpen] = useState(false);
+  const [fibEdit, setFibEdit] = useState<Drawing | null>(null);
   const [error, setError] = useState<MessageKey | null>(null), [editor, setEditor] = useState<{ drawing: Drawing; cell?: TableCellRef; text: string } | null>(null);
   const [sample, setSample] = useState<{ scope: string; values: { config: Indicator; value: Value }[] }>({ scope: '', values: [] });
   const lastValues = sample.values;
@@ -256,6 +260,8 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
       if (workspace.preview) { workspace.setPreview(null); rollbackOverlays(); }
     };
   }, [settingsOpen, rollbackOverlays]);
+  // 1110-A4.4: a new Fibonacci drawing starts with the style last confirmed in its settings window
+  useEffect(() => { setDefaultStyleOverride(kind => kind === FIB_KIND ? useChartWorkspaceStore.getState().drawingDefaults[FIB_KIND] as DrawingStyle | undefined : undefined); }, []);
   const checkpoint = useCallback(() => {
     const m = manager.current; if (!m) return;
     const snapshot = replay.current.snapshot(m).map(d => originalLocks.current.has(d.id) ? { ...d, locked: originalLocks.current.get(d.id) } : d);
@@ -298,14 +304,20 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     const focusOut = (e: FocusEvent) => { if (e.relatedTarget && !root.current?.contains(e.relatedTarget as Node)) { m.setTool(null); m.select([]); } };
     const inputFocus = (e: FocusEvent) => { if ((e.target as HTMLElement).closest('input, textarea, select, [contenteditable]')) { m.setTool(null); m.select([]); } };
     document.addEventListener('pointerdown', deactivate, true);
-    const el = root.current; el?.addEventListener('focusout', focusOut); el?.addEventListener('focusin', inputFocus);
+    // 1110-A4.1: the library reports a double click only for text tools, so the workspace opens the Fibonacci window itself
+    const openFib = (e: MouseEvent) => {
+      if ((e.target as Element | null)?.closest('input, button, select, textarea') || m.tool() != null || toolRecent()) return;
+      const hovered = m.hoveredId(), d = hovered ? m.drawings().find(x => x.id === hovered) : undefined;
+      if (d?.kind === FIB_KIND) setFibEdit(d);
+    };
+    const el = root.current; el?.addEventListener('dblclick', openFib); el?.addEventListener('focusout', focusOut); el?.addEventListener('focusin', inputFocus);
     const r = new IndicatorRenderer(binding, systemSeries); renderer.current = r;
     const frame = requestAnimationFrame(() => { setTool(m.tool()); setSelected([...m.selection()]); checkpoint(); });
     let disposed = false;
-    const dispose = () => { if (disposed) return; disposed = true; cancelAnimationFrame(frame); off.forEach(f => f()); document.removeEventListener('pointerdown', deactivate, true); el?.removeEventListener('focusout', focusOut); el?.removeEventListener('focusin', inputFocus); r.destroy(); renderer.current = null; m.destroy(); manager.current = null; };
+    const dispose = () => { if (disposed) return; disposed = true; cancelAnimationFrame(frame); off.forEach(f => f()); document.removeEventListener('pointerdown', deactivate, true); el?.removeEventListener('dblclick', openFib); el?.removeEventListener('focusout', focusOut); el?.removeEventListener('focusin', inputFocus); r.destroy(); renderer.current = null; m.destroy(); manager.current = null; };
     const unregister = binding.onDispose(dispose);
     return () => { unregister(); dispose(); };
-  }, [binding, context.key, drawingKey, state.hydrated, defaults, checkpoint, perProduct, saveAppearance, systemSeries]);
+  }, [binding, context.key, drawingKey, state.hydrated, defaults, checkpoint, perProduct, saveAppearance, systemSeries, toolRecent]);
 
   useEffect(() => {
     const m = manager.current;
@@ -467,7 +479,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
       {OVERLAY_SPECS[active.kind].textEditable && <InputField label={t('cw.text')} hint={t('cw.text.hint')}><input className={fieldClass} value={active.text ?? ''} onChange={e => updateDrawing({ ...active, text: e.target.value })} /></InputField>}
       {typeof active.style.fillBackground === 'boolean' && <><Toggle name="cw.fill" checked={active.style.fillBackground} onChange={fillBackground => updateDrawing({ ...active, style: { ...active.style, fillBackground } })} /><ColorField name="cw.fillColor" value={active.style.backgroundColor || active.style.color} onChange={backgroundColor => updateDrawing({ ...active, style: { ...active.style, backgroundColor } })} /><Numeric name="cw.opacity" min={0} max={100} value={100 - (active.style.transparency ?? 92)} onChange={v => updateDrawing({ ...active, style: { ...active.style, transparency: 100 - v } })} /></>}
       {OVERLAY_SPECS[active.kind].textEditable && <><Numeric name="cw.objectTextSize" value={active.style.fontSize ?? 14} min={8} max={72} onChange={fontSize => updateDrawing({ ...active, style: { ...active.style, fontSize } })} /><Toggle name="cw.bold" checked={active.style.bold ?? false} onChange={bold => updateDrawing({ ...active, style: { ...active.style, bold } })} /><Toggle name="cw.italic" checked={active.style.italic ?? false} onChange={italic => updateDrawing({ ...active, style: { ...active.style, italic } })} /></>}
-      {active.style.levels && <InputField label={t('cw.levels')} hint={t('cw.levels.hint')}><input key={active.id} className={fieldClass} defaultValue={active.style.levels.map(v => v.coeff).join(', ')} onBlur={e => { const coeffs = e.target.value.split(',').map(v => Number(v.trim())); if (coeffs.length && coeffs.length <= 40 && coeffs.every(Number.isFinite)) updateDrawing({ ...active, style: { ...active.style, levels: coeffs.map(coeff => ({ coeff, color: active.style.color, visible: true })) } }); }} /></InputField>}
+      {active.kind === FIB_KIND ? <Button size="sm" variant="outline" data-testid="fib-open-settings" hint={t('fib.open.hint')} onClick={() => setFibEdit(active)}>{t('fib.open')}</Button> : active.style.levels && <InputField label={t('cw.levels')} hint={t('cw.levels.hint')}><input key={active.id} className={fieldClass} defaultValue={active.style.levels.map(v => v.coeff).join(', ')} onBlur={e => { const coeffs = e.target.value.split(',').map(v => Number(v.trim())); if (coeffs.length && coeffs.length <= 40 && coeffs.every(Number.isFinite)) updateDrawing({ ...active, style: { ...active.style, levels: coeffs.map(coeff => ({ coeff, color: active.style.color, visible: true })) } }); }} /></InputField>}
       <div className="flex flex-wrap gap-2 sm:col-span-2"><Button size="sm" hint={t('cw.duplicate.hint')} onClick={() => { manager.current?.add({ ...active, id: randomId() }); checkpoint(); }}>{t('cw.duplicate')}</Button><Button size="sm" hint={t('cw.front.hint')} onClick={() => { manager.current?.bringToFront(active.id); checkpoint(); }}>{t('cw.front')}</Button><Button size="sm" hint={t('cw.back.hint')} onClick={() => { manager.current?.sendToBack(active.id); checkpoint(); }}>{t('cw.back')}</Button><Button size="sm" variant="danger" hint={t(active.locked ? 'cw.lockedRemove.hint' : 'cw.remove.hint')} disabled={locked || active.locked} onClick={() => { manager.current?.remove(active.id); checkpoint(); }}>{t('cw.remove')}</Button>
       {active.kind === 'table' && <><Button size="sm" hint={t('cw.tableRow.hint')} onClick={() => { manager.current?.tableOp(active.id, 'insert-row'); checkpoint(); }}>{t('cw.tableRow')}</Button><Button size="sm" hint={t('cw.tableColumn.hint')} onClick={() => { manager.current?.tableOp(active.id, 'insert-column'); checkpoint(); }}>{t('cw.tableColumn')}</Button></>}</div>
     </fieldset>}
@@ -539,6 +551,10 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
           {indicatorInfo.indicator.kind !== 'ATR' && <><dt className="text-muted-foreground">{t('cw.source')}</dt><dd>{indicatorInfo.indicator.source}</dd></>}
         </dl>}
     </Modal>}
+    {fibEdit && <FibSettingsDialog drawing={fibEdit} scaleLog={appearance.scale === 'log'} locked={locked}
+      onPreview={next => { if (!locked) manager.current?.update(next); }}
+      onCommit={next => { if (!locked) { manager.current?.update(next); checkpoint(); } setFibEdit(null); }}
+      onCancel={initial => { if (!locked) manager.current?.update(initial); setFibEdit(null); }} />}
     {editor && <Modal open onClose={() => { if (editor.cell) manager.current?.endTableEdit(); setEditor(null); }} title={t(editor.cell ? 'cw.cell' : 'cw.text')}><InputField label={t('cw.text')} hint={t('cw.text.hint')}><textarea className={fieldClass} value={editor.text} onChange={e => setEditor({ ...editor, text: e.target.value })} /></InputField><Button className="mt-3" variant="primary" hint={t('cw.apply.hint')} onClick={() => { if (locked) return; if (editor.cell) { manager.current?.setTableCellText(editor.drawing.id, editor.cell, editor.text); manager.current?.endTableEdit(); } else manager.current?.update({ ...editor.drawing, text: editor.text }); checkpoint(); setEditor(null); }}>{t('cw.apply')}</Button></Modal>}
   </div>;
 }
