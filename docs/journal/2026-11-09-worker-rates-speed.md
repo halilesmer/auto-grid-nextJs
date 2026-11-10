@@ -3,7 +3,7 @@ date: 2026-11-09
 author: Claude
 type: diagnosis
 status: partly-done
-pr: [475, 477]
+pr: [475, 477, 489]
 features: [ANA-04, UI-22]
 areas: [worker]
 ---
