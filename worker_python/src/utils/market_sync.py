@@ -42,6 +42,7 @@ CHUNK_PAUSE_SEC = 0.05  # zwischen den Stuecken sind Slot und MT5-Sperre frei, d
 FETCH_WAIT_SEC = 30
 # 1109-R1.1: Hoechstdauer der Abrufe einer Anfrage; danach kommen die bisherigen Stuecke mit next_from (partial="budget")
 FETCH_BUDGET_SEC = 8
+FIRST_CHUNK_MIN_WAIT_SEC = 2  # 1110-A2
 DEAL_CHUNK_SEC = 366 * 86400
 # Deal'lerin en yeni kenarı her seferinde yeniden eşitlenir: 24 saat örtüşme + broker farkı payı
 # (broker en fazla UTC−12; farkı bilmeden "broker şimdi − 24 sa" bundan önce olamaz)
@@ -200,6 +201,7 @@ def _fetch_chunk(account: dict, symbol: str, tf_name: str, a: int, b: int) -> di
         syncing = _syncing_holes(mt5, symbol, tf_name, bars, a, b, latest, has_before)
         tick, utc_at = mm._offset_reading(mt5, symbol)
         offset = mm.broker_offset(tick.time, utc_at) if tick is not None and tick.time else None
+        mm._check_account(mt5, account)  # 1110-A2: Terminal waehrend des langen Abrufs auf ein anderes Konto? Nicht speichern
         return {
             "bars": bars, "latest": latest, "has_before": has_before, "syncing": syncing,
             "digits": mm._plain(getattr(info, "digits", None)), "point": mm._plain(getattr(info, "point", None)),
@@ -406,6 +408,7 @@ def _fetch_tick_piece(account: dict, symbol: str, x: int, y: int, replay: bool =
         extremes = minute_quote_extremes(rows, point, x, y, quote_grid(rows, point))
         # BKT-22: sa/sx/n bleiben wie BKT-19; dazu ahi/alo/g je Minute (Minuten ohne gültigen Tick haben auch keine Stat-Zeile)
         stats = [(*row, *extremes.get(row[0], (None, None, None))) for row in stats]
+        mm._check_account(mt5, account)  # 1110-A2: Konto nach dem langen Abruf noch dasselbe?
         return {"stats": stats, "count": inside, "replay": marked, "dropped": dropped}
 
     return mm._connected(account, collect)
@@ -536,9 +539,8 @@ def _get_rates(account: dict, source: str, symbol: str, timeframe: str, a: int, 
     elif todo:
         chunk_sec = chunk_bars(timeframe) * tf_sec
         # 1109-R3: nur ein kleines Endstueck fehlt (warmes Diagramm, laufende Kerze) -> kein Warten auf den Slot
-        # eines Langabrufs; die MT5-Sperre des Aufrufs selbst bleibt (mm._connected)
-        # 1110-A2: nur wenn davor schon Kerzen in der Datenbank liegen (todo beginnt nach `a`); ein kalter Erstzugriff
-        # (auch ein kurzer) laeuft im Leseprozess, weil MT5 dabei die ganze Historie laden kann
+        # eines Langabrufs, eigener Leseprozess (1110-A2: lane "fast"). Nur wenn davor schon Abdeckung in der Datenbank
+        # liegt (todo beginnt nach `a`); ein kalter Erstzugriff (auch ein kurzer) gehoert in die lange Spur.
         fast = len(todo) == 1 and a < todo[0][0] and todo[0][1] == end and todo[0][1] - todo[0][0] <= chunk_sec
         t_fetch = time.monotonic()
         for i, (x, y) in enumerate(_chunks(todo, chunk_sec)):
@@ -558,11 +560,13 @@ def _get_rates(account: dict, source: str, symbol: str, timeframe: str, a: int, 
                     missing += [{"from": p, "to": q, "reason": "busy", "checked_at": None} for p, q in todo]
                 break
             try:
-                if fast:  # sıcak sembolün ucu: kısa, API sürecinde
-                    part = _fetch_chunk(account, symbol, tf_name, x, y)
-                else:  # 1110-A2: okuyucu süreçte; en çok kalan bütçe kadar beklenir
-                    wait = max(mt5_reader.MIN_WAIT_SEC, FETCH_BUDGET_SEC - (time.monotonic() - t_fetch))
-                    part = mt5_reader.run("rates_chunk", (account, symbol, tf_name, x, y), wait)
+                # 1110-A2: immer im Leseprozess (auch das Endstueck: die Proben in _fetch_chunk koennen einen
+                # anderen Zeitrahmen kalt laden). Gewartet wird das Restbudget, beim ersten Stueck mindestens
+                # FIRST_CHUNK_MIN_WAIT_SEC (die Wartezeit auf den Slot soll ein warmes Stueck nicht verdraengen).
+                floor = FIRST_CHUNK_MIN_WAIT_SEC if i == 0 else mt5_reader.MIN_WAIT_SEC
+                wait = max(floor, FETCH_BUDGET_SEC - (time.monotonic() - t_fetch))
+                part = mt5_reader.run("rates_chunk", (account, symbol, tf_name, x, y), wait,
+                                      lane="fast" if fast else "long")
             except mt5_reader.ReaderTimeout:
                 if i:  # bisherige Stuecke gelten, der Rest kommt beim naechsten Aufruf
                     stopped = x
@@ -706,6 +710,7 @@ def _fetch_minute_piece(account: dict, symbol: str, x: int, y: int) -> dict[int,
         point = float(getattr(info, "point", 0) or 0)
         if point <= 0:
             raise mm.MarketDataError(f"[SYMBOL] {symbol} için point değeri yok.")
+        mm._check_account(mt5, account)  # 1110-A2: Konto nach dem langen Abruf noch dasselbe?
         return tick_rows_by_minute(rows if rows is not None else [], point)
 
     return mm._connected(account, collect)

@@ -41,7 +41,7 @@ def test_zeitlimit_gibt_den_prozess_frei_und_der_job_laeuft_weiter(pool):
     def counter():  # laeuft nur, wenn der GIL frei ist
         while not stop.is_set():
             ticks.append(1)
-            time.sleep(0.01)
+            stop.wait(0.01)
 
     t = threading.Thread(target=counter)
     t.start()
@@ -69,7 +69,7 @@ def test_haengender_job_wird_nach_harter_grenze_beendet(pool, monkeypatch):
     with pytest.raises(mt5_reader.ReaderTimeout):
         reader.call("sleep", (30, "haengt"), 0.3)
     monkeypatch.setattr(mt5_reader, "READER_HARD_SEC", 0.2)
-    time.sleep(0.3)
+    threading.Event().wait(0.3)
     out = reader.call("sleep", (0, "neu"), 20)
     assert out["value"] == "neu" and out["pid"] != first
 
@@ -91,3 +91,41 @@ def test_ohne_metatrader5_laeuft_der_job_im_prozess(monkeypatch):
     assert mt5_reader.mode() == "process"
     monkeypatch.setenv("MT5_READER", "inline")
     assert mt5_reader.mode() == "inline"
+
+
+@pytest.mark.feature("ANA-04")
+def test_spaetes_ergebnis_desselben_jobs_wird_geliefert(pool):
+    # Review 1110-A2: ein Stueck, das laenger als das Budget braucht, darf nicht bei jeder Anfrage neu starten
+    reader = pool.readers[0]
+    reader.call("sleep", (0, "warm"), 20)
+    with pytest.raises(mt5_reader.ReaderTimeout):
+        pool.call("sleep", (1, "lang"), 0.2)
+    assert reader.pending_key == ("sleep", (1, "lang"))
+    out = pool.call("sleep", (1, "lang"), 5)  # der Pool waehlt den Leser mit genau diesem Job
+    assert out["value"] == "lang" and out["pid"] == reader.proc.pid and reader.pending_key is None
+
+
+@pytest.mark.feature("ANA-04")
+def test_fertige_antwort_wird_nach_harter_grenze_nicht_weggeworfen(pool, monkeypatch):
+    reader = pool.readers[0]
+    first = reader.call("sleep", (0, "a"), 20)["pid"]
+    with pytest.raises(mt5_reader.ReaderTimeout):
+        reader.call("sleep", (0.5, "b"), 0.1)
+    threading.Event().wait(1.0)  # Antwort liegt bereit (time.sleep ist in den Tests abgeschaltet)
+    monkeypatch.setattr(mt5_reader, "READER_HARD_SEC", 0.2)
+    out = reader.call("sleep", (0, "c"), 20)
+    assert out["value"] == "c" and out["pid"] == first  # kein Neustart
+
+
+@pytest.mark.feature("ANA-04")
+def test_kindausgabe_landet_in_eigener_logdatei(pool):
+    import src.utils.paths as paths
+
+    pool.call("sleep", (0, "x"), 20)
+    assert os.path.exists(os.path.join(paths.LOGS_DIR, "mt5-reader-1.log"))
+
+
+@pytest.mark.feature("ANA-04")
+def test_unbekannte_spur_wird_abgelehnt():
+    with pytest.raises(ValueError):
+        mt5_reader.run("rates_chunk", (), 1, lane="egal")
