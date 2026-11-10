@@ -2,8 +2,8 @@
 date: 2026-11-09
 author: Claude
 type: diagnosis
-status: open
-pr: []
+status: partly-done
+pr: [475, 477]
 features: [ANA-04, UI-22]
 areas: [worker]
 ---
@@ -111,3 +111,15 @@ Recommended order: R5 first (cheap, settles the open question), then R1 with R1.
 
 ## What was changed on the live worker
 Nothing but data: the cold fetches filled the market database with D1 (and some H4/M5) candles of the zone symbols and a few more symbols. No settings, no orders, no bot start or stop. The next cold test needs a symbol that the terminal has not loaded; the symbols listed above are warm now.
+
+## Result of the fix work (2026-11-10)
+- **R5** was already in `main` (PR 475, 477): `[rates-timing]` lines in `worker_console.log` and the `[heartbeat]` thread and loop task. Nothing new was added.
+- **R1, R1.1, R3** (this change, `market_sync.py`):
+  - A chunk now has a size per time frame (`CHUNK_BARS_BY_TF`: D1 250, H4 2000, H1 8000, M30 15 000, M15 20 000; M5 and M1 keep `CHUNK_BARS`). Only D1 is measured; the others are estimates.
+  - `_FETCH_SLOT` is taken and released for each chunk. Between two chunks the request sleeps 50 ms (was 0.5 s).
+  - After `FETCH_BUDGET_SEC` (8 s) the request stops and returns what it has. `next_from` points at the first chunk that was not fetched, and the reply has `"partial": "budget"`. There is **no** `missing` entry for the rest: the frontend (`loadAll`, `loadRates`) loops on `next_from` and adds the `missing` lists of all pages, so such an entry would draw a gap that the next page then fills. No frontend change was needed. A partial reply is not put in the tail cache.
+  - A request whose only missing range is one small range at the newest edge (not more than one chunk) does not take `_FETCH_SLOT` (R3). `_MT5_LOCK` still serializes the MT5 call itself.
+  - `classify` is unchanged and runs on each chunk as before, so `complete` and `gap_confirmed` stay right at chunk borders (new test with 45-candle chunks over a weekend).
+- Tests: five new tests in `tests/api/test_market_db_api.py` (ANA-04).
+- **Measure on the VPS:** (1) cold D1 on a symbol the terminal has not loaded: first reply in about 8 s with `partial: budget`, the full load takes about the same total time as before; (2) `GET /api/system/platform` during that fetch should answer within about 2 s (`[heartbeat] thread late` lines in `logs/worker_console.log` should show about 2 s at most); (3) H4/M5 of a warm symbol while a cold D1 runs: no `busy`.
+- Still open: R2 (frontend small first window), R4, R6.

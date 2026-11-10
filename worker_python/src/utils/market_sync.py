@@ -32,8 +32,13 @@ TIMEFRAMES = {
 }
 MAX_BARS = 50_000
 CHUNK_BARS = 44_640  # 31 gün M1
-CHUNK_PAUSE_SEC = 0.5
+# 1109-R1: Stueckgroesse nach Zeitkosten (~2 s je MT5-Aufruf), nicht nach Kerzenzahl. D1 kostet kalt ~7 ms je Kerze
+# (gemessen), H4 und kleinere sind deutlich billiger (nicht einzeln gemessen). CHUNK_BARS bleibt die Obergrenze.
+CHUNK_BARS_BY_TF = {"D1": 250, "H4": 2000, "H1": 8000, "M30": 15_000, "M15": 20_000}
+CHUNK_PAUSE_SEC = 0.05  # zwischen den Stuecken sind Slot und MT5-Sperre frei, der GIL auch
 FETCH_WAIT_SEC = 30
+# 1109-R1.1: Hoechstdauer der Abrufe einer Anfrage; danach kommen die bisherigen Stuecke mit next_from (partial="budget")
+FETCH_BUDGET_SEC = 8
 DEAL_CHUNK_SEC = 366 * 86400
 # Deal'lerin en yeni kenarı her seferinde yeniden eşitlenir: 24 saat örtüşme + broker farkı payı
 # (broker en fazla UTC−12; farkı bilmeden "broker şimdi − 24 sa" bundan önce olamaz)
@@ -463,6 +468,10 @@ def _fill_tick_spread(account: dict, source: str, symbol: str, a: int, b: int, b
     return sorted(missing, key=lambda m: m["from"])
 
 
+def chunk_bars(timeframe: str) -> int:
+    return min(CHUNK_BARS, CHUNK_BARS_BY_TF.get(timeframe, CHUNK_BARS))
+
+
 def _chunks(pieces, step):
     for a, b in pieces:
         x = a
@@ -496,7 +505,7 @@ def get_rates(account: dict, symbol: str, timeframe: str, a: int, b: int, busy: 
         for k in [k for k, (at, _) in _tail_cache.items() if now - at >= TAIL_CACHE_SEC]:
             del _tail_cache[k]
         # Geçici sorun (meşgul, MT5 hatası) önbellekte kalmasın: bir dahaki istek yeniden denesin
-        transient = any(m["reason"] in ("busy", "error", "syncing") for m in result["missing"]) or any(
+        transient = "partial" in result or any(m["reason"] in ("busy", "error", "syncing") for m in result["missing"]) or any(
             m["reason"] in ("busy", "error", "budget", "syncing") for m in result.get("tick_missing", []))
         if result["live_from"] is not None and not transient:
             _tail_cache[key] = (now, result)
@@ -512,45 +521,59 @@ def _get_rates(account: dict, source: str, symbol: str, timeframe: str, a: int, 
     fetched: dict[int, dict] = {}
     live = None
     full = False
+    stopped = None  # 1109-R1.1: Budget aufgebraucht -> Antwort endet hier, Rest ueber next_from
     if todo and busy:
         missing += [{"from": x, "to": y, "reason": "busy", "checked_at": None} for x, y in todo]
     elif todo:
-        t_slot = time.monotonic()
-        got_slot = _FETCH_SLOT.acquire(timeout=FETCH_WAIT_SEC)
-        obs_log.info("[rates-timing] fetch_slot %s %s wait=%.2fs got=%s", symbol, timeframe,
-                     time.monotonic() - t_slot, got_slot)
-        if not got_slot:
-            missing += [{"from": x, "to": y, "reason": "busy", "checked_at": None} for x, y in todo]
-        else:
+        chunk_sec = chunk_bars(timeframe) * tf_sec
+        # 1109-R3: nur ein kleines Endstueck fehlt (warmes Diagramm, laufende Kerze) -> kein Warten auf den Slot
+        # eines Langabrufs; die MT5-Sperre des Aufrufs selbst bleibt (mm._connected)
+        fast = len(todo) == 1 and todo[0][1] == end and todo[0][1] - todo[0][0] <= chunk_sec
+        t_fetch = time.monotonic()
+        for i, (x, y) in enumerate(_chunks(todo, chunk_sec)):
+            if i:
+                if time.monotonic() - t_fetch >= FETCH_BUDGET_SEC:
+                    stopped = x
+                    break
+                time.sleep(CHUNK_PAUSE_SEC)
+            t_slot = time.monotonic()
+            got_slot = fast or _FETCH_SLOT.acquire(timeout=FETCH_WAIT_SEC)
+            obs_log.info("[rates-timing] fetch_slot %s %s wait=%.2fs got=%s%s", symbol, timeframe,
+                         time.monotonic() - t_slot, got_slot, " fast" if fast else "")
+            if not got_slot:
+                if i:  # bisherige Stuecke gelten, der Rest kommt beim naechsten Aufruf
+                    stopped = x
+                else:
+                    missing += [{"from": p, "to": q, "reason": "busy", "checked_at": None} for p, q in todo]
+                break
             try:
-                for i, (x, y) in enumerate(_chunks(todo, CHUNK_BARS * tf_sec)):
-                    if i:
-                        time.sleep(CHUNK_PAUSE_SEC)
-                    try:
-                        part = _fetch_chunk(account, symbol, tf_name, x, y)
-                    except mm.MarketDataError as exc:
-                        missing.append({"from": x, "to": y, "reason": "error", "detail": exc.detail,
-                                        "checked_at": None})
-                        continue
-                    stored, segments, part_live = classify(part["bars"], x, y, tf_sec, part["latest"],
-                                                           part["has_before"])
-                    live = part_live or live
-                    # Üst zaman dilimi yüklenmemiş (alt dilimde mum var): "yok" diye kaydetme, sonra yeniden sor
-                    held = set(part["syncing"])
-                    segments = [seg for seg in segments if seg[:2] not in held]
-                    missing += [{"from": s, "to": t, "reason": "syncing", "checked_at": None} for s, t in sorted(held)]
-                    for r in stored:
-                        fetched[r["time"]] = r
-                    if not db.store_rates(source, symbol, tf_sec, stored, segments):
-                        full = True
-                    missing += [{"from": s, "to": t, "reason": db.STATE_UNAVAILABLE, "checked_at": int(time.time())}
-                                for s, t, state in segments if state == db.STATE_UNAVAILABLE]
-                    db.save_symbol_meta(source, symbol, part["digits"], part["point"])
-                    off = part["offset"]
-                    if off and off["reliable"] and part["server"]:
-                        db.log_broker_offset(part["server"], part["utc"], off["offset_sec"])
+                part = _fetch_chunk(account, symbol, tf_name, x, y)
+            except mm.MarketDataError as exc:
+                missing.append({"from": x, "to": y, "reason": "error", "detail": exc.detail, "checked_at": None})
+                continue
             finally:
-                _FETCH_SLOT.release()
+                if not fast:
+                    _FETCH_SLOT.release()
+            stored, segments, part_live = classify(part["bars"], x, y, tf_sec, part["latest"], part["has_before"])
+            live = part_live or live
+            # Üst zaman dilimi yüklenmemiş (alt dilimde mum var): "yok" diye kaydetme, sonra yeniden sor
+            held = set(part["syncing"])
+            segments = [seg for seg in segments if seg[:2] not in held]
+            missing += [{"from": s, "to": t, "reason": "syncing", "checked_at": None} for s, t in sorted(held)]
+            for r in stored:
+                fetched[r["time"]] = r
+            if not db.store_rates(source, symbol, tf_sec, stored, segments):
+                full = True
+            missing += [{"from": s, "to": t, "reason": db.STATE_UNAVAILABLE, "checked_at": int(time.time())}
+                        for s, t, state in segments if state == db.STATE_UNAVAILABLE]
+            db.save_symbol_meta(source, symbol, part["digits"], part["point"])
+            off = part["offset"]
+            if off and off["reliable"] and part["server"]:
+                db.log_broker_offset(part["server"], part["utc"], off["offset_sec"])
+        if stopped is not None:
+            end = stopped
+            missing = [m for m in missing if m["from"] < end]
+            live = live if live and live["time"] < end else None
 
     tick_missing = _fill_tick_spread(account, source, symbol, a, end, busy, tick_replay) if tick_spread else None
     rows = db.read_rates(source, symbol, tf_sec, a, end, MAX_BARS + 1, with_ticks=tick_spread)
@@ -585,6 +608,8 @@ def _get_rates(account: dict, source: str, symbol: str, timeframe: str, a: int, 
         "missing": sorted(missing, key=lambda m: m["from"]),
         "db_full": full,
     }
+    if stopped is not None:
+        result["partial"] = "budget"
     if tick_spread:
         result["sa"] = [r.get("sa") for r in rows]
         result["sx"] = [r.get("sx") for r in rows]
