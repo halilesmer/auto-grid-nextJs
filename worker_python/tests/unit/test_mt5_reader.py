@@ -110,8 +110,8 @@ def test_fertige_antwort_wird_nach_harter_grenze_nicht_weggeworfen(pool, monkeyp
     reader = pool.readers[0]
     first = reader.call("sleep", (0, "a"), 20)["pid"]
     with pytest.raises(mt5_reader.ReaderTimeout):
-        reader.call("sleep", (0.5, "b"), 0.1)
-    threading.Event().wait(1.0)  # Antwort liegt bereit (time.sleep ist in den Tests abgeschaltet)
+        reader.call("sleep", (1.5, "b"), 0.1)  # gewartet wird mindestens MIN_WAIT_SEC (0.5 s): Job deutlich laenger
+    threading.Event().wait(2.0)  # Antwort liegt bereit (time.sleep ist in den Tests abgeschaltet)
     monkeypatch.setattr(mt5_reader, "READER_HARD_SEC", 0.2)
     out = reader.call("sleep", (0, "c"), 20)
     assert out["value"] == "c" and out["pid"] == first  # kein Neustart
