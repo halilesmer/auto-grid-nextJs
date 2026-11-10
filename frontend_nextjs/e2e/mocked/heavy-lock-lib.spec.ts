@@ -65,6 +65,21 @@ async function waitFor(cond: () => boolean, ms = 10_000) {
 }
 
 /**
+ * Wartet auf eine Meldung des Wartenden (Bedingung statt Uhr) und beendet ihn dann. Ein Test, der
+ * eine Meldung prüft, darf nicht von HEAVY_LOCK_TIMEOUT (ganze Wanduhr-Sekunden) abhängen: unter
+ * Last überschreitet schon der Start eine Sekundengrenze, und der Wartende gibt auf, bevor er die
+ * Meldung schreibt (SYS-11, Flake 2026-11-07 und 2026-11-10).
+ */
+async function stopAfterMessage(w: ReturnType<typeof runAsync>, ...patterns: RegExp[]) {
+  try {
+    await waitFor(() => patterns.every((p) => p.test(w.err())), 30_000);
+  } finally {
+    w.child.kill('SIGTERM');
+  }
+  await w.done;
+}
+
+/**
  * Wartet, bis die Hülle ihren Befehl gestartet hat. `owner` wird VOR dem Befehl geschrieben: ein
  * `pkill -P` direkt nach `owner` kann ins Leere gehen (unter Last, R3-Nachlauf), und dann hält
  * bash das TERM-Signal zurück, bis das 30 s lange `sleep` endet.
@@ -175,10 +190,9 @@ test.describe('Sperre für schwere Läufe', { tag: '@SYS-11' }, () => {
     });
     const aDone = new Promise<number | null>((resolve) => a.on('exit', (code) => resolve(code)));
     await waitFor(() => existsSync(path.join(lockDir, 'step')));
-    const warn = run(['echo', 'nie'], { HEAVY_LOCK_MAX_IDLE: '2', HEAVY_LOCK_TIMEOUT: '5' });
-    expect(warn.status).toBe(75);
-    expect(warn.stderr).toContain('ohne Fortschritt');
-    expect(warn.stderr).toContain('letzter Schritt: e2e');
+    const warn = runAsync(['echo', 'nie'], { HEAVY_LOCK_MAX_IDLE: '2' });
+    await stopAfterMessage(warn, /ohne Fortschritt/, /letzter Schritt: e2e/);
+    expect(existsSync(lockDir)).toBe(true); // Warnung allein beendet den Halter nicht
     const brk = run(['echo', 'B lief'], { HEAVY_LOCK_MAX_IDLE: '2', HEAVY_LOCK_BREAK: '1' });
     expect(brk.status).toBe(0);
     expect(brk.stdout).toContain('B lief');
@@ -199,14 +213,12 @@ test.describe('Sperre für schwere Läufe', { tag: '@SYS-11' }, () => {
   test('Uhrsprung (Ruhezustand) setzt den Leerlaufzähler zurück', async () => {
     const a = runAsync(['sleep', '30']);
     await waitFor(() => existsSync(path.join(lockDir, 'owner')));
-    const w = runAsync(['echo', 'nie'], { HEAVY_LOCK_SLEEP_GAP: '1', HEAVY_LOCK_TIMEOUT: '6' });
-    await new Promise((r) => setTimeout(r, 1000));
+    const w = runAsync(['echo', 'nie'], { HEAVY_LOCK_SLEEP_GAP: '1' });
+    await waitFor(() => /sitze an 1\. Stelle/.test(w.err()), 30_000); // Wartender hat die Schleife erreicht
     w.child.kill('SIGSTOP'); // Wartender „schläft“ wie ein zugeklappter Mac
-    await new Promise((r) => setTimeout(r, 3000));
+    await new Promise((r) => setTimeout(r, 3000)); // echte Wanduhrzeit: der Sprung ist der Gegenstand
     w.child.kill('SIGCONT');
-    const rw = await w.done;
-    expect(rw.code).toBe(75);
-    expect(rw.stderr).toContain('Uhrsprung');
+    await stopAfterMessage(w, /Uhrsprung/);
     spawnSync('pkill', ['-P', String(a.child.pid)]);
     await a.done;
   });
@@ -254,10 +266,9 @@ test.describe('Sperre für schwere Läufe', { tag: '@SYS-11' }, () => {
   test('fremder owner ohne pid: Wartender löscht nicht, läuft erst nach Freigabe', async () => {
     mkdirSync(lockDir);
     writeFileSync(path.join(lockDir, 'owner'), 'pane-model-pr2 osc-panes-tv 18:00\n');
-    const t = run(['echo', 'nie'], { HEAVY_LOCK_TIMEOUT: '2' });
-    expect(t.status).toBe(75);
-    expect(t.stderr).toContain('fremder Halter');
-    expect(t.stderr).not.toContain('veraltete Sperre');
+    const t = runAsync(['echo', 'nie']);
+    await stopAfterMessage(t, /fremder Halter/);
+    expect(t.err()).not.toContain('veraltete Sperre');
     expect(readFileSync(path.join(lockDir, 'owner'), 'utf8')).toContain('pane-model-pr2');
     const w = runAsync(['echo', 'nach Freigabe']);
     let out = '';
@@ -354,14 +365,13 @@ test.describe('Sperre für schwere Läufe', { tag: '@SYS-11' }, () => {
     expect(readFileSync(path.join(lockDir, 'owner'), 'utf8')).toContain(`${rootPid} other-worktree`);
   });
 
-  test('owner mit pid 1 gilt als fremder Halter: nie ein Baum ab pid 1 beendet (R3-10)', () => {
+  test('owner mit pid 1 gilt als fremder Halter: nie ein Baum ab pid 1 beendet (R3-10)', async () => {
     mkdirSync(lockDir);
     writeFileSync(path.join(lockDir, 'owner'), '1 other-worktree 12:00:00\n');
-    const wait = run(['echo', 'nie'], { HEAVY_LOCK_TIMEOUT: '1' });
-    expect(wait.status).toBe(75);
-    expect(wait.stderr).toContain('fremder Halter');
+    const wait = runAsync(['echo', 'nie']);
+    await stopAfterMessage(wait, /fremder Halter/);
     // BREAK: bei einem fremden Halter nur das Verzeichnis löschen, nie einen Prozess beenden
-    const brk = run(['echo', 'B lief'], { HEAVY_LOCK_MAX_IDLE: '0', HEAVY_LOCK_BREAK: '1', HEAVY_LOCK_TIMEOUT: '10' });
+    const brk = run(['echo', 'B lief'], { HEAVY_LOCK_MAX_IDLE: '0', HEAVY_LOCK_BREAK: '1' });
     expect(brk.status).toBe(0);
     expect(brk.stderr).toContain('fremde Sperre');
     expect(brk.stderr).not.toContain('beende Prozessbaum');
@@ -382,8 +392,11 @@ test.describe('Sperre für schwere Läufe', { tag: '@SYS-11' }, () => {
     expect(Math.abs(Number(da?.[1]) - Date.now() / 1000)).toBeLessThan(30);
   });
 
-  test('viele Wartende vor einer toten Sperre: nie zwei im kritischen Bereich (R3-03)', () => {
-    test.setTimeout(150_000); // vier Runden mit je 15 Hüllen; auf einer ausgelasteten Maschine über 30 s
+  test('viele Wartende vor einer toten Sperre: nie zwei im kritischen Bereich (R3-03)', async () => {
+    // Vier Runden mit je 15 Hüllen. Das Ende bestimmt der Prüfstand selbst (er wartet auf alle Hüllen),
+    // nicht eine Uhr: ein spawnSync-Zeitlimit von 120 s riss ihn auf einer ausgelasteten Maschine mitten
+    // in Runde 4 ab (SYS-11). Das Playwright-Zeitlimit ist nur die Sicherung gegen ein Hängen.
+    test.setTimeout(600_000);
     // Je Runde: tote Sperre, 15 gleichzeitige Hüllen. Der kritische Bereich ist ein mkdir ohne Wartezeit:
     // schlägt es fehl, hielten zwei gleichzeitig die Sperre. Der alte Stand verletzte das in etwa
     // jeder zweiten Runde (eine Hülle löschte die frische Sperre einer anderen).
@@ -404,7 +417,14 @@ test.describe('Sperre für schwere Läufe', { tag: '@SYS-11' }, () => {
         echo "round $round violations=$(grep -c VIOLATION "$d/out" 2>/dev/null || true) done=$(grep -c OK "$d/out" 2>/dev/null || true) stale=$(grep -c 'veraltete Sperre gelöscht' "$d/err" 2>/dev/null || true)"
         echo "dbg rcs=[$(cat "$d/rcs" 2>/dev/null | sort | uniq -c | tr '\n' ' ')] err=[$(sort "$d/err" 2>/dev/null | uniq -c | sort -rn | head -6 | cut -c1-150 | tr '\n' '|')]"
       done`;
-    const r = spawnSync('bash', ['-c', harness], { env: env(), encoding: 'utf8', timeout: 120_000 });
+    const r = await new Promise<{ stdout: string; stderr: string }>((resolve) => {
+      const child = spawn('bash', ['-c', harness], { env: env() });
+      let stdout = '';
+      let stderr = '';
+      child.stdout.on('data', (d) => (stdout += d));
+      child.stderr.on('data', (d) => (stderr += d));
+      child.on('exit', () => resolve({ stdout, stderr }));
+    });
     const rounds = r.stdout.trim().split('\n').filter((l) => l.startsWith('round'));
     const dbg = r.stdout + r.stderr; // bei einem Fehler in der Meldung: Austrittscodes und stderr der Hüllen
     expect(rounds, dbg).toHaveLength(4);

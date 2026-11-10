@@ -89,7 +89,7 @@ async function startServer(dir: string, marker: string[]) {
   return { port, pid };
 }
 
-test.describe('e2e_server.sh', { tag: '@SYS-10' }, () => {
+test.describe('e2e_server.sh', { tag: ['@SYS-10', '@SYS-11'] }, () => {
   test.skip(spawnSync('which', ['lsof']).status !== 0, 'lsof fehlt');
 
   test('verwaister Server in einem Checkout-Pfad mit „playwright“ wird beendet (R3-06)', async () => {

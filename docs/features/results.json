@@ -1499,16 +1499,16 @@
   },
   "SYS-10": {
     "e2e": {
-      "datum": "2026-11-05",
+      "datum": "2026-11-10",
       "status": "passed",
       "tests": 6
     }
   },
   "SYS-11": {
     "e2e": {
-      "datum": "2026-11-07",
-      "status": "failed",
-      "tests": 24
+      "datum": "2026-11-10",
+      "status": "passed",
+      "tests": 31
     }
   },
   "SYS-12": {
