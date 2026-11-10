@@ -76,3 +76,13 @@ test('Fehlen die inneren Felder des DrawingManager (Bibliothek-Update), tut der 
   try { expect(extendFibHit({} as never)).toBe(false); } finally { console.warn = warn; }
   expect(calls).toHaveLength(1);
 });
+
+test('Fib-Seviye üzerinde fare: imleç değişir (tutamaçlar), boş alanda değişmez', { tag: '@ANA-17' }, async ({ page, worker }) => {
+  void worker;
+  const g = await drawFib(page);
+  const cursorAt = (x: number, y: number) => page.evaluate(([px, py]) => { const el = document.elementFromPoint(px, py); return el ? getComputedStyle(el).cursor : ''; }, [x, y]);
+  await page.mouse.move(g.xEmpty, g.yEmpty, { steps: 3 });
+  const idle = await cursorAt(g.xEmpty, g.yEmpty);
+  await page.mouse.move(g.x, g.yOutside, { steps: 5 });
+  await expect.poll(() => cursorAt(g.x, g.yOutside)).not.toBe(idle);
+});
