@@ -9,7 +9,7 @@ import type { LoadedRates } from '../../src/lib/backtest/candles/loadRates';
 import type { RunRequest, WorkerMessage } from '../../src/lib/backtest/protocol';
 import { RunError } from '../../src/lib/backtest/runContext';
 import { runJob } from '../../src/lib/backtest/runJob';
-import { runBacktest, type RunInput, type RunModel } from '../../src/lib/backtest/runner';
+import { runBacktest, TRIGGER_REPLAY_DEFAULT, type RunInput, type RunModel } from '../../src/lib/backtest/runner';
 import type { SymbolDetail } from '../../src/store/types';
 
 const DETAIL: SymbolDetail = {
@@ -71,8 +71,9 @@ test.describe('Ausführungsverzögerung im Replay', () => {
     expect(result.trades[0].exitPrice).toBe(2650.7); // closeAtEnd: Bid der letzten Quote
   });
 
-  test('ohne Schalter bleibt die Füllung beim Tick der Auslösung (2651,00)', { tag: '@BKT-23' }, () => {
-    expect(run(withReplay(candles(FLAT), { [T1]: PACK })).trades[0].entryPrice).toBe(2651.0);
+  test('Vorgabe ist an (TRIGGER_REPLAY_DEFAULT); nur der ausgeschaltete Schalter lässt die Füllung beim Tick der Auslösung (2651,00)', { tag: '@BKT-23' }, () => {
+    expect(TRIGGER_REPLAY_DEFAULT).toBe(true);
+    expect(run(withReplay(candles(FLAT), { [T1]: PACK })).trades[0].entryPrice).toBe(2650.94);
     expect(run(withReplay(candles(FLAT), { [T1]: PACK }), { triggerReplay: false }).trades[0].entryPrice).toBe(2651.0);
   });
 
@@ -90,7 +91,8 @@ test.describe('Ausführungsverzögerung im Replay', () => {
     expect(run(candles(two), { triggerReplay: true }).triggerMinutes).toEqual([]); // keine Replay-Karte: der Lauf kennt den Spread „tick“ nur mit `replay`
     const lone = withReplay(candles(two), { [T1 + 60]: [[0, 2650.8, 2651.0], [30000, 2650.8, 2651.0]] });
     expect(run(lone, { triggerReplay: true }).triggerMinutes).toEqual([T1]);
-    expect(run(lone).triggerMinutes).toEqual([]);
+    expect(run(lone, { triggerReplay: false }).triggerMinutes).toEqual([]);
+    expect(run(lone).triggerMinutes).toEqual([T1]); // Vorgabe an
   });
 });
 
@@ -191,8 +193,8 @@ test.describe('Auftrag: Durchgänge, Abruf und Rückfall', () => {
     expect(replayCalls(cappedCalls)).toHaveLength(1);
   });
 
-  test('Rückfall: ohne Schalter, mit „max“, „Aus der Kerze“, CSV oder Uferfehler 404 rechnet der Lauf wie heute', { tag: '@BKT-23' }, async () => {
-    const off = request({ model: { fill: 'gap', slFirst: false, closeAtEnd: true } });
+  test('Rückfall: Schalter aus, mit „max“, „Aus der Kerze“, CSV oder Uferfehler 404 rechnet der Lauf wie heute', { tag: '@BKT-23' }, async () => {
+    const off = request({ model: { fill: 'gap', slFirst: false, closeAtEnd: true, triggerReplay: false } });
     const calls: string[] = [];
     const baseline = await job(off, worker([C1, C2], SERVED, calls));
     expect(replayCalls(calls)).toEqual([]);
@@ -222,7 +224,7 @@ test.describe('Auftrag: Durchgänge, Abruf und Rückfall', () => {
   test('Worker beschäftigt (missing busy): Minuten gelten als nicht abgespielt, Warnung, Ergebnis wie ohne Schalter', { tag: '@BKT-23' }, async () => {
     const calls: string[] = [];
     const busy = await job(request(), worker([C1, C2], SERVED, calls, undefined, true));
-    const off = await job(request({ model: { fill: 'gap', slFirst: false, closeAtEnd: true } }), worker([C1, C2], SERVED, []));
+    const off = await job(request({ model: { fill: 'gap', slFirst: false, closeAtEnd: true, triggerReplay: false } }), worker([C1, C2], SERVED, []));
     expect(JSON.stringify(busy.result.trades)).toBe(JSON.stringify(off.result.trades));
     expect(line(busy.result, 'run.triggerReplayBudget')).toMatchObject({ level: 'WARN', params: { minutes: 0, dropped: 2 } });
     expect(line(busy.result, 'run.triggerReplay')).toBeUndefined();

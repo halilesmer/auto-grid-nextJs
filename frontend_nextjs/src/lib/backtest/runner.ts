@@ -36,8 +36,8 @@ const REPLAY_BOT_INTERVAL = 1;
 const REPLAY_BAR_TOLERANCE_POINTS = 1.5;
 /** BKT-23: Ausführungsverzögerung des Brokers in ms: Füllung und Ausstieg im Replay nehmen die letzte Quote bis so lange nach der Auslösung (Plan 1109-K57.2) */
 export const REPLAY_FILL_LATENCY_MS = 1;
-/** BKT-23: Vorgabe für `RunModel.triggerReplay`; erst nach der Abnahme (Plan 1109-K57.3/K57.4) auf true, ein Zeilenwechsel */
-export const TRIGGER_REPLAY_DEFAULT = false;
+/** BKT-23: Vorgabe für `RunModel.triggerReplay`; nach der Abnahme A und B an (Plan 1109-K57.3/K57.4, Entscheidung 1110-K3.2) */
+export const TRIGGER_REPLAY_DEFAULT = true;
 
 export interface RunModel {
   fill: FillModel;
