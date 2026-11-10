@@ -309,6 +309,92 @@ def test_lange_zeitraeume_in_stuecken_und_mit_next_from(client, broker, monkeypa
     assert rest["t"][0] == MON + 6000 and rest["next_from"] is None
 
 
+class _SlotSpy:
+    """Zaehlt acquire/release des Abruf-Slots (1109-R1: je Stueck einmal, nicht einmal je Anfrage)."""
+
+    def __init__(self):
+        self.acquired = 0
+        self.released = 0
+
+    def acquire(self, blocking=True, timeout=None):
+        self.acquired += 1
+        return True
+
+    def release(self):
+        self.released += 1
+
+
+@pytest.mark.feature("ANA-04")
+def test_kaltabruf_wird_nach_zeitkosten_geteilt_und_slot_je_stueck_freigegeben(client, broker, monkeypatch):
+    # 1109-R1: Stueckgroesse je Zeitrahmen (D1 klein), Slot zwischen den Stuecken frei, 50 ms Pause
+    assert market_sync.CHUNK_BARS_BY_TF["D1"] < market_sync.CHUNK_BARS_BY_TF["H4"] <= market_sync.CHUNK_BARS
+    pauses = []
+    monkeypatch.setattr(market_sync, "CHUNK_PAUSE_SEC", 0.05)
+    monkeypatch.setattr(market_sync.time, "sleep", pauses.append)
+    spy = _SlotSpy()
+    monkeypatch.setattr(market_sync, "_FETCH_SLOT", spy)
+    monkeypatch.setitem(market_sync.CHUNK_BARS_BY_TF, "M1", 60)
+    get_rates(client, MON, MON + 3 * 3600)
+    assert broker.range_calls[:3] == [(MON, MON + 3600 - 1), (MON + 3600, MON + 7200 - 1),
+                                      (MON + 7200, MON + 10800 - 1)]
+    assert spy.acquired == spy.released == 3
+    assert [p for p in pauses if p == 0.05] == [0.05, 0.05]
+
+
+@pytest.mark.feature("ANA-04")
+def test_budget_liefert_teilergebnis_mit_next_from_und_setzt_fort(client, broker, monkeypatch):
+    # 1109-R1.1: Budget leer -> nur das erste Stueck, Rest ueber next_from (kein "missing"-Eintrag, sonst Luecke im Chart)
+    monkeypatch.setitem(market_sync.CHUNK_BARS_BY_TF, "M1", 60)
+    monkeypatch.setattr(market_sync, "FETCH_BUDGET_SEC", 0)
+    body = get_rates(client, MON, MON + 3 * 3600)
+    assert body["t"] == list(range(MON, MON + 3600, 60))
+    assert body["next_from"] == MON + 3600 and body["partial"] == "budget" and body["missing"] == []
+    assert market_sync._tail_cache == {}
+    nxt = get_rates(client, body["next_from"], MON + 3 * 3600)
+    assert nxt["t"][0] == MON + 3600 and nxt["next_from"] == MON + 7200
+    monkeypatch.setattr(market_sync, "FETCH_BUDGET_SEC", 8)
+    last = get_rates(client, nxt["next_from"], MON + 3 * 3600)
+    assert last["next_from"] is None and last.get("partial") is None
+    assert [r[2] for r in coverage_rows()] == ["complete"]
+
+
+@pytest.mark.feature("ANA-04")
+def test_nur_neuester_bereich_wartet_nicht_auf_langen_abruf(client, broker, monkeypatch):
+    # 1109-R3: Slot belegt (kalter Langabruf laeuft), warmes Diagramm braucht nur das Endstueck
+    get_rates(client, MON, MON + 1800)
+    monkeypatch.setattr(market_sync, "FETCH_WAIT_SEC", 0.2)
+    assert market_sync._FETCH_SLOT.acquire(timeout=1)
+    try:
+        body = get_rates(client, MON, LIVE + 60)
+    finally:
+        market_sync._FETCH_SLOT.release()
+    assert body["missing"] == [] and body["live_from"] == LIVE and len(body["t"]) == 121
+
+
+@pytest.mark.feature("ANA-04")
+def test_langer_abruf_wartet_weiter_auf_den_slot(client, broker, monkeypatch):
+    monkeypatch.setattr(market_sync, "FETCH_WAIT_SEC", 0.2)
+    assert market_sync._FETCH_SLOT.acquire(timeout=1)
+    try:
+        monkeypatch.setitem(market_sync.CHUNK_BARS_BY_TF, "M1", 60)
+        body = get_rates(client, MON, LIVE + 60)  # mehr als ein Stueck noetig -> kein Schnellweg
+    finally:
+        market_sync._FETCH_SLOT.release()
+    assert body["t"] == [] and {m["reason"] for m in body["missing"]} == {"busy"}
+
+
+@pytest.mark.feature("ANA-04")
+def test_marken_an_stueckgrenzen_bleiben_richtig(client, broker, monkeypatch):
+    monkeypatch.setitem(market_sync.CHUNK_BARS_BY_TF, "M1", 45)
+    body = get_rates(client, SAT - 3600, MON + 3600)
+    assert body["t"] == list(range(SAT - 3600, SAT, 60)) + list(range(MON, MON + 3600, 60))
+    rows = coverage_rows()
+    assert {r[2] for r in rows} <= {"complete", "gap_confirmed"}
+    assert rows[0][0] == SAT - 3600 and rows[-1][1] == MON + 3600
+    assert all(a[1] == b[0] for a, b in zip(rows, rows[1:]))  # lueckenlos
+    assert any(r[2] == "gap_confirmed" and r[0] <= SAT and r[1] >= MON - 45 * 60 for r in rows) or len(rows) >= 2
+
+
 @pytest.mark.feature("ANA-04")
 def test_volle_datenbank_speichert_keine_kerzen_liefert_sie_aber(client, broker, monkeypatch):
     monkeypatch.setenv("MARKET_DB_MAX_MB", "0")
