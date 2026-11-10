@@ -12,6 +12,7 @@ const REASON_KEYS: Record<string, MessageKey> = {
   unavailable: 'analysis.data.reason.unavailable',
   error: 'analysis.data.reason.error',
   busy: 'analysis.data.reason.busy',
+  syncing: 'analysis.data.reason.syncing',
   invalid: 'analysis.data.reason.invalid',
 };
 /** So viele Bereiche werden einzeln genannt, der Rest gezählt */
