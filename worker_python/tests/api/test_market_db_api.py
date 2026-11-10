@@ -13,7 +13,7 @@ import time
 import pytest
 
 import src.utils.mt5_connection as mc
-from src.utils import market_db, market_sync, mt5_market
+from src.utils import market_db, market_sync, mt5_market, mt5_reader
 from tests.api.conftest import account
 from tests.conftest import TEST_ACCOUNT_ID
 from tests.fakes.fake_mt5 import FakeMT5
@@ -374,13 +374,69 @@ def test_nur_neuester_bereich_wartet_nicht_auf_langen_abruf(client, broker, monk
 @pytest.mark.feature("ANA-04")
 def test_langer_abruf_wartet_weiter_auf_den_slot(client, broker, monkeypatch):
     monkeypatch.setattr(market_sync, "FETCH_WAIT_SEC", 0.2)
-    assert market_sync._FETCH_SLOT.acquire(timeout=1)
+    slots = mt5_reader.READER_COUNT  # 1110-A2: so viele Langabrufe zugleich, alle belegt
+    for _ in range(slots):
+        assert market_sync._FETCH_SLOT.acquire(timeout=1)
     try:
         monkeypatch.setitem(market_sync.CHUNK_BARS_BY_TF, "M1", 60)
         body = get_rates(client, MON, LIVE + 60)  # mehr als ein Stueck noetig -> kein Schnellweg
     finally:
-        market_sync._FETCH_SLOT.release()
+        for _ in range(slots):
+            market_sync._FETCH_SLOT.release()
     assert body["t"] == [] and {m["reason"] for m in body["missing"]} == {"busy"}
+
+
+def _reader_times_out_after(monkeypatch, n_ok):
+    """mt5_reader.run: die ersten n_ok Stuecke kommen (im Prozess), danach Zeitlimit (Terminal laedt Historie)."""
+    calls = []
+
+    def run(job, args, timeout):
+        calls.append((job, args[3], timeout))
+        if len(calls) > n_ok:
+            raise mt5_reader.ReaderTimeout("laedt")
+        return market_sync._fetch_chunk(*args)
+
+    monkeypatch.setattr(mt5_reader, "run", run)
+    return calls
+
+
+@pytest.mark.feature("ANA-04")
+def test_erstes_stueck_im_zeitlimit_meldet_syncing_ohne_next_from_auf_from(client, broker, monkeypatch):
+    # 1110-A2: kalter Erstzugriff haelt den Leseprozess fest -> Antwort im Budget, nichts gespeichert, nicht gecacht
+    calls = _reader_times_out_after(monkeypatch, 0)
+    body = get_rates(client, MON, LIVE + 60)
+    assert body["t"] == [] and body["partial"] == "budget"
+    assert body["next_from"] is None  # nie == from: der Client bricht sonst ab (Backtest: badRatesResponse)
+    assert {m["reason"] for m in body["missing"]} == {"syncing"}
+    assert body["missing"][0]["from"] == MON and body["missing"][-1]["to"] == LIVE + 60
+    assert 0 < calls[0][2] <= market_sync.FETCH_BUDGET_SEC
+    assert coverage_rows() == [] and market_sync._tail_cache == {}
+    # Danach (Terminal warm) kommt alles
+    monkeypatch.setattr(mt5_reader, "run", lambda job, args, timeout: market_sync._fetch_chunk(*args))
+    assert len(get_rates(client, MON, LIVE + 60)["t"]) == 121
+
+
+@pytest.mark.feature("ANA-04")
+def test_zeitlimit_nach_erstem_stueck_setzt_ueber_next_from_fort(client, broker, monkeypatch):
+    monkeypatch.setitem(market_sync.CHUNK_BARS_BY_TF, "M1", 60)
+    calls = _reader_times_out_after(monkeypatch, 1)
+    body = get_rates(client, MON, MON + 3 * 3600)
+    assert body["t"] == list(range(MON, MON + 3600, 60))
+    assert body["next_from"] == MON + 3600 and body["partial"] == "budget" and body["missing"] == []
+    assert [c[1] for c in calls] == [MON, MON + 3600]
+    # Restbudget, nicht das volle Budget je Stueck
+    assert calls[1][2] <= calls[0][2]
+
+
+@pytest.mark.feature("ANA-04")
+def test_kalter_kurzer_erstzugriff_nimmt_nicht_den_schnellweg(client, broker, monkeypatch):
+    # 1110-A2: ohne Kerzen davor in der Datenbank laeuft auch ein kleines Endstueck im Leseprozess
+    calls = _reader_times_out_after(monkeypatch, 99)
+    get_rates(client, LIVE - 600, LIVE + 60)
+    assert len(calls) == 1
+    market_sync._tail_cache.clear()
+    body = get_rates(client, LIVE - 600, LIVE + 120)  # Kerzen davor gespeichert, nur das Endstueck fehlt -> Schnellweg
+    assert len(calls) == 1 and body["live_from"] == LIVE
 
 
 @pytest.mark.feature("ANA-04")

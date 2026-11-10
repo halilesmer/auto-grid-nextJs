@@ -7,8 +7,10 @@ docs/analyse-regeln.md §3 ve §8:
   hiçbir şey yok: 24 saat sonra yeniden denenir). Hata saklanmaz, bir dahaki istekte yeniden denenir.
 - MT5'in en yeni mumu (çoğunlukla oluşmakta olan) hiçbir zaman saklanmaz ve tamam sayılmaz;
   yanıta canlı olarak eklenir.
-- Canlı botu korumak için: parçalar en fazla ~1 ay M1, aynı anda tek geçmiş sorgusu (semafor),
-  parçalar arasında 0,5 sn ara, her parça kendi bağlantısı ve kilidiyle (araya bot/diğer istekler girer).
+- Canlı botu korumak için: parçalar küçük, aynı anda en çok READER_COUNT geçmiş sorgusu (semafor),
+  parçalar arasında kısa ara, her parça kendi bağlantısı ve kilidiyle (araya bot/diğer istekler girer).
+- 1110-A2: uzun sürebilecek çekişler (mum parçası, tick parçası) API sürecinde değil, okuyucu
+  süreçte koşar (`mt5_reader`); MT5 çağrısı GIL'i tutsa da API süreci yanıt verir.
 """
 import json
 import logging
@@ -18,6 +20,7 @@ import time
 
 from src.utils import market_db as db
 from src.utils import mt5_market as mm
+from src.utils import mt5_reader
 from src.utils.worker_obs import obs_log
 
 # Zaman dilimi → (MT5 sabitinin adı, saniye)
@@ -87,7 +90,8 @@ GRID_CANDIDATES = (100, 50, 25, 20, 10, 5, 4, 2)
 GRID_SHARE = 0.99
 GRID_MIN_STEPS = 50
 _log = logging.getLogger(__name__)
-_FETCH_SLOT = threading.Semaphore(1)
+# Aynı anda en çok bu kadar uzun çekiş (okuyucu başına bir); soğuk bir sembol birini tutarken diğeri boştur (1110-A2)
+_FETCH_SLOT = threading.Semaphore(mt5_reader.READER_COUNT)
 # Uç parçası (canlı mumu içeren yanıt) 30 sn tekrar kullanılır: grafik her dakika ucu yeniler,
 # birden fazla sekme/kullanıcı aynı anda sorsa da MT5'e en fazla 30 sn'de bir bağlanılır
 TAIL_CACHE_SEC = 30
@@ -444,7 +448,11 @@ def _fill_tick_spread(account: dict, source: str, symbol: str, a: int, b: int, b
             break
         fetched += 1
         try:
-            part = _fetch_tick_piece(account, symbol, x, y, replay)
+            part = mt5_reader.run("tick_piece", (account, symbol, x, y, replay),
+                                  max(mt5_reader.MIN_WAIT_SEC, deadline - time.monotonic()))
+        except mt5_reader.ReaderTimeout:
+            missing += [{"from": p, "to": q, "reason": "budget", "checked_at": None} for p, q in pieces[i:]]
+            break
         except mm.MarketDataError as exc:
             missing.append({"from": x, "to": y, "reason": "error", "detail": exc.detail, "checked_at": None})
             continue
@@ -522,13 +530,16 @@ def _get_rates(account: dict, source: str, symbol: str, timeframe: str, a: int, 
     live = None
     full = False
     stopped = None  # 1109-R1.1: Budget aufgebraucht -> Antwort endet hier, Rest ueber next_from
+    timed_out = False  # 1110-A2: schon das erste Stueck kam nicht im Budget
     if todo and busy:
         missing += [{"from": x, "to": y, "reason": "busy", "checked_at": None} for x, y in todo]
     elif todo:
         chunk_sec = chunk_bars(timeframe) * tf_sec
         # 1109-R3: nur ein kleines Endstueck fehlt (warmes Diagramm, laufende Kerze) -> kein Warten auf den Slot
         # eines Langabrufs; die MT5-Sperre des Aufrufs selbst bleibt (mm._connected)
-        fast = len(todo) == 1 and todo[0][1] == end and todo[0][1] - todo[0][0] <= chunk_sec
+        # 1110-A2: nur wenn davor schon Kerzen in der Datenbank liegen (todo beginnt nach `a`); ein kalter Erstzugriff
+        # (auch ein kurzer) laeuft im Leseprozess, weil MT5 dabei die ganze Historie laden kann
+        fast = len(todo) == 1 and a < todo[0][0] and todo[0][1] == end and todo[0][1] - todo[0][0] <= chunk_sec
         t_fetch = time.monotonic()
         for i, (x, y) in enumerate(_chunks(todo, chunk_sec)):
             if i:
@@ -547,7 +558,20 @@ def _get_rates(account: dict, source: str, symbol: str, timeframe: str, a: int, 
                     missing += [{"from": p, "to": q, "reason": "busy", "checked_at": None} for p, q in todo]
                 break
             try:
-                part = _fetch_chunk(account, symbol, tf_name, x, y)
+                if fast:  # sıcak sembolün ucu: kısa, API sürecinde
+                    part = _fetch_chunk(account, symbol, tf_name, x, y)
+                else:  # 1110-A2: okuyucu süreçte; en çok kalan bütçe kadar beklenir
+                    wait = max(mt5_reader.MIN_WAIT_SEC, FETCH_BUDGET_SEC - (time.monotonic() - t_fetch))
+                    part = mt5_reader.run("rates_chunk", (account, symbol, tf_name, x, y), wait)
+            except mt5_reader.ReaderTimeout:
+                if i:  # bisherige Stuecke gelten, der Rest kommt beim naechsten Aufruf
+                    stopped = x
+                else:
+                    # Terminal laedt die Historie (erster Zugriff): nichts speichern, beim naechsten Aufruf neu fragen.
+                    # next_from darf nicht auf `a` zeigen (der Client wertet das als Fehler), daher "syncing".
+                    missing += [{"from": p, "to": q, "reason": "syncing", "checked_at": None} for p, q in todo]
+                    timed_out = True
+                break
             except mm.MarketDataError as exc:
                 missing.append({"from": x, "to": y, "reason": "error", "detail": exc.detail, "checked_at": None})
                 continue
@@ -608,7 +632,7 @@ def _get_rates(account: dict, source: str, symbol: str, timeframe: str, a: int, 
         "missing": sorted(missing, key=lambda m: m["from"]),
         "db_full": full,
     }
-    if stopped is not None:
+    if stopped is not None or timed_out:
         result["partial"] = "budget"
     if tick_spread:
         result["sa"] = [r.get("sa") for r in rows]
@@ -722,7 +746,11 @@ def get_replay_minutes(account: dict, symbol: str, minutes: list[int], busy: boo
             break
         fetched += 1
         try:
-            got = _fetch_minute_piece(account, symbol, x, y)
+            got = mt5_reader.run("minute_piece", (account, symbol, x, y),
+                                 max(mt5_reader.MIN_WAIT_SEC, deadline - time.monotonic()))
+        except mt5_reader.ReaderTimeout:
+            missing += [{"from": p, "to": q, "reason": "budget"} for p, q, _ in pieces[i:]]
+            break
         except mm.MarketDataError as exc:
             if exc.status in (400, 404):  # Sembol/Konfiguration falsch: nicht als „fehlend“ verschweigen
                 raise

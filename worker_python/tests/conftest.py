@@ -15,6 +15,9 @@ WORKER_ROOT = Path(__file__).resolve().parent.parent
 if str(WORKER_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKER_ROOT))
 
+# 1110-A2: der Fake-Broker lebt in diesem Prozess, also auch MT5-Lesejobs hier (auch wenn MetaTrader5 installiert ist)
+os.environ.setdefault("MT5_READER", "inline")
+
 from tests.fakes.fake_mt5 import FakeMT5  # noqa: E402
 from tests.helpers import make_zone  # noqa: E402,F401  (Fixture-Module importieren es von hier oder tests.helpers)
 

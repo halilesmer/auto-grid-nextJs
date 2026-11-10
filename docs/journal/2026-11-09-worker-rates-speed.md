@@ -123,3 +123,6 @@ Nothing but data: the cold fetches filled the market database with D1 (and some 
 - Tests: five new tests in `tests/api/test_market_db_api.py` (ANA-04).
 - **Measure on the VPS:** (1) cold D1 on a symbol the terminal has not loaded: first reply in about 8 s with `partial: budget`, the full load takes about the same total time as before; (2) `GET /api/system/platform` during that fetch should answer within about 2 s (`[heartbeat] thread late` lines in `logs/worker_console.log` should show about 2 s at most); (3) H4/M5 of a warm symbol while a cold D1 runs: no `busy`.
 - Still open: R2 (frontend small first window), R4, R6.
+
+## VPS check after PR 489 (2026-11-10)
+The check failed: one cold D1 call froze the process for 82 s, and the heartbeat thread was late by the same time. So the GIL is held during the call (1109-R5 is closed). R6 is done in a smaller form: see `2026-11-10-worker-mt5-reader-process.md` (1110-A2).
