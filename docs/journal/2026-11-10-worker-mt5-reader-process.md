@@ -3,7 +3,7 @@ date: 2026-11-10
 author: Claude
 type: fix
 status: open
-pr: []
+pr: [492]
 features: [ANA-04]
 areas: [worker]
 ---
