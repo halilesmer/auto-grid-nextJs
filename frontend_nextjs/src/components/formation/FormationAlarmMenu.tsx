@@ -10,6 +10,7 @@ import { Tooltip } from '@/components/ui/tooltip';
 import type { useFormationAlarm } from '@/hooks/useFormationAlarm';
 import { useFormat, useT, type MessageKey } from '@/i18n';
 import { HISTORY_LIMIT, type HistoryEntry } from '@/lib/formation/alarmHistory';
+import { ruleHasNoSize } from '@/lib/formation/params';
 import { SCAN_FORMATIONS } from '@/lib/formation/scan';
 import { TrendSettingsPanel } from '@/components/chart-workspace/TrendSettingsPanel';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
@@ -18,7 +19,7 @@ import { cn } from '@/lib/utils';
 type Alarm = ReturnType<typeof useFormationAlarm>;
 
 const REST_STATUS = { none: 'formation.alarm.status.rest.none', gone: 'formation.alarm.status.rest.gone', checking: 'formation.alarm.status.checking' } as const satisfies Record<string, MessageKey>;
-const RULE_LABEL = { welle: 'formation.alarm.trend.rule.welle', geruest: 'formation.alarm.trend.rule.geruest', filter: 'formation.alarm.trend.rule.filter' } as const satisfies Record<string, MessageKey>;
+const RULE_LABEL = { welle: 'formation.alarm.trend.rule.welle', geruest: 'formation.alarm.trend.rule.geruest', filter: 'formation.alarm.trend.rule.filter', welle382: 'formation.alarm.trend.rule.welle382' } as const satisfies Record<string, MessageKey>;
 const REST_NOTE = { none: 'formation.alarm.rest.none.note', gone: 'formation.alarm.rest.gone.note', checking: 'formation.alarm.checking.note' } as const satisfies Record<string, MessageKey>;
 
 /** Nur lesende Zeile mit den Trend-Einstellungen des Charts; [Ayarlar] klappt dasselbe Panel auf wie das Zahnrad im Chart */
@@ -28,7 +29,7 @@ function TrendRow() {
   const trend = useAnalysisPrefsStore((s) => s.trend);
   const [open, setOpen] = useState(false);
   const rule = trend.rule === 'groesse' ? t('cw.trend.minSize') : t(RULE_LABEL[trend.rule]);
-  const size = trend.rule === 'welle' ? '' : ` · ${fmt.number(trend.minSize, { maximumFractionDigits: 2 })} ATR`;
+  const size = ruleHasNoSize(trend.rule) ? '' : ` · ${fmt.number(trend.minSize, { maximumFractionDigits: 2 })} ATR`;
   return (
     <div className="flex flex-col gap-1" data-testid="formation-alarm-trend">
       <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">

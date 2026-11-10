@@ -5,7 +5,7 @@ import { InputField } from '@/components/ui/InputField';
 import { NumberInput } from '@/components/ui/NumberInput';
 import { FieldLabel } from '@/components/ui/tooltip';
 import { useFormat, useT, type MessageKey } from '@/i18n';
-import { DEFAULT_TREND_SETTINGS, TREND_LIMITS, TREND_RULES, type TrendRule, type TrendSettings } from '@/lib/formation/params';
+import { DEFAULT_TREND_SETTINGS, TREND_LIMITS, TREND_RULES, ruleHasNoSize, type TrendRule, type TrendSettings } from '@/lib/formation/params';
 import { useTrendConfirm } from '@/hooks/useTrendConfirm';
 import { ewoPairValid, trendFingerprint } from '@/lib/formation/trdPath';
 import { cn } from '@/lib/utils';
@@ -65,7 +65,7 @@ export function TrendSettingsPanel() {
   const s = confirm ? draft : applied;
   const set = <K extends keyof TrendSettings>(key: K, value: TrendSettings[K]) => (confirm ? setTrend : setAppliedTrend)({ [key]: value });
   const dirty = confirm && trendFingerprint(s) !== trendFingerprint(applied);
-  const appliedText = [t(`cw.trend.rule.${applied.rule}` as MessageKey), applied.rule === 'welle' ? null : `${fmt.number(applied.minSize)} ATR`, t(`cw.trend.closes.${applied.changeCloses}` as MessageKey)].filter(Boolean).join(' · ');
+  const appliedText = [t(`cw.trend.rule.${applied.rule}` as MessageKey), ruleHasNoSize(applied.rule) ? null : `${fmt.number(applied.minSize)} ATR`, t(`cw.trend.closes.${applied.changeCloses}` as MessageKey)].filter(Boolean).join(' · ');
   return (
     <div className="grid min-w-0 gap-4 p-3 text-sm" data-testid="trend-settings-panel">
     {dirty && (
@@ -84,9 +84,9 @@ export function TrendSettingsPanel() {
             {TREND_RULES.map((r) => <option key={r} value={r}>{t(`cw.trend.rule.${r}` as MessageKey)}</option>)}
           </select>
         </InputField>
-        <InputField label={t('cw.trend.minSize')} hint={t('cw.trend.minSize.hint')} className={cn(s.rule === 'welle' && 'opacity-50')}>
+        <InputField label={t('cw.trend.minSize')} hint={t('cw.trend.minSize.hint')} className={cn(ruleHasNoSize(s.rule) && 'opacity-50')}>
           <div className="flex items-center gap-3">
-            <input type="range" aria-label={t('cw.trend.minSize')} data-testid="trend-minSize" className="h-6 min-w-0 flex-1 accent-foreground" {...TREND_LIMITS.minSize} disabled={s.rule === 'welle'} value={s.minSize} onChange={(e) => set('minSize', Number(e.target.value))} />
+            <input type="range" aria-label={t('cw.trend.minSize')} data-testid="trend-minSize" className="h-6 min-w-0 flex-1 accent-foreground" {...TREND_LIMITS.minSize} disabled={ruleHasNoSize(s.rule)} value={s.minSize} onChange={(e) => set('minSize', Number(e.target.value))} />
             <span className="w-16 shrink-0 text-right font-mono text-xs tabular-nums">{fmt.number(s.minSize)} ATR</span>
           </div>
         </InputField>

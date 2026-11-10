@@ -85,8 +85,11 @@ export const SIG_PARAMS = {
   mergeBars: 4,
 } as const;
 
-export const TREND_RULES = ['groesse', 'welle', 'geruest', 'filter'] as const;
+export const TREND_RULES = ['groesse', 'welle', 'geruest', 'filter', 'welle382'] as const;
 export type TrendRule = (typeof TREND_RULES)[number];
+
+/** Regeln ohne Mindestgröße in ATR: `welle` und `welle382` (EWO + Fibo 382) messen die Korrekturen nicht gegen ein ATR-Maß */
+export const ruleHasNoSize = (rule: TrendRule): boolean => rule === 'welle' || rule === 'welle382';
 
 /** Einstellungen des Trendzugs (`buildTrend`); Standard in TRD_PARAMS */
 export interface TrendOptions {
@@ -119,6 +122,8 @@ export const TRD_PARAMS = {
     /** Regel `filter`: Eine Korrektur fällt weg, wenn der EWO in ihr weniger als diesen Anteil zurückkam */
     ewoRetreat: 0.2,
   },
+  /** Regel `welle382` (EWO + Fibo 382, Halil 2026-11-10): eine Gegenbewegung unter diesem Anteil des vorigen Schenkels (Docht zu Docht) wird nicht gezeichnet; Zahl aus FIB_PARAMS */
+  fiboMinCorrection: FIB_PARAMS.retrace[0],
   /** TRD-08 (Annahme): Zwischenbereich beginnt bei diesem Anteil der Mindestgröße */
   gapLow: 0.5,
   /** TRD-17 (Halil 2026-10-31): aufeinanderfolgende Schlüsse jenseits der Bezugszone für den Wechsel */

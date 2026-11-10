@@ -5,7 +5,7 @@
  */
 import { outward, type ZoneSide } from './frz';
 import { wave, type Series } from './indicators';
-import { FRZ_PARAMS, type TrendOptions } from './params';
+import { FRZ_PARAMS, TRD_PARAMS, type TrendOptions } from './params';
 import type { Pivot } from './trd';
 import type { FormationBar } from './types';
 
@@ -41,6 +41,26 @@ function waveRule(ewo: Series): ZugRule {
     const last = zug[zug.length - 1];
     if (last?.side !== f.side) return { cut: 0, add: [f] };
     return beyond(f.side, f, last) ? { cut: 1, add: [f] } : null;
+  };
+}
+
+/**
+ * EWO + Fibo 382 (Halil 2026-11-10): wie `welle`, aber eine Gegenbewegung gilt erst, wenn sie mindestens 0,382 des vorigen Schenkels
+ * zurückläuft (Docht zu Docht, wie die Fibonacci-Messung vom Beginn des Impulses bis zu dessen Docht). Ein flacheres Fraktal wird nicht
+ * gezeichnet; der Schenkel läuft weiter, bis ein tieferes (höheres) Fraktal in einer Phase der Gegenseite die Bedingung erfüllt oder ein
+ * weiteres Extrem in Schenkelrichtung den letzten Punkt ersetzt. Die Entscheidung fällt an der Kerze, mit der das Fraktal fertig wird.
+ */
+function wave382Rule(ewo: Series): ZugRule {
+  const plain = waveRule(ewo);
+  return (zug, f) => {
+    const edit = plain(zug, f);
+    if (!edit || edit.cut > 0) return edit;
+    const last = zug[zug.length - 1];
+    const prev = zug[zug.length - 2];
+    if (!last || !prev) return edit;
+    const leg = Math.abs(last.price - prev.price);
+    const back = Math.abs(f.price - last.price);
+    return back + 1e-9 >= TRD_PARAMS.fiboMinCorrection * leg ? edit : null;
   };
 }
 
@@ -146,6 +166,7 @@ export function zugRule(o: TrendOptions, bars: readonly FormationBar[], minLeg: 
   if (o.rule === 'groesse') return sizeRule(minLeg);
   const ewo = wave(bars, o.ewoFast, o.ewoSlow);
   if (o.rule === 'welle') return waveRule(ewo);
+  if (o.rule === 'welle382') return wave382Rule(ewo);
   if (o.rule === 'geruest') return scaffoldRule(ewo, minLeg);
   return filterRule(ewo, minLeg, o.ewoRetreat);
 }

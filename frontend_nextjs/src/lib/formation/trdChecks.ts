@@ -9,7 +9,7 @@
  */
 import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
 import { closesBeyond, outward, probeFractal, wickEnd, type ZoneSide } from './frz';
-import { CONTEXT_TIMEFRAMES, FRZ_PARAMS, TRD_PARAMS, type ContextTimeframe, type TrendOptions } from './params';
+import { CONTEXT_TIMEFRAMES, FRZ_PARAMS, TRD_PARAMS, ruleHasNoSize, type ContextTimeframe, type TrendOptions } from './params';
 import {
   buildTrend,
   changeRef,
@@ -216,7 +216,7 @@ function evaluate(models: Models, m: TrendModel, options: TrdOptions, p: TrdCand
   add('TRD-07', corr ? flag(corr.accepted) : U, ratio);
   add('TRD-08', !corr || corr.ratio === null ? U : flag(corr.ratio >= TRD_PARAMS.gapLow && corr.ratio < 1), ratio);
   // Regel welle kennt kein Maß: ohne Bezugskorrektur ist TRD-09 nicht messbar, nicht ☐
-  add('TRD-09', corr && options.trend?.rule !== 'welle' ? flag(corr.ratio !== null) : U, m.refCorrection ?? undefined);
+  add('TRD-09', corr && !ruleHasNoSize(options.trend?.rule ?? 'groesse') ? flag(corr.ratio !== null) : U, m.refCorrection ?? undefined);
 
   // TRD-10: die Welle nach einer Korrektur ist mindestens so lang wie diese
   const impPos = pivots.map((x) => x.kind).lastIndexOf('impulse');
