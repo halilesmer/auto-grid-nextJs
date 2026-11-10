@@ -3,7 +3,7 @@ date: 2026-11-10
 author: Claude
 type: decision
 status: open
-pr: []
+pr: [496]
 features: [UI-27, UI-20]
 areas: [frontend]
 ---
