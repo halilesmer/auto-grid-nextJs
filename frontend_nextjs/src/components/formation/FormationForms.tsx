@@ -1,5 +1,7 @@
 'use client';
 
+import { ChevronDown } from 'lucide-react';
+import { DropdownMenu, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useT, type MessageKey } from '@/i18n';
 import type { ContextTimeframe } from '@/lib/formation/params';
@@ -25,8 +27,9 @@ export const segment = 'inline-flex h-7 shrink-0 cursor-pointer items-center rou
 export const idle = 'text-muted-foreground hover:bg-accent hover:text-foreground';
 
 /**
- * Die Formationsknöpfe. Mit `onlyWithHits` zeigt die Reihe nur Formationen mit einem Treffer auf `tf`;
- * ohne Treffer steht `emptyNote` statt der Knöpfe. Ohne `onlyWithHits` gelten alle Formationen wie bisher.
+ * Die Formationsknöpfe. Mit `onlyWithHits` zeigt die Reihe nur Formationen mit gezähltem Treffer auf `tf`
+ * (Badge) und die gewählte; Formationen mit nur ungültigen oder frühen Kandidaten stehen im Menü dahinter (UI-25).
+ * Ohne Kandidat steht `emptyNote` statt der Knöpfe. Ohne `onlyWithHits` gelten alle Formationen wie bisher.
  */
 export function FormationForms({
   hits,
@@ -48,16 +51,76 @@ export function FormationForms({
   optionHint?: (params: { form: string; count: number }) => string;
 }) {
   const t = useT();
-  // A hit is any candidate of the formation on `tf`, also an invalid or a forming one without badge: the conditions explain why it fails
-  const shown = onlyWithHits ? SCAN_FORMATIONS.filter((x) => hits.some((h) => h.form === x && h.tf === tf)) : SCAN_FORMATIONS;
-  if (onlyWithHits && shown.length === 0) {
+  if (!onlyWithHits) return <FormButtons names={SCAN_FORMATIONS} hits={hits} form={form} onForm={onForm} optionHint={optionHint} />;
+  // A candidate is any analysis of the formation on `tf`, also an invalid or a forming one without badge: the conditions explain why it fails
+  const candidates = SCAN_FORMATIONS.filter((x) => hits.some((h) => h.form === x && h.tf === tf));
+  if (candidates.length === 0) {
     return emptyNote ? <span className="px-1 text-xs text-muted-foreground" data-testid="formation-forms-empty">{emptyNote}</span> : null;
   }
+  // Die Reihe zeigt nur gezählte Formationen (Badge) und die gewählte; die übrigen Kandidaten stehen im Menü dahinter (UI-25)
+  const counted = candidates.filter((x) => x === form || hitsCount(hits, { form: x, tf }) > 0);
+  const rest = candidates.filter((x) => !counted.includes(x));
   return (
     <>
-      {shown.map((x) => {
-        // Die Zahl zählt über alle Zeiteinheiten, außer die Reihe ist auf `tf` gefiltert
-        const count = hitsCount(hits, onlyWithHits ? { form: x, tf } : { form: x });
+      <FormButtons names={counted} hits={hits} tf={tf} form={form} onForm={onForm} optionHint={optionHint} />
+      {rest.length > 0 && (
+        <DropdownMenu
+          label={t('formation.forms.more', { count: rest.length })}
+          hint={t('formation.forms.more.hint')}
+          variant="ghost"
+          size="xs"
+          align="left"
+          panelClassName="w-60 p-1.5"
+          floating
+          triggerProps={{ 'data-testid': 'formation-forms-more', className: cn(segment, idle, 'h-6 gap-0.5 rounded-[5px] px-1.5 text-xs') }}
+          icon={
+            <>
+              {counted.length === 0 && <span>{t('formation.forms.candidates')}</span>}
+              <span className="tabular-nums text-[11px]">{rest.length}</span>
+              <ChevronDown size={13} aria-hidden="true" />
+            </>
+          }
+        >
+          <div className="px-3 pb-1 pt-0.5 text-[11px] text-muted-foreground">{t('formation.forms.more.caption')}</div>
+          {rest.map((x) => {
+            const name = t(`formation.form.${x}` as MessageKey);
+            const forming = hits.some((h) => h.form === x && h.tf === tf && h.candidate.verdict !== 'invalid');
+            return (
+              <DropdownMenuItem key={x} icon={null} hint={t('formation.forms.item.hint', { form: name })} data-testid={`formation-more-${x}`} onSelect={() => onForm(x)}>
+                <span className="flex w-full items-center justify-between gap-3">
+                  <span>{name}</span>
+                  <span className="text-[11px] text-muted-foreground">{t(forming ? 'formation.forms.state.forming' : 'formation.forms.state.invalid')}</span>
+                </span>
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenu>
+      )}
+    </>
+  );
+}
+
+function FormButtons({
+  names,
+  hits,
+  tf,
+  form,
+  onForm,
+  optionHint,
+}: {
+  names: readonly ScanFormation[];
+  hits: readonly ScanHit[];
+  /** Mit `tf` zählt das Badge nur diese Zeiteinheit, sonst alle */
+  tf?: ContextTimeframe;
+  form: ScanFormation;
+  onForm: (form: ScanFormation) => void;
+  optionHint?: (params: { form: string; count: number }) => string;
+}) {
+  const t = useT();
+  return (
+    <>
+      {names.map((x) => {
+        const count = hitsCount(hits, tf ? { form: x, tf } : { form: x });
         const name = t(`formation.form.${x}` as MessageKey);
         return (
           <Tooltip key={x} content={optionHint ? optionHint({ form: name, count }) : t('formation.form.option.hint', { form: name, count })} role="presentation">
