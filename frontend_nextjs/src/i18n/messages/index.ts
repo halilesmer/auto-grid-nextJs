@@ -25,10 +25,11 @@ import zone from './zone';
 import workspace from './workspace';
 import toolbar from './toolbar';
 import trendLine from './trendLine';
+import fibDialog from './fibDialog';
 import tools from './tools';
 
 // Yeni bölüm: dosyayı ekle, buraya import et ve aşağıdaki listeye koy.
-const areas = [common, dashboard, bot, settings, logs, errors, account, zone, ui, chart, analysis, backtest, livecompare, csvimport, vps, connection, users, spread, formation, workspace, toolbar, hints, news, lineStyle, trendLine, indicatorDialog, tools, media] as const;
+const areas = [common, dashboard, bot, settings, logs, errors, account, zone, ui, chart, analysis, backtest, livecompare, csvimport, vps, connection, users, spread, formation, workspace, toolbar, hints, news, lineStyle, trendLine, fibDialog, indicatorDialog, tools, media] as const;
 
 type Union2Intersection<U> = (U extends unknown ? (k: U) => void : never) extends (k: infer I) => void ? I : never;
 
