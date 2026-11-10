@@ -137,6 +137,7 @@ test.describe('ANA-21 Trendzug im Chart', () => {
   ana('Gespeicherte Werte: Unsinn fällt auf den Standard, Zahlen bleiben in ihren Grenzen', () => {
     expect(sanitizeTrendSettings(null)).toEqual(DEFAULT_TREND_SETTINGS);
     expect(sanitizeTrendSettings({ rule: 'quatsch', minSize: 'x', changeCloses: 7, formationZug: 'trend', ewoFast: 1.5 })).toEqual(DEFAULT_TREND_SETTINGS);
+    expect(sanitizeTrendSettings({ rule: 'welle382' }).rule).toBe('welle382');
     expect(sanitizeTrendSettings({ minSize: 99, ewoRetreat: -1, atrPeriod: 500 })).toEqual({ ...DEFAULT_TREND_SETTINGS, minSize: 3.5, ewoRetreat: 0.1, atrPeriod: 100 });
     expect(sanitizeTrendSettings({ rule: 'geruest', minSize: 1.75, changeCloses: 2, ewoFast: 4, ewoSlow: 30, atrPeriod: 10, ewoRetreat: 0.4, formationZug: 'fein' })).toEqual({
       rule: 'geruest', minSize: 1.75, changeCloses: 2, ewoFast: 4, ewoSlow: 30, atrPeriod: 10, ewoRetreat: 0.4,

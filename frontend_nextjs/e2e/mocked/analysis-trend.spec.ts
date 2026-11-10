@@ -147,6 +147,10 @@ test.describe('ANA-21 Trendzug im Chart', () => {
     await expect(panel.getByTestId('trend-ewoRetreat')).toBeDisabled();
     await panel.getByTestId('trend-rule').selectOption('welle');
     await expect(panel.getByTestId('trend-minSize')).toBeDisabled();
+    // EWO + Fibo 382 braucht wie „Ein Punkt je EWO-Welle“ kein Maß und keinen EWO-Rücksetzer
+    await panel.getByTestId('trend-rule').selectOption('welle382');
+    await expect(panel.getByTestId('trend-minSize')).toBeDisabled();
+    await expect(panel.getByTestId('trend-ewoRetreat')).toBeDisabled();
     await panel.getByTestId('trend-rule').selectOption('filter');
     await expect(panel.getByTestId('trend-minSize')).toBeEnabled();
     await expect(panel.getByTestId('trend-ewoRetreat')).toBeEnabled();

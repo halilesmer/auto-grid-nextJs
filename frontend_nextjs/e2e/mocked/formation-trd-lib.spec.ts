@@ -839,6 +839,43 @@ test.describe('TRD: Trendzug', () => {
     expect(pivots.every((p) => (p.side === 'resistance' ? ewo[p.idx]! > 0 : ewo[p.idx]! < 0))).toBe(true);
   });
 
+  // Regel welle382 (EWO + Fibo 382, Halil 2026-11-10): wie welle, aber eine Gegenbewegung unter 0,382 des vorigen Schenkels (Docht zu Docht) wird nicht gezeichnet
+  const W382 = { ewoFast: 2, ewoSlow: 6 };
+  const W382_LEGS = [20, 30, 6, 14, 14, 30];
+  const w382Rows = (dip = 260) => zig([220, 100, 300, dip, 360, 200, 420], W382_LEGS);
+  const pricesOf = (rule: 'welle' | 'welle382', rows: Row[]) =>
+    buildTrend('H4', barsOf(rows), [], { rule, ...W382 }).pivots.map((p) => p.price);
+
+  frm('Regel welle382: ein Rücksetzer von 40 auf einen Schenkel von 200 (0,2) fehlt, einer von 160 auf 260 (0,615) bleibt', () => {
+    const rows = w382Rows();
+    // Gegenprobe: ohne die Fibo-Bedingung zeichnet welle das flache Tief 260
+    const plainPrices = pricesOf('welle', rows);
+    expect(plainPrices).toEqual([100, 300, 260, 360, 200, 420]);
+    // das flache Tief 260 fällt weg, der Impuls läuft in einem Schenkel bis 360 (300 ist nicht mehr der letzte Punkt)
+    expect(pricesOf('welle382', rows)).toEqual([100, 360, 200, 420]);
+  });
+
+  frm('Regel welle382: genau 0,382 genügt, knapp darunter nicht', () => {
+    // Schenkel 100 → 300 = 200 lang; 0,382 × 200 = 76,4 → Tief 223,6
+    expect(pricesOf('welle382', w382Rows(223.6))).toContain(223.6);
+    expect(pricesOf('welle382', w382Rows(223.7))).not.toContain(223.7);
+  });
+
+  frm('Regel welle382: ohne vorigen Schenkel gibt es kein Maß, der erste Gegenpunkt wird gezeichnet', () => {
+    const rows = zig([300, 260, 360, 200, 420], [6, 14, 14, 30]);
+    expect(pricesOf('welle382', rows)).toEqual(pricesOf('welle', rows).slice(0, 1).concat(pricesOf('welle382', rows).slice(1)));
+    expect(pricesOf('welle382', rows).length).toBeGreaterThan(0);
+  });
+
+  frm('Regel welle382: Kein Blick in die Zukunft, jeder Punkt außer dem letzten bleibt mit späteren Kerzen gleich', () => {
+    const rows = w382Rows();
+    const full = buildTrend('H4', barsOf(rows), [], { rule: 'welle382', ...W382 }).pivots.map((p) => [p.idx, p.side]);
+    for (let n = 20; n < rows.length; n += 7) {
+      const known = buildTrend('H4', barsOf(rows.slice(0, n)), [], { rule: 'welle382', ...W382 }).pivots.slice(0, -1).map((p) => [p.idx, p.side]);
+      expect(known).toEqual(full.slice(0, known.length));
+    }
+  });
+
   frm('Regel geruest: AUDNZD H4 mit Mindestgröße 1,75 trifft die Punkte der getrennten Messung', () => {
     expect(refMatch(refChart('trd-ref-h4-audnzd'), { rule: 'geruest', minSize: 1.75 }).hit).toBe(7);
     expect(refMatch(refChart('trd-ref-d1-gbpcad'), { rule: 'geruest', minSize: 1.75 }).hit).toBe(12);

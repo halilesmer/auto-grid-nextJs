@@ -6,7 +6,7 @@
  */
 import { closesBeyond, fractalIndices, otherSide, outward, wickEnd, zoneGeometry, type ZoneSide } from './frz';
 import { wilderAtr } from './indicators';
-import { FRZ_PARAMS, TRD_PARAMS, type ContextTimeframe, type TrendOptions } from './params';
+import { FRZ_PARAMS, TRD_PARAMS, ruleHasNoSize, type ContextTimeframe, type TrendOptions } from './params';
 import { zugRule, type ZugEdit, type ZugPoint } from './trdZug';
 import type { FormationBar } from './types';
 
@@ -218,7 +218,7 @@ export function buildTrend(
       const weaker = folded && outward(c.side, price) <= outward(c.side, folded.price);
       if (legStart && m.dir && legDir(c.side) !== m.dir && movesLeg && !weaker) {
         cand.isCorrection = true;
-        if (opt.rule !== 'welle') {
+        if (!ruleHasNoSize(opt.rule)) {
           cand.ratio = Math.abs(price - legStart.price) / minLeg(c.idx);
           m.refCorrection = minLeg(c.idx);
         }

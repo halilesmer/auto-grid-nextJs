@@ -302,9 +302,9 @@
   },
   "ANA-21": {
     "e2e": {
-      "datum": "2026-11-09",
+      "datum": "2026-11-10",
       "status": "passed",
-      "tests": 9
+      "tests": 38
     }
   },
   "ANA-22": {
@@ -982,9 +982,9 @@
   },
   "FRM-23": {
     "e2e": {
-      "datum": "2026-11-09",
+      "datum": "2026-11-10",
       "status": "passed",
-      "tests": 23
+      "tests": 9
     }
   },
   "FRM-25": {
