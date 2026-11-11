@@ -16,7 +16,7 @@ import { randomId } from '@/lib/randomId';
 export interface VisibleTime { from: number; to: number }
 export interface ChartAlarm { id: string; indicatorId: string; direction: 'above' | 'below'; value: number; armed: boolean }
 export interface ChartDocument { drawings: string; indicators: Indicator[]; images: Record<string, string>; overlays: Record<string, boolean>; alarms: ChartAlarm[]; appearance?: Appearance; visibleTime?: VisibleTime;
-  /** Bereiche von oben nach unten (System-Bereiche `rsi` und `wave` und die `paneId` der Nutzer-Oszillatoren); fehlt er, gilt die Standardreihenfolge (UI-11) */
+  /** Bereiche von oben nach unten (System-Bereich `rsi` und die `paneId` der Nutzer-Oszillatoren); fehlt er, gilt die Standardreihenfolge (UI-11) */
   paneOrder?: string[];
   /** Ausgeblendet (Auge) und eingeklappt je System-Bereich */
   systemPanes?: SystemPaneStates;

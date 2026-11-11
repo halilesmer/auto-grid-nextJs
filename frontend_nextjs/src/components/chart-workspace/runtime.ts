@@ -226,7 +226,7 @@ class SelectionMarks implements ISeriesPrimitive<Time> {
 
 type Plot = ISeriesApi<'Line' | 'Histogram' | 'Baseline' | 'Area'>;
 
-/** System oscillator (RSI(7), Wave 5/35): ready-made points, drawn in its own pane like a user oscillator. The calculation stays with the caller, so drawings and rules see the same numbers. */
+/** System oscillator (RSI(7)): ready-made points, drawn in its own pane like a user oscillator. The calculation stays with the caller, so drawings and rules see the same numbers. */
 export interface SystemPaneInput {
   id: SystemPaneId;
   label: string;

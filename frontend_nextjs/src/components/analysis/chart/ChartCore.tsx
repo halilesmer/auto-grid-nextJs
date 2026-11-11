@@ -25,7 +25,7 @@ import type { Appearance } from '@/lib/chart-workspace/settings';
 import { readChartColors, withAlpha, type ChartColors } from '@/lib/chartTheme';
 import { useThemeStore } from '@/store';
 import { ChartWorkspace, type WorkspaceContext } from '@/components/chart-workspace/ChartWorkspace';
-import { type ChartBinding, MIN_BAR_SPACING_PX, createChartBinding, appearanceColors, rememberChartView, restoreChartView, type SystemPaneInput, type SystemSeriesRef, type SystemSeriesRefs } from '@/components/chart-workspace/runtime';
+import { type ChartBinding, MIN_BAR_SPACING_PX, createChartBinding, appearanceColors, rememberChartView, restoreChartView, type SystemSeriesRef, type SystemSeriesRefs } from '@/components/chart-workspace/runtime';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
 import { isSystemRsi } from '@/lib/chart-workspace/indicators';
 import { clipSegments, type TrendSegment } from '@/lib/formation/trdPath';
@@ -87,18 +87,11 @@ export interface FractalPoint {
 }
 
 
-/** Wave (EWO 5/35) als Histogramm im eigenen Bereich unter RSI bzw. den Kerzen: grün über 0, rot darunter */
-export interface SystemWave {
-  points: { time: number; value: number }[];
-  visible: boolean;
-}
-
 /** Was eine Zeichenfläche über dem Chart braucht, um Zeit und Preis in Koordinaten umzurechnen */
 export interface ChartScene {
   binding: ChartBinding;
   /** Series of the system panes while they are drawn (the renderer of the chart workspace owns them); `current` is null when the layer is off or hidden */
   rsi: SystemSeriesRef;
-  wave: SystemSeriesRef;
 }
 
 export interface ChartCoreProps {
@@ -138,7 +131,6 @@ export interface ChartCoreProps {
   equity?: { time: number; value: number }[];
   /** Keep the right edge on the replay cursor while candles are revealed. */
   followTail?: boolean;
-  systemWave?: SystemWave;
   /** Laufende Kerze nach der letzten geschlossenen, nur zur Anzeige: Indikatoren und Zeichnungen enden davor */
   runningBar?: Bar | null;
   /** Preise außerhalb der Kerzen, bis zu denen die Preisachse reicht */
@@ -229,7 +221,6 @@ export function ChartCore({
   balance,
   equity,
   followTail = false,
-  systemWave,
   runningBar = null,
   priceRange,
   marginsFor,
@@ -248,7 +239,7 @@ export function ChartCore({
   const chartRef = useRef<IChartApi | null>(null);
   const candlesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   // Der Renderer des Arbeitsbereichs trägt die Reihen der System-Bereiche ein; die Refs selbst bleiben für die Lebenszeit des Charts gleich
-  const [systemSeries] = useState<SystemSeriesRefs>(() => ({ rsi: { current: null }, wave: { current: null } }));
+  const [systemSeries] = useState<SystemSeriesRefs>(() => ({ rsi: { current: null } }));
   const [scene, setScene] = useState<ChartScene | null>(null);
   const binding = scene?.binding ?? null;
   const shownRunning = useRef<{ view: string; bar: Bar } | null>(null);
@@ -304,7 +295,6 @@ export function ChartCore({
 
   const hasCurves = !!(balance || equity);
   const hasRsi = !!workspace?.systemRsi;
-  const hasWave = !!systemWave;
   const hasNotes = notes !== undefined;
   const marginsForRef = useRef(marginsFor);
   useEffect(() => {
@@ -337,7 +327,7 @@ export function ChartCore({
     }, 1) : null;
     const margins = marginsForRef.current;
     if (margins) candles.priceScale().applyOptions({ scaleMargins: margins(el.clientWidth) });
-    // Die System-Bereiche RSI(7) und Wave 5/35 legt der Renderer des Arbeitsbereichs an (UI-11): ein Bereich je eingeschalteter Ebene
+    // Die System-Bereiche RSI(7) legt der Renderer des Arbeitsbereichs an (UI-11): ein Bereich je eingeschalteter Ebene
     const band = new ZoneBandPrimitive();
     const missing = new MissingDataPrimitive();
     const pauses = new PauseLinesPrimitive();
@@ -352,7 +342,7 @@ export function ChartCore({
     candles.attachPrimitive(trend);
     markersApi.current = createSeriesMarkers(candles, []);
     const attached = createChartBinding(chart, candles, el, margins ? () => margins(el.clientWidth) : undefined);
-    const readyFrame = requestAnimationFrame(() => setScene({ binding: attached, rsi: systemSeries.rsi, wave: systemSeries.wave }));
+    const readyFrame = requestAnimationFrame(() => setScene({ binding: attached, rsi: systemSeries.rsi }));
     chartRef.current = chart;
     candlesRef.current = candles;
     balanceRef.current = balanceSeries;
@@ -422,28 +412,14 @@ export function ChartCore({
     });
   }, [priceRange]);
 
-  // Die Zahlen für RSI(7) und Wave 5/35 kommen fertig vom Aufrufer; der Renderer des Arbeitsbereichs besitzt die Bereiche und baut sie nur für eingeschaltete Ebenen auf
-  const wavePoints = systemWave?.points, waveVisible = !!systemWave?.visible;
-  const systemPanes = useMemo<SystemPaneInput[]>(() => [
-    // Die Wave-Werte sind Preisdifferenzen (z. B. 0,001): die Standardachse zeigte „0.00“
-    ...(waveVisible ? [{ id: 'wave' as const, label: 'Wave 5/35', kind: 'histogram' as const, points: wavePoints ?? [], precision: digits ?? 5 }] : []),
-  ], [waveVisible, wavePoints, digits]);
-  // Mit dem Auge ausgeblendet = gleich eingeschaltete Ebene, aber ohne Bereich; Tests lesen „sichtbar“ als „gezeichnet“
-  const hiddenPanes = useChartWorkspaceStore(s => (workspaceKey ? s.documents[workspaceKey]?.systemPanes : undefined));
   // The RSI is an indicator now: drawn = layer on and the eye open
   const rsiDrawn = useChartWorkspaceStore(s => {
     const doc = workspaceKey ? s.documents[workspaceKey] : undefined;
     return (doc?.overlays.rsi ?? true) && (doc?.indicators.find(isSystemRsi)?.visible ?? true);
   });
-  const waveDrawn = waveVisible && !hiddenPanes?.wave?.hidden;
   useEffect(() => {
     if (hasRsi) containerRef.current?.setAttribute('data-rsi-visible', String(rsiDrawn));
-    if (hasWave) containerRef.current?.setAttribute('data-wave-visible', String(waveDrawn));
-  }, [rsiDrawn, waveDrawn, hasRsi, hasWave]);
-  useEffect(() => {
-    if (!hasWave) return;
-    containerRef.current?.setAttribute('data-wave-points', String(wavePoints?.length ?? 0));
-  }, [wavePoints, hasWave]);
+  }, [rsiDrawn, hasRsi]);
 
   // Theme-Farben: nach dem Klassenwechsel am <html> lesen
   useEffect(() => {
@@ -793,7 +769,7 @@ export function ChartCore({
     'data-pauses': data.pauses.length,
   };
   return (
-    <ChartWorkspace context={workspace ?? { key: viewKey, symbol: '', view: 'analysis' }} binding={binding} interactionReady={followTail || data.points.length === 0 || alignedView === viewKey} bars={effectiveBars} missing={data.missing} timeframeSec={timeframeSec} digits={digits} until={until ?? clockNow ?? (effectiveBars.at(-1)?.time ?? 0) + timeframeSec} countdownNow={clockNow} overlays={workspaceOverlays} showRsi={showRsi} toolbarActions={toolbarActions} viewActions={viewActions} overlayLayout={overlayLayout} fullscreenOfPage={fullscreenOfPage} systemPanes={systemPanes} systemSeries={systemSeries}>
+    <ChartWorkspace context={workspace ?? { key: viewKey, symbol: '', view: 'analysis' }} binding={binding} interactionReady={followTail || data.points.length === 0 || alignedView === viewKey} bars={effectiveBars} missing={data.missing} timeframeSec={timeframeSec} digits={digits} until={until ?? clockNow ?? (effectiveBars.at(-1)?.time ?? 0) + timeframeSec} countdownNow={clockNow} overlays={workspaceOverlays} showRsi={showRsi} toolbarActions={toolbarActions} viewActions={viewActions} overlayLayout={overlayLayout} fullscreenOfPage={fullscreenOfPage} systemSeries={systemSeries}>
     {overlayLayout ? (
       // Eigener Stapelkontext: die Canvases des Charts tragen z-index
       <div ref={surfaceRef} {...surfaceProps} className="absolute top-0 bottom-[calc(var(--workspace-card,0px)+var(--floating-card,0px))] left-[52px] right-0 isolate overflow-hidden bg-card @min-[71rem]/formation-main:bottom-0">

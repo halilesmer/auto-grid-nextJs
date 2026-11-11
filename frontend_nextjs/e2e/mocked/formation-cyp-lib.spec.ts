@@ -293,7 +293,7 @@ test.describe('CYP: Abgrenzung, Urteil und Zeichnungen', () => {
 
   frm('Z-CYP-03 trägt weiter das Präfix „CD“ im Label', () => {
     const far = run({ H4: cyp([100, 130, 115, 139, 105]) });
-    const groups = layoutDrawings({ candidate: far, form: 'CYP', width: 500, lastBar: { time: 60 * H4, close: 120 }, x: (t) => t / H4, y: (p) => 300 - p, yRsi: (v) => v, yWave: (v) => v, text: (k) => k, fmt: (n) => String(n) });
+    const groups = layoutDrawings({ candidate: far, form: 'CYP', width: 500, lastBar: { time: 60 * H4, close: 120 }, x: (t) => t / H4, y: (p) => 300 - p, yRsi: (v) => v, text: (k) => k, fmt: (n) => String(n) });
     const labels = groups.find((g) => g.id === 'Z-CYP-03')!.prims.filter((p) => p.kind === 'text').map((p) => p.kind === 'text' && p.text);
     expect(labels).toEqual(['CD 0.382', 'CD 0.618']);
   });
