@@ -21,8 +21,8 @@ Plan 1110-A4 has two steps.
 | S1 | Window with the Style tab, Template menu, double click, "Ayarlar…" button, built-in level set template, last-used style for new drawings | this entry (UI-27) |
 | S2 | Coordinates tab, Visibility tab, fix of the W1/MN interval that goes to the library as `1D` | done (UI-27) |
 | S4 | Right-click menu (A4.9) and the Alt+F shortcut | done (UI-28) |
-| S5 | Level text on the chart and colour opacity (A4.11) | next |
-| S7 | Floating toolbar of the selected drawing, top centre (A4.13) | after S5 |
+| S5 | Level text on the chart and colour opacity (A4.11) | done (UI-27) |
+| S7 | Floating toolbar of the selected drawing, top centre (A4.13) | next |
 
 S6 (Fib alert) left the plan on 2026-11-11 by decision of Halil. S2, S4, S5 and S7 touch the same files, so they run one after the other.
 
@@ -102,3 +102,10 @@ Other values: trend line on, white, solid, 1 px; level lines solid, 1 px; extend
 - Alt+F arms the Fib tool (`e.code`, because Alt+F types a different character on macOS). It does nothing in a text field or while a modal is open. The shortcut is in the hint of the Fib tool group (text only; the rail component did not change).
 - After the menu closes, focus goes back to the chart host. Without this, Cmd+Z after Remove did not reach the chart.
 - Test: `e2e/mocked/chart-drawing-menu.spec.ts` (UI-28).
+
+## S5 result
+
+- **Level text.** The library already draws it: `LevelDef.text` shows on the level line when `showText` is on, at `horzTextAlign` and `vertTextAlign`, in the level colour and with `labelFontSize`. Before S5, the window had the Text row but no field to write the text, so the row did nothing. The narrowest fix is a text field for each level (40 characters, `FIB_TEXT_MAX`). No layer in `ChartWorkspace` is necessary. Empty text is not stored.
+- **Opacity.** The library draws a colour as it is, so the opacity goes into the colour as `#rrggbbaa`. At 100 % the colour stays `#rrggbb`, so old drawings and templates do not change (`splitColor`, `joinColor` in `fibStyle.ts`). Three percent fields: trend line, each level, and "all levels" (it changes only the opacity; the colours stay). The colour picker changes only the colour and keeps the opacity. The background fill keeps its own `transparency` slider, as in TradingView.
+- **Window.** Each level now has a second line: text field and opacity. The window is longer but still scrolls; it has no overflow at 375 px.
+- Test: `e2e/mocked/chart-fib-text-opacity.spec.ts` (UI-27).
