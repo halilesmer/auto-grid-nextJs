@@ -78,6 +78,13 @@ class Order:
     comment: str = ""
     volume_current: float | None = None
     state: int = 1  # ORDER_STATE_PLACED; Historie: FILLED (4), CANCELED (2), EXPIRED (6) ...
+    # BKT-24: Zeiten (Sekunden/Millisekunden Brokerzeit), 0 = offen bzw. unbekannt
+    time_setup: int = 0
+    time_setup_msc: int = 0
+    time_done: int = 0
+    time_done_msc: int = 0
+    reason: int = 0
+    position_id: int = 0
 
     def __post_init__(self):
         if self.volume_current is None:
@@ -371,7 +378,18 @@ class FakeMT5:
         items = [p for p in self.positions if (ticket is None or p.ticket == ticket) and (symbol is None or p.symbol == symbol)]
         return tuple(items)
 
-    def history_orders_get(self, ticket=None, position=None):
+    # BKT-24: In welcher Zeit filtert history_orders_get den Bereich? Die MT5-Dokumentation sagt es nicht;
+    # Tests prüfen beide Lesarten ("setup" = time_setup, "done" = time_done).
+    history_range_by = "setup"
+    history_orders_calls: list
+
+    def history_orders_get(self, date_from=None, date_to=None, group=None, ticket=None, position=None):
+        if not hasattr(self, "history_orders_calls"):
+            self.history_orders_calls = []
+        self.history_orders_calls.append((date_from, date_to, ticket, position))
+        if date_from is not None and date_to is not None:
+            key = "time_done" if self.history_range_by == "done" else "time_setup"
+            return tuple(o for o in self.history.values() if int(date_from) <= getattr(o, key) <= int(date_to))
         if ticket is not None:
             order = self.history.get(ticket)
             return (order,) if order else ()

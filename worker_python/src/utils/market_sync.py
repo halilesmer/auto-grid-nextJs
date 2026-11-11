@@ -68,6 +68,10 @@ LOWER_TF = {
 }
 _TF_SEC_BY_NAME = {name: sec for name, sec in TIMEFRAMES.values()}
 ENTRY_IN = 0
+# BKT-24: so weit vor/nach dem Fenster sucht history_orders_get (MT5 sagt nicht, ob nach time_setup oder time_done gefiltert wird)
+ORDER_LOOKBACK_SEC = 14 * 86400
+PENDING_TYPES = (2, 3, 4, 5)  # BUY/SELL LIMIT, BUY/SELL STOP; Markt (0/1) und Stop-Limit (6/7) zählen nicht
+ORDER_STATE_REJECTED = 5
 # BKT-19: Minuten-Spread aus Ticks. Ein Tagesstück je Abruf; ein Aufruf rechnet höchstens TICK_BUDGET_SEC (unter dem
 # 120-s-Timeout des Browsers), der Rest kommt als `budget` und wird beim nächsten Aufruf fortgesetzt.
 TICK_BUDGET_SEC = 40
@@ -859,6 +863,99 @@ def _fetch_open_levels(account: dict, entries: list[dict]) -> list[dict]:
         return rows
 
     return mm._connected(account, collect)
+
+
+def _order_dict(o) -> dict:
+    return {k: mm._plain(getattr(o, k, None)) for k in db.LIVE_ORDER_COLUMNS}
+
+
+def order_waits_in(o: dict, a: int, b: int) -> bool:
+    """War die Order zu irgendeinem Zeitpunkt in [a, b) eine wartende Pending Order? (1111-K1.1, Bereichsform:
+    gesetzt vor b, beendet ab a oder noch offen, Pending-Typ, nicht abgelehnt.) Mit b = a + 1 ist das der Zustand bei a."""
+    if o.get("type") not in PENDING_TYPES or o.get("state") == ORDER_STATE_REJECTED:
+        return False
+    setup = o.get("time_setup_msc") or (o.get("time_setup") or 0) * 1000
+    done = o.get("time_done_msc") or (o.get("time_done") or 0) * 1000
+    return setup < b * 1000 and (done == 0 or done >= a * 1000)
+
+
+def live_orders_covered_to(b: int, now: int, open_orders: list[dict]) -> int:
+    """Bis wohin darf der Bereich als abgedeckt gelten (1111-K1.3): nicht über den frischen Rand und nicht über die
+    älteste offene Order hinaus, damit eine später beendete Order nicht durchrutscht."""
+    cut = min(b, now - DEAL_SETTLE_SEC)
+    for o in open_orders:
+        cut = min(cut, o.get("time_setup") or (o.get("time_setup_msc") or 0) // 1000)
+    return cut
+
+
+def _fetch_live_orders(account: dict, pieces: list[tuple[int, int]]) -> dict:
+    def collect(mt5):
+        mm._check_account(mt5, account)  # Terminal in einem anderen Konto: nichts lesen, nichts speichern
+        errors: list[str] = []
+        found: dict[int, dict] = {}
+        done = []
+        for x, y in pieces:
+            # Zwei Aufrufe, Vereinigung nach Ticket: richtig, egal ob MT5 nach time_setup oder time_done filtert
+            failed = False
+            for lo, hi in ((x - ORDER_LOOKBACK_SEC, y - 1), (x, y - 1 + ORDER_LOOKBACK_SEC)):
+                got = mt5.history_orders_get(lo, hi)
+                if mm._mt5_error(mt5, "history_orders_get", got, errors):
+                    failed = True
+                    break
+                for o in got or ():
+                    d = _order_dict(o)
+                    if d["type"] in PENDING_TYPES and d["state"] != ORDER_STATE_REJECTED and (d["time_done_msc"] or 0) > 0:
+                        found[d["ticket"]] = d
+            if failed:
+                break
+            done.append((x, y))
+        opened = []
+        if done:
+            got = mt5.orders_get()
+            if mm._mt5_error(mt5, "orders_get", got, errors):
+                done = []
+            else:
+                for o in got or ():
+                    d = _order_dict(o)
+                    if d["type"] in PENDING_TYPES:
+                        d["time_done"] = d["time_done_msc"] = 0
+                        opened.append(d)
+        return {"orders": list(found.values()), "open": opened, "done": done, "errors": errors}
+
+    return mm._connected(account, collect)
+
+
+def get_live_orders(account_id: str, account: dict, a: int, b: int, busy: bool = False) -> dict:
+    """Pending Orders, die irgendwann in [a, b) warteten (BKT-24). Beendete aus dem Archiv (Lücken von MT5 geholt),
+    offene frisch aus orders_get (`active`). Belegtes Konto: nur Archiv, Rest als `missing` busy."""
+    gaps = db.live_order_gaps(account_id, a, b)
+    missing = []
+    opened: list[dict] = []
+    if gaps and busy:
+        missing = [{"from": x, "to": y, "reason": "busy"} for x, y in gaps]
+    elif gaps:
+        try:
+            got = _fetch_live_orders(account, gaps)
+        except mm.MarketDataError as exc:
+            missing = [{"from": x, "to": y, "reason": "error", "detail": exc.detail} for x, y in gaps]
+        else:
+            now = int(time.time())
+            synced = [(x, live_orders_covered_to(y, now, got["open"])) for x, y in got["done"]]
+            db.store_live_orders(account_id, got["orders"], synced)
+            opened = got["open"]
+            failed = db.subtract(gaps, got["done"])
+            missing = [{"from": x, "to": y, "reason": "error", "detail": "; ".join(got["errors"])} for x, y in failed]
+    orders = [{**o, "active": False} for o in db.read_live_orders(account_id, a, b)]
+    orders += [{**o, "active": True} for o in opened if order_waits_in(o, a, b)]
+    orders.sort(key=lambda o: (o["time_setup_msc"] or 0, o["ticket"]))
+    return {
+        "account_id": account_id,
+        "from": a,
+        "to": b,
+        "orders": orders,
+        "missing": missing,
+        "lookback_sec": ORDER_LOOKBACK_SEC,
+    }
 
 
 def get_deals(account_id: str, account: dict, a: int, b: int, busy: bool = False, resync: bool = False) -> dict:

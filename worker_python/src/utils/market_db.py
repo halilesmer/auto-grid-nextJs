@@ -214,6 +214,22 @@ MIGRATIONS: list[list] = [
         # Benutzer, der dieselbe Kennung neu anlegt, das Archiv nicht erbt (claim_account).
         "CREATE TABLE IF NOT EXISTS deleted_accounts (account_id TEXT PRIMARY KEY, owner TEXT NOT NULL, deleted_at INTEGER NOT NULL)",
     ],
+    [
+        # BKT-24 / 1111-K1.3: beendete Pending Orders (Typ 2-5) je Konto. Offene Orders werden nie gespeichert (sie
+        # kommen bei jeder Anfrage frisch aus orders_get). live_order_coverage: "in diesem Bereich sind alle zu
+        # irgendeinem Zeitpunkt wartenden und beendeten Orders gespeichert".
+        """CREATE TABLE IF NOT EXISTS live_orders (
+            account_id TEXT NOT NULL, ticket INTEGER NOT NULL, time_setup INTEGER, time_setup_msc INTEGER NOT NULL,
+            time_done INTEGER, time_done_msc INTEGER NOT NULL, type INTEGER, state INTEGER, reason INTEGER,
+            magic INTEGER, symbol TEXT, volume_initial REAL, volume_current REAL, price_open REAL, sl REAL, tp REAL,
+            comment TEXT, position_id INTEGER, PRIMARY KEY (account_id, ticket)
+        )""",
+        "CREATE INDEX IF NOT EXISTS live_orders_setup ON live_orders (account_id, time_setup)",
+        "CREATE INDEX IF NOT EXISTS live_orders_done ON live_orders (account_id, time_done)",
+        """CREATE TABLE IF NOT EXISTS live_order_coverage (
+            account_id TEXT NOT NULL, from_t INTEGER NOT NULL, to_t INTEGER NOT NULL, synced_at INTEGER NOT NULL
+        )""",
+    ],
 ]
 SCHEMA_VERSION = len(MIGRATIONS)
 
@@ -742,6 +758,45 @@ def store_position_orders(account_id: str, rows: list[dict]):
         )
 
 
+# --------------------------------------------------------------------------- Pending Orders (BKT-24)
+LIVE_ORDER_COLUMNS = ("ticket", "time_setup", "time_setup_msc", "time_done", "time_done_msc", "type", "state", "reason",
+                      "magic", "symbol", "volume_initial", "volume_current", "price_open", "sl", "tp", "comment",
+                      "position_id")
+
+
+def live_order_gaps(account_id: str, a: int, b: int) -> list[tuple[int, int]]:
+    with reading() as conn:
+        covered = [(r[0], r[1]) for r in conn.execute(
+            "SELECT from_t, to_t FROM live_order_coverage WHERE account_id=? AND to_t > ? AND from_t < ?",
+            (account_id, a, b),
+        )]
+    return subtract([(a, b)], covered)
+
+
+def store_live_orders(account_id: str, orders: list[dict], synced: list[tuple[int, int]]):
+    now = int(time.time())
+    with writing() as conn:
+        conn.executemany(
+            f"INSERT OR REPLACE INTO live_orders (account_id, {', '.join(LIVE_ORDER_COLUMNS)}) "
+            f"VALUES (?{',?' * len(LIVE_ORDER_COLUMNS)})",
+            [(account_id, *(o.get(c) for c in LIVE_ORDER_COLUMNS)) for o in orders],
+        )
+        for x, y in synced:
+            if y > x:
+                _replace_segment(conn, "live_order_coverage", "account_id=?", (account_id,), x, y,
+                                 {"account_id": account_id, "synced_at": now}, merge_key="account_id")
+
+
+def read_live_orders(account_id: str, a: int, b: int) -> list[dict]:
+    """Gespeicherte (beendete) Orders, die irgendwann in [a, b) warteten: gesetzt vor b, beendet ab a."""
+    with reading() as conn:
+        return [dict(r) for r in conn.execute(
+            f"SELECT {', '.join(LIVE_ORDER_COLUMNS)} FROM live_orders WHERE account_id=? AND time_setup_msc < ? "
+            "AND time_done_msc >= ? ORDER BY time_setup_msc, ticket",
+            (account_id, b * 1000, a * 1000),
+        )]
+
+
 def _attach_open_levels(conn, account_id: str, deals: list[dict]) -> None:
     """Einstiegs-Deals bekommen open_sl/open_tp der Eröffnungsorder (None = unbekannt)."""
     ids = {d["position_id"] for d in deals if d.get("position_id")}
@@ -895,7 +950,8 @@ def reclaim_space():
 
 # --------------------------------------------------------------------------- Konto gelöscht / neu angelegt
 # Archiv, das an einer Konto-Kennung hängt (nicht an einem Server): Deals, Kontoinfo, SL/TP-Nachschlagen, Zonenregister.
-_ACCOUNT_ARCHIVE_TABLES = ("deals", "deal_coverage", "account_meta", "position_orders", "zone_registry", "zone_config_versions")
+_ACCOUNT_ARCHIVE_TABLES = ("deals", "deal_coverage", "account_meta", "position_orders", "zone_registry", "zone_config_versions",
+                           "live_orders", "live_order_coverage")
 
 
 def note_account_deleted(account_id: str, owner: str | None):
