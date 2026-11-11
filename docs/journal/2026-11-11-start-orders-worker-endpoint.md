@@ -3,7 +3,7 @@ date: 2026-11-11
 author: Claude
 type: feature
 status: open
-pr: [PRNUM]
+pr: [499]
 features: [BKT-24]
 areas: [worker, tests, docs]
 ---
