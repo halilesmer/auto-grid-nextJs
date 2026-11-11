@@ -232,6 +232,16 @@ Ein eigenes Modell, nicht „wie der MT5-Tester“.
   (Ausführungsverzögerung des Brokers), ohne Richtungsregel: ein Limit kann besser, ein Stop schlechter füllen. Fehlt die
   Worker-Adresse oder schlägt der Abruf fehl, bleibt es bei einem Durchgang (`run.triggerReplayUnavailable`).
 
+- **Offene Pending Orders zum Start (BKT-24, Plan 1111-K2):** Wartete im Konto zu Fensterbeginn schon eine Limit- oder
+  Stop-Order, steht sie in `RunInput.initialOrders` (aus `GET /history/{id}/orders?from&to=from+1`,
+  `buildStartState(…, orders)`). Der Lauf legt sie nach den Start-Positionen ins Orderbuch des Brokers (`seedOrder`), nicht
+  in den Engine-Zustand; die Engine sieht sie über `ordersGet()` wie der Live-Bot nach einem Neustart. Es gibt keine
+  Sonderregel: Stimmt die Order mit einer Stufe des Bots überein, setzt er sie nicht doppelt; ist sie ungültig (Stufe,
+  Lot, TP/SL), löscht `validateAndCleanup` sie; an der Positionsgrenze werden sie gelöscht; bei geschlossener Handelsseite
+  lehnt der Broker das Löschen mit 10018 ab, die Order bleibt und füllt nach Öffnung. Fraktal-Orders erkennt die Engine am
+  Kommentar (`_F[UD]<Zeit>`). Ohne Angabe oder mit leerer Liste ist der Lauf wie bisher. Die Live-Seite (`LiveCompareSection`)
+  gibt noch keine Start-Orders mit; das ist ein eigener Schritt.
+
 **Musterlösungen (Schritt 4, BKT-01/BKT-09):** `worker_python/tests/parity/` spielt 29 Szenarien
 mit dem echten Python-Bot ab (erst der Markt, dann der Bot, simulierte Uhr über `src/core/clock.py`)
 und speichert die Ereignisfolge in `tests/parity/golden/`. Der Nachbau im Browser muss dieselbe

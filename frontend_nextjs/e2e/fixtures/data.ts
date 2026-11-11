@@ -1,6 +1,7 @@
 /** Testdaten des gemockten Workers. Jeder Test bekommt eine frische Kopie (defaultState()). */
 import type { Account, LiveData, SymbolDetail, ZoneSettings } from '../../src/store/types';
 import type { Deal, ZoneRegistryEntry } from '../../src/lib/analysis/tradePairing';
+import type { LiveOrder } from '../../src/lib/backtest/startState';
 
 export const DEMO_ID = '1001';
 export const LIVE_ID = '2002';
@@ -220,6 +221,8 @@ export function defaultState() {
     csvImports: [] as CsvImportRow[],
     /** Deal-Archiv je Konto (GET /history/{id}/deals), MT5-Zeit; Einstiege vor `from` kommen wie im Worker mit. */
     deals: {} as Record<string, Deal[]>,
+    /** Pending-Order-Verlauf je Konto (BKT-24, GET /history/{id}/orders); fehlt die Liste, antwortet der Mock mit leerer Liste */
+    liveOrders: {} as Record<string, LiveOrder[]>,
     /** Zonen-Register je Konto (created_at = echte Unix-Sekunden) */
     zoneRegistry: {} as Record<string, ZoneRegistryEntry[]>,
     /** Margin-Modus des Kontos im Deal-Archiv (account.margin_mode): 0 Netting, 1 Exchange, 2 Hedging; null = unbekannt */
