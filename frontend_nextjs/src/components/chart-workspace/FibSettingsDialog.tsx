@@ -35,6 +35,8 @@ function Swatch({ label, hint, value, onChange, mixed = false, testId }: { label
 }
 
 export interface FibSettingsDialogProps {
+  /** Açılışta gösterilen sekme (sağ tık menüsü: Görünürlük) */
+  initialTab?: 'style' | 'coords' | 'vis';
   drawing: Drawing;
   /** Fiyat ölçeği logaritmik mi (Grafik ayarları → Ölçekler) */
   scaleLog: boolean;
@@ -52,7 +54,7 @@ export interface FibSettingsDialogProps {
   onCancel: (initial: Drawing) => void;
 }
 
-export function FibSettingsDialog({ drawing, scaleLog, locked, barTimes, stepSec, onPreview, onCommit, onCancel }: FibSettingsDialogProps) {
+export function FibSettingsDialog({ drawing, initialTab = 'style', scaleLog, locked, barTimes, stepSec, onPreview, onCommit, onCancel }: FibSettingsDialogProps) {
   const t = useT(), id = useId();
   const label = (n: string) => n === PRESET_ID ? t(k('presetName')) : n;
   const templates = useChartWorkspaceStore(s => s.drawingTemplates[FIB_KIND]);
@@ -60,7 +62,7 @@ export function FibSettingsDialog({ drawing, scaleLog, locked, barTimes, stepSec
   const [initial] = useState(drawing);
   const [name, setName] = useState(drawing.name ?? '');
   const [style, setStyle] = useState<FibStyle>(() => normalizeFibStyle(drawing.style));
-  const [tab, setTab] = useState<'style' | 'coords' | 'vis'>('style');
+  const [tab, setTab] = useState<'style' | 'coords' | 'vis'>(initialTab);
   const [pts, setPts] = useState(() => (drawing.points as { time: number; price: number }[]).slice(0, 2).map(p => ({ time: p.time, price: p.price, bar: barIndexOf(barTimes, p.time, stepSec) })));
   const [vis, setVis] = useState<FibVisibility>(() => normalizeVisibility(drawing.visibility));
   const [renaming, setRenaming] = useState(false);
@@ -208,7 +210,7 @@ function TemplateRow({ name, active, onApply, onDelete }: { name: string; active
   </div>;
 }
 
-function SaveTemplateModal({ id, names, onClose, onSave }: { id: string; names: string[]; onClose: () => void; onSave: (name: string) => void }) {
+export function SaveTemplateModal({ id, names, onClose, onSave }: { id: string; names: string[]; onClose: () => void; onSave: (name: string) => void }) {
   const t = useT();
   const [value, setValue] = useState('');
   const n = value.trim(), reserved = isReservedName(n), exists = !reserved && names.includes(n);

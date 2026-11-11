@@ -1625,6 +1625,16 @@ kategorien:
           - "Tab Koordinatlar: Preis ändern, İptal verwirft, Tamam speichert; Tab Görünürlük: auf D1 die Zeile Günler abwählen, die Zeichnung verschwindet; auf W1 nur Haftalar, auf MN nur Aylar."
         erwartet: "Das Fenster öffnet per Doppelklick; Änderungen wirken sofort, İptal verwirft sie, Tamam speichert; die feste Vorlage setzt alle 24 Plätze; Vorlagen lassen sich speichern, überschreiben und löschen; bei 375 px kein Überlauf."
 
+      - id: UI-28
+        titel: "Rechtsklick-Menü auf Zeichnungen und Kürzel Alt+F"
+        beschreibung: "Halil 2026-11-10 (1110-A4.9, S4): ein Rechtsklick auf eine Zeichnung öffnet ein Menü (Şablon bei Fibonacci, Görsel sıra, Aralıkların görünürlüğü, Nesne ağacı, Klonla, Kilitle/Kilidi aç, Gizle, Kaldır, Ayarlar…); auf leerem Chart bleibt das Browser-Menü. Jede Änderung ist ein Rückgängig-Schritt; bei gesperrter Zeichnung sind Kaldır und die Änderungen gesperrt, der Hinweis nennt den Grund. Esc und Klick daneben schließen, Pfeiltasten wählen. Alt+F wählt das Fibonacci-Retracement (nicht im Textfeld). Das Menü ist ein eigener Baustein, den die schwebende Leiste (S7) mit Zeichnungs-Id und Position öffnen kann."
+        code: [frontend_nextjs/src/components/chart-workspace/DrawingContextMenu.tsx, frontend_nextjs/src/components/chart-workspace/ChartWorkspace.tsx]
+        tiers: [e2e]
+        pruefung:
+          - "Playwright-Test e2e/mocked/chart-drawing-menu.spec.ts (@UI-28) ausführen."
+          - "/chart öffnen, eine Fibonacci-Zeichnung ziehen, rechts darauf klicken: Menü; Klonla: zweite Zeichnung; Kilitle: Kaldır ist grau; Kaldır und ⌘Z: Zeichnung ist zurück; Ayarlar… öffnet das Fibonacci-Fenster; Alt+F wählt das Werkzeug."
+        erwartet: "Das Menü erscheint nur über Zeichnungen, jede Änderung ist ein Rückgängig-Schritt, gesperrte Zeichnungen lassen sich nicht entfernen, Alt+F wählt das Fibonacci-Werkzeug."
+
   # ---------------------------------------------------------------------------
   - id: ANA
     titel: Analyse (Chart, Statistik, Backtest)

@@ -20,8 +20,8 @@ Plan 1110-A4 has two steps.
 |---|---|---|
 | S1 | Window with the Style tab, Template menu, double click, "Ayarlar…" button, built-in level set template, last-used style for new drawings | this entry (UI-27) |
 | S2 | Coordinates tab, Visibility tab, fix of the W1/MN interval that goes to the library as `1D` | done (UI-27) |
-| S4 | Right-click menu (A4.9) and the Alt+F shortcut | next |
-| S5 | Level text on the chart and colour opacity (A4.11) | after S4 |
+| S4 | Right-click menu (A4.9) and the Alt+F shortcut | done (UI-28) |
+| S5 | Level text on the chart and colour opacity (A4.11) | next |
 | S7 | Floating toolbar of the selected drawing, top centre (A4.13) | after S5 |
 
 S6 (Fib alert) left the plan on 2026-11-11 by decision of Halil. S2, S4, S5 and S7 touch the same files, so they run one after the other.
@@ -91,3 +91,14 @@ Other values: trend line on, white, solid, 1 px; level lines solid, 1 px; extend
 ## Open
 - S4, S5, S7 (see the step table).
 - Check on a phone: the two-column level grid at 375 px.
+
+## S4 result
+
+- New component `DrawingContextMenu.tsx`. It takes a drawing, a screen position and the drawing manager, so the S7 floating bar can open it with its "…" button.
+- Right click opens it only over a drawing (`manager.hoveredId()`). On an empty chart the browser menu stays. Esc, a click outside and the arrow keys work.
+- Each change calls `manager.update(...)` (or add, remove, `setHidden`) and then one `checkpoint`. A locked drawing, or locked drawings in the toolbar, disables Remove, Hide, Clone, Order and Template apply. The hint of the row names the reason.
+- "Interval visibility" opens the Fib window on the Visibility tab. It is disabled for other kinds, because only the Fib has this setting. "Settings…" opens the Fib window, and the Drawings section for other kinds. "Object tree" opens the Drawings section with the drawing selected.
+- "Order" has four rows. One step forward or back changes the list order, then calls `bringToFront` for every drawing from the changed place to the end.
+- Alt+F arms the Fib tool (`e.code`, because Alt+F types a different character on macOS). It does nothing in a text field or while a modal is open. The shortcut is in the hint of the Fib tool group (text only; the rail component did not change).
+- After the menu closes, focus goes back to the chart host. Without this, Cmd+Z after Remove did not reach the chart.
+- Test: `e2e/mocked/chart-drawing-menu.spec.ts` (UI-28).
