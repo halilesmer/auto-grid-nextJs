@@ -111,11 +111,11 @@ test('UI-27: die feste Vorlage setzt 24 Plätze; Vorlage speichern, anwenden, ü
   // Fabrikwerte, dann die gespeicherte Vorlage wieder anwenden
   await menu().click();
   await page.getByTestId('fib-apply-defaults').click();
-  await expect(levelBoxes(page).first().locator('input[type=number]')).toHaveValue('0');
-  await expect(levelBoxes(page).nth(1).locator('input[type=number]')).toHaveValue('0.236');
+  await expect(levelBoxes(page).first().getByLabel(msg('fib.coeff'), { exact: true })).toHaveValue('0');
+  await expect(levelBoxes(page).nth(1).getByLabel(msg('fib.coeff'), { exact: true })).toHaveValue('0.236');
   await menu().click();
   await page.getByTestId('fib-template-row').filter({ hasText: 'Meine' }).getByRole('button').first().click();
-  await expect(levelBoxes(page).nth(1).locator('input[type=number]')).toHaveValue('0.886');
+  await expect(levelBoxes(page).nth(1).getByLabel(msg('fib.coeff'), { exact: true })).toHaveValue('0.886');
   // Gleicher Name: Warnung und „Üzerine yaz“
   await menu().click();
   await page.getByTestId('fib-save-as').click();
