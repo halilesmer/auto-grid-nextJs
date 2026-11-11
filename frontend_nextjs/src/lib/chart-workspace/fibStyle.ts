@@ -16,6 +16,22 @@ export type FibStyle = Pick<DrawingStyle, 'lineStyle' | 'width' | 'levels' | 'fi
 
 const H3 = ['left', 'center', 'right'] as const, V3 = ['top', 'middle', 'bottom'] as const, LINES = ['solid', 'dashed', 'dotted'] as const;
 const HEX = /^#[\da-f]{3,8}$/i;
+export const FIB_TEXT_MAX = 40;
+
+/**
+ * Renk + opaklık (1110-A4.11 / S5): kütüphane rengi olduğu gibi çizer, bu yüzden opaklık `#rrggbbaa` olarak renkle birlikte saklanır.
+ * Opaklık 100 ise renk eskisi gibi `#rrggbb` kalır (eski kayıtlar ve şablonlar değişmez).
+ */
+export function splitColor(c: string): { rgb: string; alpha: number } {
+  let h = c.replace('#', '').toLowerCase();
+  if (h.length === 3 || h.length === 4) h = h.split('').map(x => x + x).join('');
+  const rgb = /^[\da-f]{6}/.test(h) ? `#${h.slice(0, 6)}` : '#808080';
+  return { rgb, alpha: h.length === 8 ? Math.round(parseInt(h.slice(6, 8), 16) / 255 * 100) : 100 };
+}
+export function joinColor(rgb: string, alpha: number): string {
+  const a = Math.min(100, Math.max(0, Math.round(alpha)));
+  return a >= 100 ? rgb : `${rgb}${Math.round(a / 100 * 255).toString(16).padStart(2, '0')}`;
+}
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 const oneOf = <T extends string>(list: readonly T[], v: unknown, fallback: T): T => (list as readonly unknown[]).includes(v) ? v as T : fallback;
 const bool = (v: unknown, fallback: boolean) => typeof v === 'boolean' ? v : fallback;
@@ -51,7 +67,7 @@ function parseLevels(raw: unknown): LevelDef[] | null {
     if (!item || typeof item !== 'object') return null;
     const l = item as Partial<LevelDef>;
     if (typeof l.coeff !== 'number' || !Number.isFinite(l.coeff) || typeof l.color !== 'string' || !HEX.test(l.color)) return null;
-    out.push({ ...(typeof l.text === 'string' ? { text: l.text } : {}), coeff: l.coeff, color: l.color, visible: l.visible !== false });
+    out.push({ ...(typeof l.text === 'string' && l.text ? { text: l.text.slice(0, FIB_TEXT_MAX) } : {}), coeff: l.coeff, color: l.color, visible: l.visible !== false });
   }
   return out;
 }
