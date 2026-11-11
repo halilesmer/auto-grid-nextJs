@@ -242,6 +242,14 @@ Ein eigenes Modell, nicht „wie der MT5-Tester“.
   Kommentar (`_F[UD]<Zeit>`). Ohne Angabe oder mit leerer Liste ist der Lauf wie bisher. Die Live-Seite (`LiveCompareSection`)
   gibt noch keine Start-Orders mit; das ist ein eigener Schritt.
 
+- **Startzustand auf der Backtest-Seite (BKT-25, Plan 1111-K5.1):** Die Seite `/backtest` gibt den Startzustand automatisch
+  mit, wenn das Setup gespeichert ist, die Quelle MT5 ist (kein CSV-Import), die Zeiteinheit M1 ist, `zone.magic` eine Zahl
+  ist und der Fensterbeginn in der Vergangenheit liegt. Es gibt keinen Schalter. Die Deals kommen aus dem Archiv der Seite
+  (nach Magic gefiltert, `RunParams.startState`); `runJob` holt die Pending Orders einmal je Auftrag
+  (`/history/{id}/orders?from=FROM&to=FROM+1`) und gibt Positionen, Orders und erledigte Fraktale an alle Durchgänge und beide
+  Wege gleich weiter. Deckt das Archiv den Fensterbeginn nicht ab, läuft der Lauf ohne Startzustand (WARN
+  `run.startStateMissing`), er wird nicht gesperrt. Ohne `startState` ist das Ergebnis bytegleich wie bisher.
+
 **Musterlösungen (Schritt 4, BKT-01/BKT-09):** `worker_python/tests/parity/` spielt 29 Szenarien
 mit dem echten Python-Bot ab (erst der Markt, dann der Bot, simulierte Uhr über `src/core/clock.py`)
 und speichert die Ereignisfolge in `tests/parity/golden/`. Der Nachbau im Browser muss dieselbe

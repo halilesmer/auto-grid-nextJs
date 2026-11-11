@@ -2183,6 +2183,16 @@ kategorien:
           - Auf dem VPS (DEMO, nur lesen) GET /history/{id}/orders mit from = Fensterbeginn und to = from + 1 aufrufen; Dauer messen (über 2 s auf mt5_reader verlegen).
         erwartet: Die Tests bestehen. Auf dem VPS kommen die zu Fensterbeginn wartenden Orders des Kontos zurück, ein zweiter Aufruf geht nicht an MT5.
 
+      - id: BKT-25
+        titel: "Backtest-Seite: Start im Live-Zustand des Fensterbeginns"
+        beschreibung: "Frontend-Teil (PR-C, Plan K5.1): Die Seite /backtest übergibt dem Lauf den Startzustand, den buildStartState (BKT-22/BKT-24) schon berechnen kann. Es gibt keinen Schalter und kein neues Bedienelement; der Startzustand gilt automatisch, wenn alle Bedingungen stimmen: gespeichertes Setup (nicht ungespeichert), MT5-Quelle (kein CSV-Import), M1, numerisches zone.magic und ein Fensterbeginn in der Vergangenheit. Die Deals kommen aus dem Archiv der Seite (useDealsHistory, 365 Tage), auf der Seite nach Magic gefiltert; RunParams.startState trägt nur diese Deals über postMessage. runJob holt die Pending Orders einmal je Auftrag (GET /history/{id}/orders?from=FROM&to=FROM+1; Fehler oder gefülltes `missing` zählt als nicht zu haben: WARN run.startOrdersMissing), ruft buildStartState und gibt initialPositions, initialOrders und initialFractalDone an alle Durchgänge und beide Wege (lowFirst/highFirst) gleich weiter; dessen Hinweise gehen ins Protokoll. Der Runner schreibt INFO run.startPositions (Zahl der Positionen und Fraktale). Deckt das Archiv den Fensterbeginn nicht ab (Beginn vor Archivanfang oder Lücke davor), läuft der Lauf ohne Startzustand, ohne Sperre, mit WARN run.startStateMissing. Ohne startState ist das Ergebnis bytegleich wie bisher. Die Ergebnistabelle zeigt den Startzustand noch nicht (K5.2)."
+        code: [frontend_nextjs/src/components/backtest/BacktestView.tsx, frontend_nextjs/src/lib/backtest/runJob.ts, frontend_nextjs/src/lib/backtest/runner.ts, frontend_nextjs/src/lib/backtest/protocol.ts, frontend_nextjs/src/i18n/messages/backtest.ts, frontend_nextjs/e2e/fixtures/mock-worker.ts, frontend_nextjs/e2e/mocked/backtest-start-state-run-lib.spec.ts, frontend_nextjs/e2e/mocked/backtest-start-state.spec.ts]
+        tiers: [e2e, manuell]
+        pruefung:
+          - Playwright-Logiktest e2e/mocked/backtest-start-state-run-lib.spec.ts und Seitentest e2e/mocked/backtest-start-state.spec.ts ausführen (Position und Start-Order im Lauf, Orders-Fehler = WARN und Position bleibt, Archiv ohne Deckung = WARN ohne Startzustand, CSV-Quelle ohne Startzeile, ohne startState bytegleich, beide Wege gleich).
+          - Auf dem VPS (DEMO, nur lesen) ein gespeichertes Setup mit MT5-M1-Daten über ein Fenster laufen lassen, in dem das Konto zu Beginn offene Positionen und wartende Orders hatte; im Protokoll stehen run.startPositions und run.startOrders, und der Lauf übernimmt die Positionen (Plan 1111-K5.1 §4.2 und §4.3).
+        erwartet: Die Tests bestehen. Auf dem VPS startet der Lauf mit den Live-Positionen und -Orders des Fensterbeginns; ohne Deckung des Archivs läuft er ohne Startzustand und warnt im Protokoll.
+
   # ---------------------------------------------------------------------------
   - id: FRM
     titel: Formationserkennung

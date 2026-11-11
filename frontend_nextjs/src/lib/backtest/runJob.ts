@@ -9,6 +9,7 @@ import { loadRates, type FetchJson, type LoadedRates } from '@/lib/backtest/cand
 import type { PathMode } from '@/lib/backtest/candles/pathModel';
 import type { RunRequest, WorkerMessage } from '@/lib/backtest/protocol';
 import { RunError } from '@/lib/backtest/runContext';
+import { buildStartState, type LiveOrder, type StartState } from '@/lib/backtest/startState';
 import { runBacktest, triggerReplayOn, warmupSeconds, type RunResult } from '@/lib/backtest/runner';
 
 /** Anteil des Fortschritts, der auf das Laden entfällt; der Rest ist der Lauf */
@@ -55,6 +56,18 @@ export async function runJob(
       onProgress: (fraction) => post({ type: 'progress', runId, phase: 'load', fraction: fraction * LOAD_SHARE }),
     });
     onRates?.(rates);
+    // BKT-25: Live-Startzustand einmal bauen; alle Durchgänge und beide Wege starten mit denselben Tickets
+    let start: StartState | null = null;
+    if (params.startState) {
+      let orders: LiveOrder[] | null = null;
+      try {
+        const answer = (await fetchJson(`/history/${encodeURIComponent(params.accountId)}/orders?from=${params.from}&to=${params.from + 1}`)) as { orders?: LiveOrder[]; missing?: unknown[] };
+        orders = Array.isArray(answer?.orders) && !(answer.missing?.length) ? answer.orders : null;
+      } catch {
+        orders = null; // alter Worker, Fehlerstatus, Netz: der Lauf startet ohne Orders (WARN im Protokoll)
+      }
+      start = buildStartState(params.startState.deals, Number(params.zone.magic), params.zone, params.from, params.symbol.digits, orders);
+    }
     const paths: PathMode[] = params.path === 'both' ? ['lowFirst', 'highFirst'] : [params.path];
     const wantTrigger = triggerReplayOn(params.model) && rates.replay !== undefined && rates.point !== null && rates.digits !== null;
     const results: RunResult[] = [];
@@ -85,7 +98,8 @@ export async function runJob(
           startCapital: params.startCapital,
           accountCurrency: params.accountCurrency,
           zoneLabel: params.zoneLabel,
-          notes: [...snapshot.warnings, ...(params.notes ?? [])],
+          notes: [...snapshot.warnings, ...(params.notes ?? []), ...(start?.notes ?? [])],
+          ...(start ? { initialPositions: start.positions, initialOrders: start.orders, initialFractalDone: start.fractalDone } : {}),
           onProgress: (fraction) => post({ type: 'progress', runId, phase: 'run', fraction: slice(((passIndex - 1) + fraction) / (wantTrigger ? limits.passes : 1)) }),
         });
         if (!wantTrigger || unavailable || passes >= limits.passes) break;

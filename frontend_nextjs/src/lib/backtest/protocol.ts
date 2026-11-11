@@ -6,6 +6,7 @@
 import type { SpreadSetting } from '@/lib/backtest/broker/costs';
 import type { Timeframe, ZoneDict } from '@/lib/backtest/engine/types';
 import type { RunModel, RunResult } from '@/lib/backtest/runner';
+import type { Deal } from '@/lib/analysis/tradePairing';
 import type { MissingRange } from '@/lib/analysis/candles';
 import type { SymbolDetail } from '@/store/types';
 
@@ -37,6 +38,8 @@ export interface RunParams {
   zoneLabel?: string | null;
   /** Zusätzliche Hinweise der Seite (z. B. gemeinsame Spread-Lernhistorie), landen als Warnung im Protokoll */
   notes?: { code: string; params?: Record<string, unknown> }[];
+  /** BKT-25: Live-Deals dieses Setups (nur sein Magic) aus dem Archiv der Seite; mit ihnen startet der Lauf im Live-Zustand von `from` */
+  startState?: { deals: Deal[] };
 }
 
 export interface RunRequest {

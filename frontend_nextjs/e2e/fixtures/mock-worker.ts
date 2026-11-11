@@ -1233,6 +1233,12 @@ export class MockWorker {
       return ok(this.deals(seg[1], url.searchParams));
     }
 
+    if (seg[0] === 'history' && seg[2] === 'orders' && method === 'GET') {
+      const account = s.accounts.find((a) => String(a.id) === seg[1]);
+      if (!account) return { status: 404, body: { detail: `Account '${seg[1]}' not found` } };
+      return ok(this.liveOrders(seg[1], url.searchParams));
+    }
+
     // --------------------------------------------------------------- Bot
     const accountId = url.searchParams.get('account_id') ?? '';
     if (path === '/start' && method === 'POST') {
