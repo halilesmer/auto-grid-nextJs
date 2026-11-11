@@ -12,7 +12,7 @@ import type { CurvePoint } from '@/lib/analysis/curves';
 import type { Trade } from '@/lib/analysis/tradePairing';
 import type { Excursion } from '@/lib/analysis/excursions';
 import { candleSpreadPoints, cents, type SpreadSetting, type SymbolSnapshot } from '@/lib/backtest/broker/costs';
-import { PathBroker, type FillModel, type InitialPosition, type MinuteQuotes } from '@/lib/backtest/broker/pathBroker';
+import { PathBroker, type FillModel, type InitialOrder, type InitialPosition, type MinuteQuotes } from '@/lib/backtest/broker/pathBroker';
 import { tradeOpenAt } from '@/lib/backtest/broker/tradeSessions';
 import type { LoadedRates } from '@/lib/backtest/candles/loadRates';
 import { candleWaypoints, waypointTimes, type PathMode } from '@/lib/backtest/candles/pathModel';
@@ -91,6 +91,8 @@ export interface RunInput {
   zoneLabel?: string | null;
   /** Startzustand: Positionen, die zum Start live offen waren (Standard: leer wie bisher) */
   initialPositions?: InitialPosition[];
+  /** BKT-24: Startzustand: Pending Orders, die zum Start live im Orderbuch standen (ohne Angabe oder leer: Lauf wie bisher) */
+  initialOrders?: InitialOrder[];
   /** Startzustand: schon gehandelte Fraktale der Zone (Positionen mit Fraktal-Kommentar zählen automatisch) */
   initialFractalDone?: InitialFractalDone[];
   /** Meldungen vor dem Lauf (z. B. aus dem Schnappschuss), kommen vorn ins Protokoll */
@@ -229,6 +231,16 @@ export function runBacktest(input: RunInput): RunResult {
     slSlippagePoints: model.slSlippagePoints,
   });
   for (const init of input.initialPositions ?? []) broker.seedPosition(init);
+  // BKT-24: erst die Positionen (ihre Ticketnummern bleiben wie bisher), dann die Orders
+  const initialOrders = input.initialOrders ?? [];
+  for (const init of initialOrders) broker.seedOrder(init);
+  if (initialOrders.length > 0) {
+    log.add('INFO', 'run.startOrders', { orders: initialOrders.length });
+    if (zone.entry_mode === 'fractal') {
+      const unknown = initialOrders.filter((o) => !/_F[UD]\d+/.test(o.comment ?? '')).length;
+      if (unknown > 0) log.add('WARN', 'run.startOrderNoFractal', { orders: unknown });
+    }
+  }
   for (let i = 0; i < first; i++) {
     broker.warm({ time: rates.t[i], open: rates.o[i], high: rates.h[i], low: rates.l[i], close: rates.c[i], spread: rates.s[i] });
   }

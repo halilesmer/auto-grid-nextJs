@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { pairTrades, type Deal, type Trade } from '../../src/lib/analysis/tradePairing';
 import { buildSymbolRows, pairLive, DEFAULT_TOLERANCE, evaluateBtLive, flatZone, levelToleranceOf, maxDrawdownOf, pairByOrder, type CollectedRun, type TradeLite } from '../../src/lib/backtest/liveCompare';
-import { buildStartState } from '../../src/lib/backtest/startState';
+import { buildStartState, type LiveOrder } from '../../src/lib/backtest/startState';
 import { DEFAULT_RUN_SETTINGS } from '../../src/lib/backtest/runSettings';
 
 const T0 = 1_760_000_040; // volle Minute
@@ -308,4 +308,50 @@ test('Grid: Fehlt open_x, gilt die bisherige Schätzung', { tag: '@BKT-16' }, ()
   expect(state.positions[0]).toMatchObject({ sl: 4058.91, tp: 4076.91 });
   expect(state.estimated).toBe(1);
   expect(state.notes).toEqual([{ code: 'run.startLevelsEstimated', params: { positions: 1 } }]);
+});
+
+// ---------------------------------------------------------------- BKT-24 Start-Orders aus der Orderhistorie
+const liveOrder = (over: Partial<LiveOrder> = {}): LiveOrder => ({
+  ticket: 9001, time_setup: FROM - 3600, time_setup_msc: (FROM - 3600) * 1000 + 5, time_done: FROM + 600, time_done_msc: (FROM + 600) * 1000, type: 2, state: 2,
+  magic: 200041, symbol: 'XAUUSD', volume_initial: 0.1, volume_current: 0.1, price_open: 4060.5, sl: null, tp: 4061.5, comment: 'AutoGrid_Z200041', ...over,
+});
+
+test('Start-Orders: nur Pending-Typ, eigenes Magic, vor from gesetzt, nicht abgelehnt; offene und ab from beendete zählen', { tag: '@BKT-24' }, () => {
+  const rows = [
+    liveOrder(),
+    liveOrder({ ticket: 9002, time_done_msc: 0, time_done: 0, active: true }), // noch offen
+    liveOrder({ ticket: 9003, time_done_msc: FROM * 1000 }), // Grenze == from zählt
+    liveOrder({ ticket: 9004, time_done_msc: FROM * 1000 - 1 }), // davor beendet
+    liveOrder({ ticket: 9005, type: 0 }), // Marktorder
+    liveOrder({ ticket: 9006, state: 5 }), // abgelehnt
+    liveOrder({ ticket: 9007, magic: 200042 }), // fremde Zone
+    liveOrder({ ticket: 9008, time_setup_msc: FROM * 1000 }), // erst ab from gesetzt
+  ];
+  const state = buildStartState([], 200041, xauSetup, FROM, 2, rows);
+  expect(state.orders).toHaveLength(3);
+  expect(state.orders[0]).toMatchObject({ type: 2, price: 4060.5, volume: 0.1, tp: 4061.5, magic: 200041, comment: 'AutoGrid_Z200041' });
+  expect(state.orders[0].sl).toBeUndefined();
+  expect(state.notes).toEqual([]);
+});
+
+test('Start-Orders: Sortierung nach Setzzeit, dann Ticket', { tag: '@BKT-24' }, () => {
+  const rows = [
+    liveOrder({ ticket: 9012, time_setup_msc: 5000, price_open: 3 }),
+    liveOrder({ ticket: 9011, time_setup_msc: 5000, price_open: 2 }),
+    liveOrder({ ticket: 9013, time_setup_msc: 1000, price_open: 1 }),
+  ];
+  const state = buildStartState([], 200041, xauSetup, FROM, 2, rows);
+  expect(state.orders.map((o) => o.price)).toEqual([1, 2, 3]);
+});
+
+test('Start-Orders: ohne Angabe wie bisher (keine Notiz), null = angefragt aber nicht zu haben (WARN), Teilfüllung wird gemeldet', { tag: '@BKT-24' }, () => {
+  const none = buildStartState([], 200041, xauSetup, FROM, 2);
+  expect(none.orders).toEqual([]);
+  expect(none.notes).toEqual([]);
+  const missing = buildStartState([], 200041, xauSetup, FROM, 2, null);
+  expect(missing.orders).toEqual([]);
+  expect(missing.notes).toEqual([{ code: 'run.startOrdersMissing' }]);
+  const partial = buildStartState([], 200041, xauSetup, FROM, 2, [liveOrder({ state: 3 })]);
+  expect(partial.orders).toHaveLength(1);
+  expect(partial.notes).toEqual([{ code: 'run.startOrderPartial', params: { orders: 1 } }]);
 });
