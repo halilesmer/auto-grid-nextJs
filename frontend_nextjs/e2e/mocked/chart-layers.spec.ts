@@ -1,17 +1,14 @@
 /**
- * UI-11 Gemeinsame Chart-Ebenen (ChartView): System-RSI(7) und Wave 5/35 stehen auf jedem Chart, auch auf /chart frei
+ * UI-11 Gemeinsame Chart-Ebenen (ChartView): System-RSI(7) steht auf jedem Chart, auch auf /chart frei
  * und im Setup-Modus. Sie werden aus den geschlossenen Kerzen des Charts gerechnet und lassen sich im Menü
  * „Ebenen“ (UI-13) ein- und ausschalten. Plan: docs/journal/2026-11-01-unified-chart-page.md.
  */
 import type { Page } from '@playwright/test';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, ZONE_ID, expect, test } from '../fixtures/test';
-import { cardRoot } from '../fixtures/card';
 
 const SETUP = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=H1`;
 const FREE = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
-/** Wave 5/35 braucht 35 Kerzen, bis der erste Wert steht (Wert ab Kerze 35) */
-const WAVE_WARMUP = 34;
 
 async function openOverlays(page: Page) {
   await page.getByRole('button', { name: msg('cw.layers'), exact: true }).click();
@@ -23,33 +20,28 @@ const paneHeights = (page: Page) => page.getByTestId('chart-workspace').locator(
 
 for (const [name, url] of [['frei', FREE], ['Setup', SETUP]] as const) {
   test.describe(`UI-11 ${name}`, () => {
-    test('RSI(7) und Wave 5/35 stehen als System-Fenster unter den Kerzen', { tag: '@UI-11' }, async ({ page, worker }) => {
+    test('RSI(7) steht als System-Fenster unter den Kerzen', { tag: '@UI-11' }, async ({ page, worker }) => {
       void worker;
       await page.goto(url);
       const chart = page.getByTestId('analysis-chart');
       await expect(chart).toHaveAttribute('data-bars', /^[1-9]\d*$/);
-      const bars = Number(await chart.getAttribute('data-bars'));
-      await expect(chart).toHaveAttribute('data-system-panes', '3');
-      await expect(chart).toHaveAttribute('data-wave-visible', 'true');
-      const waves = Number(await chart.getAttribute('data-wave-points'));
-      // Die laufende Kerze zählt nicht mit: höchstens eine Kerze weniger als im Chart
-      expect(waves).toBeGreaterThanOrEqual(bars - 1 - WAVE_WARMUP);
-      expect(waves).toBeLessThanOrEqual(bars - WAVE_WARMUP);
+      await expect(chart).toHaveAttribute('data-system-panes', '2');
+      await expect(chart).toHaveAttribute('data-rsi-visible', 'true');
     });
 
-    test('Die Schalter „RSI“ und „Wave“ blenden die Fenster aus und wieder ein', { tag: '@UI-11' }, async ({ page, worker }) => {
+    test('Der Schalter „RSI“ blendet das Fenster aus und wieder ein; es gibt keinen Wave-Schalter mehr', { tag: '@UI-11' }, async ({ page, worker }) => {
       void worker;
       await page.goto(url);
       const chart = page.getByTestId('analysis-chart');
-      await expect(chart).toHaveAttribute('data-wave-visible', 'true');
+      await expect(chart).toHaveAttribute('data-rsi-visible', 'true');
       await openOverlays(page);
-      const wave = page.locator('#layer-wave');
-      await expect(wave).toHaveAttribute('aria-checked', 'true');
-      await wave.click();
-      await expect(chart).toHaveAttribute('data-wave-visible', 'false');
-      await wave.click();
-      await expect(chart).toHaveAttribute('data-wave-visible', 'true');
-      await expect(page.locator('#layer-rsi')).toHaveAttribute('aria-checked', 'true');
+      await expect(page.locator('#layer-wave')).toHaveCount(0);
+      const rsi = page.locator('#layer-rsi');
+      await expect(rsi).toHaveAttribute('aria-checked', 'true');
+      await rsi.click();
+      await expect(chart).toHaveAttribute('data-rsi-visible', 'false');
+      await rsi.click();
+      await expect(chart).toHaveAttribute('data-rsi-visible', 'true');
     });
   });
 }
@@ -60,46 +52,38 @@ for (const [name, url] of [['frei', FREE], ['Setup', SETUP]] as const) {
       void worker;
       await page.goto(url);
       const chart = page.getByTestId('analysis-chart');
-      await expect(chart).toHaveAttribute('data-system-panes', '3');
-      await expect.poll(async () => (await paneHeights(page)).length).toBeGreaterThanOrEqual(3);
+      await expect(chart).toHaveAttribute('data-system-panes', '2');
+      await expect.poll(async () => (await paneHeights(page)).length).toBeGreaterThanOrEqual(2);
       const before = await paneHeights(page);
       await openOverlays(page);
-      await page.locator('#layer-wave').click();
-      await expect(chart).toHaveAttribute('data-system-panes', '2');
-      await expect.poll(async () => (await paneHeights(page)).length).toBe(before.length - 1);
-      await expect.poll(async () => (await paneHeights(page))[0]).toBeGreaterThan(before[0]);
-      const withoutWave = await paneHeights(page);
       await page.locator('#layer-rsi').click();
       await expect(chart).toHaveAttribute('data-system-panes', '1');
-      await expect.poll(async () => (await paneHeights(page)).length).toBe(before.length - 2);
-      await expect.poll(async () => (await paneHeights(page))[0]).toBeGreaterThan(withoutWave[0]);
+      await expect.poll(async () => (await paneHeights(page)).length).toBe(before.length - 1);
+      await expect.poll(async () => (await paneHeights(page))[0]).toBeGreaterThan(before[0]);
       await expect(page.locator('[data-system-row]')).toHaveCount(0);
-      await page.locator('#layer-wave').click();
       await page.locator('#layer-rsi').click();
-      await expect(chart).toHaveAttribute('data-system-panes', '3');
+      await expect(chart).toHaveAttribute('data-system-panes', '2');
       await expect.poll(async () => (await paneHeights(page)).length).toBe(before.length);
-      // Neu eingeschaltet: Wave steht unter den Nutzer-Bereichen (EWO), RSI(7) darunter oder davor je nach Reihenfolge des Einschaltens
-      const wave = (await page.locator('[data-system-row="wave"]').boundingBox())!, rsi = (await page.locator('[data-system-row="rsi"]').boundingBox())!;
+      // Neu eingeschaltet: RSI(7) steht unter dem EWO des Nutzers
+      const rsi = (await page.locator('[data-system-row="rsi"]').boundingBox())!;
       const ewo = (await page.locator('[data-indicator-row="EWO"]').boundingBox())!;
-      expect(wave.y).toBeGreaterThan(ewo.y);
-      expect(rsi.y).toBeGreaterThan(wave.y);
+      expect(rsi.y).toBeGreaterThan(ewo.y);
     });
 
     test('Eine gespeicherte, ausgeschaltete Ebene wird beim Laden gar nicht erst aufgebaut', { tag: '@UI-11' }, async ({ page, worker }) => {
       void worker;
       await page.goto(url);
       const chart = page.getByTestId('analysis-chart');
-      await expect(chart).toHaveAttribute('data-system-panes', '3');
+      await expect(chart).toHaveAttribute('data-system-panes', '2');
       const before = (await paneHeights(page)).length;
       await openOverlays(page);
-      await page.locator('#layer-wave').click();
-      await expect(chart).toHaveAttribute('data-system-panes', '2');
+      await page.locator('#layer-rsi').click();
+      await expect(chart).toHaveAttribute('data-system-panes', '1');
       await page.reload();
       await expect(chart).toHaveAttribute('data-bars', /^[1-9]\d*$/);
-      await expect(chart).toHaveAttribute('data-system-panes', '2');
+      await expect(chart).toHaveAttribute('data-system-panes', '1');
       await expect.poll(async () => (await paneHeights(page)).length).toBe(before - 1);
-      await expect(page.locator('[data-system-row="wave"]')).toHaveCount(0);
-      await expect(page.locator('[data-system-row="rsi"]')).toHaveCount(1);
+      await expect(page.locator('[data-system-row="rsi"]')).toHaveCount(0);
     });
   });
 }
@@ -112,8 +96,8 @@ test.describe('UI-11 Nutzer-Indikatoren', () => {
     await expect(values).toContainText('EWO');
     await expect(values).toContainText('RSI');
     await openOverlays(page);
-    await page.locator('#layer-wave').click();
-    await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-wave-visible', 'false');
+    await page.locator('#layer-rsi').click();
+    await page.locator('#layer-rsi').click();
     await expect(values).toContainText('EWO');
     await expect(values).toContainText('RSI');
     await page.reload();
@@ -131,7 +115,7 @@ test.describe('UI-11 schmale Breite', () => {
       for (const [width, narrow] of [[375, true], [1440, false]] as const) {
         await page.setViewportSize({ width, height: 900 });
         await page.goto(url);
-        await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-system-panes', '3');
+        await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-system-panes', '2');
         const box = (id: string) => page.getByTestId(id).boundingBox().then(b => b!);
         const bottomOf = async (id: string) => { const b = await box(id); return b.y + b.height; };
         const workspaceBottom = await bottomOf('chart-workspace');
@@ -163,7 +147,6 @@ for (const [name, url] of [['frei', FREE], ['Setup', SETUP], ['Formation', `/cha
     await page.goto(url);
     await expect(page.getByTestId('oscillator-controls')).toBeAttached();
     await expect(page.locator('[data-system-row="rsi"]')).toHaveCount(1);
-    await expect(page.locator('[data-system-row="wave"]')).toHaveCount(1);
     await page.waitForTimeout(500);
     expect(errors.filter(text => /same key/.test(text))).toEqual([]);
   });

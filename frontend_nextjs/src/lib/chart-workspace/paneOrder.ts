@@ -1,12 +1,13 @@
 import { isOscillator, SYSTEM_RSI_ID, type Indicator } from './indicators';
 
 /**
- * System-Oszillatoren des Charts (RSI(7), Wave 5/35). Sie stehen im selben Bereichsmodell wie die Oszillatoren des Nutzers:
+ * System-Oszillatoren des Charts (RSI(7)). Sie stehen im selben Bereichsmodell wie die Oszillatoren des Nutzers:
  * ein Bereich je Eintrag, Reihenfolge, Einklappen und Ausblenden im Chart-Dokument (UI-11, Plan 1105-A6).
  */
-export const SYSTEM_PANE_IDS = ['wave'] as const;
-export type SystemPaneId = (typeof SYSTEM_PANE_IDS)[number];
-export const isSystemPane = (id: string): id is SystemPaneId => (SYSTEM_PANE_IDS as readonly string[]).includes(id);
+/** No system pane is left (the Wave 5/35 pane was removed on 2026-11-11, EWO is an ordinary user indicator); the model stays for the next system pane. */
+export const SYSTEM_PANE_IDS: readonly string[] = [];
+export type SystemPaneId = string;
+export const isSystemPane = (id: string): id is SystemPaneId => SYSTEM_PANE_IDS.includes(id);
 
 export interface SystemPaneState { hidden?: boolean; collapsed?: boolean }
 export type SystemPaneStates = Partial<Record<SystemPaneId, SystemPaneState>>;

@@ -42,7 +42,7 @@ export interface OscillatorActions {
   toggleVisible: (indicator: Indicator) => void;
   /** Changes fields of one indicator (line menu: color, pattern, width) */
   update: (indicator: Indicator, change: Partial<Indicator>) => void;
-  /** Eye of a system pane (RSI(7), Wave 5/35) */
+  /** Eye of a system pane (RSI(7)) */
   toggleSystemVisible: (id: SystemPaneId) => void;
   openSettings: (indicator: Indicator) => void;
   switchScale: (indicator: Indicator) => void;
