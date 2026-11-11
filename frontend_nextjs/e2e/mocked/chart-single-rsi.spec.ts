@@ -50,7 +50,7 @@ test('UI-18: ein gespeichertes Dokument der Version 1 wandert auf den neuen RSI,
   await page.goto(FREE);
   await expect(rows(page)).toHaveCount(1);
   await page.getByRole('button', { name: msg('cw.layers'), exact: true }).click();
-  await page.locator('#layer-wave').click(); // creates the document
+  await page.locator('#layer-rsi').click(); // creates the document
   const key = await page.evaluate(storage => Object.keys(JSON.parse(localStorage.getItem(storage) || '{}').documents ?? {})[0], STORAGE);
   expect(key).toBeTruthy();
   await page.evaluate(([storage, docKey]) => {

@@ -341,7 +341,7 @@ test.describe('FRM-45 Schalter Formasyon çizimleri', () => {
     await expect(toggle).toHaveAttribute('aria-pressed', 'true');
     await expect(overlay).toBeVisible();
     await page.getByRole('button', { name: msg('cw.layers'), exact: true }).click();
-    await expect(page.locator('#layer-wave')).toBeVisible();
+    await expect(page.locator('#layer-rsi')).toBeVisible();
     await expect(page.locator('#overlay-formations')).toHaveCount(0);
   });
 

@@ -490,8 +490,8 @@ const storedDocument = (page: Page, key: string) => page.evaluate(k => {
   const state = JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}');
   return state.documents[k] as { indicators: StoredIndicator[]; alarms: StoredAlarm[] };
 }, key).then(doc => ({ ...doc, indicators: doc.indicators.filter(item => item.id !== 'system-rsi') }));
-/** Height of the price pane and of each user pane in pixels, price pane first. Lightweight Charts draws one table row per pane. The system pane wave (UI-11) lie after the price pane and are left out. */
-const SYSTEM_PANES = 1;
+/** Height of the price pane and of each user pane in pixels, price pane first. Lightweight Charts draws one table row per pane. No system pane is left since the Wave pane was removed (UI-11); the filter below keeps the hook for a future one. */
+const SYSTEM_PANES = 0;
 const paneHeights = (page: Page) => page.getByTestId('chart-workspace').locator('table').first().evaluate(table =>
   [...table.querySelectorAll('tr')].filter(row => row.querySelector('canvas') && row.children.length === 3).map(row => Math.round(row.getBoundingClientRect().height)).slice(0, -1))
   .then(heights => heights.filter((_, i) => i === 0 || i > SYSTEM_PANES));
