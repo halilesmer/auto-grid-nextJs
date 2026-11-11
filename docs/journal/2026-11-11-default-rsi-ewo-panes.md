@@ -29,4 +29,5 @@ When a product is opened for the first time, only RSI and EWO shall show of the 
 ## Verification
 - `tsc --noEmit` and ESLint: no new findings.
 - Mocked e2e for UI-11 (20 tests), and the other specs that open the chart (`chart-hover`, `chart-layers-menu`, `chart-topbar`, `chart-workspace`, `formation-page`): pass. Two tests (`ANA-27`, indicator menu) failed once under load and passed alone and in the rerun.
-- Not verified: the full e2e run and `precheck.sh`; visual check in the browser.
+- `precheck.sh`: catalog, pytest, ESLint and `tsc` pass. Mocked e2e: 3377 of 3378 tests pass. The one failure, `FRM-47` "Menü im Bild (dark)", is the known load flake of the line menu and passes alone (20 of 20).
+- Not verified: visual check in the browser.
