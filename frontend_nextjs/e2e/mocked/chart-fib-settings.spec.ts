@@ -1,5 +1,5 @@
 /**
- * UI-27 Fibonacci-Einstellungsfenster (Plan 1110-A4, S1): Doppelklick auf die Zeichnung öffnet das Fenster; Stil-Felder
+ * UI-27 Fibonacci-Einstellungsfenster (Plan 1110-A4, S1; S2: Koordinatlar und Sichtbarkeit): Doppelklick auf die Zeichnung öffnet das Fenster; Stil-Felder
  * ändern die Zeichnung (Vorschau sofort, Tamam speichert, İptal stellt wieder her); Vorlagen speichern, anwenden, löschen;
  * die feste Vorlage „Erweitertes Fib-Set“ setzt alle 24 Plätze; 375 px ohne Überlauf.
  */
@@ -14,7 +14,7 @@ const KEY = 'grid-robot-chart-workspaces-v1';
 test.setTimeout(90_000);
 
 type Level = { coeff: number; color: string; visible: boolean };
-type Fib = { kind: string; name?: string; style: { levels?: Level[]; reverse?: boolean; fibTrendLine?: { visible: boolean }; labelFontSize?: number; extendRight?: boolean; fillBackground?: boolean } };
+type Fib = { kind: string; name?: string; points: { time: number; price: number }[]; visibility?: { days: { on: boolean }; weeks: { on: boolean }; months: { on: boolean } }; style: { levels?: Level[]; reverse?: boolean; fibTrendLine?: { visible: boolean }; labelFontSize?: number; extendRight?: boolean; fillBackground?: boolean } };
 const dialog = (page: Page) => page.getByTestId('fib-settings');
 
 async function stored(page: Page) {
@@ -51,7 +51,7 @@ test('UI-27: Doppelklick öffnet das Fenster; Stil ändert die Zeichnung, İptal
   const at = await drawFib(page);
   await openByDoubleClick(page, at);
   await expect(dialog(page).getByTestId('fib-title')).toHaveText(msg('fib.title'));
-  await expect(dialog(page).getByRole('tab')).toHaveText([msg('fib.tab.style')]);
+  await expect(dialog(page).getByRole('tab')).toHaveText([msg('fib.tab.style'), msg('fib.tab.coords'), msg('fib.tab.vis')]);
   await expect(levelBoxes(page)).toHaveCount(24);
   // İptal: Änderungen verschwinden, nichts wird gespeichert
   await levelBoxes(page).first().getByRole('checkbox').uncheck();
@@ -156,5 +156,60 @@ for (const [width, scheme] of [[375, 'dark'], [375, 'light'], [1280, 'dark'], [1
     await expect(dialog(page).getByRole('checkbox', { name: msg('fib.log') })).toBeDisabled();
     await page.screenshot({ path: test.info().outputPath(`fib-${width}-${scheme}.png`) });
     await dialog(page).getByTestId('fib-cancel').click();
+  });
+}
+
+test('UI-27: Koordinaten ändern die Punkte; İptal stellt wieder her, Tamam speichert', { tag: '@UI-27' }, async ({ page, worker }) => {
+  void worker;
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.goto(URL);
+  const at = await drawFib(page);
+  const first = (await stored(page))[0].points;
+  await openByDoubleClick(page, at);
+  await dialog(page).getByTestId('fib-tab-coords').click();
+  await expect(dialog(page).getByTestId('fib-coords')).toBeVisible();
+  const price = Number(await dialog(page).getByTestId('fib-price-1').inputValue()), bar = Number(await dialog(page).getByTestId('fib-bar-2').inputValue());
+  await dialog(page).getByTestId('fib-price-1').fill(String(price + 0.01));
+  await dialog(page).getByTestId('fib-bar-2').fill(String(bar + 5));
+  await dialog(page).getByTestId('fib-cancel').click();
+  expect((await stored(page))[0].points).toEqual(first);
+  await openByDoubleClick(page, at);
+  await dialog(page).getByTestId('fib-tab-coords').click();
+  await dialog(page).getByTestId('fib-price-1').fill(String(price + 0.01));
+  await dialog(page).getByTestId('fib-bar-2').fill(String(bar + 5));
+  await dialog(page).getByTestId('fib-ok').click();
+  const now = (await stored(page))[0].points;
+  expect(now[0].price).toBeCloseTo(price + 0.01, 5);
+  expect(now[0].time).toBe(first[0].time);
+  expect(now[1].time).toBeGreaterThan(first[1].time);
+  // nach dem Neuladen bleiben die Werte
+  await page.reload();
+  expect((await stored(page))[0].points).toEqual(now);
+});
+
+for (const [tf, unit, other] of [['D1', 'days', 'weeks'], ['W1', 'weeks', 'days'], ['MN', 'months', 'days']] as const) {
+  test(`UI-27: Sichtbarkeit ${tf}: nur die Zeile ${unit} blendet die Zeichnung aus`, { tag: '@UI-27' }, async ({ page, worker }) => {
+    void worker;
+    await page.setViewportSize({ width: 1280, height: 1000 });
+    await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=${tf}&range=all`);
+    const at = await drawFib(page);
+    const setRow = async (key: string, on: boolean) => {
+      await openByDoubleClick(page, at);
+      await dialog(page).getByTestId('fib-tab-vis').click();
+      const box = dialog(page).getByTestId('fib-visibility').locator(`[data-visibility="${key}"]`).getByRole('checkbox');
+      if (on) await box.check(); else await box.uncheck();
+      await dialog(page).getByTestId('fib-ok').click();
+      await expect(dialog(page)).toHaveCount(0);
+    };
+    const hits = async () => { await page.waitForTimeout(800); await page.mouse.move(at.x, at.y); await page.waitForTimeout(150); await page.mouse.dblclick(at.x, at.y); return (await dialog(page).count()) > 0; };
+    // eine fremde Zeile aus: die Zeichnung bleibt (W1 und MN dürfen nicht als „Tage“ gelten)
+    await setRow(other, false);
+    expect(await hits()).toBe(true);
+    await dialog(page).getByTestId('fib-cancel').click();
+    // die eigene Zeile aus: die Zeichnung verschwindet; im gespeicherten Stand steht die Zeile aus
+    await setRow(unit, false);
+    expect(await hits()).toBe(false);
+    const saved = (await stored(page))[0].visibility;
+    expect(saved?.[unit as 'days']?.on).toBe(false);
   });
 }

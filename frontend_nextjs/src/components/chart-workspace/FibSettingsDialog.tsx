@@ -11,7 +11,9 @@ import { Modal } from '@/components/ui/modal';
 import { FieldLabel, Tooltip } from '@/components/ui/tooltip';
 import { useT, type MessageKey } from '@/i18n';
 import { PRESET_ID, isReservedName, presetFibStyle, coeffText, factoryFibStyle, FIB_FONT_SIZES, fibStyleEqual, FIB_KIND, normalizeFibStyle, type FibStyle } from '@/lib/chart-workspace/fibStyle';
+import { UNIT_KEYS, UNIT_MAX, barIndexOf, normalizeVisibility, timeAtBar, visibilityForDrawing, type FibVisibility, type UnitKey } from '@/lib/chart-workspace/fibCoords';
 import { cn } from '@/lib/utils';
+import { NumberBox } from './indicatorControls';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
 
 const field = 'h-8 rounded-md border border-border bg-popover px-2 text-sm text-foreground disabled:opacity-50';
@@ -38,6 +40,10 @@ export interface FibSettingsDialogProps {
   scaleLog: boolean;
   /** Çizimler kilitli: pencere açılır, alanlar kapalıdır */
   locked: boolean;
+  /** Zeiten der geladenen Kerzen (Sekunden, aufsteigend): „Bar“ zählt ab der ersten (1110-A4.7) */
+  barTimes: readonly number[];
+  /** Kerzendauer des Zeitrahmens; Bar-Nummern außerhalb der geladenen Kerzen werden damit hochgerechnet */
+  stepSec: number;
   /** Çizimde hemen göster (geri alma adımı yazmaz) */
   onPreview: (next: Drawing) => void;
   /** Tamam: çizim kaydedilir, geri al geçmişine bir adım girer */
@@ -46,7 +52,7 @@ export interface FibSettingsDialogProps {
   onCancel: (initial: Drawing) => void;
 }
 
-export function FibSettingsDialog({ drawing, scaleLog, locked, onPreview, onCommit, onCancel }: FibSettingsDialogProps) {
+export function FibSettingsDialog({ drawing, scaleLog, locked, barTimes, stepSec, onPreview, onCommit, onCancel }: FibSettingsDialogProps) {
   const t = useT(), id = useId();
   const label = (n: string) => n === PRESET_ID ? t(k('presetName')) : n;
   const templates = useChartWorkspaceStore(s => s.drawingTemplates[FIB_KIND]);
@@ -54,7 +60,9 @@ export function FibSettingsDialog({ drawing, scaleLog, locked, onPreview, onComm
   const [initial] = useState(drawing);
   const [name, setName] = useState(drawing.name ?? '');
   const [style, setStyle] = useState<FibStyle>(() => normalizeFibStyle(drawing.style));
-  const [tab] = useState<'style'>('style');
+  const [tab, setTab] = useState<'style' | 'coords' | 'vis'>('style');
+  const [pts, setPts] = useState(() => (drawing.points as { time: number; price: number }[]).slice(0, 2).map(p => ({ time: p.time, price: p.price, bar: barIndexOf(barTimes, p.time, stepSec) })));
+  const [vis, setVis] = useState<FibVisibility>(() => normalizeVisibility(drawing.visibility));
   const [renaming, setRenaming] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -62,12 +70,19 @@ export function FibSettingsDialog({ drawing, scaleLog, locked, onPreview, onComm
   const [applied, setApplied] = useState(() => { const s = normalizeFibStyle(drawing.style); if (fibStyleEqual(s, presetFibStyle())) return PRESET_ID; return Object.entries(templates ?? {}).find(([, v]) => fibStyleEqual(s, v))?.[0] ?? ''; });
   const user = templates ?? {};
 
-  const push = (nextStyle: FibStyle, nextName: string) => onPreview({ ...drawing, name: nextName || undefined, style: { ...drawing.style, ...nextStyle } });
+  const build = (nextStyle: FibStyle, nextName: string, nextPts = pts, nextVis = vis): Drawing => ({ ...drawing, name: nextName || undefined, style: { ...drawing.style, ...nextStyle }, points: [...nextPts.map(p => ({ time: p.time, price: p.price })), ...drawing.points.slice(nextPts.length)], visibility: visibilityForDrawing(nextVis) } as Drawing);
+  const push = (nextStyle: FibStyle, nextName: string) => onPreview(build(nextStyle, nextName));
+  const setPoint = (i: number, p: Partial<{ price: number; bar: number }>) => {
+    const next = pts.map((q, j) => j !== i ? q : { ...q, ...p, ...(p.bar !== undefined ? { time: timeAtBar(barTimes, p.bar, stepSec) } : {}) });
+    setPts(next); onPreview(build(style, name, next));
+  };
+  const patchVis = (key: UnitKey, p: Partial<FibVisibility[UnitKey]>) => { const next = { ...vis, [key]: { ...vis[key], ...p } }; setVis(next); onPreview(build(style, name, pts, next)); };
+  const patchFlag = (key: 'ticks' | 'ranges', v: boolean) => { const next = { ...vis, [key]: v }; setVis(next); onPreview(build(style, name, pts, next)); };
   const patch = (p: Partial<FibStyle>) => { const next = { ...style, ...p }; setStyle(next); setApplied(''); push(next, name); };
   const rename = (v: string) => { setName(v); push(style, v); };
   const adopt = (next: FibStyle, label: string) => { setStyle(next); setApplied(label); setEpoch(e => e + 1); push(next, name); };
   const cancel = () => onCancel(initial);
-  const ok = () => { const final = { ...drawing, name: name.trim() || undefined, style: { ...drawing.style, ...style } }; store().saveDrawingDefault(style); onCommit(final); };
+  const ok = () => { const final = build(style, name.trim()); store().saveDrawingDefault(style); onCommit(final); };
 
   const setLevel = (i: number, p: Partial<FibStyle['levels'][number]>) => patch({ levels: style.levels.map((l, j) => j === i ? { ...l, ...p } : l) });
   const colors = new Set(style.levels.map(l => l.color.toLowerCase()));
@@ -90,11 +105,12 @@ export function FibSettingsDialog({ drawing, scaleLog, locked, onPreview, onComm
           <Tooltip content={t(k('close.hint'))} className="ml-auto"><button type="button" aria-label={t(k('close'))} data-testid="fib-close" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground" onClick={cancel}><X className="size-4" aria-hidden="true" /></button></Tooltip>
         </div>
         <div role="tablist" className="flex gap-5 border-b border-border px-5 pt-2">
-          {[{ id: 'style' as const, label: t(k('tab.style')), hint: t(k('tab.style.hint')) }].map(x => <Tooltip key={x.id} content={x.hint}><button type="button" role="tab" aria-selected={tab === x.id} data-testid={`fib-tab-${x.id}`} className={cn('-mb-px border-b-2 px-0.5 pb-2 text-sm font-semibold', tab === x.id ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground')}>{x.label}</button></Tooltip>)}
+          {[{ id: 'style' as const, label: t(k('tab.style')), hint: t(k('tab.style.hint')) }, { id: 'coords' as const, label: t(k('tab.coords')), hint: t(k('tab.coords.hint')) }, { id: 'vis' as const, label: t(k('tab.vis')), hint: t(k('tab.vis.hint')) }].map(x => <Tooltip key={x.id} content={x.hint}><button type="button" role="tab" aria-selected={tab === x.id} data-testid={`fib-tab-${x.id}`} onClick={() => setTab(x.id)} className={cn('-mb-px border-b-2 px-0.5 pb-2 text-sm font-semibold', tab === x.id ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground')}>{x.label}</button></Tooltip>)}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3" role="tabpanel">
           {locked && <p className="mb-2 rounded-md bg-warning/15 px-3 py-2 text-xs text-foreground" data-testid="fib-locked">{t(k('locked'))}</p>}
           <fieldset disabled={locked} className="min-w-0 border-0 p-0">
+            {tab === 'style' && <>
             <Row label={<Checkbox className="min-w-0" label={t(k('trendLine'))} hint={t(k('trendLine.hint'))} checked={style.fibTrendLine.visible} onChange={v => patch({ fibTrendLine: { ...style.fibTrendLine, visible: v } })} />}>
               <Swatch label={t(k('trendStyle'))} hint={t(k('trendStyle.hint'))} testId="fib-trend-color" value={style.fibTrendLine.color} onChange={color => patch({ fibTrendLine: { ...style.fibTrendLine, color } })} />
               <Select name="trendWidth" value={String(style.fibTrendLine.width)} options={px} onChange={v => patch({ fibTrendLine: { ...style.fibTrendLine, width: Number(v) } })} className="w-20" />
@@ -137,6 +153,26 @@ export function FibSettingsDialog({ drawing, scaleLog, locked, onPreview, onComm
               <Select name="fontSize" value={String(style.labelFontSize ?? 12)} options={FIB_FONT_SIZES.map(v => [String(v), String(v)] as [string, string])} onChange={v => patch({ labelFontSize: Number(v) })} className="w-20" />
             </Row>
             <div className="min-h-10 py-1.5"><Checkbox label={t(k('log'))} hint={t(scaleLog ? k('log.hint') : k('log.off'))} disabled={!scaleLog} checked={scaleLog && !!style.fibLevelsBasedOnLogScale} onChange={v => patch({ fibLevelsBasedOnLogScale: v })} /></div>
+            </>}
+            {tab === 'coords' && <div data-testid="fib-coords">
+              {pts.map((p, i) => <Row key={i} label={t(k('point'), { n: i + 1 })} hint={t(k('point.hint'))}>
+                <Tooltip content={t(k(i === 0 ? 'price1.hint' : 'price2.hint'))}><input type="number" step="any" aria-label={t(k('price'), { n: i + 1 })} data-testid={`fib-price-${i + 1}`} className={cn(field, 'w-32 tabular-nums')} defaultValue={p.price} onChange={e => { const v = Number(e.target.value); if (e.target.value !== '' && Number.isFinite(v)) setPoint(i, { price: v }); }} /></Tooltip>
+                <Tooltip content={t(k('bar.hint'))}><input type="number" step={1} aria-label={t(k('bar'), { n: i + 1 })} data-testid={`fib-bar-${i + 1}`} className={cn(field, 'w-20 tabular-nums')} defaultValue={p.bar} onChange={e => { const v = Math.round(Number(e.target.value)); if (e.target.value !== '' && Number.isFinite(v)) setPoint(i, { bar: v }); }} /></Tooltip>
+              </Row>)}
+            </div>}
+            {tab === 'vis' && <div data-testid="fib-visibility">
+              <div className="min-h-11 py-1.5"><Checkbox label={t(k('vis.ticks'))} hint={t(k('vis.noEffect'))} checked={vis.ticks} onChange={v => patchFlag('ticks', v)} /></div>
+              {UNIT_KEYS.map(key => { const r = vis[key], max = UNIT_MAX[key], span = (x: number) => ((x - 1) / (max - 1)) * 100;
+                return <div key={key} className="flex min-h-11 items-center gap-3" data-visibility={key}>
+                  <Checkbox className="w-28 shrink-0" label={t(k(`vis.${key}`))} hint={t(k(key === 'seconds' ? 'vis.noEffect' : `vis.${key}.hint`))} checked={r.on} onChange={on => patchVis(key, { on })} />
+                  <span className="flex min-w-0 flex-1 items-center gap-2">
+                    <NumberBox label={t(k(`vis.${key}.from`))} hint={t(k('vis.from.hint'))} className="w-16" value={r.from} min={1} max={r.to} disabled={!r.on} onChange={from => patchVis(key, { from })} />
+                    <span aria-hidden="true" className="relative mx-1 h-1.5 min-w-8 flex-1 rounded bg-muted"><span className="absolute inset-y-0 rounded bg-foreground/70" style={{ left: `${span(r.from)}%`, right: `${100 - span(r.to)}%`, opacity: r.on ? 1 : .4 }} /></span>
+                    <NumberBox label={t(k(`vis.${key}.to`))} hint={t(k('vis.to.hint'))} className="w-16" value={r.to} min={r.from} max={max} disabled={!r.on} onChange={to => patchVis(key, { to })} />
+                  </span>
+                </div>; })}
+              <div className="min-h-11 py-1.5"><Checkbox label={t(k('vis.ranges'))} hint={t(k('vis.noEffect'))} checked={vis.ranges} onChange={v => patchFlag('ranges', v)} /></div>
+            </div>}
           </fieldset>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border px-5 py-3">

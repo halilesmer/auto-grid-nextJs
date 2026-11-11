@@ -387,14 +387,14 @@
       "tests": 50
     },
     "e2e": {
-      "datum": "2026-11-07",
+      "datum": "2026-11-11",
       "status": "passed",
       "tests": 17
     }
   },
   "BKT-06": {
     "e2e": {
-      "datum": "2026-11-07",
+      "datum": "2026-11-11",
       "status": "passed",
       "tests": 2
     }
@@ -1289,7 +1289,7 @@
   },
   "NWS-03": {
     "e2e": {
-      "datum": "2026-11-09",
+      "datum": "2026-11-11",
       "status": "passed",
       "tests": 9
     }
@@ -1656,6 +1656,13 @@
       "datum": "2026-11-10",
       "status": "passed",
       "tests": 1
+    }
+  },
+  "UI-27": {
+    "e2e": {
+      "datum": "2026-11-11",
+      "status": "passed",
+      "tests": 10
     }
   },
   "UPD-01": {
