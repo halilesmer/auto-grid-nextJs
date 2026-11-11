@@ -4,7 +4,7 @@ author: Claude
 type: decision
 status: open
 pr: [496]
-features: [UI-27, UI-20]
+features: [UI-27, UI-28, UI-29, UI-20]
 areas: [frontend]
 ---
 
@@ -109,3 +109,16 @@ Other values: trend line on, white, solid, 1 px; level lines solid, 1 px; extend
 - **Opacity.** The library draws a colour as it is, so the opacity goes into the colour as `#rrggbbaa`. At 100 % the colour stays `#rrggbb`, so old drawings and templates do not change (`splitColor`, `joinColor` in `fibStyle.ts`). Three percent fields: trend line, each level, and "all levels" (it changes only the opacity; the colours stay). The colour picker changes only the colour and keeps the opacity. The background fill keeps its own `transparency` slider, as in TradingView.
 - **Window.** Each level now has a second line: text field and opacity. The window is longer but still scrolls; it has no overflow at 375 px.
 - Test: `e2e/mocked/chart-fib-text-opacity.spec.ts` (UI-27).
+
+## S7 result
+
+- New component `DrawingFloatingToolbar.tsx` and pure helpers in `lib/chart-workspace/floatingBar.ts`. `ChartWorkspace` draws the bar when a drawing of the manager is selected. System layers are not drawings of the manager, so they show no bar (ANA-25 stays).
+- Buttons by kind (`barButtons`): Fib has Template, Colour, Thickness, Settings, Lock, Delete, "…". Lines add Style. Shapes have Fill colour. Text has Text colour and Text size. A selection of more than one drawing has Colour, Lock, Delete, "…". There is no alarm button (S6 left the plan).
+- Every change calls `manager.update(...)` and then one `checkpoint`, so it is one undo step. Delete uses `removeDrawings`, then focus goes back to the chart host (as in the S4 menu), so Ctrl/Cmd+Z works.
+- Colour keeps the opacity (S5 format `#rrggbbaa`, `keepAlpha` uses `splitColor` and `joinColor`). On a Fib drawing the colour goes to all levels. The strip under the colour button shows all level colours when they differ.
+- Place: `useChartWorkspaceStore.floatingBar` is a ratio of the chart area, saved in the same localStorage record, shared by all charts. Without it, `firstPlace` puts the bar 6 px below the top, centred between the price scales. It moves right of the legend rows, the OHLC line and free dock packages, or below them when there is no room. A double click on the handle clears the saved place. Arrow keys move 3%, Shift 10%.
+- Phone (chart under 640 px): no handle, full width at the bottom edge, 40 px buttons. The number of buttons (at most 7) fits 375 px, so the overflow into "…" is not built.
+- The bar hides while a selected drawing is dragged: the host listens to `pointerdown` over a selected drawing (`hoveredId`) and shows the bar again on `pointerup`. The library has no `gestureStart`.
+- A locked drawing, or the workspace lock, disables Template, Colour, Thickness, Style, Fill, Size and Delete. The hint names the reason. Settings opens read-only (`FibSettingsDialog` gets `locked || drawing.locked`).
+- Open: the template button exists only for Fib. A template for other kinds needs `DrawingTemplates` for more than `FibStyle` (step S7b).
+- Tests: `e2e/mocked/chart-floating-bar.spec.ts` and `chart-floating-bar-lib.spec.ts` (UI-29).

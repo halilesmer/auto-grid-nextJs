@@ -1,4 +1,5 @@
 import type { DrawingKind } from 'lightweight-charts-drawing';
+import { joinColor, splitColor } from './fibStyle';
 import { nudgeStep, placeFree, toRatio, toolGroup, type Box, type FreeArea } from './toolbar';
 
 /**
@@ -37,11 +38,9 @@ export function barButtons(family: BarFamily): BarButton[] {
   }
 }
 
-/** Rengi değiştirir, saydamlığı korur: #rrggbbaa içindeki aa eski renkten gelir. */
+/** Rengi değiştirir, saydamlığı korur (S5: opaklık `#rrggbbaa` olarak renkle saklanır, `fibStyle.ts`). */
 export function keepAlpha(previous: string | undefined, next: string): string {
-  const base = /^#[\da-f]{6}/i.exec(next)?.[0] ?? next;
-  const alpha = previous && /^#[\da-f]{8}$/i.test(previous) ? previous.slice(7) : '';
-  return /^#[\da-f]{6}/i.test(base) ? `${base.toLowerCase()}${alpha}` : next;
+  return joinColor(splitColor(next).rgb, previous ? splitColor(previous).alpha : 100);
 }
 
 export interface Rect { left: number; top: number; right: number; bottom: number }
