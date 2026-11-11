@@ -87,7 +87,7 @@ interface Layout { tops: readonly number[]; paneOf: Readonly<Record<string, numb
 const NO_LAYOUT: Layout = { tops: [], paneOf: {}, priceInset: 0, scaleWidth: 0 };
 const NO_SYSTEM: readonly SystemPaneModel[] = [];
 /** Height of the chart's own OHLC line at the top of the price pane (not shown on the formation page), so the price legend sits below it. */
-const OHLC_LINE_PX = 20;
+export const OHLC_LINE_PX = 20;
 const sameLayout = (a: Layout, b: Layout) => a.priceInset === b.priceInset && a.scaleWidth === b.scaleWidth && a.tops.length === b.tops.length && a.tops.every((top, i) => top === b.tops[i]) && Object.keys(b.paneOf).every(id => a.paneOf[id] === b.paneOf[id]);
 /** Buttons stay hidden until the row or its stack gets the mouse or the keyboard focus; touch screens have no hover, so they always show. */
 const REVEAL = 'opacity-0 transition-opacity has-[[aria-expanded=true]]:opacity-100 group-hover/row:opacity-100 group-focus-within/row:opacity-100 [@media(hover:none)]:opacity-100';

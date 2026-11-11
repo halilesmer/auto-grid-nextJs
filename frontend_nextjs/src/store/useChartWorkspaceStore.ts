@@ -1,6 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
+import { parseFloatingBar } from '@/lib/chart-workspace/floatingBar';
 import { defaultToolbar, parseToolbar, parseToolbarLayout, type ToolbarLayout, type ToolbarPreferences } from '@/lib/chart-workspace/toolbar';
 import { defaultDockLayout, migrateToolbarLayout, parseDockLayout, type DockLayout } from '@/lib/chart-workspace/dock';
 import { mergeDrawings, parseDrawings, rebaseDrawings } from '@/lib/chart-workspace/linkedDrawings';
@@ -79,6 +80,9 @@ interface State {
   /** Serbest paket yerleşimi (UI-17, 1106-A1): tarayıcı başına, her grafikte aynı. UI yalnız bunu okur; `toolbarLayout` yalnız eski kayıttan geçiş için kalır. */
   dockLayout: DockLayout;
   setDockLayout: (layout: DockLayout) => void;
+  /** Yüzen çizim çubuğunun sürüklenen yeri (UI-29, 1110-A4.13.2): grafik alanının oranı, tarayıcı başına, her grafikte aynı; null = ilk yer. */
+  floatingBar: { x: number; y: number } | null;
+  setFloatingBar: (place: { x: number; y: number } | null) => void;
   /** Yerleşimi sıfırla: `dockLayout` varsayılana döner, eski `toolbarLayout` da temizlenir. */
   resetDockLayout: () => void;
   setLinked: (key: string, sharedKey: string | null) => void;
@@ -142,7 +146,7 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
         for (const [id, data] of Object.entries(d.images)) if (localStorage.getItem(`${WORKSPACE_STORAGE_KEY}-image-${id}`) !== data) localStorage.setItem(`${WORKSPACE_STORAGE_KEY}-image-${id}`, data);
         return [key, { ...d, overlays: s.overlayPreview?.key === key ? s.overlayPreview.original : d.overlays, images: Object.fromEntries(Object.keys(d.images).map(id => [id, true])) }];
       }));
-      localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify({ version: STORAGE_VERSION, appearance: s.appearance, documents, templates: s.templates, favorites: s.favorites, indicatorDefaults: s.indicatorDefaults, drawingTemplates: s.drawingTemplates, drawingDefaults: s.drawingDefaults, links, toolbar, toolbarLayout, dockLayout }));
+      localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify({ version: STORAGE_VERSION, appearance: s.appearance, documents, templates: s.templates, favorites: s.favorites, indicatorDefaults: s.indicatorDefaults, drawingTemplates: s.drawingTemplates, drawingDefaults: s.drawingDefaults, links, toolbar, toolbarLayout, dockLayout, floatingBar: s.floatingBar }));
       // Delete orphan image bytes only after the replacement metadata is safely written.
       const prefix = `${WORKSPACE_STORAGE_KEY}-image-`, usedImages = new Set(Object.values(combined).flatMap(d => Object.keys(d.images)));
       for (let i = localStorage.length - 1; i >= 0; i--) { const key = localStorage.key(i); if (key?.startsWith(prefix) && !usedImages.has(key.slice(prefix.length))) localStorage.removeItem(key); }
@@ -162,7 +166,7 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
     } else write();
   };
   return {
-    links: {}, toolbar: {}, toolbarLayout: {}, dockLayout: defaultDockLayout(), appearance: { ...DEFAULT_APPEARANCE }, preview: null, overlayPreview: null, documents: {}, templates: {}, indicatorDefaults: {}, drawingTemplates: {}, drawingDefaults: {}, favorites: ['trend-line', 'horizontal-line', 'fib-retracement'], hydrated: false, storageError: false,
+    links: {}, toolbar: {}, toolbarLayout: {}, dockLayout: defaultDockLayout(), floatingBar: null, appearance: { ...DEFAULT_APPEARANCE }, preview: null, overlayPreview: null, documents: {}, templates: {}, indicatorDefaults: {}, drawingTemplates: {}, drawingDefaults: {}, favorites: ['trend-line', 'horizontal-line', 'fib-retracement'], hydrated: false, storageError: false,
     hydrate: () => {
       if (get().hydrated) return;
       try {
@@ -176,12 +180,13 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
           for (const [key, value] of Object.entries(raw.templates ?? {})) templates[key] = parseAppearance(value);
         }
         lastDocuments = documents;
-        set({ links: Object.fromEntries(Object.entries(raw?.links ?? {}).flatMap(([k, v]) => typeof v === 'string' && v.startsWith('@linked:') ? [[k, v]] : [])), toolbar: Object.fromEntries(Object.entries(raw?.toolbar ?? {}).map(([k, v]) => [k, parseToolbar(v)])), toolbarLayout: parseToolbarLayout(raw?.toolbarLayout), dockLayout: raw?.dockLayout ? parseDockLayout(raw.dockLayout) : migrateToolbarLayout(parseToolbarLayout(raw?.toolbarLayout)), hydrated: true, appearance: parseAppearance(raw?.appearance), documents, templates, indicatorDefaults: parseIndicatorDefaults(raw?.indicatorDefaults), drawingTemplates: parseDrawingTemplates(raw?.drawingTemplates), drawingDefaults: parseDrawingDefaults(raw?.drawingDefaults), favorites: Array.isArray(raw?.favorites) ? raw.favorites.filter((x: unknown) => typeof x === 'string') : get().favorites });
+        set({ links: Object.fromEntries(Object.entries(raw?.links ?? {}).flatMap(([k, v]) => typeof v === 'string' && v.startsWith('@linked:') ? [[k, v]] : [])), toolbar: Object.fromEntries(Object.entries(raw?.toolbar ?? {}).map(([k, v]) => [k, parseToolbar(v)])), toolbarLayout: parseToolbarLayout(raw?.toolbarLayout), floatingBar: parseFloatingBar(raw?.floatingBar), dockLayout: raw?.dockLayout ? parseDockLayout(raw.dockLayout) : migrateToolbarLayout(parseToolbarLayout(raw?.toolbarLayout)), hydrated: true, appearance: parseAppearance(raw?.appearance), documents, templates, indicatorDefaults: parseIndicatorDefaults(raw?.indicatorDefaults), drawingTemplates: parseDrawingTemplates(raw?.drawingTemplates), drawingDefaults: parseDrawingDefaults(raw?.drawingDefaults), favorites: Array.isArray(raw?.favorites) ? raw.favorites.filter((x: unknown) => typeof x === 'string') : get().favorites });
         lastToolbar = get().toolbar; lastLinks = get().links; lastLayout = get().toolbarLayout; lastDock = get().dockLayout;
       } catch { set({ hydrated: true, storageError: true }); }
     },
     receiveStorage: () => { if (pendingWrites) { receivePending = true; return; } set({ hydrated: false }); get().hydrate(); },
     setDockLayout: dockLayout => { set({ dockLayout }); persist(); },
+    setFloatingBar: floatingBar => { set({ floatingBar }); persist(); },
     resetDockLayout: () => { set({ dockLayout: defaultDockLayout(), toolbarLayout: {} }); persist(); },
     setToolbar: (key, patch) => { set(s => ({ toolbar: { ...s.toolbar, [key]: { ...(s.toolbar[key] ?? defaultToolbar()), ...patch } } })); persist(); },
     setLinked: (key, sharedKey) => {

@@ -34,6 +34,7 @@ import { DockSurface } from './dock/DockSurface';
 import { DrawingPriorityContext, useToolGrace } from './drawingPriority';
 import { FibSettingsDialog } from './FibSettingsDialog';
 import { DrawingContextMenu } from './DrawingContextMenu';
+import { DrawingFloatingToolbar } from './DrawingFloatingToolbar';
 import { libraryInterval } from '@/lib/chart-workspace/fibCoords';
 import { FIB_KIND } from '@/lib/chart-workspace/fibStyle';
 import { defaultToolbar, toolGroup, type ChartGesture } from '@/lib/chart-workspace/toolbar';
@@ -114,6 +115,8 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const [fibEdit, setFibEdit] = useState<Drawing | null>(null), [fibTab, setFibTab] = useState<'style' | 'coords' | 'vis'>('style');
   // 1110-A4.9: Sağ tık menüsü (S7'nin "…" düğmesi aynı bileşeni drawing + konumla açar)
   const [ctxMenu, setCtxMenu] = useState<{ drawing: Drawing; x: number; y: number; manager: DrawingManager } | null>(null), [treeSection, setTreeSection] = useState<'indicators' | 'drawings'>('indicators');
+  // 1110-A4.13.5: yüzen çubuk, seçili çizim sürüklenirken gizli
+  const [dragging, setDragging] = useState(false);
   const armRef = useRef<(kind: DrawingKind | null) => void>(() => {});
   const [error, setError] = useState<MessageKey | null>(null), [editor, setEditor] = useState<{ drawing: Drawing; cell?: TableCellRef; text: string } | null>(null);
   const [sample, setSample] = useState<{ scope: string; values: { config: Indicator; value: Value }[] }>({ scope: '', values: [] });
@@ -309,6 +312,10 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     const focusOut = (e: FocusEvent) => { if (e.relatedTarget && !root.current?.contains(e.relatedTarget as Node)) { m.setTool(null); m.select([]); } };
     const inputFocus = (e: FocusEvent) => { if ((e.target as HTMLElement).closest('input, textarea, select, [contenteditable]')) { m.setTool(null); m.select([]); } };
     document.addEventListener('pointerdown', deactivate, true);
+    // Kütüphanede gestureStart yok: tıklama anında fare altındaki çizim seçiliyse sürükleme başlar; bırakınca (gestureEnd/pointerup) çubuk döner
+    const dragStart = (e: PointerEvent) => { if (e.button === 0) { const h = m.hoveredId(); if (h && m.selection().includes(h)) setDragging(true); } };
+    const dragEnd = () => setDragging(false);
+    binding.host.addEventListener('pointerdown', dragStart, true); window.addEventListener('pointerup', dragEnd, true); window.addEventListener('pointercancel', dragEnd, true);
     // 1110-A4.1: the library reports a double click only for text tools, so the workspace opens the Fibonacci window itself
     const openFib = (e: MouseEvent) => {
       if ((e.target as Element | null)?.closest('input, button, select, textarea') || m.tool() != null || toolRecent()) return;
@@ -336,7 +343,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     const r = new IndicatorRenderer(binding, systemSeries); renderer.current = r;
     const frame = requestAnimationFrame(() => { setTool(m.tool()); setSelected([...m.selection()]); checkpoint(); });
     let disposed = false;
-    const dispose = () => { if (disposed) return; disposed = true; cancelAnimationFrame(frame); off.forEach(f => f()); document.removeEventListener('pointerdown', deactivate, true); el?.removeEventListener('dblclick', openFib); el?.removeEventListener('contextmenu', openMenu); document.removeEventListener('keydown', armFib); el?.removeEventListener('focusout', focusOut); el?.removeEventListener('focusin', inputFocus); r.destroy(); renderer.current = null; m.destroy(); manager.current = null; };
+    const dispose = () => { if (disposed) return; disposed = true; cancelAnimationFrame(frame); off.forEach(f => f()); document.removeEventListener('pointerdown', deactivate, true); binding.host.removeEventListener('pointerdown', dragStart, true); window.removeEventListener('pointerup', dragEnd, true); window.removeEventListener('pointercancel', dragEnd, true); el?.removeEventListener('dblclick', openFib); el?.removeEventListener('contextmenu', openMenu); document.removeEventListener('keydown', armFib); el?.removeEventListener('focusout', focusOut); el?.removeEventListener('focusin', inputFocus); r.destroy(); renderer.current = null; m.destroy(); manager.current = null; };
     const unregister = binding.onDispose(dispose);
     return () => { unregister(); dispose(); };
   }, [binding, context.key, drawingKey, state.hydrated, defaults, checkpoint, perProduct, saveAppearance, systemSeries, toolRecent]);
@@ -574,10 +581,14 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
           {indicatorInfo.indicator.kind !== 'ATR' && <><dt className="text-muted-foreground">{t('cw.source')}</dt><dd>{indicatorInfo.indicator.source}</dd></>}
         </dl>}
     </Modal>}
+    {binding && !binding.isDisposed() && selected.length > 0 && drawings.some(d => selected.includes(d.id)) && <DrawingFloatingToolbar drawings={drawings.filter(d => selected.includes(d.id))} manager={manager} binding={binding} root={root} overlayLayout={overlayLayout} allLocked={locked} hidden={dragging}
+      onChange={checkpoint} onRemove={() => { removeDrawings(false); binding.host.focus({ preventScroll: true }); }}
+      onSettings={d => { if (d.kind === FIB_KIND) { setFibTab('style'); setFibEdit(d); } else { setActiveObject(d.id); setTreeSection('drawings'); setIndicatorsOpen(true); } }}
+      onMore={at => { const d = drawings.find(x => selected.includes(x.id)); if (d && manager.current) setCtxMenu({ drawing: d, x: at.x, y: at.y, manager: manager.current }); }} />}
     {ctxMenu && <DrawingContextMenu drawing={ctxMenu.drawing} position={ctxMenu} manager={ctxMenu.manager} allLocked={locked} onClose={() => { setCtxMenu(null); binding?.host.focus({ preventScroll: true }); }} onChange={checkpoint}
       onOpenSettings={(d, tab) => { setFibTab(tab ?? 'style'); setFibEdit(d); }}
       onOpenTree={d => { manager.current?.select([d.id]); setActiveObject(d.id); setTreeSection('drawings'); setIndicatorsOpen(true); }} />}
-    {fibEdit && <FibSettingsDialog drawing={fibEdit} initialTab={fibTab} scaleLog={appearance.scale === 'log'} locked={locked} barTimes={bars.map(b => b.time as number)} stepSec={timeframeSec}
+    {fibEdit && <FibSettingsDialog drawing={fibEdit} initialTab={fibTab} scaleLog={appearance.scale === 'log'} locked={locked || !!fibEdit.locked} barTimes={bars.map(b => b.time as number)} stepSec={timeframeSec}
       onPreview={next => { if (!locked) manager.current?.update(next); }}
       onCommit={next => { if (!locked) { manager.current?.update(next); checkpoint(); } setFibEdit(null); setFibTab('style'); }}
       onCancel={initial => { if (!locked) manager.current?.update(initial); setFibEdit(null); setFibTab('style'); }} />}

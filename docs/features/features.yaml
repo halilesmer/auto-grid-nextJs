@@ -1635,6 +1635,17 @@ kategorien:
           - "/chart öffnen, eine Fibonacci-Zeichnung ziehen, rechts darauf klicken: Menü; Klonla: zweite Zeichnung; Kilitle: Kaldır ist grau; Kaldır und ⌘Z: Zeichnung ist zurück; Ayarlar… öffnet das Fibonacci-Fenster; Alt+F wählt das Werkzeug."
         erwartet: "Das Menü erscheint nur über Zeichnungen, jede Änderung ist ein Rückgängig-Schritt, gesperrte Zeichnungen lassen sich nicht entfernen, Alt+F wählt das Fibonacci-Werkzeug."
 
+      - id: UI-29
+        titel: "Schwebende Leiste der gewählten Zeichnung"
+        beschreibung: "Halil 2026-11-11 (1110-A4.13, S7): wird eine Zeichnung gewählt, öffnet sich oben in der Mitte des Charts eine Leiste (Griff, Vorlage nur bei Fibonacci, Farbe, Stärke, Stil/Füllfarbe/Schriftgröße je nach Art, Einstellungen, Sperre, Löschen, „…“). Esc oder Klick ins Leere schließt sie; beim Ziehen der Zeichnung ist sie verborgen. Die Farbe der Fibonacci-Zeichnung gilt für alle Level, die Deckkraft bleibt. Bei gesperrter Zeichnung sind Vorlage, Farbe, Stärke, Stil und Löschen aus (der Hinweis nennt den Grund), Einstellungen, Sperre und „…“ bleiben offen; „…“ öffnet das Rechtsklick-Menü (UI-28, ohne Alarm). Der Griff verschiebt die Leiste; der Platz (Anteil der Chartfläche) gilt in diesem Browser für alle Charts; Doppelklick stellt den ersten Platz wieder her, Pfeiltasten bewegen um 3 %, mit Umschalt um 10 %. Der erste Platz weicht Legende und freien Paketen aus. Unter 640 px Chartbreite sitzt die Leiste unten über die volle Breite ohne Griff. Systemebenen zeigen keine Leiste. Vorlagen für Nicht-Fibonacci-Arten folgen in S7b."
+        code: [frontend_nextjs/src/components/chart-workspace/DrawingFloatingToolbar.tsx, frontend_nextjs/src/lib/chart-workspace/floatingBar.ts, frontend_nextjs/src/components/chart-workspace/ChartWorkspace.tsx, frontend_nextjs/src/store/useChartWorkspaceStore.ts]
+        tiers: [e2e]
+        pruefung:
+          - "Playwright-Tests e2e/mocked/chart-floating-bar.spec.ts und chart-floating-bar-lib.spec.ts (@UI-29) ausführen."
+          - "/chart öffnen, eine Fibonacci-Zeichnung ziehen und anklicken: Leiste oben in der Mitte; Farbe wählen: alle Level haben die Farbe; Löschen und ⌘Z: Zeichnung ist zurück; Esc schließt die Leiste."
+          - "Griff ziehen, Seite neu laden, Zeichnung wählen: Leiste am gleichen Platz; Doppelklick auf den Griff: wieder oben in der Mitte. Bei 375 px: Leiste unten, kein Griff, kein seitliches Scrollen."
+        erwartet: "Die Leiste folgt der Auswahl, die Knöpfe passen zur Art, Sperre schaltet die richtigen Knöpfe ab, der gezogene Platz bleibt nach dem Neuladen, bei 375 px sitzt sie unten ohne Überlauf."
+
   # ---------------------------------------------------------------------------
   - id: ANA
     titel: Analyse (Chart, Statistik, Backtest)
