@@ -19,9 +19,9 @@ Plan 1110-A4 has two steps.
 | Step | Content | State |
 |---|---|---|
 | S1 | Window with the Style tab, Template menu, double click, "Ayarlar…" button, built-in level set template, last-used style for new drawings | this entry (UI-27) |
-| S2 | Coordinates tab, Visibility tab, fix of the W1/MN interval that goes to the library as `1D` | done (UI-27) |
+| S2 | Coordinates tab, Visibility tab, fix of the W1/MN interval that goes to the library as `1D` | done (UI-27, PR 503) |
 | S4 | Right-click menu (A4.9) and the Alt+F shortcut | done (UI-28) |
-| S5 | Level text on the chart and colour opacity (A4.11) | done (UI-27) |
+| S5 | Level text on the chart and colour opacity (A4.11) | done (UI-27, PR 503) |
 | S7 | Floating toolbar of the selected drawing, top centre (A4.13) | next |
 
 S6 (Fib alert) left the plan on 2026-11-11 by decision of Halil. S2, S4, S5 and S7 touch the same files, so they run one after the other.
