@@ -33,6 +33,7 @@ import { ChartGestureLayer, type ZoomSnapshot } from './ChartGestureLayer';
 import { DockSurface } from './dock/DockSurface';
 import { DrawingPriorityContext, useToolGrace } from './drawingPriority';
 import { FibSettingsDialog } from './FibSettingsDialog';
+import { DrawingContextMenu } from './DrawingContextMenu';
 import { libraryInterval } from '@/lib/chart-workspace/fibCoords';
 import { FIB_KIND } from '@/lib/chart-workspace/fibStyle';
 import { defaultToolbar, toolGroup, type ChartGesture } from '@/lib/chart-workspace/toolbar';
@@ -110,7 +111,10 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const [historySize, setHistorySize] = useState({ undo: 0, redo: 0 });
   const [revision, setRevision] = useState(0), [selected, setSelected] = useState<string[]>([]), [tool, setTool] = useState<DrawingKind | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false), [settingsSection, setSettingsSection] = useState<Section>('symbol'), [indicatorsOpen, setIndicatorsOpen] = useState(false);
-  const [fibEdit, setFibEdit] = useState<Drawing | null>(null);
+  const [fibEdit, setFibEdit] = useState<Drawing | null>(null), [fibTab, setFibTab] = useState<'style' | 'coords' | 'vis'>('style');
+  // 1110-A4.9: Sağ tık menüsü (S7'nin "…" düğmesi aynı bileşeni drawing + konumla açar)
+  const [ctxMenu, setCtxMenu] = useState<{ drawing: Drawing; x: number; y: number; manager: DrawingManager } | null>(null), [treeSection, setTreeSection] = useState<'indicators' | 'drawings'>('indicators');
+  const armRef = useRef<(kind: DrawingKind | null) => void>(() => {});
   const [error, setError] = useState<MessageKey | null>(null), [editor, setEditor] = useState<{ drawing: Drawing; cell?: TableCellRef; text: string } | null>(null);
   const [sample, setSample] = useState<{ scope: string; values: { config: Indicator; value: Value }[] }>({ scope: '', values: [] });
   const lastValues = sample.values;
@@ -312,11 +316,28 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
       const hovered = m.hoveredId(), d = hovered ? m.drawings().find(x => x.id === hovered) : undefined;
       if (d?.kind === FIB_KIND) setFibEdit(d);
     };
-    const el = root.current; el?.addEventListener('dblclick', openFib); el?.addEventListener('focusout', focusOut); el?.addEventListener('focusin', inputFocus);
+    // 1110-A4.9: sağ tık yalnız çizimin üstünde menüyü açar ve tarayıcı menüsünü engeller; boş grafikte bir şey değişmez
+    const openMenu = (e: MouseEvent) => {
+      if (e.button === 0) return; // macOS: Ctrl+tık çoklu seçimdir, menü açmaz
+      if ((e.target as Element | null)?.closest('input, button, select, textarea, [data-testid="drawing-context-menu"], [role="dialog"]') || m.tool() != null || toolRecent()) return;
+      const hovered = m.hoveredId(), d = hovered ? m.drawings().find(x => x.id === hovered) : undefined;
+      if (!d) return;
+      e.preventDefault();
+      m.select([d.id]);
+      setCtxMenu({ drawing: originalLocks.current.has(d.id) ? { ...d, locked: originalLocks.current.get(d.id) } : d, x: e.clientX, y: e.clientY, manager: m });
+    };
+    // Alt+F: Fibonacci düzeltme aracı (e.code: macOS'ta Alt+F "ƒ" yazar)
+    const armFib = (e: KeyboardEvent) => {
+      if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.code !== 'KeyF' || e.repeat) return;
+      if ((e.target as Element | null)?.closest('input, textarea, select, [contenteditable]') || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+      e.preventDefault(); armRef.current(FIB_KIND);
+    };
+    document.addEventListener('keydown', armFib);
+    const el = root.current; el?.addEventListener('contextmenu', openMenu); el?.addEventListener('dblclick', openFib); el?.addEventListener('focusout', focusOut); el?.addEventListener('focusin', inputFocus);
     const r = new IndicatorRenderer(binding, systemSeries); renderer.current = r;
     const frame = requestAnimationFrame(() => { setTool(m.tool()); setSelected([...m.selection()]); checkpoint(); });
     let disposed = false;
-    const dispose = () => { if (disposed) return; disposed = true; cancelAnimationFrame(frame); off.forEach(f => f()); document.removeEventListener('pointerdown', deactivate, true); el?.removeEventListener('dblclick', openFib); el?.removeEventListener('focusout', focusOut); el?.removeEventListener('focusin', inputFocus); r.destroy(); renderer.current = null; m.destroy(); manager.current = null; };
+    const dispose = () => { if (disposed) return; disposed = true; cancelAnimationFrame(frame); off.forEach(f => f()); document.removeEventListener('pointerdown', deactivate, true); el?.removeEventListener('dblclick', openFib); el?.removeEventListener('contextmenu', openMenu); document.removeEventListener('keydown', armFib); el?.removeEventListener('focusout', focusOut); el?.removeEventListener('focusin', inputFocus); r.destroy(); renderer.current = null; m.destroy(); manager.current = null; };
     const unregister = binding.onDispose(dispose);
     return () => { unregister(); dispose(); };
   }, [binding, context.key, drawingKey, state.hydrated, defaults, checkpoint, perProduct, saveAppearance, systemSeries, toolRecent]);
@@ -394,6 +415,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     manager.current?.setTool(kind, kind === 'font-icon' ? { glyph } : undefined);
     binding?.host.focus({ preventScroll: true });
   };
+  useEffect(() => { armRef.current = arm; });
   const active = drawingSnapshot.find(d => d.id === activeObject && d.points.every(p => typeof p.time !== 'number' || p.time <= until));
   const updateDrawing = (next: Drawing) => { if (locked) return; manager.current?.update(next); checkpoint(); };
   const drawings = drawingSnapshot.filter(d => d.points.every(p => typeof p.time !== 'number' || p.time <= until));
@@ -535,7 +557,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     {confirmRemove && <ConfirmModal open title={t(removalLabels[confirmRemove.target].title)} message={t(removalLabels[confirmRemove.target].message)} confirmHint={t(removalLabels[confirmRemove.target].hint)} onClose={() => setConfirmRemove(null)} onConfirm={() => { if (confirmRemove.target === 'indicators') saveDocument({ ...doc, indicators: doc.indicators.filter(isSystemRsi) }); else removeDrawings(confirmRemove.target === 'drawings', confirmRemove.ids); }} />}
     <input ref={imageInput} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" aria-label={t('cw.image')} data-tooltip-exempt onChange={e => { void changeImage(e.target.files?.[0]); e.target.value = ''; }} />
     {settingsOpen && <SettingsDialog initialSection={settingsSection} toolbarResettable={overlayLayout} initialAppearance={appearance} onApply={saveAppearance} defaultMargins={binding?.defaultMargins?.()} ohlcAvailable={!overlayLayout} countdownAvailable={countdownNow != null} onClose={() => setSettingsOpen(false)} overlayContent={overlays} rollbackOverlays={rollbackOverlays} commitOverlays={() => { state.finishOverlayPreview(true); useAnalysisPrefsStore.getState().finishPreview(true); }} />}
-    {indicatorsOpen && <IndicatorDialog values={paneIndicators} favorites={state.favorites.filter(kind => INDICATOR_KINDS.includes(kind as Indicator['kind'])) as Indicator['kind'][]} focusId={settingsFocus} timeframeSec={timeframeSec} drawingsPanel={drawingsPanel} drawingCount={drawings.length} onClose={() => { setIndicatorsOpen(false); setSettingsFocus(null); }} onChange={next => {
+    {indicatorsOpen && <IndicatorDialog initialSection={treeSection} values={paneIndicators} favorites={state.favorites.filter(kind => INDICATOR_KINDS.includes(kind as Indicator['kind'])) as Indicator['kind'][]} focusId={settingsFocus} timeframeSec={timeframeSec} drawingsPanel={drawingsPanel} drawingCount={drawings.length} onClose={() => { setIndicatorsOpen(false); setSettingsFocus(null); setTreeSection('indicators'); }} onChange={next => {
       // The dialog does not list the system RSI while its layer is off, and deleting it there only switches the layer off
       const current = documentRef.current, system = current.indicators.find(isSystemRsi), lost = !!system && !next.some(isSystemRsi);
       const indicators = lost ? [system, ...next] : next, base = lost && (current.overlays.rsi ?? true) ? applySystemLayer(current, 'rsi', false) : current;
@@ -553,10 +575,13 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
           {indicatorInfo.indicator.kind !== 'ATR' && <><dt className="text-muted-foreground">{t('cw.source')}</dt><dd>{indicatorInfo.indicator.source}</dd></>}
         </dl>}
     </Modal>}
-    {fibEdit && <FibSettingsDialog drawing={fibEdit} scaleLog={appearance.scale === 'log'} locked={locked} barTimes={bars.map(b => b.time as number)} stepSec={timeframeSec}
+    {ctxMenu && <DrawingContextMenu drawing={ctxMenu.drawing} position={ctxMenu} manager={ctxMenu.manager} allLocked={locked} onClose={() => { setCtxMenu(null); binding?.host.focus({ preventScroll: true }); }} onChange={checkpoint}
+      onOpenSettings={(d, tab) => { setFibTab(tab ?? 'style'); setFibEdit(d); }}
+      onOpenTree={d => { manager.current?.select([d.id]); setActiveObject(d.id); setTreeSection('drawings'); setIndicatorsOpen(true); }} />}
+    {fibEdit && <FibSettingsDialog drawing={fibEdit} initialTab={fibTab} scaleLog={appearance.scale === 'log'} locked={locked} barTimes={bars.map(b => b.time as number)} stepSec={timeframeSec}
       onPreview={next => { if (!locked) manager.current?.update(next); }}
-      onCommit={next => { if (!locked) { manager.current?.update(next); checkpoint(); } setFibEdit(null); }}
-      onCancel={initial => { if (!locked) manager.current?.update(initial); setFibEdit(null); }} />}
+      onCommit={next => { if (!locked) { manager.current?.update(next); checkpoint(); } setFibEdit(null); setFibTab('style'); }}
+      onCancel={initial => { if (!locked) manager.current?.update(initial); setFibEdit(null); setFibTab('style'); }} />}
     {editor && <Modal open onClose={() => { if (editor.cell) manager.current?.endTableEdit(); setEditor(null); }} title={t(editor.cell ? 'cw.cell' : 'cw.text')}><InputField label={t('cw.text')} hint={t('cw.text.hint')}><textarea className={fieldClass} value={editor.text} onChange={e => setEditor({ ...editor, text: e.target.value })} /></InputField><Button className="mt-3" variant="primary" hint={t('cw.apply.hint')} onClick={() => { if (locked) return; if (editor.cell) { manager.current?.setTableCellText(editor.drawing.id, editor.cell, editor.text); manager.current?.endTableEdit(); } else manager.current?.update({ ...editor.drawing, text: editor.text }); checkpoint(); setEditor(null); }}>{t('cw.apply')}</Button></Modal>}
   </div>;
 }

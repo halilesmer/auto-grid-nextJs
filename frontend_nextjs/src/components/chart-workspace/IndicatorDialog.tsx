@@ -23,11 +23,11 @@ const LIMIT = 20;
  * settings dialog (Inputs / Style / Visibility). Changes show on the chart at once; Cancel restores the state from when
  * the settings were opened (a new indicator stays, with its default look), OK keeps it.
  */
-export function IndicatorDialog({ values, favorites, focusId = null, onChange, onClose, timeframeSec, drawingsPanel, drawingCount }: { values: Indicator[]; favorites: Indicator['kind'][]; focusId?: string | null; onChange: (v: Indicator[]) => void; onClose: () => void; timeframeSec: number; drawingsPanel: ReactNode; drawingCount: number }) {
+export function IndicatorDialog({ values, favorites, focusId = null, onChange, onClose, timeframeSec, drawingsPanel, drawingCount, initialSection = 'indicators' }: { initialSection?: Section; values: Indicator[]; favorites: Indicator['kind'][]; focusId?: string | null; onChange: (v: Indicator[]) => void; onClose: () => void; timeframeSec: number; drawingsPanel: ReactNode; drawingCount: number }) {
   const t = useT(), fmt = useFormat(), defaults = useChartWorkspaceStore(s => s.indicatorDefaults), saveDefault = useChartWorkspaceStore(s => s.saveIndicatorDefault);
   const [editing, setEditing] = useState<string | null>(focusId);
   const [tab, setTab] = useState<TabId>('inputs');
-  const [section, setSection] = useState<Section>('indicators');
+  const [section, setSection] = useState<Section>(initialSection);
   // State from before the settings were opened: Cancel puts it back
   const snapshot = useRef<Indicator[]>(values);
   const live = useRef(values);
