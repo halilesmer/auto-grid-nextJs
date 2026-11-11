@@ -231,6 +231,11 @@ export function runBacktest(input: RunInput): RunResult {
     slSlippagePoints: model.slSlippagePoints,
   });
   for (const init of input.initialPositions ?? []) broker.seedPosition(init);
+  // BKT-25: eine Zeile, die den Live-Startzustand sichtbar macht (nur wenn etwas eingesetzt wurde)
+  const seededFractals = (input.initialFractalDone ?? []).length;
+  if ((input.initialPositions ?? []).length > 0 || seededFractals > 0) {
+    log.add('INFO', 'run.startPositions', { positions: (input.initialPositions ?? []).length, fractals: seededFractals });
+  }
   // BKT-24: erst die Positionen (ihre Ticketnummern bleiben wie bisher), dann die Orders
   const initialOrders = input.initialOrders ?? [];
   for (const init of initialOrders) broker.seedOrder(init);

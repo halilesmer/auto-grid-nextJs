@@ -234,6 +234,17 @@ export function BacktestView() {
     const spread: SpreadSetting = form.spreadMode === 'candle' ? { mode: 'candle' } : { mode: form.spreadMode, points: form.spreadPoints };
     // Live lernt der relative Spread-Schutz je Symbol gemeinsam; der Lauf rechnet dieses Setup allein
     const spreadNote = spreadHistoryNote(zone, [...setups.filter((s) => s.id !== activeId).map((s) => s.zone), ...(zones ?? [])]);
+    // BKT-25: Start im Live-Zustand von `from`, nur für gespeicherte Setups mit MT5-M1-Kerzen (wie die Live-Vergleichs-Läufe)
+    const magic = Number(zone.magic);
+    let startState: RunParams['startState'];
+    let startNote: { code: string } | null = null;
+    // eslint-disable-next-line react-hooks/purity -- Klick-Handler, kein Render: die aktuelle Zeit ist hier erlaubt
+    if (!unsaved && !csvImport && dataTimeframe === 'M1' && Number.isFinite(magic) && zone.magic != null && bounds.from < Math.floor(Date.now() / 1000) + (offsetSec ?? 0)) {
+      const archiveData = deals.data;
+      const covered = archiveData !== null && archiveData.from <= bounds.from && !archiveData.missing.some((m) => m.from < (bounds.from as number));
+      if (covered) startState = { deals: archiveData.deals.filter((d) => d.magic === magic) };
+      else startNote = { code: 'run.startStateMissing' };
+    }
     const params: RunParams = {
       accountId,
       zone: { ...zone },
@@ -251,7 +262,8 @@ export function BacktestView() {
       path: form.path,
       startCapital: form.startCapital,
       zoneLabel,
-      notes: spreadNote ? [spreadNote] : undefined,
+      notes: spreadNote || startNote ? [...(spreadNote ? [spreadNote] : []), ...(startNote ? [startNote] : [])] : undefined,
+      startState,
     };
     start(accountId, { setupId: activeId, params, unsaved, currency, sourceLabel: csvImport ? t('backtest.data.csv', { symbol: csvImport.symbol, tf: csvImport.timeframe, from: fmt.mt5DateTime(csvImport.first_t), to: fmt.mt5DateTime(csvImport.last_t) }) : t('backtest.data.mt5') });
   };
