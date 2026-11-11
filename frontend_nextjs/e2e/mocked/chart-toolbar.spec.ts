@@ -224,7 +224,7 @@ test('Mehrere ausgewählte Zeichnungen bleiben bis zur Löschbestätigung vorgem
   await page.getByRole('button', { name: msg('cw.rail.trash'), exact: true }).click();
   await page.getByRole('button', { name: msg('cw.rail.removeSelected'), exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText(msg('cw.rail.confirmSelected'));
-  await page.getByRole('button', { name: msg('confirm.delete'), exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: msg('confirm.delete'), exact: true }).click();
   await expect.poll(() => storedDrawings(page)).toHaveLength(0);
   await page.getByRole('button', { name: msg('cw.undo'), exact: true }).click();
   await expect.poll(() => storedDrawings(page)).toHaveLength(2);
