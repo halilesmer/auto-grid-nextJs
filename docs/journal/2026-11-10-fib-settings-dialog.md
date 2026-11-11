@@ -22,7 +22,8 @@ Plan 1110-A4 has two steps.
 | S2 | Coordinates tab, Visibility tab, fix of the W1/MN interval that goes to the library as `1D` | done (UI-27, PR 498) |
 | S4 | Right-click menu (A4.9) and the Alt+F shortcut | done (UI-28) |
 | S5 | Level text on the chart and colour opacity (A4.11) | done (UI-27, PR 503) |
-| S7 | Floating toolbar of the selected drawing, top centre (A4.13) | next |
+| S7 | Floating toolbar of the selected drawing, top centre (A4.13) | done |
+| S7b | Templates for all drawing kinds in the floating bar | done |
 
 S6 (Fib alert) left the plan on 2026-11-11 by decision of Halil. S2, S4, S5 and S7 touch the same files, so they run one after the other.
 
@@ -122,3 +123,13 @@ Other values: trend line on, white, solid, 1 px; level lines solid, 1 px; extend
 - A locked drawing, or the workspace lock, disables Template, Colour, Thickness, Style, Fill, Size and Delete. The hint names the reason. Settings opens read-only (`FibSettingsDialog` gets `locked || drawing.locked`).
 - Open: the template button exists only for Fib. A template for other kinds needs `DrawingTemplates` for more than `FibStyle` (step S7b).
 - Tests: `e2e/mocked/chart-floating-bar.spec.ts` and `chart-floating-bar-lib.spec.ts` (UI-29).
+
+## S7b result
+
+- The template model no longer depends on `FibStyle`. `DrawingTemplates` and `DrawingDefaults` are `kind → name → Partial<DrawingStyle>`. Fib keeps its full style (`normalizeFibStyle`). Other kinds keep a small subset (`pickSimpleStyle` in `fibStyle.ts`): colours, text colour, fill colour, width, line style, fill flag, transparency, font size, bold, italic, extend, end caps, label background, border. Points, visibility, lock and text content never go in (as in A4.3).
+- Old localStorage records still read: `parseDrawingTemplates` and `parseDrawingDefaults` loop over all kinds and drop bad entries. A Fib template saved before S7b is read as before.
+- The Template button now exists for every single-kind selection (lines, shapes, text), right after the handle (A4.13.1). A mixed selection has no Template button, because a template belongs to one kind. A locked drawing disables it (A4.13.5).
+- The menu in the bar has: the built-in template (Fib only), the user templates of this kind with a delete button, "Şablon olarak kaydet…" and "Varsayılanları uygula". The name dialog (`SaveTemplateModal`) and the delete confirmation are drawn by `ChartWorkspace`, not by the bar: the bar closes when the selection changes, and the first version lost its dialog this way (found by the e2e test).
+- A4.4 for other kinds: applying a template stores that style as the default of the kind, and a new drawing of that kind starts with it (`setDefaultStyleOverride` merges it over the library factory style). "Varsayılanları uygula" applies the factory style and clears the stored default. Fib is unchanged: its default is still saved only by the settings window. Colour or width changes in the bar do not change the default. This keeps the change small; a wider "last confirmed style" for every kind is not built.
+- Not changed: `DrawingToolbar.tsx`, `dock/`, the S4 context menu (it still offers templates for Fib only), the built-in Fib template.
+- Tests: `e2e/mocked/chart-floating-bar-templates.spec.ts` (UI-29: trend line template save, apply to a new line, list stays after reload, delete; old Fib templates stay), and the button table in `chart-floating-bar-lib.spec.ts`.

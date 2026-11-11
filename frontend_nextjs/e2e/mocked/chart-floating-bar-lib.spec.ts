@@ -15,9 +15,9 @@ test('Knöpfe je Art folgen der Tabelle A4.13.1', { tag: '@UI-29' }, () => {
   expect(barFamily(['text'])).toBe('text');
   expect(barFamily(['trend-line', 'rectangle'])).toBe('multi');
   expect(barButtons('fib')).toEqual(['template', 'color', 'width', 'settings', 'lock', 'remove', 'more']);
-  expect(barButtons('line')).toEqual(['color', 'width', 'style', 'settings', 'lock', 'remove', 'more']);
-  expect(barButtons('shape')).toEqual(['color', 'fill', 'width', 'settings', 'lock', 'remove', 'more']);
-  expect(barButtons('text')).toEqual(['color', 'size', 'settings', 'lock', 'remove', 'more']);
+  expect(barButtons('line')).toEqual(['template', 'color', 'width', 'style', 'settings', 'lock', 'remove', 'more']);
+  expect(barButtons('shape')).toEqual(['template', 'color', 'fill', 'width', 'settings', 'lock', 'remove', 'more']);
+  expect(barButtons('text')).toEqual(['template', 'color', 'size', 'settings', 'lock', 'remove', 'more']);
   expect(barButtons('multi')).toEqual(['color', 'lock', 'remove', 'more']);
   // Alarm gibt es nicht; bei Sperre bleiben Einstellungen, Sperre und „…“ offen
   for (const f of ['fib', 'line', 'shape', 'text', 'multi'] as const) {

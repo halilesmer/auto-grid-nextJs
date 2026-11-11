@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { Baseline, GripVertical, LayoutGrid, Lock, LockOpen, MoreHorizontal, PaintBucket, PenLine, Settings2, Trash2, Type } from 'lucide-react';
-import type { Drawing, DrawingManager } from 'lightweight-charts-drawing';
+import { Baseline, GripVertical, LayoutGrid, Lock, LockOpen, MoreHorizontal, PaintBucket, PenLine, RotateCcw, Save, Settings2, Trash2, Type, X } from 'lucide-react';
+import { factoryStyleFor, type Drawing, type DrawingManager, type DrawingStyle } from 'lightweight-charts-drawing';
 import { Button } from '@/components/ui/button';
 import { useT, type MessageKey } from '@/i18n';
 import { barButtons, barFamily, firstPlace, keepAlpha, LOCK_DISABLED, nudge, PHONE_BAR_PX, placeSaved, savedRatio, type BarButton, type Rect } from '@/lib/chart-workspace/floatingBar';
-import { FIB_KIND, normalizeFibStyle, presetFibStyle } from '@/lib/chart-workspace/fibStyle';
+import { FIB_KIND, factoryFibStyle, pickSimpleStyle, presetFibStyle, templateStyleOf } from '@/lib/chart-workspace/fibStyle';
 import { cn } from '@/lib/utils';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
 import { OHLC_LINE_PX } from './IndicatorLegend';
@@ -44,14 +44,18 @@ export interface DrawingFloatingToolbarProps {
   onRemove: () => void;
   onSettings: (drawing: Drawing) => void;
   onMore: (at: { x: number; y: number }) => void;
+  /** Şablon adı penceresi ve silme onayı çubuğun dışında durur: seçim kalkınca çubuk kapanır, pencere kapanmamalı */
+  onSaveTemplate: (drawing: Drawing) => void;
+  onDeleteTemplate: (name: string, kind: string) => void;
 }
 
 /** Seçili çizimin yüzen araç çubuğu (plan 1110-A4.13, UI-29). Düğme listesi türe göre (floatingBar.ts). */
-export function DrawingFloatingToolbar({ drawings, manager, binding, root: rootRef, overlayLayout, allLocked, hidden, onChange, onRemove, onSettings, onMore }: DrawingFloatingToolbarProps) {
+export function DrawingFloatingToolbar({ drawings, manager, binding, root: rootRef, overlayLayout, allLocked, hidden, onChange, onRemove, onSettings, onMore, onSaveTemplate, onDeleteTemplate }: DrawingFloatingToolbarProps) {
   const t = useT();
   const bar = useRef<HTMLDivElement>(null);
   const saved = useChartWorkspaceStore(s => s.floatingBar);
-  const userTemplates = useChartWorkspaceStore(s => s.drawingTemplates[FIB_KIND]);
+  const kind = drawings.length === 1 ? drawings[0].kind : '';
+  const userTemplates = useChartWorkspaceStore(s => s.drawingTemplates[kind]);
   const [tick, setTick] = useState(0);
   const [drag, setDrag] = useState<{ x: number; y: number } | null>(null);
   const [open, setOpen] = useState<{ id: BarButton; left: number } | null>(null);
@@ -166,7 +170,20 @@ export function DrawingFloatingToolbar({ drawings, manager, binding, root: rootR
     }
   };
 
-  const applyTemplate = (style: ReturnType<typeof presetFibStyle>) => patch(d => ({ ...d, style: { ...d.style, ...style } }));
+  const store = useChartWorkspaceStore.getState;
+  const isFib = kind === FIB_KIND;
+  const applyTemplate = (style: Partial<DrawingStyle>, remember = true) => {
+    patch(d => ({ ...d, style: { ...d.style, ...style } }));
+    if (remember && !isFib && kind) store().saveDrawingDefault(style, kind);
+  };
+  const applyFactory = () => {
+    if (isFib) { applyTemplate(factoryFibStyle(), false); return; }
+    applyTemplate(pickSimpleStyle(factoryStyleFor(kind as never)), false); store().clearDrawingDefault(kind);
+  };
+  const activeName = (style: Partial<DrawingStyle>) => {
+    const cur = templateStyleOf(kind, first?.style);
+    return JSON.stringify(cur) === JSON.stringify(templateStyleOf(kind, style));
+  };
   const pop = (items: ReactNode) => <div role="menu" data-testid={`fbar-pop-${open?.id}`} style={place?.phone ? undefined : { left: open?.left }}
     className={cn('absolute z-10 rounded-xl border border-border bg-popover p-2 shadow-2xl', place?.phone ? 'inset-x-1 bottom-full mb-1' : 'top-full mt-1')}>{items}</div>;
   const list = (children: ReactNode) => <div className="flex min-w-36 flex-col gap-0.5">{children}</div>;
@@ -178,8 +195,13 @@ export function DrawingFloatingToolbar({ drawings, manager, binding, root: rootR
     if (open.id === 'style') return pop(list(LINES.map(s => item(s, t(k(`style.${s}`)), t(k(`style.${s}.hint`)), first?.style.lineStyle === s, `fbar-style-${s}`, () => patch(d => ({ ...d, style: { ...d.style, lineStyle: s } }))))));
     if (open.id === 'size') return pop(list(SIZES.map(n => item(n, t(k('size.option'), { n }), t(k('size.option.hint'), { n }), n === (first?.style.fontSize ?? 14), `fbar-size-${n}`, () => patch(d => ({ ...d, style: { ...d.style, fontSize: n } }))))));
     if (open.id === 'template') return pop(list(<>
-      {item('preset', t('fib.presetName'), t(k('template.preset.hint')), undefined, 'fbar-template-preset', () => applyTemplate(presetFibStyle()))}
-      {templates.map(n => item(n, n, t(k('template.user.hint')), undefined, 'fbar-template-user', () => applyTemplate(normalizeFibStyle(userTemplates?.[n]))))}
+      {isFib && item('preset', t('fib.presetName'), t(k('template.preset.hint')), undefined, 'fbar-template-preset', () => applyTemplate(presetFibStyle()))}
+      {templates.map(n => <div key={n} className="group flex items-center" data-testid="fbar-template-row">
+        <div className="min-w-0 flex-1">{item(n, n, t(k('template.user.hint')), activeName(userTemplates?.[n] ?? {}) || undefined, 'fbar-template-user', () => applyTemplate(templateStyleOf(kind, userTemplates?.[n])))}</div>
+        <Button size="icon-xs" variant="ghost" className="shrink-0 text-muted-foreground hover:text-danger" data-testid="fbar-template-delete" aria-label={t('fib.deleteTemplate', { name: n })} hint={t('fib.deleteTemplate.hint')} onClick={() => { onDeleteTemplate(n, kind); setOpen(null); }}><X size={14} /></Button>
+      </div>)}
+      <Button size="sm" variant="ghost" className="justify-start gap-2" data-testid="fbar-template-save" hint={t('ctx.saveTemplate.hint')} onClick={() => { if (first) onSaveTemplate(first); setOpen(null); }}><Save size={14} />{t('ctx.saveTemplate')}</Button>
+      <Button size="sm" variant="ghost" className="justify-start gap-2" data-testid="fbar-template-defaults" hint={t('fib.applyDefaults.hint')} onClick={() => applyFactory()}><RotateCcw size={14} />{t('fib.applyDefaults')}</Button>
     </>));
     return null;
   };

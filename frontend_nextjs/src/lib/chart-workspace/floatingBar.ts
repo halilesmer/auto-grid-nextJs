@@ -27,13 +27,13 @@ export function barFamily(kinds: readonly DrawingKind[]): BarFamily {
   return 'line';
 }
 
-/** Soldan sağa düğmeler (tutamaç ayrı). Şablon yalnız Fibonacci'de: öbür türlerin şablonu S7b'ye kaldı. */
+/** Soldan sağa düğmeler (tutamaç ayrı). Şablon her tek çizim türünde var (S7b); karışık seçimde yok, çünkü şablon türe bağlı. */
 export function barButtons(family: BarFamily): BarButton[] {
   switch (family) {
     case 'fib': return ['template', 'color', 'width', 'settings', 'lock', 'remove', 'more'];
-    case 'line': return ['color', 'width', 'style', 'settings', 'lock', 'remove', 'more'];
-    case 'shape': return ['color', 'fill', 'width', 'settings', 'lock', 'remove', 'more'];
-    case 'text': return ['color', 'size', 'settings', 'lock', 'remove', 'more'];
+    case 'line': return ['template', 'color', 'width', 'style', 'settings', 'lock', 'remove', 'more'];
+    case 'shape': return ['template', 'color', 'fill', 'width', 'settings', 'lock', 'remove', 'more'];
+    case 'text': return ['template', 'color', 'size', 'settings', 'lock', 'remove', 'more'];
     default: return ['color', 'lock', 'remove', 'more'];
   }
 }

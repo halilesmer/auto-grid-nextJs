@@ -1,6 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
+import type { DrawingStyle } from 'lightweight-charts-drawing';
 import { parseFloatingBar } from '@/lib/chart-workspace/floatingBar';
 import { defaultToolbar, parseToolbar, parseToolbarLayout, type ToolbarLayout, type ToolbarPreferences } from '@/lib/chart-workspace/toolbar';
 import { defaultDockLayout, migrateToolbarLayout, parseDockLayout, type DockLayout } from '@/lib/chart-workspace/dock';
@@ -10,7 +11,7 @@ import { SYSTEM_RSI_ID, systemRsiIndicator, type Indicator } from '@/lib/chart-w
 import { defaultsOf } from '@/lib/chart-workspace/indicatorStyle';
 import { parseIndicatorDefaults, parseIndicators } from '@/lib/chart-workspace/indicatorStorage';
 import { parsePaneOrder, parseSystemPanes, type SystemPaneStates } from '@/lib/chart-workspace/paneOrder';
-import { FIB_KIND, parseDrawingDefaults, parseDrawingTemplates, type DrawingDefaults, type DrawingTemplates, type FibStyle } from '@/lib/chart-workspace/fibStyle';
+import { FIB_KIND, templateStyleOf, parseDrawingDefaults, parseDrawingTemplates, type DrawingDefaults, type DrawingTemplates } from '@/lib/chart-workspace/fibStyle';
 import { randomId } from '@/lib/randomId';
 
 /** Sichtbarer Zeitbereich als Kerzenzeit in Sekunden; fehlt er, zeigt der Chart alle Kerzen */
@@ -101,9 +102,11 @@ interface State {
   /** Fibonacci ayar penceresi (1110-A4): kullanıcı şablonları (tür → ad → stil) ve son onaylanan stil (yeni çizimler bununla başlar) */
   drawingTemplates: DrawingTemplates;
   drawingDefaults: DrawingDefaults;
-  saveDrawingTemplate: (name: string, style: FibStyle) => void;
-  deleteDrawingTemplate: (name: string) => void;
-  saveDrawingDefault: (style: FibStyle) => void;
+  /** `kind` verilmezse Fibonacci (1110-A4 S7b: her çizim türünün kendi listesi var) */
+  saveDrawingTemplate: (name: string, style: Partial<DrawingStyle>, kind?: string) => void;
+  deleteDrawingTemplate: (name: string, kind?: string) => void;
+  saveDrawingDefault: (style: Partial<DrawingStyle>, kind?: string) => void;
+  clearDrawingDefault: (kind: string) => void;
   hydrated: boolean;
   storageError: boolean;
   hydrate: () => void;
@@ -216,9 +219,10 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
     },
     saveTemplate: (name, appearance) => { if (!name.trim()) return; set(s => ({ templates: { ...s.templates, [name.trim()]: parseAppearance(appearance) } })); persist(); },
     saveIndicatorDefault: indicator => { set(s => ({ indicatorDefaults: { ...s.indicatorDefaults, [indicator.kind]: defaultsOf(indicator) } })); persist(); },
-    saveDrawingTemplate: (name, style) => { const n = name.trim(); if (!n) return; set(s => ({ drawingTemplates: { ...s.drawingTemplates, [FIB_KIND]: { ...s.drawingTemplates[FIB_KIND], [n]: style } } })); persist(); },
-    deleteDrawingTemplate: name => { set(s => { const next = { ...s.drawingTemplates[FIB_KIND] }; delete next[name]; return { drawingTemplates: { ...s.drawingTemplates, [FIB_KIND]: next } }; }); persist(); },
-    saveDrawingDefault: style => { set(s => ({ drawingDefaults: { ...s.drawingDefaults, [FIB_KIND]: style } })); persist(); },
+    saveDrawingTemplate: (name, style, kind = FIB_KIND) => { const n = name.trim(); if (!n) return; set(s => ({ drawingTemplates: { ...s.drawingTemplates, [kind]: { ...s.drawingTemplates[kind], [n]: templateStyleOf(kind, style) } } })); persist(); },
+    deleteDrawingTemplate: (name, kind = FIB_KIND) => { set(s => { const next = { ...s.drawingTemplates[kind] }; delete next[name]; return { drawingTemplates: { ...s.drawingTemplates, [kind]: next } }; }); persist(); },
+    saveDrawingDefault: (style, kind = FIB_KIND) => { set(s => ({ drawingDefaults: { ...s.drawingDefaults, [kind]: templateStyleOf(kind, style) } })); persist(); },
+    clearDrawingDefault: kind => { set(s => { const next = { ...s.drawingDefaults }; delete next[kind]; return { drawingDefaults: next }; }); persist(); },
     setFavorites: favorites => { set({ favorites }); persist(); },
   };
 });

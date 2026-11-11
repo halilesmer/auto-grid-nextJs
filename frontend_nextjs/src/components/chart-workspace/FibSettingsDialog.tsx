@@ -75,7 +75,7 @@ export function FibSettingsDialog({ drawing, initialTab = 'style', scaleLog, loc
   const [saveOpen, setSaveOpen] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [epoch, setEpoch] = useState(0);
-  const [applied, setApplied] = useState(() => { const s = normalizeFibStyle(drawing.style); if (fibStyleEqual(s, presetFibStyle())) return PRESET_ID; return Object.entries(templates ?? {}).find(([, v]) => fibStyleEqual(s, v))?.[0] ?? ''; });
+  const [applied, setApplied] = useState(() => { const s = normalizeFibStyle(drawing.style); if (fibStyleEqual(s, presetFibStyle())) return PRESET_ID; return Object.entries(templates ?? {}).find(([, v]) => fibStyleEqual(s, normalizeFibStyle(v)))?.[0] ?? ''; });
   const user = templates ?? {};
 
   const build = (nextStyle: FibStyle, nextName: string, nextPts = pts, nextVis = vis): Drawing => ({ ...drawing, name: nextName || undefined, style: { ...drawing.style, ...nextStyle }, points: [...nextPts.map(p => ({ time: p.time, price: p.price })), ...drawing.points.slice(nextPts.length)], visibility: visibilityForDrawing(nextVis) } as Drawing);

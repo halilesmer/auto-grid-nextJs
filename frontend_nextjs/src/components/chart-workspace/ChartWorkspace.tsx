@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { cacheImage, decodeImage, DrawingManager, OVERLAY_SPECS, setDefaultStyleOverride, setImageReader, type Drawing, type DrawingKind, type DrawingStyle, type MagnetMode, type TableCellRef } from 'lightweight-charts-drawing';
+import { cacheImage, decodeImage, DrawingManager, OVERLAY_SPECS, factoryStyleFor, setDefaultStyleOverride, setImageReader, type Drawing, type DrawingKind, type DrawingStyle, type MagnetMode, type TableCellRef } from 'lightweight-charts-drawing';
 import { CrosshairMode, type UTCTimestamp } from 'lightweight-charts';
 import { ChartSpline, Maximize2, Minimize2, Redo2, Scan, Settings2, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,16 +27,16 @@ import { applySystemLayer } from './systemLayers';
 import { Choice, ColorField, fieldClass, Numeric, SettingsDialog, Toggle } from './SettingsDialog';
 import { IndicatorDialog } from './IndicatorDialog';
 import { IndicatorLegend, indicatorNames, type OscillatorActions } from './IndicatorLegend';
-import ConfirmModal from '@/components/ConfirmModal';
 import { DrawingToolbar } from './DrawingToolbar';
 import { ChartGestureLayer, type ZoomSnapshot } from './ChartGestureLayer';
 import { DockSurface } from './dock/DockSurface';
 import { DrawingPriorityContext, useToolGrace } from './drawingPriority';
-import { FibSettingsDialog } from './FibSettingsDialog';
+import { FibSettingsDialog, SaveTemplateModal } from './FibSettingsDialog';
 import { DrawingContextMenu } from './DrawingContextMenu';
 import { DrawingFloatingToolbar } from './DrawingFloatingToolbar';
+import ConfirmModal from '@/components/ConfirmModal';
 import { libraryInterval } from '@/lib/chart-workspace/fibCoords';
-import { FIB_KIND } from '@/lib/chart-workspace/fibStyle';
+import { FIB_KIND, templateStyleOf } from '@/lib/chart-workspace/fibStyle';
 import { defaultToolbar, toolGroup, type ChartGesture } from '@/lib/chart-workspace/toolbar';
 import { linkedDrawingKey, type DrawingIdentity } from '@/lib/chart-workspace/linkedDrawings';
 import { randomId } from '@/lib/randomId';
@@ -112,6 +112,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const [historySize, setHistorySize] = useState({ undo: 0, redo: 0 });
   const [revision, setRevision] = useState(0), [selected, setSelected] = useState<string[]>([]), [tool, setTool] = useState<DrawingKind | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false), [settingsSection, setSettingsSection] = useState<Section>('symbol'), [indicatorsOpen, setIndicatorsOpen] = useState(false);
+  const [tplModal, setTplModal] = useState<{ type: 'save'; drawing: Drawing } | { type: 'delete'; name: string; kind: string } | null>(null);
   const [fibEdit, setFibEdit] = useState<Drawing | null>(null), [fibTab, setFibTab] = useState<'style' | 'coords' | 'vis'>('style');
   // 1110-A4.9: Sağ tık menüsü (S7'nin "…" düğmesi aynı bileşeni drawing + konumla açar)
   const [ctxMenu, setCtxMenu] = useState<{ drawing: Drawing; x: number; y: number; manager: DrawingManager } | null>(null), [treeSection, setTreeSection] = useState<'indicators' | 'drawings'>('indicators');
@@ -269,7 +270,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     };
   }, [settingsOpen, rollbackOverlays]);
   // 1110-A4.4: a new Fibonacci drawing starts with the style last confirmed in its settings window
-  useEffect(() => { setDefaultStyleOverride(kind => kind === FIB_KIND ? useChartWorkspaceStore.getState().drawingDefaults[FIB_KIND] as DrawingStyle | undefined : undefined); }, []);
+  useEffect(() => { setDefaultStyleOverride(kind => { const saved = useChartWorkspaceStore.getState().drawingDefaults[kind]; if (!saved) return undefined; return (kind === FIB_KIND ? saved : { ...factoryStyleFor(kind as DrawingKind), ...saved }) as DrawingStyle; }); }, []);
   const checkpoint = useCallback(() => {
     const m = manager.current; if (!m) return;
     const snapshot = replay.current.snapshot(m).map(d => originalLocks.current.has(d.id) ? { ...d, locked: originalLocks.current.get(d.id) } : d);
@@ -584,10 +585,15 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     {binding && !binding.isDisposed() && selected.length > 0 && drawings.some(d => selected.includes(d.id)) && <DrawingFloatingToolbar drawings={drawings.filter(d => selected.includes(d.id))} manager={manager} binding={binding} root={root} overlayLayout={overlayLayout} allLocked={locked} hidden={dragging}
       onChange={checkpoint} onRemove={() => { removeDrawings(false); binding.host.focus({ preventScroll: true }); }}
       onSettings={d => { if (d.kind === FIB_KIND) { setFibTab('style'); setFibEdit(d); } else { setActiveObject(d.id); setTreeSection('drawings'); setIndicatorsOpen(true); } }}
+      onSaveTemplate={d => setTplModal({ type: 'save', drawing: d })} onDeleteTemplate={(name, kind) => setTplModal({ type: 'delete', name, kind })}
       onMore={at => { const d = drawings.find(x => selected.includes(x.id)); if (d && manager.current) setCtxMenu({ drawing: d, x: at.x, y: at.y, manager: manager.current }); }} />}
     {ctxMenu && <DrawingContextMenu drawing={ctxMenu.drawing} position={ctxMenu} manager={ctxMenu.manager} allLocked={locked} onClose={() => { setCtxMenu(null); binding?.host.focus({ preventScroll: true }); }} onChange={checkpoint}
       onOpenSettings={(d, tab) => { setFibTab(tab ?? 'style'); setFibEdit(d); }}
       onOpenTree={d => { manager.current?.select([d.id]); setActiveObject(d.id); setTreeSection('drawings'); setIndicatorsOpen(true); }} />}
+    {tplModal?.type === 'save' && <SaveTemplateModal id="fbar-save" names={Object.keys(useChartWorkspaceStore.getState().drawingTemplates[tplModal.drawing.kind] ?? {})} onClose={() => setTplModal(null)}
+      onSave={n => { useChartWorkspaceStore.getState().saveDrawingTemplate(n, templateStyleOf(tplModal.drawing.kind, tplModal.drawing.style), tplModal.drawing.kind); setTplModal(null); }} />}
+    {tplModal?.type === 'delete' && <ConfirmModal open title={t('fib.deleteTitle')} message={t('fib.deleteMessage', { name: tplModal.name })} confirmHint={t('fib.deleteConfirm.hint')} variant="danger" onClose={() => setTplModal(null)}
+      onConfirm={() => { useChartWorkspaceStore.getState().deleteDrawingTemplate(tplModal.name, tplModal.kind); setTplModal(null); }} />}
     {fibEdit && <FibSettingsDialog drawing={fibEdit} initialTab={fibTab} scaleLog={appearance.scale === 'log'} locked={locked || !!fibEdit.locked} barTimes={bars.map(b => b.time as number)} stepSec={timeframeSec}
       onPreview={next => { if (!locked) manager.current?.update(next); }}
       onCommit={next => { if (!locked) { manager.current?.update(next); checkpoint(); } setFibEdit(null); setFibTab('style'); }}
