@@ -33,6 +33,7 @@ import { ChartGestureLayer, type ZoomSnapshot } from './ChartGestureLayer';
 import { DockSurface } from './dock/DockSurface';
 import { DrawingPriorityContext, useToolGrace } from './drawingPriority';
 import { FibSettingsDialog } from './FibSettingsDialog';
+import { libraryInterval } from '@/lib/chart-workspace/fibCoords';
 import { FIB_KIND } from '@/lib/chart-workspace/fibStyle';
 import { defaultToolbar, toolGroup, type ChartGesture } from '@/lib/chart-workspace/toolbar';
 import { linkedDrawingKey, type DrawingIdentity } from '@/lib/chart-workspace/linkedDrawings';
@@ -356,7 +357,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     const values = renderer.current?.update(effectiveIndicators, bars, missing, timeframeSec, appearance, context.symbol, until, maximizedPaneId, systemModels, paneOrder) ?? [];
     const frame = requestAnimationFrame(() => setSample({ scope: chartScope, values }));
     manager.current?.setDrawingsVisible(appearance.hideDrawings);
-    manager.current?.setInterval(timeframeSec >= 86400 ? '1D' : String(timeframeSec / 60));
+    manager.current?.setInterval(libraryInterval(timeframeSec));
     if (manager.current) replay.current.sync(manager.current, until);
     manager.current?.redraw();
     return () => cancelAnimationFrame(frame);
@@ -552,7 +553,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
           {indicatorInfo.indicator.kind !== 'ATR' && <><dt className="text-muted-foreground">{t('cw.source')}</dt><dd>{indicatorInfo.indicator.source}</dd></>}
         </dl>}
     </Modal>}
-    {fibEdit && <FibSettingsDialog drawing={fibEdit} scaleLog={appearance.scale === 'log'} locked={locked}
+    {fibEdit && <FibSettingsDialog drawing={fibEdit} scaleLog={appearance.scale === 'log'} locked={locked} barTimes={bars.map(b => b.time as number)} stepSec={timeframeSec}
       onPreview={next => { if (!locked) manager.current?.update(next); }}
       onCommit={next => { if (!locked) { manager.current?.update(next); checkpoint(); } setFibEdit(null); }}
       onCancel={initial => { if (!locked) manager.current?.update(initial); setFibEdit(null); }} />}
