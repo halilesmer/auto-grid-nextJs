@@ -1,9 +1,10 @@
 /**
  * UI-11 / ANA-20: oscillator panes behave like TradingView (plan 1105-A6, PR 2).
- * System panes (RSI(7), Wave 5/35) and user panes share one model: eye keeps the pane, every oscillator pane is half
- * as high as the price pane, pane buttons are ordered up, down, delete, collapse, maximize.
+ * System panes (RSI(7), Wave 5/35) and user panes share one model: eye keeps the pane, every oscillator pane is 0.4 times
+ * as high as the price pane (two fifths, 1 : 2.5), pane buttons are ordered up, down, delete, collapse, maximize.
  */
 import type { Page } from '@playwright/test';
+import { enableWaveLayer } from '../fixtures/layers';
 import { DEMO_ID, expect, test } from '../fixtures/test';
 
 const FREE = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
@@ -16,7 +17,7 @@ async function open(page: Page) {
   await page.setViewportSize({ width: 1280, height: 1000 });
   await page.goto(FREE);
   await expect(page.getByTestId('oscillator-controls')).toBeVisible();
-  await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-wave-visible', 'true');
+  await enableWaveLayer(page);
   await expect.poll(async () => group(page).count()).toBeGreaterThanOrEqual(3);
 }
 /** Deletes the first pane until `left` panes remain. */
@@ -29,7 +30,7 @@ async function keep(page: Page, left: number) {
   }
 }
 
-test('Jeder Oszillator-Bereich ist halb so hoch wie der Kursbereich (1 und 2 Oszillatoren)', { tag: ['@UI-11', '@ANA-20'] }, async ({ page, worker }) => {
+test('Jeder Oszillator-Bereich ist 0,4 mal so hoch wie der Kursbereich (1 und 2 Oszillatoren)', { tag: ['@UI-11', '@ANA-20'] }, async ({ page, worker }) => {
   void worker;
   await open(page);
   for (const count of [2, 1]) {
@@ -37,7 +38,7 @@ test('Jeder Oszillator-Bereich ist halb so hoch wie der Kursbereich (1 und 2 Osz
     await expect.poll(async () => (await heights(page)).length).toBe(count + 1);
     await page.waitForTimeout(300);
     const h = await heights(page);
-    for (const item of h.slice(1)) expect(Math.abs(h[0] - 2 * item)).toBeLessThanOrEqual(2);
+    for (const item of h.slice(1)) expect(Math.abs(h[0] - 2.5 * item)).toBeLessThanOrEqual(3);
   }
 });
 

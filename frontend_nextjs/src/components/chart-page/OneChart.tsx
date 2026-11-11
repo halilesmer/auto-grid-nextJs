@@ -45,7 +45,7 @@ import { useFormat, useLocale, useT } from '@/i18n';
 import { barEnd, calendarFromDaily, isCalendarTimeframe, liveCalendarBar, periodStart } from '@/lib/analysis/calendarBars';
 import { buildChartData, CHART_TIMEFRAME_SEC, CHART_TIMEFRAMES, dataTimeframeOf, type Bar, type ChartTimeframe } from '@/lib/analysis/candles';
 import { hasFormations } from '@/lib/chart/chartUrl';
-import { isSystemRsi, matchesFormationRsi } from '@/lib/chart-workspace/indicators';
+import { isSystemRsi, matchesFormationRsi, newIndicator, systemRsiIndicator } from '@/lib/chart-workspace/indicators';
 import { chartWorkspaceKey, legacyDocumentsForMerge, legacyLinkFor, legacyWorkspaceKeys, mergeLegacyDocuments } from '@/lib/chart-workspace/legacyKeys';
 import { resolveAsOf } from '@/lib/formation/asOf';
 import { drawingPriceRange, drawsZigzag } from '@/lib/formation/drawingLayout';
@@ -58,7 +58,7 @@ import { brokerNow, DAY_SEC } from '@/lib/serverTime';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/store';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
-import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
+import { emptyChartDocument, useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
 import { useConnectionStore } from '@/store/useConnectionStore';
 import { useFavoritesScanStore } from '@/store/useFavoritesScanStore';
 import type { ZoneSettings } from '@/store/types';
@@ -238,6 +238,8 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
       const oldKeys = legacyWorkspaceKeys({ source, account: accountId, symbol: accepted });
       const merged = mergeLegacyDocuments(legacyDocumentsForMerge(store.documents, store.links, oldKeys));
       if (merged) store.setDocument(contextKey, merged);
+      // A product opened for the first time shows only RSI(7) and EWO(5/35): the Wave 5/35 layer is off, EWO is an ordinary indicator pane
+      else store.setDocument(contextKey, { ...emptyChartDocument(), overlays: { wave: false }, indicators: [systemRsiIndicator(), newIndicator('EWO')] });
       // The linked drawing set of the old keys (1107-A21.16): the new key joins it, its own drawings merge into the shared set
       const link = legacyLinkFor(store.links, contextKey, oldKeys);
       if (link) {

@@ -7,6 +7,7 @@ import type { Page } from '@playwright/test';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, ZONE_ID, expect, test } from '../fixtures/test';
 import { cardRoot } from '../fixtures/card';
+import { enableWaveLayer } from '../fixtures/layers';
 
 const SETUP = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=H1`;
 const FREE = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
@@ -29,8 +30,11 @@ for (const [name, url] of [['frei', FREE], ['Setup', SETUP]] as const) {
       const chart = page.getByTestId('analysis-chart');
       await expect(chart).toHaveAttribute('data-bars', /^[1-9]\d*$/);
       const bars = Number(await chart.getAttribute('data-bars'));
+      // First open of a product: RSI(7) and EWO only, Wave 5/35 is off
+      await expect(chart).toHaveAttribute('data-system-panes', '2');
+      await expect(chart).toHaveAttribute('data-wave-visible', 'false');
+      await enableWaveLayer(page);
       await expect(chart).toHaveAttribute('data-system-panes', '3');
-      await expect(chart).toHaveAttribute('data-wave-visible', 'true');
       const waves = Number(await chart.getAttribute('data-wave-points'));
       // Die laufende Kerze zählt nicht mit: höchstens eine Kerze weniger als im Chart
       expect(waves).toBeGreaterThanOrEqual(bars - 1 - WAVE_WARMUP);
@@ -41,10 +45,12 @@ for (const [name, url] of [['frei', FREE], ['Setup', SETUP]] as const) {
       void worker;
       await page.goto(url);
       const chart = page.getByTestId('analysis-chart');
-      await expect(chart).toHaveAttribute('data-wave-visible', 'true');
+      await expect(chart).toHaveAttribute('data-wave-visible', 'false');
       await openOverlays(page);
       const wave = page.locator('#layer-wave');
-      await expect(wave).toHaveAttribute('aria-checked', 'true');
+      await expect(wave).toHaveAttribute('aria-checked', 'false');
+      await wave.click();
+      await expect(chart).toHaveAttribute('data-wave-visible', 'true');
       await wave.click();
       await expect(chart).toHaveAttribute('data-wave-visible', 'false');
       await wave.click();
@@ -60,6 +66,7 @@ for (const [name, url] of [['frei', FREE], ['Setup', SETUP]] as const) {
       void worker;
       await page.goto(url);
       const chart = page.getByTestId('analysis-chart');
+      await enableWaveLayer(page);
       await expect(chart).toHaveAttribute('data-system-panes', '3');
       await expect.poll(async () => (await paneHeights(page)).length).toBeGreaterThanOrEqual(3);
       const before = await paneHeights(page);
@@ -89,6 +96,7 @@ for (const [name, url] of [['frei', FREE], ['Setup', SETUP]] as const) {
       void worker;
       await page.goto(url);
       const chart = page.getByTestId('analysis-chart');
+      await enableWaveLayer(page);
       await expect(chart).toHaveAttribute('data-system-panes', '3');
       const before = (await paneHeights(page)).length;
       await openOverlays(page);
@@ -111,9 +119,10 @@ test.describe('UI-11 Nutzer-Indikatoren', () => {
     const values = page.getByTestId('workspace-indicator-values');
     await expect(values).toContainText('EWO');
     await expect(values).toContainText('RSI');
+    await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-wave-visible', 'false');
     await openOverlays(page);
     await page.locator('#layer-wave').click();
-    await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-wave-visible', 'false');
+    await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-wave-visible', 'true');
     await expect(values).toContainText('EWO');
     await expect(values).toContainText('RSI');
     await page.reload();
@@ -131,7 +140,7 @@ test.describe('UI-11 schmale Breite', () => {
       for (const [width, narrow] of [[375, true], [1440, false]] as const) {
         await page.setViewportSize({ width, height: 900 });
         await page.goto(url);
-        await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-system-panes', '3');
+        await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-system-panes', '2');
         const box = (id: string) => page.getByTestId(id).boundingBox().then(b => b!);
         const bottomOf = async (id: string) => { const b = await box(id); return b.y + b.height; };
         const workspaceBottom = await bottomOf('chart-workspace');
@@ -162,6 +171,7 @@ for (const [name, url] of [['frei', FREE], ['Setup', SETUP], ['Formation', `/cha
     page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
     await page.goto(url);
     await expect(page.getByTestId('oscillator-controls')).toBeAttached();
+    await enableWaveLayer(page);
     await expect(page.locator('[data-system-row="rsi"]')).toHaveCount(1);
     await expect(page.locator('[data-system-row="wave"]')).toHaveCount(1);
     await page.waitForTimeout(500);

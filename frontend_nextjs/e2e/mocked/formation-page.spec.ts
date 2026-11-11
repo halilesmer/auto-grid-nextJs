@@ -13,6 +13,7 @@ import { harmonic } from '../fixtures/formation-harmonic';
 import { H4, barsOf, zig } from '../fixtures/formation-rows';
 import { openCardTab } from '../fixtures/card';
 import { msg, type MessageKey } from '../fixtures/i18n';
+import { enableWaveLayer } from '../fixtures/layers';
 import { openHeaderMenu } from '../fixtures/header';
 import { DEMO_ID, LIVE_ID, ZONE_ID, expect, test, type MockWorker } from '../fixtures/test';
 import { named, seedFixtureTrend, trendOf } from '../fixtures/formation-trend';
@@ -331,6 +332,8 @@ test.describe('FRM-35 Wave-Unterfenster', () => {
   test('Der Chart hat drei Fenster, das Wave-Fenster trägt die 155 Wave-Werte der 189 geschlossenen Kerzen', { tag: '@FRM-35' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
     const chart = page.getByTestId('analysis-chart');
+    // First open of a product: RSI(7) and EWO only, so the Wave layer is switched on first
+    await enableWaveLayer(page);
     await expect(chart).toHaveAttribute('data-system-panes', '3');
     await expect(chart).toHaveAttribute('data-wave-points', '155');
     await expect(chart).toHaveAttribute('data-wave-visible', 'true');
@@ -340,6 +343,7 @@ test.describe('FRM-35 Wave-Unterfenster', () => {
   test('Die Legende bleibt im Kerzen-Fenster und verdeckt weder RSI noch Wave', { tag: '@FRM-35' }, async ({ page, worker }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await openPage(page, worker, `${URL}&form=GAR`);
+    await enableWaveLayer(page);
     const legend = (await page.getByTestId('formation-legend').boundingBox())!;
     const waveLabel = (await page.getByTestId('formation-overlay').getByText(msg('formation.pane.wave'), { exact: true }).boundingBox())!;
     // Das Wave-Fenster liegt unter dem RSI-Fenster: die Legende endet vor beiden
@@ -351,7 +355,9 @@ test.describe('FRM-35 Wave-Unterfenster', () => {
     const chart = page.getByTestId('analysis-chart');
     await page.getByRole('button', { name: msg('cw.layers'), exact: true }).click();
     const wave = page.locator('#layer-wave');
-    await expect(wave).toHaveAttribute('aria-checked', 'true');
+    await expect(wave).toHaveAttribute('aria-checked', 'false');
+    await wave.click();
+    await expect(chart).toHaveAttribute('data-wave-visible', 'true');
     await wave.click();
     await expect(chart).toHaveAttribute('data-wave-visible', 'false');
     await wave.click();
@@ -364,6 +370,7 @@ test.describe('FRM-35 Wave-Fenster ohne RSI-Fenster', () => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await openPage(page, worker, `${URL}&form=GAR`);
     const chart = page.getByTestId('analysis-chart');
+    await enableWaveLayer(page);
     await expect(chart).toHaveAttribute('data-system-panes', '3');
     await page.getByRole('button', { name: msg('cw.layers'), exact: true }).click();
     await page.locator('#layer-rsi').click();

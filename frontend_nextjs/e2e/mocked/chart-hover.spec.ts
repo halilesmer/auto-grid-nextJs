@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { DEMO_ID, test, expect } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
+import { enableWaveLayer } from '../fixtures/layers';
 
 const CHART_URL = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
 const rsiText = (page: Page) => page.locator('[data-indicator-value="RSI"]').innerText();
@@ -187,6 +188,7 @@ test('Hover-Werte lösen keinen Alarm aus; der Alarm gilt für den letzten Wert'
 test('System-Bereiche RSI(7) und Wave 5/35 haben eine Legendenzeile; Ausblenden geht in jedem Bereich', { tag: ['@ANA-22', '@UI-07'] }, async ({ page, worker }) => {
   void worker;
   await openChart(page);
+  await enableWaveLayer(page);
   for (const [id, label] of [['rsi', 'RSI'], ['wave', 'Wave 5/35']] as const) {
     const row = page.locator(`[data-system-row="${id}"]`), hide = row.getByRole('button', { name: msg('cw.legend.hideLayer', { layer: label }) });
     await expect(row).toHaveCount(1);

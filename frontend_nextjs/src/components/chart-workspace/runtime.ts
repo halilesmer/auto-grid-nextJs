@@ -123,8 +123,8 @@ export function applyAppearance(binding: ChartBinding, a: Appearance, digits: nu
 
 /** RSI band tint follows public series coordinates, so resizing and inverted axes remain correct. */
 const COLLAPSED_PANE_PX = 32;
-/** Height of every oscillator pane as a part of the price pane: 2 : 1 like TradingView (system panes too). */
-const OSCILLATOR_PANE_PART = 0.5;
+/** Height of every oscillator pane as a part of the price pane: 0.4, one fifth lower than the 2 : 1 of TradingView (system panes too). */
+const OSCILLATOR_PANE_PART = 0.4;
 /** On a small screen the oscillator panes give way, so the price pane keeps this height (UI-12). */
 const MIN_PRICE_PANE_PX = 150;
 /** Height of the time axis below the last pane */

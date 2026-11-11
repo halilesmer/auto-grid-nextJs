@@ -65,19 +65,22 @@ for (const [name, url] of PAGES) {
     test('Wave und RSI(7) blenden ihre Fenster aus und ein und bleiben nach dem Neuladen', { tag: '@UI-13' }, async ({ page, worker }) => {
       await open(page, worker, name, url);
       const chart = page.getByTestId('analysis-chart');
+      // First open of a product: RSI(7) is on, Wave 5/35 is off
+      await expect(chart).toHaveAttribute('data-wave-visible', 'false');
+      await expect(chart).toHaveAttribute('data-rsi-visible', 'true');
       await openMenu(page);
       await layerSwitch(page, 'cw.layerWave').click();
-      await expect(chart).toHaveAttribute('data-wave-visible', 'false');
+      await expect(chart).toHaveAttribute('data-wave-visible', 'true');
       await layerSwitch(page, 'cw.layerRsi').click();
       await expect(chart).toHaveAttribute('data-rsi-visible', 'false');
       await page.reload();
-      await expect(chart).toHaveAttribute('data-wave-visible', 'false');
+      await expect(chart).toHaveAttribute('data-wave-visible', 'true');
       await expect(chart).toHaveAttribute('data-rsi-visible', 'false');
       await openMenu(page);
-      await expect(layerSwitch(page, 'cw.layerWave')).toHaveAttribute('aria-checked', 'false');
+      await expect(layerSwitch(page, 'cw.layerWave')).toHaveAttribute('aria-checked', 'true');
       await layerSwitch(page, 'cw.layerWave').click();
       await layerSwitch(page, 'cw.layerRsi').click();
-      await expect(chart).toHaveAttribute('data-wave-visible', 'true');
+      await expect(chart).toHaveAttribute('data-wave-visible', 'false');
       await expect(chart).toHaveAttribute('data-rsi-visible', 'true');
     });
 
