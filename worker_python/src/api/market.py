@@ -364,6 +364,29 @@ async def deals(
         raise HTTPException(status_code=503, detail=str(exc))
 
 
+MAX_ORDERS_SPAN_SEC = 31 * 86400
+
+
+@router.get("/history/{account_id}/orders", dependencies=[Depends(account_access)])
+async def live_orders(
+    account_id: str,
+    from_: int = Query(..., alias="from", ge=0),
+    to: int = Query(..., gt=0),
+):
+    """Pending Orders (Limit/Stop), die irgendwann in [from, to) warteten (BKT-24); `to = from + 1` = Zustand bei `from`."""
+    account = _account_or_404(account_id)
+    if to <= from_:
+        raise HTTPException(status_code=400, detail="'to', 'from'dan büyük olmalı")
+    if to - from_ > MAX_ORDERS_SPAN_SEC:
+        raise HTTPException(status_code=400, detail="Aralık en çok 31 gün olabilir")
+    try:
+        return await asyncio.to_thread(
+            market_sync.get_live_orders, account_id, account, from_, to, is_account_busy(account_id)
+        )
+    except market_db.MarketDbUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+
 # --------------------------------------------------------------------------- CSV-Import (BKT-05)
 class ImportCreate(BaseModel):
     symbol: str = Field(..., max_length=32)

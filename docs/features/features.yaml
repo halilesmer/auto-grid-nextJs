@@ -2159,6 +2159,16 @@ kategorien:
           - Auf dem VPS (DEMO, nur lesen) mit dem bt-Werkzeug die Fenster P6+ und P7 mit und ohne triggerReplay rechnen (Plan 1109-K57 (f)).
         erwartet: Die Tests bestehen. Auf dem VPS fallen die nicht zugeordneten Trades gegenüber „ohne“ (P6+ höchstens 10), Ein- und Ausstieg stimmen bei mindestens 90 % der Paare auf den Preis mit dem Live-Deal überein, und keine K-Klasse wird schlechter.
 
+      - id: BKT-24
+        titel: "Backtest: Startzustand mit offenen Pending Orders"
+        beschreibung: "Worker-Teil (PR-A, Plan 1111-K1) für den Startzustand des Backtests mit Pending Orders: Zu Fensterbeginn warten im Konto oft schon Limit- und Stop-Orders, die in den ersten Ticks füllen; der Backtest startet bisher mit leerem Orderbuch. GET /history/{id}/orders?from&to liefert die Pending Orders (Typ 2 bis 5, nicht abgelehnt), die irgendwann in [from, to) warteten: gesetzt vor `to`, beendet ab `from` oder noch offen. Mit to = from + 1 ist das der Zustand bei `from`. Antwort: {account_id, from, to, orders, missing, lookback_sec}; je Order ticket, time_setup(_msc), time_done(_msc), type, state, reason, magic, symbol, volume_initial/current, price_open, sl, tp, comment, position_id und `active` (true = noch offen, frisch aus orders_get). Grenzen: to <= from oder mehr als 31 Tage Spanne = 400; Zugriff account_access (fremdes Konto = 404, Admin sieht alle). Der Worker fragt history_orders_get zweimal (from − 14 Tage bis to, und from bis to + 14 Tage) und vereinigt nach Ticket, weil MT5 nicht dokumentiert, ob der Bereich nach time_setup oder time_done filtert; `lookback_sec` zeigt die 14 Tage. Gespeichert werden nur beendete Orders (market.sqlite, Schema 11: live_orders, live_order_coverage; beide im Konto-Archiv); der abgedeckte Bereich endet spätestens an der ältesten offenen Order und am frischen Rand (36 h), sodass eine später beendete Order nicht durchrutscht. Belegtes Konto: nur Archiv, Rest als missing mit reason busy. Der Frontend-Teil (startState, seedOrder, initialOrders) folgt in PR-B."
+        code: [worker_python/src/api/market.py, worker_python/src/utils/market_sync.py, worker_python/src/utils/market_db.py, worker_python/tests/unit/test_live_orders.py, worker_python/tests/api/test_history_orders_api.py, worker_python/tests/fakes/fake_mt5.py]
+        tiers: [unit, api, manuell]
+        pruefung:
+          - pytest tests/unit/test_live_orders.py und tests/api/test_history_orders_api.py ausführen (Filter, Kapsel-Regel, beide MT5-Bereichslesarten, zweite Anfrage ohne MT5, offene Orders, busy, 400er, fremdes Konto, Migration 10 → 11).
+          - Auf dem VPS (DEMO, nur lesen) GET /history/{id}/orders mit from = Fensterbeginn und to = from + 1 aufrufen; Dauer messen (über 2 s auf mt5_reader verlegen).
+        erwartet: Die Tests bestehen. Auf dem VPS kommen die zu Fensterbeginn wartenden Orders des Kontos zurück, ein zweiter Aufruf geht nicht an MT5.
+
   # ---------------------------------------------------------------------------
   - id: FRM
     titel: Formationserkennung
