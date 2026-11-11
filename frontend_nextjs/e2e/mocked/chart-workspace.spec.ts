@@ -482,9 +482,8 @@ async function openOscillatorChart(page: Page) {
   }, context);
   await page.reload();
   await expect(controls).toBeVisible();
-  // UI-11: the wave system pane (price pane, then wave) is there; the checks below count the user panes only
-  await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-system-panes', '2');
-  await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-wave-visible', 'true');
+  // UI-11: the RSI layer is off here and no system pane is left; the checks below count the user panes only
+  await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-system-panes', '1');
   return { controls, context };
 }
 const storedDocument = (page: Page, key: string) => page.evaluate(k => {

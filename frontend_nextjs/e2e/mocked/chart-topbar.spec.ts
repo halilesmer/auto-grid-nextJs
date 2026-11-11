@@ -59,7 +59,7 @@ test.describe('UI-12 Kopfleiste bei schmaler Breite', () => {
     await page.goto(PAGES[1].url);
     const card = cardRoot(page);
     await expect(card).toBeVisible();
-    await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-system-panes', '3');
+    await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-system-panes', '2');
     await expect.poll(async () => {
       const c = (await card.boundingBox())!, chart = (await page.getByTestId('analysis-chart').boundingBox())!;
       return c.y - (chart.y + chart.height);

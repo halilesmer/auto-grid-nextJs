@@ -49,7 +49,7 @@ const TIMEFRAME_LABEL = Object.fromEntries(Object.entries(CHART_TIMEFRAME_SEC).m
 function zoomHint(n: number): MessageKey { if (!n) return 'cw.fit.hint'; return n > 0 ? 'cw.zoomIn.hint' : 'cw.zoomOut.hint'; }
 function zoomLabel(n: number, fit: string) { if (!n) return fit; return n > 0 ? '+' : '−'; }
 const toolKey = (kind: DrawingKind) => `cw.tool.${kind}` as MessageKey;
-export interface WorkspaceContext { key: string; symbol: string; view: 'analysis' | 'backtest' | 'formation' | 'free'; systemRsi?: boolean; systemWave?: boolean; syncIdentity?: DrawingIdentity }
+export interface WorkspaceContext { key: string; symbol: string; view: 'analysis' | 'backtest' | 'formation' | 'free'; systemRsi?: boolean; syncIdentity?: DrawingIdentity }
 interface Props {
   context: WorkspaceContext;
   binding: ChartBinding | null;
@@ -65,7 +65,7 @@ interface Props {
   /** Schalter, die rechts neben den Indikatoren in der Kopfleiste stehen (z. B. Trendzug) */
   toolbarActions?: ReactNode;
   viewActions?: ReactNode;
-  /** System oscillators of the switched-on layers (RSI(7), Wave 5/35) with ready-made points. They live in the same pane model as the user oscillators. */
+  /** System oscillators of the switched-on layers (RSI(7)) with ready-made points. They live in the same pane model as the user oscillators. */
   systemPanes?: readonly SystemPaneInput[];
   /** Receives the series of the system panes while they are drawn (for the drawing layer above the chart) */
   systemSeries?: SystemSeriesRefs;
@@ -131,14 +131,13 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const drawingKey = state.links[context.key] ?? context.key;
   const locked = preferences.locked;
   const defaults = useMemo(() => {
-    // Das System-Wave zeigt schon EWO: kein zweites Histogramm als Nutzer-Indikator
-    const others = context.systemWave ? [] : [newIndicator('EWO')];
+    const others = [newIndicator('EWO')];
     others.forEach(v => { v.id = `initial-${v.kind}`; });
     // Charts with the system RSI own one RSI with a fixed id; other charts (backtest) keep the old RSI(14) default
     const rsi = context.systemRsi ? systemRsiIndicator() : newIndicator('RSI');
     if (!context.systemRsi) rsi.id = 'initial-RSI';
-    return { ...emptyChartDocument(), indicators: context.systemRsi && context.systemWave ? [rsi] : [rsi, ...others] };
-  }, [context.systemRsi, context.systemWave]);
+    return { ...emptyChartDocument(), indicators: [rsi, ...others] };
+  }, [context.systemRsi]);
   const stored = state.documents[context.key] ?? defaults;
   // A saved document without the system RSI (older version) gets it at the start; it cannot be deleted, only switched off as a layer
   const ownDocument = useMemo(() => context.systemRsi && !stored.indicators.some(isSystemRsi) ? { ...stored, indicators: [systemRsiIndicator(), ...stored.indicators] } : stored, [context.systemRsi, stored]);
@@ -151,7 +150,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const paneIndicators = useMemo(() => doc.indicators.filter(v => !isSystemRsi(v) || (doc.overlays.rsi ?? true)), [doc.indicators, doc.overlays]);
   const systemModels = useMemo<SystemPaneModel[]>(() => (systemPanes ?? []).map(pane => ({ ...pane, hidden: !!doc.systemPanes?.[pane.id]?.hidden, collapsed: !!doc.systemPanes?.[pane.id]?.collapsed })), [systemPanes, doc.systemPanes]);
   const systemKey = systemModels.map(pane => pane.id).join('|');
-  // Pane order from top to bottom (all panes, also hidden ones): the saved order, new panes at the end; the default is RSI(7), Wave, then the user panes
+  // Pane order from top to bottom (all panes, also hidden ones): the saved order, new panes at the end; the default is RSI(7), then the user panes
   const paneOrder = useMemo(() => orderPanes(doc.paneOrder, presentPanes(paneIndicators, systemKey ? systemKey.split('|') as SystemPaneId[] : [])), [doc.paneOrder, paneIndicators, systemKey]);
   const chartScope = `${context.key}|${timeframeSec}`;
   const maximizedPaneId = maximized?.scope === chartScope ? maximized.paneId : null;

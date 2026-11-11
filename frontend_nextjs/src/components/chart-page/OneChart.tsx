@@ -248,7 +248,7 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
     return () => cancelAnimationFrame(frame);
   }, [hydrated, accepted, contextKey, source, accountId]);
 
-  const overlays = useChartOverlays(contextKey, { formations: true, rsi: true, wave: true });
+  const overlays = useChartOverlays(contextKey, { formations: true, rsi: true });
   // The formation rules read RSI(7) on close of the chart timeframe: with other settings the RSI pane shows other numbers, so its drawings are hidden
   const rsiMatches = useChartWorkspaceStore((s) => {
     const config = s.documents[contextKey]?.indicators.find(isSystemRsi);
@@ -524,7 +524,6 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
             <ChartView
               key={contextKey}
               workspace={{ key: contextKey, symbol: accepted, view: 'free', systemRsi: true, syncIdentity: { source, account: accountId, symbol: accepted } }}
-              signalBars={signalBars}
               timeframe={timeframe}
               formationLayers={null}
               setupLayers={<SetupSwitches idPrefix="layer" legendLayers={layers.legendLayers} prefs={prefs} />}
@@ -554,7 +553,7 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
               renderOverlay={
                 formationTf && hit
                   ? (scene) => (
-                      <FormationLayer scene={scene} hit={hit} bars={signalBars.length > 0 ? signalBars : NO_BARS} points={shownData.points} running={scan.running[hit.tf]} asOf={pastAt !== null} active={active} onActive={setActive} onCapture={registerCapture} onPriceBottom={setPriceBottom} visible={overlays.formations} rsiVisible={overlays.rsi && rsiMatches} waveVisible={overlays.wave} others={others} workspaceKey={contextKey} onSelectHit={(h: ScanHit) => { setView({ form: h.form, tf: h.tf }); setPicked(`${h.form}-${h.tf}`); }} atr={atr} />
+                      <FormationLayer scene={scene} hit={hit} bars={signalBars.length > 0 ? signalBars : NO_BARS} points={shownData.points} running={scan.running[hit.tf]} asOf={pastAt !== null} active={active} onActive={setActive} onCapture={registerCapture} onPriceBottom={setPriceBottom} visible={overlays.formations} rsiVisible={overlays.rsi && rsiMatches} others={others} workspaceKey={contextKey} onSelectHit={(h: ScanHit) => { setView({ form: h.form, tf: h.tf }); setPicked(`${h.form}-${h.tf}`); }} atr={atr} />
                     )
                   : undefined
               }
@@ -583,7 +582,6 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
               <li>{t('formation.legend.target', { point: FINAL_POINT[hit.form] })}</li>
               <li>{t('formation.legend.zone')}</li>
               <li>{t('formation.legend.rsi')}</li>
-              <li>{t('formation.legend.wave')}</li>
             </ul>
           )}
         </>

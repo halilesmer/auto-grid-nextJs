@@ -42,7 +42,6 @@ const layout = (candidate: Candidate, x: (time: number) => number | null = (time
     x,
     y: (price) => 300 - price * 10,
     yRsi: (value) => 400 - value,
-    yWave: (value) => 600 - value,
     text: (key) => key,
     fmt: (n) => String(n),
   });
@@ -304,7 +303,6 @@ test.describe('Gemessener, aber gehaltener Endpunkt (pointHeld)', () => {
       x: (time) => (time - 1000) / 2,
       y: (price) => 300 - price * 10,
       yRsi: (value) => 400 - value,
-      yWave: (value) => 600 - value,
       text: (key) => key,
       fmt: (n) => String(n),
     });
@@ -320,7 +318,7 @@ test.describe('Gemessener, aber gehaltener Endpunkt (pointHeld)', () => {
 
   frm('FRM-20', 'Zickzack endet in einer Zielprojektion (Trendfortsetzung): B steht als Punkt mit Namen, aber ohne Strich vom Ziel', () => {
     const tdf: Candidate = { ...held, code: 'TDF', drawings: [{ id: 'Z-1', tool: 'zigzag', anchors: [point(0, 10), point(1, 20), point(2, 30)], rules: ['TDF-01'], side: 'sell' }] };
-    const zig = layoutDrawings({ candidate: tdf, form: 'TDF', width: 500, lastBar: { time: 1500, close: 22 }, x: (time) => (time - 1000) / 2, y: (price) => 300 - price * 10, yRsi: (v) => 400 - v, yWave: (v) => 600 - v, text: (key) => key, fmt: (n) => String(n) }).find((g) => g.id === 'Z-1')!;
+    const zig = layoutDrawings({ candidate: tdf, form: 'TDF', width: 500, lastBar: { time: 1500, close: 22 }, x: (time) => (time - 1000) / 2, y: (price) => 300 - price * 10, yRsi: (v) => 400 - v, text: (key) => key, fmt: (n) => String(n) }).find((g) => g.id === 'Z-1')!;
     expect(zig.prims.filter((p) => p.kind === 'line')).toHaveLength(2);
     expect(zig.prims.some((p) => p.kind === 'text' && p.text === 'B')).toBe(true);
   });

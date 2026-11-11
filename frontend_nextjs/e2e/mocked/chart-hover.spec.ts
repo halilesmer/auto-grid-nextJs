@@ -184,10 +184,10 @@ test('Hover-Werte lösen keinen Alarm aus; der Alarm gilt für den letzten Wert'
   expect(await armed()).toEqual([true]);
 });
 
-test('System-Bereiche RSI(7) und Wave 5/35 haben eine Legendenzeile; Ausblenden geht in jedem Bereich', { tag: ['@ANA-22', '@UI-07'] }, async ({ page, worker }) => {
+test('Der System-Bereich RSI(7) hat eine Legendenzeile; Ausblenden geht in jedem Bereich', { tag: ['@ANA-22', '@UI-07'] }, async ({ page, worker }) => {
   void worker;
   await openChart(page);
-  for (const [id, label] of [['rsi', 'RSI'], ['wave', 'Wave 5/35']] as const) {
+  for (const [id, label] of [['rsi', 'RSI']] as const) {
     const row = page.locator(`[data-system-row="${id}"]`), hide = row.getByRole('button', { name: msg('cw.legend.hideLayer', { layer: label }) });
     await expect(row).toHaveCount(1);
     await page.mouse.move(5, 5);
@@ -200,5 +200,4 @@ test('System-Bereiche RSI(7) und Wave 5/35 haben eine Legendenzeile; Ausblenden 
     await expect(row).toHaveCount(0);
   }
   await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-rsi-visible', 'false');
-  await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-wave-visible', 'false');
 });

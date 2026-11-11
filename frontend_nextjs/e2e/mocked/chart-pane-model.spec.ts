@@ -16,7 +16,7 @@ async function open(page: Page) {
   await page.setViewportSize({ width: 1280, height: 1000 });
   await page.goto(FREE);
   await expect(page.getByTestId('oscillator-controls')).toBeVisible();
-  await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-wave-visible', 'true');
+  await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-rsi-visible', 'true');
   await expect.poll(async () => group(page).count()).toBeGreaterThanOrEqual(3);
 }
 /** Deletes the first pane until `left` panes remain. */
