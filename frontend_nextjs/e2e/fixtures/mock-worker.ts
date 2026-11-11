@@ -524,6 +524,26 @@ export class MockWorker {
   }
 
   /**
+   * Wie market_sync.get_live_orders (BKT-24): Pending Orders, die irgendwann in [from, to) warteten
+   * (gesetzt vor `to`, beendet ab `from` oder noch offen).
+   */
+  private liveOrders(accountId: string, q: URLSearchParams) {
+    const from = Number(q.get('from') ?? 0);
+    const to = Number(q.get('to') ?? from + 1);
+    const orders = (this.state.liveOrders[accountId] ?? [])
+      .filter((o) => o.time_setup_msc < to * 1000 && (o.active === true || o.time_done_msc >= from * 1000))
+      .sort((a, b) => a.time_setup_msc - b.time_setup_msc || a.ticket - b.ticket);
+    return {
+      account_id: accountId,
+      from,
+      to,
+      orders,
+      missing: this.state.dealsMissing.filter((m) => m.to > from && m.from < to),
+      lookback_sec: 14 * 86400,
+    };
+  }
+
+  /**
    * Wie market_sync.get_deals/market_db.read_deals: Deals [from, to) + Einstiege älterer Positionen
    * (für die Zuordnung), Kontodaten, Zonen-Register und fehlende Teile.
    */

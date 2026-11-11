@@ -147,7 +147,6 @@ export interface FormationLayerProps {
   onSelectHit?: (hit: ScanHit) => void;
   visible: boolean;
   rsiVisible: boolean;
-  waveVisible: boolean;
   /** Key of the chart document (one chart): its own look (e.g. the line menu setting) wins over the global one */
   workspaceKey?: string;
 }
@@ -156,10 +155,10 @@ const NO_D: DLayout = { badges: [], rings: [], bands: [] };
 const NO_HITS: readonly ScanHit[] = [];
 
 /** Zeichnungen der Erkennung als SVG über dem Chart (für `renderOverlay` jedes `ChartView`); das Overlay endet vor der Preisachse. */
-export function FormationLayer({ scene, hit, bars, points, running, asOf, active, onActive, onCapture, onPriceBottom, visible, rsiVisible, waveVisible, others = NO_HITS, onSelectHit, atr, workspaceKey }: FormationLayerProps) {
+export function FormationLayer({ scene, hit, bars, points, running, asOf, active, onActive, onCapture, onPriceBottom, visible, rsiVisible, others = NO_HITS, onSelectHit, atr, workspaceKey }: FormationLayerProps) {
   const t = useT();
   const { number } = useFormat();
-  const { binding, rsi, wave } = scene;
+  const { binding, rsi } = scene;
   const appearance = useChartWorkspaceStore(s => s.preview ?? (workspaceKey ? s.documents[workspaceKey]?.appearance : undefined) ?? s.appearance);
   const formationStyle = useAnalysisPrefsStore(s => s.formationStyle);
   const lineMenuMode = appearance.lineMenu;
@@ -174,7 +173,7 @@ export function FormationLayer({ scene, hit, bars, points, running, asOf, active
   const clipId = `formation-price-clip-${useId().replace(/:/g, '')}`;
   const overlayRef = useRef<SVGSVGElement>(null);
   const redrawRef = useRef<(() => void) | null>(null);
-  const [overlay, setOverlay] = useState<{ width: number; height: number; left: number; priceHeight: number; waveTop: number; groups: DrawingGroup[]; asOfX: number | null; d: DLayout }>({ width: 0, height: 0, left: 0, priceHeight: 0, waveTop: 0, groups: [], asOfX: null, d: NO_D });
+  const [overlay, setOverlay] = useState<{ width: number; height: number; left: number; priceHeight: number; groups: DrawingGroup[]; asOfX: number | null; d: DLayout }>({ width: 0, height: 0, left: 0, priceHeight: 0, groups: [], asOfX: null, d: NO_D });
 
   useEffect(() => {
     const { chart, host } = binding;
@@ -199,7 +198,7 @@ export function FormationLayer({ scene, hit, bars, points, running, asOf, active
         const element = series?.getPane().getHTMLElement();
         return element ? element.getBoundingClientRect().top - hostTop : null;
       };
-      const rsiSeries = rsi.current, waveSeries = wave.current, rsiTop = paneTop(rsiSeries), waveTop = paneTop(waveSeries) ?? 0;
+      const rsiSeries = rsi.current, rsiTop = paneTop(rsiSeries);
       if (width <= 0 || top <= 0) return;
       // Zeiten hinter der letzten Kerze (erwartetes D) liegen in Kerzenabständen rechts davon
       const lastPoint = points[points.length - 1];
@@ -240,10 +239,6 @@ export function FormationLayer({ scene, hit, bars, points, running, asOf, active
           const y = rsiSeries?.priceToCoordinate(value) ?? null;
           return y === null || rsiTop === null ? null : rsiTop + y;
         },
-        yWave: (value) => {
-          const y = waveSeries?.priceToCoordinate(value) ?? null;
-          return y === null || waveSeries === null ? null : waveTop + y;
-        },
         text: (key, params) => t(key as never, { tf: hit.tf, up: UPPER_TIMEFRAME[hit.tf], ...params }),
         fmt: (n) => number(n, { maximumFractionDigits: 3 }),
       });
@@ -251,7 +246,7 @@ export function FormationLayer({ scene, hit, bars, points, running, asOf, active
       // Ende der letzten Kerze: halbe Kerzenbreite hinter ihrer Mitte (der logische Index zählt Kerzen und Leerstellen)
       const lastX = chart.timeScale().logicalToCoordinate((points.length - 1) as never);
       const asOfX = lastX === null ? null : lastX + chart.timeScale().options().barSpacing / 2;
-      setOverlay({ width, left, height: top + subHeight, priceHeight: top, waveTop, groups, asOfX, d });
+      setOverlay({ width, left, height: top + subHeight, priceHeight: top, groups, asOfX, d });
     };
     chart.timeScale().subscribeVisibleLogicalRangeChange(redraw);
     chart.timeScale().subscribeSizeChange(redraw);
@@ -286,7 +281,7 @@ export function FormationLayer({ scene, hit, bars, points, running, asOf, active
     // ChartCore baut den Chart beim Unmount vor diesem Effekt ab
     const unregister = binding.onDispose(dispose);
     return () => { unregister(); dispose(); };
-  }, [binding, rsi, wave, bars, points, hit, others, atr, t, number, onPriceBottom]);
+  }, [binding, rsi, bars, points, hit, others, atr, t, number, onPriceBottom]);
 
   // Die Preisachse kann sich mit der laufenden Kerze oder den Einstellungen ändern: Zeichnungen folgen im nächsten Frame
   useEffect(() => {
@@ -318,9 +313,6 @@ export function FormationLayer({ scene, hit, bars, points, running, asOf, active
           <rect x={0} y={0} width={overlay.width} height={overlay.priceHeight} />
         </clipPath>
       </defs>
-      {waveVisible && overlay.waveTop > 0 && (
-        <text x={8} y={overlay.waveTop + 16} fill="var(--muted-foreground)" fontSize={11}>{t('formation.pane.wave')}</text>
-      )}
       {overlay.groups.filter((g) => g.pane !== 'rsi' || rsiVisible).map((g) => (
         <g
           key={g.id}

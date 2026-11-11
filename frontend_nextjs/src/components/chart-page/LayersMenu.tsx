@@ -12,15 +12,14 @@ import { setSystemLayer } from '@/components/chart-workspace/systemLayers';
 
 /**
  * Knopf „Ebenen“ neben Trend (UI-13): ein Menü, das auf jedem Chart gleich aufgebaut ist. Oben die gemeinsamen Ebenen
- * (Trendzug, System-RSI(7), Wave 5/35, Pausen, Datenlücken), darunter der Abschnitt des Modus (`modeTitle`, `children`).
+ * (Trendzug, System-RSI(7), Pausen, Datenlücken), darunter der Abschnitt des Modus (`modeTitle`, `children`).
  * Die Schalter schreiben in dieselben Speicher wie die alten Orte (`useAnalysisPrefsStore`, Overlays des Chart-Arbeitsbereichs),
  * gespeicherte Einstellungen gelten also weiter.
  */
-export function LayersMenu({ contextKey, timeframe, rsi, wave, modeTitle, children, formationLayers, setupLayers }: {
+export function LayersMenu({ contextKey, timeframe, rsi, modeTitle, children, formationLayers, setupLayers }: {
   contextKey: string;
   timeframe: ChartTimeframe;
   rsi: boolean;
-  wave: boolean;
   /** Old mode section (Formation, Setup and Free pages until step U4-5) */
   modeTitle?: string;
   children?: ReactNode;
@@ -32,7 +31,7 @@ export function LayersMenu({ contextKey, timeframe, rsi, wave, modeTitle, childr
   const showTrend = useAnalysisPrefsStore(s => s.showTrend), setShowTrend = useAnalysisPrefsStore(s => s.setShowTrend);
   const showPauses = useAnalysisPrefsStore(s => s.showPauses), showGaps = useAnalysisPrefsStore(s => s.showGaps), setPref = useAnalysisPrefsStore(s => s.setPref);
   const trendAvailable = contextTimeframe(timeframe) !== null;
-  const setOverlay = (key: 'rsi' | 'wave', value: boolean) => setSystemLayer(contextKey, key, value);
+  const setOverlay = (key: 'rsi', value: boolean) => setSystemLayer(contextKey, key, value);
   return (
     <DropdownMenu
       label={t('cw.layers')}
@@ -52,7 +51,6 @@ export function LayersMenu({ contextKey, timeframe, rsi, wave, modeTitle, childr
         <div className="grid gap-2.5">
           <Switch id="layer-trend" label={t('cw.layerTrend')} hint={t(trendAvailable ? 'cw.layerTrend.hint' : 'cw.trend.unavailable.hint')} checked={showTrend && trendAvailable} disabled={!trendAvailable} onChange={setShowTrend} />
           <Switch id="layer-rsi" label={t('cw.layerRsi')} hint={t('cw.layerRsi.hint')} checked={rsi} onChange={v => setOverlay('rsi', v)} />
-          <Switch id="layer-wave" label={t('cw.layerWave')} hint={t('cw.layerWave.hint')} checked={wave} onChange={v => setOverlay('wave', v)} />
           <Switch id="layer-pauses" label={t('analysis.settings.pauses')} hint={t('analysis.settings.pauses.hint')} checked={showPauses} onChange={v => setPref('showPauses', v)} />
           <Switch id="layer-gaps" label={t('analysis.settings.gaps')} hint={t('analysis.settings.gaps.hint')} checked={showGaps} onChange={v => setPref('showGaps', v)} />
         </div>

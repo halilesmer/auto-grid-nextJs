@@ -9,7 +9,7 @@ import { closedBars } from '@/lib/formation/trdPath';
 const NONE: Bar[] = [];
 
 /**
- * Geschlossene Kerzen des Charts, aus denen RSI(7) und Wave 5/35 rechnen (ChartView). Brokerzeit der Antwort,
+ * Geschlossene Kerzen des Charts, aus denen RSI(7) rechnet (ChartView). Brokerzeit der Antwort,
  * sonst die Uhr des Charts; ohne verlässliche Uhr fällt die letzte Kerze weg (anders als beim Trendzug, der dann UTC − 12 h nimmt).
  */
 export function useSignalBars(rates: MarketRates | null, timeframe: ChartTimeframe, offsetSec: number | null, nowSec: () => number): Bar[] {

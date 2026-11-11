@@ -10,7 +10,7 @@ import { DropdownMenu, DropdownMenuGroup, DropdownMenuItem, useDropdownClose } f
 import { Modal } from '@/components/ui/modal';
 import { FieldLabel, Tooltip } from '@/components/ui/tooltip';
 import { useT, type MessageKey } from '@/i18n';
-import { PRESET_ID, isReservedName, presetFibStyle, coeffText, factoryFibStyle, FIB_FONT_SIZES, fibStyleEqual, FIB_KIND, normalizeFibStyle, type FibStyle } from '@/lib/chart-workspace/fibStyle';
+import { PRESET_ID, FIB_TEXT_MAX, isReservedName, joinColor, splitColor, presetFibStyle, coeffText, factoryFibStyle, FIB_FONT_SIZES, fibStyleEqual, FIB_KIND, normalizeFibStyle, type FibStyle } from '@/lib/chart-workspace/fibStyle';
 import { UNIT_KEYS, UNIT_MAX, barIndexOf, normalizeVisibility, timeAtBar, visibilityForDrawing, type FibVisibility, type UnitKey } from '@/lib/chart-workspace/fibCoords';
 import { cn } from '@/lib/utils';
 import { NumberBox } from './indicatorControls';
@@ -28,13 +28,21 @@ function Select({ name, value, options, onChange, className }: { name: string; v
   const t = useT();
   return <Tooltip content={t(k(`${name}.hint`))}><span className="relative inline-flex"><select aria-label={t(k(name))} data-testid={`fib-${name}`} className={cn(field, 'appearance-none truncate pr-7', className)} value={value} onChange={e => onChange(e.target.value)}>{options.map(([v, label]) => <option key={v} value={v}>{label}</option>)}</select><ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" /></span></Tooltip>;
 }
+const CHECKER = 'repeating-conic-gradient(#9a9a9a 0 25%, #fff 0 50%) 0 0 / 8px 8px';
+/** Renk kutusu: değer `#rrggbb` ya da `#rrggbbaa`; seçici yalnız rengi değiştirir, opaklık korunur (opaklık ayrı kutuda). */
 function Swatch({ label, hint, value, onChange, mixed = false, testId }: { label: string; hint: string; value: string; onChange: (v: string) => void; mixed?: boolean; testId?: string }) {
   // Üretim derlemesi renkleri kısaltır (#ffffff → #fff); input[type=color] yalnız uzun biçimi bilir
-  const long = value.replace(/^#([\da-f])([\da-f])([\da-f])$/i, '#$1$1$2$2$3$3'), safe = /^#[\da-f]{6}$/i.test(long) ? long : '#808080';
-  return <Tooltip content={hint}><span className="relative block size-8 shrink-0 rounded-md border border-muted-foreground/50 p-1 focus-within:ring-2 focus-within:ring-ring"><span className="block size-full rounded-sm border border-black/20" style={{ background: mixed ? 'linear-gradient(135deg, #089981 50%, #f23645 50%)' : safe }} /><input aria-label={label} data-testid={testId} className="absolute inset-0 size-full cursor-pointer opacity-0" type="color" value={safe} onChange={e => onChange(e.target.value)} /></span></Tooltip>;
+  const { rgb, alpha } = splitColor(value), shown = joinColor(rgb, alpha);
+  return <Tooltip content={hint}><span className="relative block size-8 shrink-0 rounded-md border border-muted-foreground/50 p-1 focus-within:ring-2 focus-within:ring-ring"><span className="block size-full rounded-sm border border-black/20" style={{ background: mixed ? 'linear-gradient(135deg, #089981 50%, #f23645 50%)' : `linear-gradient(${shown}, ${shown}), ${CHECKER}` }} /><input aria-label={label} data-testid={testId} className="absolute inset-0 size-full cursor-pointer opacity-0" type="color" value={rgb} onChange={e => onChange(joinColor(e.target.value, alpha))} /></span></Tooltip>;
+}
+/** Opaklık kutusu (yüzde): rengin `#rrggbbaa` kısmını yazar. */
+function Alpha({ label, hint, value, onChange, disabled }: { label: string; hint: string; value: number; onChange: (v: number) => void; disabled?: boolean }) {
+  return <span className="inline-flex items-center gap-1"><NumberBox label={label} hint={hint} className="h-8 w-14" value={value} min={0} max={100} disabled={disabled} onChange={onChange} /><span className="text-xs text-muted-foreground" aria-hidden="true">%</span></span>;
 }
 
 export interface FibSettingsDialogProps {
+  /** Açılışta gösterilen sekme (sağ tık menüsü: Görünürlük) */
+  initialTab?: 'style' | 'coords' | 'vis';
   drawing: Drawing;
   /** Fiyat ölçeği logaritmik mi (Grafik ayarları → Ölçekler) */
   scaleLog: boolean;
@@ -52,7 +60,7 @@ export interface FibSettingsDialogProps {
   onCancel: (initial: Drawing) => void;
 }
 
-export function FibSettingsDialog({ drawing, scaleLog, locked, barTimes, stepSec, onPreview, onCommit, onCancel }: FibSettingsDialogProps) {
+export function FibSettingsDialog({ drawing, initialTab = 'style', scaleLog, locked, barTimes, stepSec, onPreview, onCommit, onCancel }: FibSettingsDialogProps) {
   const t = useT(), id = useId();
   const label = (n: string) => n === PRESET_ID ? t(k('presetName')) : n;
   const templates = useChartWorkspaceStore(s => s.drawingTemplates[FIB_KIND]);
@@ -60,7 +68,7 @@ export function FibSettingsDialog({ drawing, scaleLog, locked, barTimes, stepSec
   const [initial] = useState(drawing);
   const [name, setName] = useState(drawing.name ?? '');
   const [style, setStyle] = useState<FibStyle>(() => normalizeFibStyle(drawing.style));
-  const [tab, setTab] = useState<'style' | 'coords' | 'vis'>('style');
+  const [tab, setTab] = useState<'style' | 'coords' | 'vis'>(initialTab);
   const [pts, setPts] = useState(() => (drawing.points as { time: number; price: number }[]).slice(0, 2).map(p => ({ time: p.time, price: p.price, bar: barIndexOf(barTimes, p.time, stepSec) })));
   const [vis, setVis] = useState<FibVisibility>(() => normalizeVisibility(drawing.visibility));
   const [renaming, setRenaming] = useState(false);
@@ -85,6 +93,8 @@ export function FibSettingsDialog({ drawing, scaleLog, locked, barTimes, stepSec
   const ok = () => { const final = build(style, name.trim()); store().saveDrawingDefault(style); onCommit(final); };
 
   const setLevel = (i: number, p: Partial<FibStyle['levels'][number]>) => patch({ levels: style.levels.map((l, j) => j === i ? { ...l, ...p } : l) });
+  const setLevelAlpha = (i: number, a: number) => setLevel(i, { color: joinColor(splitColor(style.levels[i].color).rgb, a) });
+  const trendAlpha = splitColor(style.fibTrendLine.color).alpha, oneAlpha = splitColor(style.levels[0]?.color ?? '#808080').alpha;
   const colors = new Set(style.levels.map(l => l.color.toLowerCase()));
   const extend = ({ 'true,true': 'both', 'true,false': 'left', 'false,true': 'right' } as Record<string, string>)[`${!!style.extendLeft},${!!style.extendRight}`] ?? 'none';
   const lines: [string, string][] = [['solid', '───'], ['dashed', '– – –'], ['dotted', '· · · ·']];
@@ -113,6 +123,7 @@ export function FibSettingsDialog({ drawing, scaleLog, locked, barTimes, stepSec
             {tab === 'style' && <>
             <Row label={<Checkbox className="min-w-0" label={t(k('trendLine'))} hint={t(k('trendLine.hint'))} checked={style.fibTrendLine.visible} onChange={v => patch({ fibTrendLine: { ...style.fibTrendLine, visible: v } })} />}>
               <Swatch label={t(k('trendStyle'))} hint={t(k('trendStyle.hint'))} testId="fib-trend-color" value={style.fibTrendLine.color} onChange={color => patch({ fibTrendLine: { ...style.fibTrendLine, color } })} />
+              <Alpha label={t(k('trendAlpha'))} hint={t(k('trendAlpha.hint'))} value={trendAlpha} onChange={a => patch({ fibTrendLine: { ...style.fibTrendLine, color: joinColor(splitColor(style.fibTrendLine.color).rgb, a) } })} />
               <Select name="trendWidth" value={String(style.fibTrendLine.width)} options={px} onChange={v => patch({ fibTrendLine: { ...style.fibTrendLine, width: Number(v) } })} className="w-20" />
               <Select name="trendLineStyle" value={style.fibTrendLine.style} options={lines} onChange={v => patch({ fibTrendLine: { ...style.fibTrendLine, style: v as FibStyle['fibTrendLine']['style'] } })} className="w-20" />
             </Row>
@@ -124,14 +135,21 @@ export function FibSettingsDialog({ drawing, scaleLog, locked, barTimes, stepSec
               <Select name="extend" value={extend} options={(['none', 'left', 'right', 'both'] as const).map(v => [v, t(k(`extend.${v}`))] as [string, string])} onChange={v => patch({ extendLeft: v === 'left' || v === 'both', extendRight: v === 'right' || v === 'both' })} className="w-52 max-w-full" />
             </Row>
             <div className="my-2 grid grid-cols-2 gap-x-4 gap-y-2" data-testid="fib-levels">
-              {style.levels.map((lv, i) => <div key={`${i}-${epoch}`} className={cn('flex min-w-0 items-center gap-1.5', !lv.visible && 'opacity-60')} data-testid="fib-level">
+              {style.levels.map((lv, i) => <div key={`${i}-${epoch}`} className={cn('grid min-w-0 gap-1', !lv.visible && 'opacity-60')} data-testid="fib-level">
+                <div className="flex min-w-0 items-center gap-1.5">
                 <Tooltip content={t(k('levelOn.hint'))}><input type="checkbox" aria-label={`${t(k('levelOn'))} ${coeffText(lv.coeff)}`} className="size-4 shrink-0 accent-foreground" checked={lv.visible} onChange={e => setLevel(i, { visible: e.target.checked })} /></Tooltip>
                 <Tooltip content={t(k('coeff.hint'))} className="min-w-0 flex-1"><input type="number" step="0.001" aria-label={t(k('coeff'))} className={cn(field, 'w-full min-w-0 px-1.5 tabular-nums')} defaultValue={lv.coeff} onChange={e => { const v = Number(e.target.value); if (e.target.value !== '' && Number.isFinite(v)) setLevel(i, { coeff: v }); }} /></Tooltip>
                 <Swatch label={`${t(k('levelColor'))} ${coeffText(lv.coeff)}`} hint={t(k('levelColor.hint'))} value={lv.color} onChange={color => setLevel(i, { color })} />
+                </div>
+                <div className="flex min-w-0 items-center gap-1.5 pl-[22px]">
+                  <Tooltip content={t(k('levelText.hint'))} className="min-w-0 flex-1"><input type="text" maxLength={FIB_TEXT_MAX} aria-label={`${t(k('levelText'))} ${coeffText(lv.coeff)}`} data-testid="fib-level-text" className={cn(field, 'w-full min-w-0 px-1.5')} defaultValue={lv.text ?? ''} onChange={e => setLevel(i, { text: e.target.value || undefined })} /></Tooltip>
+                  <Alpha label={`${t(k('levelAlpha'))} ${coeffText(lv.coeff)}`} hint={t(k('levelAlpha.hint'))} value={splitColor(lv.color).alpha} onChange={a => setLevelAlpha(i, a)} />
+                </div>
               </div>)}
             </div>
             <Row label={t(k('oneColor'))} hint={t(k('oneColor.hint'))}>
               <Swatch label={t(k('oneColor'))} hint={t(k('oneColor.hint'))} testId="fib-one-color" mixed={colors.size > 1} value={style.levels[0]?.color ?? '#808080'} onChange={color => { patch({ levels: style.levels.map(l => ({ ...l, color })) }); setEpoch(e => e + 1); }} />
+              <Alpha label={t(k('oneAlpha'))} hint={t(k('oneAlpha.hint'))} value={oneAlpha} onChange={a => patch({ levels: style.levels.map(l => ({ ...l, color: joinColor(splitColor(l.color).rgb, a) })) })} />
             </Row>
             <Row label={<Checkbox className="min-w-0" label={t(k('background'))} hint={t(k('background.hint'))} checked={!!style.fillBackground} onChange={v => patch({ fillBackground: v })} />}>
               <Tooltip content={t(k('opacity.hint'))}><input type="range" min={0} max={100} aria-label={t(k('opacity'))} data-testid="fib-opacity" className="h-8 w-40 accent-foreground" value={100 - (style.transparency ?? 80)} onChange={e => patch({ transparency: 100 - Number(e.target.value) })} /></Tooltip>
@@ -208,7 +226,7 @@ function TemplateRow({ name, active, onApply, onDelete }: { name: string; active
   </div>;
 }
 
-function SaveTemplateModal({ id, names, onClose, onSave }: { id: string; names: string[]; onClose: () => void; onSave: (name: string) => void }) {
+export function SaveTemplateModal({ id, names, onClose, onSave }: { id: string; names: string[]; onClose: () => void; onSave: (name: string) => void }) {
   const t = useT();
   const [value, setValue] = useState('');
   const n = value.trim(), reserved = isReservedName(n), exists = !reserved && names.includes(n);

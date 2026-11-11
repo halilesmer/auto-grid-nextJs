@@ -15,6 +15,7 @@ import { parseFractalComment } from '@/lib/backtest/engine/orders';
 import {
   BUY_ORDER_TYPES,
   ORDER_STATE_FILLED,
+  ORDER_STATE_PLACED,
   ORDER_TYPE_BUY_LIMIT,
   ORDER_TYPE_BUY_STOP,
   ORDER_TYPE_SELL_LIMIT,
@@ -106,6 +107,21 @@ export interface InitialPosition {
   /** Kommentar der Eröffnungsorder, bei Fraktal-Positionen mit Fraktalzeit (markiert das Fraktal als erledigt) */
   comment?: string;
   /** Eröffnungszeit in Sekunden; ohne Angabe die Startzeit */
+  time?: number;
+}
+
+/** Pending Order, die zum Startzeitpunkt schon im Orderbuch stand (BKT-24; Daten aus der Live-Orderhistorie) */
+export interface InitialOrder {
+  /** ORDER_TYPE_BUY_LIMIT, SELL_LIMIT, BUY_STOP oder SELL_STOP */
+  type: number;
+  price: number;
+  volume: number;
+  sl?: number;
+  tp?: number;
+  magic: number;
+  /** Kommentar der Order; bei Fraktal-Orders mit Fraktalzeit (die Engine erkennt das Fraktal daran) */
+  comment?: string;
+  /** Zeit, zu der die Order gesetzt wurde (Sekunden) */
   time?: number;
 }
 
@@ -526,6 +542,27 @@ export class PathBroker extends SimBroker {
     this.opens.set(ticket, { time: init.time ?? this.now, price: init.price, commission: 0, swap: 0, favorablePrice: exitPrice, adversePrice: exitPrice });
     position.time_msc = Math.trunc((init.time ?? this.now) * 1000);
     this.profitStale = true;
+  }
+
+  /**
+   * BKT-24: eine schon wartende Order ins Orderbuch legen (wie MT5 nach einem Neustart des Bots). Kein Verlauf,
+   * keine Kommission; die Engine sieht sie über ordersGet() und behandelt sie wie eine eigene.
+   */
+  seedOrder(init: InitialOrder): void {
+    const ticket = this.nextTicket++;
+    this.orders.push({
+      ticket,
+      symbol: this.symbol,
+      type: init.type,
+      price_open: init.price,
+      volume_initial: init.volume,
+      volume_current: init.volume,
+      tp: init.tp ?? 0,
+      sl: init.sl ?? 0,
+      magic: init.magic,
+      comment: init.comment ?? '',
+      state: ORDER_STATE_PLACED,
+    });
   }
 
   /** Testende „alles schließen“: zum Marktpreis */

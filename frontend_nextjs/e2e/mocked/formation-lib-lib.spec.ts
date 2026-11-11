@@ -403,7 +403,6 @@ const layoutOf = (candidate: Candidate, form: 'LIB' | 'CYP') =>
     x: (time) => time / H4,
     y: (price) => 300 - price,
     yRsi: (value) => value,
-    yWave: (value) => value,
     text: (key) => key,
     fmt: (n) => String(n),
   });
@@ -489,7 +488,6 @@ frm('Seite: Ziel-Label Z-LIB-04 heißt „Ziel“, Label Z-LIB-05 an P2 heißt �
     x: (time) => time / H4,
     y: (price) => 300 - price,
     yRsi: (value) => value,
-    yWave: (value) => value,
     text: (key) => key,
     fmt: (n) => String(n),
   });

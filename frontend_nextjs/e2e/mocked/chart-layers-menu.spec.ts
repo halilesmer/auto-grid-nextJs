@@ -57,30 +57,21 @@ for (const [name, url] of PAGES) {
       const trend = (await page.getByTestId('trend-toggle').boundingBox())!, layers = (await button.boundingBox())!;
       expect(Math.abs(trend.y - layers.y)).toBeLessThan(40);
       await openMenu(page);
-      for (const key of ['cw.layerTrend', 'cw.layerRsi', 'cw.layerWave', 'analysis.settings.pauses', 'analysis.settings.gaps'] as const) await expect(layerSwitch(page, key)).toBeVisible();
+      for (const key of ['cw.layerTrend', 'cw.layerRsi', 'analysis.settings.pauses', 'analysis.settings.gaps'] as const) await expect(layerSwitch(page, key)).toBeVisible();
       // Formasyon çizimleri ist seit FRM-45 ein Schalter in der Symbolleiste, nicht mehr im Menü
       await expect(layerSwitch(page, 'cw.overlayFormations')).toHaveCount(0);
     });
 
-    test('Wave und RSI(7) blenden ihre Fenster aus und ein und bleiben nach dem Neuladen', { tag: '@UI-13' }, async ({ page, worker }) => {
+    test('RSI(7) blendet sein Fenster aus und ein und bleiben nach dem Neuladen', { tag: '@UI-13' }, async ({ page, worker }) => {
       await open(page, worker, name, url);
       const chart = page.getByTestId('analysis-chart');
-      // First open of a product: RSI(7) is on, Wave 5/35 is off
-      await expect(chart).toHaveAttribute('data-wave-visible', 'false');
-      await expect(chart).toHaveAttribute('data-rsi-visible', 'true');
       await openMenu(page);
-      await layerSwitch(page, 'cw.layerWave').click();
-      await expect(chart).toHaveAttribute('data-wave-visible', 'true');
       await layerSwitch(page, 'cw.layerRsi').click();
       await expect(chart).toHaveAttribute('data-rsi-visible', 'false');
       await page.reload();
-      await expect(chart).toHaveAttribute('data-wave-visible', 'true');
       await expect(chart).toHaveAttribute('data-rsi-visible', 'false');
       await openMenu(page);
-      await expect(layerSwitch(page, 'cw.layerWave')).toHaveAttribute('aria-checked', 'true');
-      await layerSwitch(page, 'cw.layerWave').click();
       await layerSwitch(page, 'cw.layerRsi').click();
-      await expect(chart).toHaveAttribute('data-wave-visible', 'false');
       await expect(chart).toHaveAttribute('data-rsi-visible', 'true');
     });
 
@@ -232,7 +223,7 @@ test('UI-13 schmale Breite: das Menü öffnet vollständig im Bildschirm', { tag
     expect(menu.x + menu.width).toBeLessThanOrEqual(375);
     expect(menu.y).toBeGreaterThanOrEqual(0);
     expect(menu.y + menu.height).toBeLessThanOrEqual(812);
-    for (const key of ['cw.layerTrend', 'cw.layerRsi', 'cw.layerWave', 'analysis.settings.pauses', 'analysis.settings.gaps'] as const) await expect(layerSwitch(page, key)).toBeInViewport();
+    for (const key of ['cw.layerTrend', 'cw.layerRsi', 'analysis.settings.pauses', 'analysis.settings.gaps'] as const) await expect(layerSwitch(page, key)).toBeInViewport();
     await page.keyboard.press('Escape');
   }
 });

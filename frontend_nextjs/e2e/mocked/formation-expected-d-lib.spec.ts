@@ -37,7 +37,7 @@ test.describe('FRM-44 Erwartetes D', () => {
   });
 
   frm('gestrichelter Weg von C in die Zukunft (nicht zur letzten Kerze), Ring „D?“ und Preis', () => {
-    const zig = layoutDrawings({ candidate: abcd(25), form: 'ABCD', lastBar: { time: 1200, close: 22 }, yRsi: (v) => v, yWave: (v) => v, ...base }).find((g) => g.id === 'Z-ABCD-01')!;
+    const zig = layoutDrawings({ candidate: abcd(25), form: 'ABCD', lastBar: { time: 1200, close: 22 }, yRsi: (v) => v, ...base }).find((g) => g.id === 'Z-ABCD-01')!;
     const dashed = zig.prims.find((p) => p.kind === 'line' && p.dashed);
     expect(dashed).toMatchObject({ x1: 100, y1: 150, x2: 150, y2: 50 });
     expect(zig.prims.find((p) => p.kind === 'circle' && p.open)).toMatchObject({ x: 150, y: 50 });
@@ -46,7 +46,7 @@ test.describe('FRM-44 Erwartetes D', () => {
   });
 
   frm('Weg endet am Rand, wenn das D nicht mehr in den Zeichenbereich passt', () => {
-    const zig = layoutDrawings({ candidate: abcd(25), form: 'ABCD', lastBar: { time: 1200, close: 22 }, yRsi: (v) => v, yWave: (v) => v, ...base, width: 120 }).find((g) => g.id === 'Z-ABCD-01')!;
+    const zig = layoutDrawings({ candidate: abcd(25), form: 'ABCD', lastBar: { time: 1200, close: 22 }, yRsi: (v) => v, ...base, width: 120 }).find((g) => g.id === 'Z-ABCD-01')!;
     expect(zig.prims.find((p) => p.kind === 'line' && p.dashed)).toMatchObject({ x2: 112 });
   });
 
@@ -77,7 +77,7 @@ test.describe('FRM-44 Erwartetes D', () => {
   frm('R1-07: D-Zeit in der Vergangenheit rückt eine Kerze hinter die letzte Kerze (Ring und Abzeichen)', () => {
     const past = layoutExpectedD({ ...base, selectedId: 'ABCD-H0', items: items(25) });
     expect(past.badges[0].x).toBeGreaterThanOrEqual(base.x(1500));
-    const zig = layoutDrawings({ candidate: abcd(25), form: 'ABCD', lastBar: { time: 1500, close: 22 }, yRsi: (v) => v, yWave: (v) => v, ...base }).find((g) => g.id === 'Z-ABCD-01')!;
+    const zig = layoutDrawings({ candidate: abcd(25), form: 'ABCD', lastBar: { time: 1500, close: 22 }, yRsi: (v) => v, ...base }).find((g) => g.id === 'Z-ABCD-01')!;
     const ring = zig.prims.find((p) => p.kind === 'circle' && p.open)!;
     expect((ring as { x: number }).x).toBeGreaterThanOrEqual(base.x(1500));
     expect((ring as { x: number }).x).toBe(past.badges[0].x);
@@ -86,7 +86,7 @@ test.describe('FRM-44 Erwartetes D', () => {
   frm('R1-07: D-Zeit in einer Marktlücke: Rozet-Zahl = Ring-Zahl', () => {
     const gap = { ...base, x: (t: number) => (t > 1250 && t < 1350 ? null : base.x(t)) };
     const badges = layoutExpectedD({ ...gap, selectedId: 'ABCD-H0', items: items(25) }).badges;
-    const zig = layoutDrawings({ candidate: abcd(25), form: 'ABCD', lastBar: { time: 1500, close: 22 }, yRsi: (v) => v, yWave: (v) => v, ...gap }).find((g) => g.id === 'Z-ABCD-01')!;
+    const zig = layoutDrawings({ candidate: abcd(25), form: 'ABCD', lastBar: { time: 1500, close: 22 }, yRsi: (v) => v, ...gap }).find((g) => g.id === 'Z-ABCD-01')!;
     const rings = zig.prims.filter((p) => p.kind === 'circle' && p.open);
     expect(rings).toHaveLength(1);
     expect(badges).toHaveLength(rings.length);
@@ -95,7 +95,7 @@ test.describe('FRM-44 Erwartetes D', () => {
   frm('R1-07: D-Zeit auch nach dem Verschieben nicht abbildbar: Rozet-Zahl = Ring-Zahl', () => {
     const none = { ...base, x: (t: number) => (t >= 1600 ? null : base.x(t)) };
     const badges = layoutExpectedD({ ...none, selectedId: 'ABCD-H0', items: items(25) }).badges;
-    const zig = layoutDrawings({ candidate: abcd(25), form: 'ABCD', lastBar: { time: 1500, close: 22 }, yRsi: (v) => v, yWave: (v) => v, ...none }).find((g) => g.id === 'Z-ABCD-01')!;
+    const zig = layoutDrawings({ candidate: abcd(25), form: 'ABCD', lastBar: { time: 1500, close: 22 }, yRsi: (v) => v, ...none }).find((g) => g.id === 'Z-ABCD-01')!;
     const rings = zig.prims.filter((p) => p.kind === 'circle' && p.open);
     expect(rings).toHaveLength(1);
     expect(badges).toHaveLength(rings.length);
@@ -108,7 +108,7 @@ test.describe('FRM-44 Erwartetes D', () => {
       expect(b.by + b.h).toBeLessThanOrEqual(120);
     }
     const stack = { left: Math.min(...d.badges.map((b) => b.bx)), top: Math.min(...d.badges.map((b) => b.by)), bottom: Math.max(...d.badges.map((b) => b.by + b.h)) };
-    const zig = layoutDrawings({ candidate: abcd(25), form: 'ABCD', lastBar: { time: 1500, close: 22 }, stack, yRsi: (v) => v, yWave: (v) => v, ...base, y: (p: number) => 150 - p * 4 }).find((g) => g.id === 'Z-ABCD-01')!;
+    const zig = layoutDrawings({ candidate: abcd(25), form: 'ABCD', lastBar: { time: 1500, close: 22 }, stack, yRsi: (v) => v, ...base, y: (p: number) => 150 - p * 4 }).find((g) => g.id === 'Z-ABCD-01')!;
     const price = zig.prims.find((p) => p.kind === 'text' && p.text === '25' && p.anchor === 'end') as { x: number; y: number };
     expect(price.x).toBeLessThanOrEqual(stack.left);
   });

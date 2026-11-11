@@ -33,6 +33,7 @@ import { ChartGestureLayer, type ZoomSnapshot } from './ChartGestureLayer';
 import { DockSurface } from './dock/DockSurface';
 import { DrawingPriorityContext, useToolGrace } from './drawingPriority';
 import { FibSettingsDialog } from './FibSettingsDialog';
+import { DrawingContextMenu } from './DrawingContextMenu';
 import { libraryInterval } from '@/lib/chart-workspace/fibCoords';
 import { FIB_KIND } from '@/lib/chart-workspace/fibStyle';
 import { defaultToolbar, toolGroup, type ChartGesture } from '@/lib/chart-workspace/toolbar';
@@ -49,7 +50,7 @@ const TIMEFRAME_LABEL = Object.fromEntries(Object.entries(CHART_TIMEFRAME_SEC).m
 function zoomHint(n: number): MessageKey { if (!n) return 'cw.fit.hint'; return n > 0 ? 'cw.zoomIn.hint' : 'cw.zoomOut.hint'; }
 function zoomLabel(n: number, fit: string) { if (!n) return fit; return n > 0 ? '+' : '−'; }
 const toolKey = (kind: DrawingKind) => `cw.tool.${kind}` as MessageKey;
-export interface WorkspaceContext { key: string; symbol: string; view: 'analysis' | 'backtest' | 'formation' | 'free'; systemRsi?: boolean; systemWave?: boolean; syncIdentity?: DrawingIdentity }
+export interface WorkspaceContext { key: string; symbol: string; view: 'analysis' | 'backtest' | 'formation' | 'free'; systemRsi?: boolean; syncIdentity?: DrawingIdentity }
 interface Props {
   context: WorkspaceContext;
   binding: ChartBinding | null;
@@ -65,7 +66,7 @@ interface Props {
   /** Schalter, die rechts neben den Indikatoren in der Kopfleiste stehen (z. B. Trendzug) */
   toolbarActions?: ReactNode;
   viewActions?: ReactNode;
-  /** System oscillators of the switched-on layers (RSI(7), Wave 5/35) with ready-made points. They live in the same pane model as the user oscillators. */
+  /** System oscillators of the switched-on layers (RSI(7)) with ready-made points. They live in the same pane model as the user oscillators. */
   systemPanes?: readonly SystemPaneInput[];
   /** Receives the series of the system panes while they are drawn (for the drawing layer above the chart) */
   systemSeries?: SystemSeriesRefs;
@@ -110,7 +111,10 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const [historySize, setHistorySize] = useState({ undo: 0, redo: 0 });
   const [revision, setRevision] = useState(0), [selected, setSelected] = useState<string[]>([]), [tool, setTool] = useState<DrawingKind | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false), [settingsSection, setSettingsSection] = useState<Section>('symbol'), [indicatorsOpen, setIndicatorsOpen] = useState(false);
-  const [fibEdit, setFibEdit] = useState<Drawing | null>(null);
+  const [fibEdit, setFibEdit] = useState<Drawing | null>(null), [fibTab, setFibTab] = useState<'style' | 'coords' | 'vis'>('style');
+  // 1110-A4.9: Sağ tık menüsü (S7'nin "…" düğmesi aynı bileşeni drawing + konumla açar)
+  const [ctxMenu, setCtxMenu] = useState<{ drawing: Drawing; x: number; y: number; manager: DrawingManager } | null>(null), [treeSection, setTreeSection] = useState<'indicators' | 'drawings'>('indicators');
+  const armRef = useRef<(kind: DrawingKind | null) => void>(() => {});
   const [error, setError] = useState<MessageKey | null>(null), [editor, setEditor] = useState<{ drawing: Drawing; cell?: TableCellRef; text: string } | null>(null);
   const [sample, setSample] = useState<{ scope: string; values: { config: Indicator; value: Value }[] }>({ scope: '', values: [] });
   const lastValues = sample.values;
@@ -131,14 +135,13 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const drawingKey = state.links[context.key] ?? context.key;
   const locked = preferences.locked;
   const defaults = useMemo(() => {
-    // Das System-Wave zeigt schon EWO: kein zweites Histogramm als Nutzer-Indikator
-    const others = context.systemWave ? [] : [newIndicator('EWO')];
+    const others = [newIndicator('EWO')];
     others.forEach(v => { v.id = `initial-${v.kind}`; });
     // Charts with the system RSI own one RSI with a fixed id; other charts (backtest) keep the old RSI(14) default
     const rsi = context.systemRsi ? systemRsiIndicator() : newIndicator('RSI');
     if (!context.systemRsi) rsi.id = 'initial-RSI';
-    return { ...emptyChartDocument(), indicators: context.systemRsi && context.systemWave ? [rsi] : [rsi, ...others] };
-  }, [context.systemRsi, context.systemWave]);
+    return { ...emptyChartDocument(), indicators: [rsi, ...others] };
+  }, [context.systemRsi]);
   const stored = state.documents[context.key] ?? defaults;
   // A saved document without the system RSI (older version) gets it at the start; it cannot be deleted, only switched off as a layer
   const ownDocument = useMemo(() => context.systemRsi && !stored.indicators.some(isSystemRsi) ? { ...stored, indicators: [systemRsiIndicator(), ...stored.indicators] } : stored, [context.systemRsi, stored]);
@@ -151,7 +154,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const paneIndicators = useMemo(() => doc.indicators.filter(v => !isSystemRsi(v) || (doc.overlays.rsi ?? true)), [doc.indicators, doc.overlays]);
   const systemModels = useMemo<SystemPaneModel[]>(() => (systemPanes ?? []).map(pane => ({ ...pane, hidden: !!doc.systemPanes?.[pane.id]?.hidden, collapsed: !!doc.systemPanes?.[pane.id]?.collapsed })), [systemPanes, doc.systemPanes]);
   const systemKey = systemModels.map(pane => pane.id).join('|');
-  // Pane order from top to bottom (all panes, also hidden ones): the saved order, new panes at the end; the default is RSI(7), Wave, then the user panes
+  // Pane order from top to bottom (all panes, also hidden ones): the saved order, new panes at the end; the default is RSI(7), then the user panes
   const paneOrder = useMemo(() => orderPanes(doc.paneOrder, presentPanes(paneIndicators, systemKey ? systemKey.split('|') as SystemPaneId[] : [])), [doc.paneOrder, paneIndicators, systemKey]);
   const chartScope = `${context.key}|${timeframeSec}`;
   const maximizedPaneId = maximized?.scope === chartScope ? maximized.paneId : null;
@@ -312,11 +315,28 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
       const hovered = m.hoveredId(), d = hovered ? m.drawings().find(x => x.id === hovered) : undefined;
       if (d?.kind === FIB_KIND) setFibEdit(d);
     };
-    const el = root.current; el?.addEventListener('dblclick', openFib); el?.addEventListener('focusout', focusOut); el?.addEventListener('focusin', inputFocus);
+    // 1110-A4.9: sağ tık yalnız çizimin üstünde menüyü açar ve tarayıcı menüsünü engeller; boş grafikte bir şey değişmez
+    const openMenu = (e: MouseEvent) => {
+      if (e.button === 0) return; // macOS: Ctrl+tık çoklu seçimdir, menü açmaz
+      if ((e.target as Element | null)?.closest('input, button, select, textarea, [data-testid="drawing-context-menu"], [role="dialog"]') || m.tool() != null || toolRecent()) return;
+      const hovered = m.hoveredId(), d = hovered ? m.drawings().find(x => x.id === hovered) : undefined;
+      if (!d) return;
+      e.preventDefault();
+      m.select([d.id]);
+      setCtxMenu({ drawing: originalLocks.current.has(d.id) ? { ...d, locked: originalLocks.current.get(d.id) } : d, x: e.clientX, y: e.clientY, manager: m });
+    };
+    // Alt+F: Fibonacci düzeltme aracı (e.code: macOS'ta Alt+F "ƒ" yazar)
+    const armFib = (e: KeyboardEvent) => {
+      if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.code !== 'KeyF' || e.repeat) return;
+      if ((e.target as Element | null)?.closest('input, textarea, select, [contenteditable]') || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+      e.preventDefault(); armRef.current(FIB_KIND);
+    };
+    document.addEventListener('keydown', armFib);
+    const el = root.current; el?.addEventListener('contextmenu', openMenu); el?.addEventListener('dblclick', openFib); el?.addEventListener('focusout', focusOut); el?.addEventListener('focusin', inputFocus);
     const r = new IndicatorRenderer(binding, systemSeries); renderer.current = r;
     const frame = requestAnimationFrame(() => { setTool(m.tool()); setSelected([...m.selection()]); checkpoint(); });
     let disposed = false;
-    const dispose = () => { if (disposed) return; disposed = true; cancelAnimationFrame(frame); off.forEach(f => f()); document.removeEventListener('pointerdown', deactivate, true); el?.removeEventListener('dblclick', openFib); el?.removeEventListener('focusout', focusOut); el?.removeEventListener('focusin', inputFocus); r.destroy(); renderer.current = null; m.destroy(); manager.current = null; };
+    const dispose = () => { if (disposed) return; disposed = true; cancelAnimationFrame(frame); off.forEach(f => f()); document.removeEventListener('pointerdown', deactivate, true); el?.removeEventListener('dblclick', openFib); el?.removeEventListener('contextmenu', openMenu); document.removeEventListener('keydown', armFib); el?.removeEventListener('focusout', focusOut); el?.removeEventListener('focusin', inputFocus); r.destroy(); renderer.current = null; m.destroy(); manager.current = null; };
     const unregister = binding.onDispose(dispose);
     return () => { unregister(); dispose(); };
   }, [binding, context.key, drawingKey, state.hydrated, defaults, checkpoint, perProduct, saveAppearance, systemSeries, toolRecent]);
@@ -394,6 +414,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     manager.current?.setTool(kind, kind === 'font-icon' ? { glyph } : undefined);
     binding?.host.focus({ preventScroll: true });
   };
+  useEffect(() => { armRef.current = arm; });
   const active = drawingSnapshot.find(d => d.id === activeObject && d.points.every(p => typeof p.time !== 'number' || p.time <= until));
   const updateDrawing = (next: Drawing) => { if (locked) return; manager.current?.update(next); checkpoint(); };
   const drawings = drawingSnapshot.filter(d => d.points.every(p => typeof p.time !== 'number' || p.time <= until));
@@ -535,7 +556,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     {confirmRemove && <ConfirmModal open title={t(removalLabels[confirmRemove.target].title)} message={t(removalLabels[confirmRemove.target].message)} confirmHint={t(removalLabels[confirmRemove.target].hint)} onClose={() => setConfirmRemove(null)} onConfirm={() => { if (confirmRemove.target === 'indicators') saveDocument({ ...doc, indicators: doc.indicators.filter(isSystemRsi) }); else removeDrawings(confirmRemove.target === 'drawings', confirmRemove.ids); }} />}
     <input ref={imageInput} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" aria-label={t('cw.image')} data-tooltip-exempt onChange={e => { void changeImage(e.target.files?.[0]); e.target.value = ''; }} />
     {settingsOpen && <SettingsDialog initialSection={settingsSection} toolbarResettable={overlayLayout} initialAppearance={appearance} onApply={saveAppearance} defaultMargins={binding?.defaultMargins?.()} ohlcAvailable={!overlayLayout} countdownAvailable={countdownNow != null} onClose={() => setSettingsOpen(false)} overlayContent={overlays} rollbackOverlays={rollbackOverlays} commitOverlays={() => { state.finishOverlayPreview(true); useAnalysisPrefsStore.getState().finishPreview(true); }} />}
-    {indicatorsOpen && <IndicatorDialog values={paneIndicators} favorites={state.favorites.filter(kind => INDICATOR_KINDS.includes(kind as Indicator['kind'])) as Indicator['kind'][]} focusId={settingsFocus} timeframeSec={timeframeSec} drawingsPanel={drawingsPanel} drawingCount={drawings.length} onClose={() => { setIndicatorsOpen(false); setSettingsFocus(null); }} onChange={next => {
+    {indicatorsOpen && <IndicatorDialog initialSection={treeSection} values={paneIndicators} favorites={state.favorites.filter(kind => INDICATOR_KINDS.includes(kind as Indicator['kind'])) as Indicator['kind'][]} focusId={settingsFocus} timeframeSec={timeframeSec} drawingsPanel={drawingsPanel} drawingCount={drawings.length} onClose={() => { setIndicatorsOpen(false); setSettingsFocus(null); setTreeSection('indicators'); }} onChange={next => {
       // The dialog does not list the system RSI while its layer is off, and deleting it there only switches the layer off
       const current = documentRef.current, system = current.indicators.find(isSystemRsi), lost = !!system && !next.some(isSystemRsi);
       const indicators = lost ? [system, ...next] : next, base = lost && (current.overlays.rsi ?? true) ? applySystemLayer(current, 'rsi', false) : current;
@@ -553,10 +574,13 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
           {indicatorInfo.indicator.kind !== 'ATR' && <><dt className="text-muted-foreground">{t('cw.source')}</dt><dd>{indicatorInfo.indicator.source}</dd></>}
         </dl>}
     </Modal>}
-    {fibEdit && <FibSettingsDialog drawing={fibEdit} scaleLog={appearance.scale === 'log'} locked={locked} barTimes={bars.map(b => b.time as number)} stepSec={timeframeSec}
+    {ctxMenu && <DrawingContextMenu drawing={ctxMenu.drawing} position={ctxMenu} manager={ctxMenu.manager} allLocked={locked} onClose={() => { setCtxMenu(null); binding?.host.focus({ preventScroll: true }); }} onChange={checkpoint}
+      onOpenSettings={(d, tab) => { setFibTab(tab ?? 'style'); setFibEdit(d); }}
+      onOpenTree={d => { manager.current?.select([d.id]); setActiveObject(d.id); setTreeSection('drawings'); setIndicatorsOpen(true); }} />}
+    {fibEdit && <FibSettingsDialog drawing={fibEdit} initialTab={fibTab} scaleLog={appearance.scale === 'log'} locked={locked} barTimes={bars.map(b => b.time as number)} stepSec={timeframeSec}
       onPreview={next => { if (!locked) manager.current?.update(next); }}
-      onCommit={next => { if (!locked) { manager.current?.update(next); checkpoint(); } setFibEdit(null); }}
-      onCancel={initial => { if (!locked) manager.current?.update(initial); setFibEdit(null); }} />}
+      onCommit={next => { if (!locked) { manager.current?.update(next); checkpoint(); } setFibEdit(null); setFibTab('style'); }}
+      onCancel={initial => { if (!locked) manager.current?.update(initial); setFibEdit(null); setFibTab('style'); }} />}
     {editor && <Modal open onClose={() => { if (editor.cell) manager.current?.endTableEdit(); setEditor(null); }} title={t(editor.cell ? 'cw.cell' : 'cw.text')}><InputField label={t('cw.text')} hint={t('cw.text.hint')}><textarea className={fieldClass} value={editor.text} onChange={e => setEditor({ ...editor, text: e.target.value })} /></InputField><Button className="mt-3" variant="primary" hint={t('cw.apply.hint')} onClick={() => { if (locked) return; if (editor.cell) { manager.current?.setTableCellText(editor.drawing.id, editor.cell, editor.text); manager.current?.endTableEdit(); } else manager.current?.update({ ...editor.drawing, text: editor.text }); checkpoint(); setEditor(null); }}>{t('cw.apply')}</Button></Modal>}
   </div>;
 }

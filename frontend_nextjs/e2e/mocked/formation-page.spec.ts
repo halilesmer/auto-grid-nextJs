@@ -13,7 +13,6 @@ import { harmonic } from '../fixtures/formation-harmonic';
 import { H4, barsOf, zig } from '../fixtures/formation-rows';
 import { openCardTab } from '../fixtures/card';
 import { msg, type MessageKey } from '../fixtures/i18n';
-import { enableWaveLayer } from '../fixtures/layers';
 import { openHeaderMenu } from '../fixtures/header';
 import { DEMO_ID, LIVE_ID, ZONE_ID, expect, test, type MockWorker } from '../fixtures/test';
 import { named, seedFixtureTrend, trendOf } from '../fixtures/formation-trend';
@@ -328,61 +327,6 @@ test.describe('FRM-19 Kandidaten-Liste und Checkliste', () => {
   });
 });
 
-test.describe('FRM-35 Wave-Unterfenster', () => {
-  test('Der Chart hat drei Fenster, das Wave-Fenster trägt die 155 Wave-Werte der 189 geschlossenen Kerzen', { tag: '@FRM-35' }, async ({ page, worker }) => {
-    await openPage(page, worker, `${URL}&form=GAR`);
-    const chart = page.getByTestId('analysis-chart');
-    // First open of a product: RSI(7) and EWO only, so the Wave layer is switched on first
-    await enableWaveLayer(page);
-    await expect(chart).toHaveAttribute('data-system-panes', '3');
-    await expect(chart).toHaveAttribute('data-wave-points', '155');
-    await expect(chart).toHaveAttribute('data-wave-visible', 'true');
-    await expect(page.getByTestId('formation-legend')).toContainText(msg('formation.legend.wave'));
-  });
-
-  test('Die Legende bleibt im Kerzen-Fenster und verdeckt weder RSI noch Wave', { tag: '@FRM-35' }, async ({ page, worker }) => {
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await openPage(page, worker, `${URL}&form=GAR`);
-    await enableWaveLayer(page);
-    const legend = (await page.getByTestId('formation-legend').boundingBox())!;
-    const waveLabel = (await page.getByTestId('formation-overlay').getByText(msg('formation.pane.wave'), { exact: true }).boundingBox())!;
-    // Das Wave-Fenster liegt unter dem RSI-Fenster: die Legende endet vor beiden
-    expect(legend.y + legend.height).toBeLessThan(waveLabel.y - 60);
-  });
-
-  test('Der Schalter „Wave“ blendet das Wave-Fenster aus und wieder ein', { tag: '@FRM-35' }, async ({ page, worker }) => {
-    await openPage(page, worker, `${URL}&form=GAR`);
-    const chart = page.getByTestId('analysis-chart');
-    await page.getByRole('button', { name: msg('cw.layers'), exact: true }).click();
-    const wave = page.locator('#layer-wave');
-    await expect(wave).toHaveAttribute('aria-checked', 'false');
-    await wave.click();
-    await expect(chart).toHaveAttribute('data-wave-visible', 'true');
-    await wave.click();
-    await expect(chart).toHaveAttribute('data-wave-visible', 'false');
-    await wave.click();
-    await expect(chart).toHaveAttribute('data-wave-visible', 'true');
-  });
-});
-
-test.describe('FRM-35 Wave-Fenster ohne RSI-Fenster', () => {
-  test('Ist RSI(7) ausgeschaltet, rückt das Wave-Fenster nach oben und seine Beschriftung bleibt in ihm', { tag: ['@FRM-35', '@UI-11'] }, async ({ page, worker }) => {
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await openPage(page, worker, `${URL}&form=GAR`);
-    const chart = page.getByTestId('analysis-chart');
-    await enableWaveLayer(page);
-    await expect(chart).toHaveAttribute('data-system-panes', '3');
-    await page.getByRole('button', { name: msg('cw.layers'), exact: true }).click();
-    await page.locator('#layer-rsi').click();
-    await expect(chart).toHaveAttribute('data-system-panes', '2');
-    await page.keyboard.press('Escape');
-    const label = page.getByTestId('formation-overlay').getByText(msg('formation.pane.wave'), { exact: true });
-    const row = page.locator('[data-system-row="wave"]');
-    // Die Legendenzeile sitzt 4 px unter der Oberkante des Wave-Fensters, die Beschriftung 16 px (Grundlinie)
-    await expect.poll(async () => Math.abs((await label.boundingBox())!.y - (await row.boundingBox())!.y)).toBeLessThan(24);
-  });
-});
-
 test.describe('FRM-45 Schalter Formasyon çizimleri', () => {
   test('Der Schalter steht in der Symbolleiste, blendet die Zeichnungen aus und ein und fehlt im Menü „Ebenen“', { tag: '@FRM-45' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
@@ -397,7 +341,7 @@ test.describe('FRM-45 Schalter Formasyon çizimleri', () => {
     await expect(toggle).toHaveAttribute('aria-pressed', 'true');
     await expect(overlay).toBeVisible();
     await page.getByRole('button', { name: msg('cw.layers'), exact: true }).click();
-    await expect(page.locator('#layer-wave')).toBeVisible();
+    await expect(page.locator('#layer-rsi')).toBeVisible();
     await expect(page.locator('#overlay-formations')).toHaveCount(0);
   });
 

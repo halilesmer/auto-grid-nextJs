@@ -56,7 +56,7 @@ export function FormationChart({ accountId, hit, context, scanAt, running, asOf,
   const t = useT();
   const source = useConnectionStore(s => s.baseUrl);
   const contextKey = workspaceKey({ source, view: 'formation', account: accountId, symbol: context.symbol });
-  const overlays = useChartOverlays(contextKey, { formations: true, rsi: true, wave: true });
+  const overlays = useChartOverlays(contextKey, { formations: true, rsi: true });
   // The formation rules read RSI(7) on close of the chart timeframe: with other settings the RSI pane shows other numbers, so its drawings are hidden
   const rsiMatches = useChartWorkspaceStore(s => {
     const config = s.documents[contextKey]?.indicators.find(isSystemRsi);
@@ -79,8 +79,7 @@ export function FormationChart({ accountId, hit, context, scanAt, running, asOf,
   return (
     <ChartView
       key={contextKey}
-      workspace={{ key: contextKey, symbol: context.symbol, view: 'formation', systemRsi: true, systemWave: true, syncIdentity: { source, account: accountId, symbol: context.symbol } }}
-      signalBars={bars}
+      workspace={{ key: contextKey, symbol: context.symbol, view: 'formation', systemRsi: true, syncIdentity: { source, account: accountId, symbol: context.symbol } }}
       timeframe={hit.tf}
       modeTitle={t('cw.layers.formation')}
       viewActions={<FormationDrawingsToggle contextKey={contextKey} visible={overlays.formations} />}
@@ -98,7 +97,7 @@ export function FormationChart({ accountId, hit, context, scanAt, running, asOf,
       trendPath={trendPath}
       toolbarActions={<TrendToggle timeframe={hit.tf} size="xs" />}
       surfaceProps={{ 'data-testid': 'formation-chart', 'data-final-point': hit.candidate.points[finalName] ? 'done' : 'open' }}
-      renderOverlay={(scene) => <FormationLayer scene={scene} hit={hit} bars={bars} points={data.points} running={running} asOf={asOf} active={active} onActive={onActive} onCapture={onCapture} onPriceBottom={onPriceBottom} visible={overlays.formations} rsiVisible={overlays.rsi && rsiMatches} waveVisible={overlays.wave} others={others} onSelectHit={onSelectHit} atr={atr} />}
+      renderOverlay={(scene) => <FormationLayer scene={scene} hit={hit} bars={bars} points={data.points} running={running} asOf={asOf} active={active} onActive={onActive} onCapture={onCapture} onPriceBottom={onPriceBottom} visible={overlays.formations} rsiVisible={overlays.rsi && rsiMatches} others={others} onSelectHit={onSelectHit} atr={atr} />}
     />
   );
 }
