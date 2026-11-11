@@ -90,25 +90,52 @@ export const presetFibStyle = (): FibStyle => ({
 export const coeffText = (k: number) => String(Number(k.toFixed(3)));
 export const fibStyleEqual = (a: FibStyle, b: FibStyle) => JSON.stringify(a) === JSON.stringify(b);
 
-/** Kullanıcı şablonları: tür → ad → stil. Bozuk girdi atılır, eski kayıt (alan yok) boş sayılır. */
-export type DrawingTemplates = Record<string, Record<string, FibStyle>>;
+/**
+ * Fib dışı çizim türlerinin şablon stili (1110-A4 S7b): çizimin stilinden yalnız bu alanlar şablona girer.
+ * Noktalar, görünürlük, kilit ve metin içeriği girmez (A4.3 ile aynı).
+ */
+const SIMPLE_NUMBERS = { width: [1, 4], transparency: [0, 100], fontSize: [6, 100], borderWidth: [0, 10], leftEnd: [0, 1], rightEnd: [0, 1] } as const;
+const SIMPLE_COLORS = ['color', 'textColor', 'backgroundColor', 'labelBackgroundColor'] as const;
+const SIMPLE_BOOLS = ['fillBackground', 'bold', 'italic', 'extendLeft', 'extendRight', 'showMiddlePoint', 'fillLabelBackground', 'drawBorder'] as const;
+export function pickSimpleStyle(raw: Partial<DrawingStyle> | undefined | null): Partial<DrawingStyle> {
+  const s = (raw ?? {}) as Record<string, unknown>, out: Record<string, unknown> = {};
+  for (const key of SIMPLE_COLORS) if (typeof s[key] === 'string' && HEX.test(s[key] as string)) out[key] = s[key];
+  for (const key of SIMPLE_BOOLS) if (typeof s[key] === 'boolean') out[key] = s[key];
+  for (const [key, [min, max]] of Object.entries(SIMPLE_NUMBERS)) if (typeof s[key] === 'number' && Number.isFinite(s[key])) out[key] = num(s[key], min, min, max);
+  if ((LINES as readonly unknown[]).includes(s.lineStyle)) out.lineStyle = s.lineStyle;
+  return out as Partial<DrawingStyle>;
+}
+/** Türe göre şablon stili: Fibonacci tam stil, öbürleri ortak alt küme. */
+export const templateStyleOf = (kind: string, raw: Partial<DrawingStyle> | undefined | null): Partial<DrawingStyle> => kind === FIB_KIND ? normalizeFibStyle(raw) : pickSimpleStyle(raw);
+
+/** Kullanıcı şablonları: tür → ad → stil. Bozuk girdi atılır, eski kayıt (yalnız Fib) aynen okunur. */
+export type DrawingTemplates = Record<string, Record<string, Partial<DrawingStyle>>>;
+const goodKind = (k: string) => k.length > 0 && k.length <= 60;
 export function parseDrawingTemplates(raw: unknown): DrawingTemplates {
   const out: DrawingTemplates = {};
   if (!raw || typeof raw !== 'object') return out;
-  const byKind = (raw as Record<string, unknown>)[FIB_KIND];
-  if (!byKind || typeof byKind !== 'object') return out;
-  const named: Record<string, FibStyle> = {};
-  for (const [name, style] of Object.entries(byKind as Record<string, unknown>).slice(0, 100)) {
-    const n = name.trim();
-    if (!n || n.length > 80 || isReservedName(n) || !style || typeof style !== 'object') continue;
-    named[n] = normalizeFibStyle(style as Partial<DrawingStyle>);
+  for (const [kind, byKind] of Object.entries(raw as Record<string, unknown>).slice(0, 80)) {
+    if (!goodKind(kind) || !byKind || typeof byKind !== 'object') continue;
+    const named: Record<string, Partial<DrawingStyle>> = {};
+    for (const [name, style] of Object.entries(byKind as Record<string, unknown>).slice(0, 100)) {
+      const n = name.trim();
+      if (!n || n.length > 80 || isReservedName(n) || !style || typeof style !== 'object') continue;
+      const picked = templateStyleOf(kind, style as Partial<DrawingStyle>);
+      if (kind === FIB_KIND || Object.keys(picked).length) named[n] = picked;
+    }
+    if (Object.keys(named).length) out[kind] = named;
   }
-  if (Object.keys(named).length) out[FIB_KIND] = named;
   return out;
 }
-/** Kullanıcı varsayılanı (Tamam'da kaydedilen son stil): tür → stil */
-export type DrawingDefaults = Record<string, FibStyle>;
+/** Kullanıcı varsayılanı (son onaylanan stil): tür → stil */
+export type DrawingDefaults = Record<string, Partial<DrawingStyle>>;
 export function parseDrawingDefaults(raw: unknown): DrawingDefaults {
-  const style = raw && typeof raw === 'object' ? (raw as Record<string, unknown>)[FIB_KIND] : null;
-  return style && typeof style === 'object' ? { [FIB_KIND]: normalizeFibStyle(style as Partial<DrawingStyle>) } : {};
+  const out: DrawingDefaults = {};
+  if (!raw || typeof raw !== 'object') return out;
+  for (const [kind, style] of Object.entries(raw as Record<string, unknown>).slice(0, 80)) {
+    if (!goodKind(kind) || !style || typeof style !== 'object') continue;
+    const picked = templateStyleOf(kind, style as Partial<DrawingStyle>);
+    if (kind === FIB_KIND || Object.keys(picked).length) out[kind] = picked;
+  }
+  return out;
 }
