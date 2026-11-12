@@ -48,8 +48,8 @@ test.describe('FRM-43 Hauptschalter und Trend-Zeile', () => {
   test('Trend-Zeile zeigt Regel, Größe und Schlüsse nur lesend; [Ayarlar] klappt das Trend-Panel auf', { tag: '@FRM-43' }, async ({ page, worker }) => {
     await open(page, worker, true);
     const row = page.getByTestId('formation-alarm-trend-text');
-    await expect(row).toContainText(msg('cw.trend.minSize'));
-    await expect(row).toContainText('ATR');
+    // Standard seit 2026-11-12: EWO + Fibo 382 (ohne Größe, darum ohne „ATR“)
+    await expect(row).toContainText(msg('cw.trend.rule.welle382'));
     await page.getByTestId('formation-alarm-trend-settings').click();
     await expect(page.getByTestId('formation-alarm-trend-panel')).toBeVisible();
   });
