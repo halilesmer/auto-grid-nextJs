@@ -39,7 +39,7 @@ for (const file of readdirSync(FX).filter((f) => f.endsWith('.json')).sort()) {
 }
 
 const fixtureCtx = (name: string, zug: 'trend' | 'fein') => {
-  const trend = { ...DEFAULT_TREND_SETTINGS, minSize: zug === 'trend' ? 2.5 : 1 };
+  const trend = { ...DEFAULT_TREND_SETTINGS, rule: 'groesse' as const, minSize: zug === 'trend' ? 2.5 : 1 };
   const fx = parseFixture(JSON.parse(readFileSync(`${FX}/${name}.json`, 'utf-8')));
   const ctx = new FormationContext(fx.symbol, { [fx.timeframe]: fx.bars } as ContextInput, { trend });
   const [tf] = ctx.timeframes();

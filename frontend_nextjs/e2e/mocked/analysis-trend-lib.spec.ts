@@ -25,9 +25,12 @@ function handModel(pivots: [number, 'support' | 'resistance', number][], changes
   return { m, bars };
 }
 
+/** Die Zahlen dieser Datei gehören zur Regel „Mindestgröße“; der Standard ist seit 2026-11-12 EWO + Fibo 382 */
+const SIZE_RULE = { ...DEFAULT_TREND_SETTINGS, rule: 'groesse' } as const;
+
 test.describe('ANA-21 Trendzug im Chart', () => {
   ana('Der Zug der EURCAD-Reihe wird zu Segmenten zwischen den Punkten 14, 29, 84, 87, 103, 110 und 133', () => {
-    const segments = buildTrendPath('D1', eurcad.bars, DEFAULT_TREND_SETTINGS);
+    const segments = buildTrendPath('D1', eurcad.bars, SIZE_RULE);
     expect(segments.map((s) => [indexOfTime(eurcad.bars, s.from.time), indexOfTime(eurcad.bars, s.to.time)])).toEqual([
       [14, 29],
       [29, 84],
@@ -61,7 +64,7 @@ test.describe('ANA-21 Trendzug im Chart', () => {
   });
 
   ana('Ein Segment endet dort, wo das nächste beginnt, mit demselben Preis', () => {
-    const segments = buildTrendPath('D1', eurcad.bars, DEFAULT_TREND_SETTINGS);
+    const segments = buildTrendPath('D1', eurcad.bars, SIZE_RULE);
     expect(segments.slice(1).every((s, i) => s.from.time === segments[i].to.time && s.from.price === segments[i].to.price)).toBe(true);
   });
 
@@ -130,7 +133,7 @@ test.describe('ANA-21 Trendzug im Chart', () => {
   });
 
   ana('Eine kleinere Mindestgröße gibt mehr Segmente als der Standard', () => {
-    const fine = buildTrendPath('D1', eurcad.bars, { ...DEFAULT_TREND_SETTINGS, minSize: 1 });
+    const fine = buildTrendPath('D1', eurcad.bars, { ...SIZE_RULE, minSize: 1 });
     expect(fine.length).toBeGreaterThan(6);
   });
 
@@ -152,7 +155,7 @@ test.describe('ANA-21 Trendzug im Chart', () => {
     expect(usableTrendSettings({ ...typed, ewoFast: 4, ewoSlow: 30 })).toMatchObject({ ewoFast: 4, ewoSlow: 30 });
   });
 
-  ana('Der Standard ist Trendzug mit Mindestgröße 2,5 ATR, ein Schluss', () => {
-    expect(DEFAULT_TREND_SETTINGS).toEqual({ rule: 'groesse', minSize: 2.5, ewoRetreat: 0.2, changeCloses: 1, ewoFast: 5, ewoSlow: 35, atrPeriod: 14 });
+  ana('Der Standard ist EWO + Fibo 382 (Mindestgröße 2,5 ATR bleibt gespeichert), ein Schluss', () => {
+    expect(DEFAULT_TREND_SETTINGS).toEqual({ rule: 'welle382', minSize: 2.5, ewoRetreat: 0.2, changeCloses: 1, ewoFast: 5, ewoSlow: 35, atrPeriod: 14 });
   });
 });

@@ -149,6 +149,8 @@ export type TrendSettings = TrendOptions;
 
 export const DEFAULT_TREND_SETTINGS: TrendSettings = {
   ...TRD_PARAMS.trend,
+  /** Chart-Standard (Halil 2026-11-12): EWO + Fibo 382; `TRD_PARAMS.trend.rule` bleibt die Rechenbasis der Bibliothek */
+  rule: 'welle382',
   changeCloses: TRD_PARAMS.changeCloses,
 };
 

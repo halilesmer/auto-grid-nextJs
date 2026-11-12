@@ -896,7 +896,9 @@ test.describe('TRD: Trendzug', () => {
 // ---- Trend der Formationen: Einstellungen des Nutzers (Halil 2026-11-05) -----------------------------------------
 
 test.describe('TRD: Trend der Formationen', () => {
-  const fine: TrendOptions = { ...DEFAULT_TREND_SETTINGS, minSize: 1 };
+  // Chart-Standard ist seit 2026-11-12 EWO + Fibo 382; `SIZE` ist die Regel „Mindestgröße“ der Bibliothek (TRD_PARAMS.trend)
+  const SIZE: TrendOptions = { ...DEFAULT_TREND_SETTINGS, rule: 'groesse' };
+  const fine: TrendOptions = { ...SIZE, minSize: 1 };
   const contextOf = (name: string, trend?: TrendOptions) => {
     const fx = fixtureBars(name);
     const ctx = new FormationContext(fx.symbol, { [fx.timeframe]: fx.bars } as ContextInput, { trend });
@@ -910,8 +912,8 @@ test.describe('TRD: Trend der Formationen', () => {
 
   frm('Ohne Einstellung rechnen die Formationen auf den Punkten des Standard-Trendzugs', () => {
     const { fx } = contextOf('trd-ref-d1-gbpcad');
-    expect(envPivots('trd-ref-d1-gbpcad')).toEqual(buildTrend('D1', fx.bars, []).pivots.map((p) => p.idx));
-    expect(envPivots('trd-up-d1-01')).toEqual([14, 29, 84, 87, 103, 110, 133]);
+    expect(envPivots('trd-ref-d1-gbpcad')).toEqual(buildTrend('D1', fx.bars, [], DEFAULT_TREND_SETTINGS).pivots.map((p) => p.idx));
+    expect(envPivots('trd-up-d1-01', SIZE)).toEqual([14, 29, 84, 87, 103, 110, 133]);
   });
 
   frm('Eine andere Mindestgröße ändert die Punkte der Formationen', () => {
@@ -936,7 +938,7 @@ test.describe('TRD: Trend der Formationen', () => {
     const standard = ctx.view('H4', t)!;
     const custom = contextOf('trd-ref-h4-audnzd', fine).ctx.view('H4', t)!;
     const at = [150, 200, 250, 300, 350];
-    expect(at.map((k) => trendDirAt(standard, k))).toEqual(at.map((k) => buildTrend('H4', fx.bars.slice(0, k + 1), []).dir));
+    expect(at.map((k) => trendDirAt(standard, k))).toEqual(at.map((k) => buildTrend('H4', fx.bars.slice(0, k + 1), [], DEFAULT_TREND_SETTINGS).dir));
     expect(at.map((k) => trendDirAt(custom, k))).toEqual(at.map((k) => buildTrend('H4', fx.bars.slice(0, k + 1), [], fine).dir));
   });
 
