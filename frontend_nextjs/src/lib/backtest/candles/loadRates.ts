@@ -4,7 +4,7 @@
  * Läuft im Web Worker; die HTTP-Anfrage selbst kommt als Funktion herein (`fetchJson`), damit der Test ohne Netz läuft.
  */
 import type { MissingRange } from '@/lib/analysis/candles';
-import { RunError } from '@/lib/backtest/runContext';
+import { RunError } from '../runContext';
 
 export const MAX_CANDLES = 1_000_000;
 /** Der Worker rechnet Tick-Stücke in Etappen (`budget`) und lädt unfertige Historie nach (`syncing`): so oft dieselbe Seite neu holen */
