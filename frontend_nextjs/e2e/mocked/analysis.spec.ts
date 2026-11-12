@@ -135,14 +135,14 @@ test.describe('ANA Analyse-Seite', () => {
 
   test('Kontowechsel zeigt nie Zonen des alten Kontos', { tag: '@ANA-02' }, async ({ page, worker }) => {
     await page.goto(`/chart?account=${DEMO_ID}&tf=M15`);
-    await expect(cardRoot(page)).toContainText(msg('analysis.zone.option', { symbol: 'USOUSD', n: 1 }));
+    await expect(cardRoot(page)).toContainText('USOUSD');
     await openCard(page);
     await expect(page.getByText('90 – 110')).toBeVisible();
 
     // Dasselbe Konto erneut wählen ändert nichts (das Setup bleibt; die Adresse schreibt `zone` nur nach einer Wahl unter mehreren Setups, UI-22)
     await chooseAccount(page, DEMO_ID);
     await expect(page).toHaveURL(`/chart?account=${DEMO_ID}&tf=M15`);
-    await expect(cardRoot(page)).toContainText(msg('analysis.zone.option', { symbol: 'USOUSD', n: 1 }));
+    await expect(cardRoot(page)).toContainText('USOUSD');
 
     await chooseAccount(page, LIVE_ID);
     await expect(page).toHaveURL(`/chart?account=${LIVE_ID}&tf=M15`);
@@ -206,7 +206,7 @@ test.describe('ANA Analyse-Seite', () => {
     // Solange die Setups des neuen Kontos laden, steht keine Karte des alten Kontos da
     await expect(cardRoot(page)).not.toContainText('USOUSD');
     await chooseAccount(page, DEMO_ID);
-    await expect(cardRoot(page)).toContainText(msg('analysis.zone.option', { symbol: 'USOUSD', n: 1 }));
+    await expect(cardRoot(page)).toContainText('USOUSD');
     releaseLive();
     await expect.poll(() => worker.callsTo('GET', `/api/settings/${LIVE_ID}`).length).toBeGreaterThan(0);
     await page.waitForTimeout(500);

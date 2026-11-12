@@ -10,8 +10,10 @@ import { CARD_TABS, type CardTab } from '@/hooks/useFormationSidebar';
  * Die eine Karte des Charts (1107-A21.4): Seitenleiste und Setup-Karte in einem. Reiter Bedingungen, Favoriten, Genel bakış, İşlemler.
  * Auf/Zu und Reiter kommen von `useFormationSidebar` (Speicher `grid-robot-formation-sidebar`); ab lg ist die Karte beim ersten Besuch offen, darunter zu (UI-10).
  */
-export function ChartCard({ title, open, onOpenChange, tab, onTab, conditions, favorites, overview, trades }: {
+export function ChartCard({ title, form, open, onOpenChange, tab, onTab, conditions, favorites, overview, trades }: {
   title: string;
+  /** Name of the formation shown on the chart, beside the title (1112-A1) */
+  form?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   tab: CardTab;
@@ -27,6 +29,7 @@ export function ChartCard({ title, open, onOpenChange, tab, onTab, conditions, f
   return (
     <FloatingCard
       title={title}
+      form={form}
       open={open}
       onOpenChange={onOpenChange}
       tab={tab}

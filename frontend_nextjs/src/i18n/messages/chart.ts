@@ -26,7 +26,6 @@ export default defineArea(
     'chart.zone.mismatch.title': 'Farklı sembol',
     'chart.zone.mismatch.text':
       'Canlı akış {stream} gösteriyor (hesabın ilk setup’ı); bu setup {symbol}. Canlı değerler {stream} içindir; grafik {symbol} mumlarını gösterir ama son mum canlı güncellenmez.',
-    'chart.zone.title': '{symbol} · Setup {n}',
     'chart.zone.breakout': 'Kırılım modu (sadece trend yönünde)',
     'chart.zone.sliding': 'Kayan grid',
     'chart.zone.active': 'Aktif',
@@ -76,7 +75,6 @@ export default defineArea(
     'chart.zone.mismatch.title': 'Different symbol',
     'chart.zone.mismatch.text':
       'The live stream shows {stream} (the account’s first setup); this setup is {symbol}. The live values belong to {stream}; the chart shows {symbol} candles, but the last candle is not updated live.',
-    'chart.zone.title': '{symbol} · Setup {n}',
     'chart.zone.breakout': 'Breakout mode (trend direction only)',
     'chart.zone.sliding': 'Sliding grid',
     'chart.zone.active': 'Active',
@@ -126,7 +124,6 @@ export default defineArea(
     'chart.zone.mismatch.title': 'Anderes Symbol',
     'chart.zone.mismatch.text':
       'Der Live-Stream zeigt {stream} (erstes Setup des Kontos); dieses Setup ist {symbol}. Die Live-Werte gehören zu {stream}; der Chart zeigt die Kerzen von {symbol}, aber die letzte Kerze wird nicht live fortgeschrieben.',
-    'chart.zone.title': '{symbol} · Setup {n}',
     'chart.zone.breakout': 'Breakout-Modus (nur in Trendrichtung)',
     'chart.zone.sliding': 'Gleitendes Grid',
     'chart.zone.active': 'Aktiv',
