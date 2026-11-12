@@ -6,6 +6,7 @@ import { useAccounts } from '@/components/account/hooks';
 import SymbolAutoComplete from '@/components/SymbolAutoComplete';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { FormationAccountSelect } from '@/components/formation/FormationSelectors';
 import { Card } from '@/components/ui/card';
 import { InputField } from '@/components/ui/InputField';
 import { NumberInput } from '@/components/ui/NumberInput';
@@ -24,6 +25,7 @@ import {
 import { cn } from '@/lib/utils';
 import { fetchCalcContext, type CalcContext } from '@/services/marketApi';
 import { useAccountStore } from '@/store';
+import { selectAccount } from '@/store/utils/selectAccount';
 
 type Key = 'p0' | 'floor' | 'lot' | 'step' | 'capital' | 'contract' | 'leverage' | 'swap' | 'days' | 'marginLot';
 type Overrides = Partial<Record<Key, number>>;
@@ -215,10 +217,26 @@ export default function GridRiskView() {
 
   return (
     <main className="mx-auto flex w-full max-w-[1400px] flex-col gap-4 px-4 py-6 md:px-8" data-testid="grid-risk-page">
-      <header>
-        <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{t('tools.eyebrow')}</div>
-        <h1 className="mt-1 text-xl font-semibold tracking-tight">{t('tools.gridRisk.title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('tools.gridRisk.subtitle')}</p>
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{t('tools.eyebrow')}</div>
+          <h1 className="mt-1 text-xl font-semibold tracking-tight">{t('tools.gridRisk.title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t('tools.gridRisk.subtitle')}</p>
+        </div>
+        <div className="flex w-full sm:w-auto" data-testid="grid-risk-account">
+          <FormationAccountSelect
+            accounts={accounts}
+            value={accountId}
+            onChange={(id) => {
+              if (id === accountId) return;
+              selectAccount(id);
+              setSymbol('');
+              symbolRef.current = '';
+              setOver({});
+              setCtx(null);
+            }}
+          />
+        </div>
       </header>
 
       {!accountId && <Alert tone="info">{t('tools.noAccount')}</Alert>}

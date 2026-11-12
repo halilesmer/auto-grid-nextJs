@@ -86,6 +86,19 @@ test.describe('UI-22 Ein Chart ohne Modi', () => {
     await expect(page.getByTestId('formation-asof')).toBeEnabled();
   });
 
+  test('Der Kartentitel ist das Symbol ohne Setup-Nummer, daneben die Formation des Charts; ohne Formation nur das Symbol (1112-A1)', { tag: '@UI-22' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await open(page, worker, '&symbol=EURUSD&form=GAR');
+    const title = page.getByTestId('chart-panel-title');
+    await expect(title.getByTestId('chart-card-form')).toHaveText(msg('formation.form.GAR'));
+    await expect(title).toHaveText(`EURUSD·${msg('formation.form.GAR')}`);
+    await expect(title).not.toContainText('Setup');
+    // M5 has no formations: the title is the symbol only
+    await page.getByTestId('timeframe-M5').click();
+    await expect(title).toHaveText('EURUSD');
+    await expect(title.getByTestId('chart-card-form')).toHaveCount(0);
+  });
+
   test('Das Menü „Ebenen“ hat die Gruppen Formation und Setup mit sieben Setup-Schaltern', { tag: '@UI-22' }, async ({ page, worker }) => {
     await open(page, worker, '&symbol=EURUSD');
     await page.getByTestId('layers-button').click();

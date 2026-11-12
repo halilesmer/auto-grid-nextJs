@@ -50,6 +50,7 @@ export function useChartParams() {
   const setZone = useCallback((zone: string | null) => write({ zone }), [write]);
   const setTimeframe = useCallback((tf: ChartTimeframe) => write({ tf }), [write]);
   const setForm = useCallback((value: ScanFormation | null) => write({ form: value }), [write]);
+  const setHide = useCallback((hide: boolean) => write({ hide }), [write]);
   // null = live (the parameter goes away)
   const setAt = useCallback((at: string | null) => write({ at }), [write]);
   const setRange = useCallback((range: ChartRange) => write({ range }), [write]);
@@ -63,6 +64,7 @@ export function useChartParams() {
     timeframe: state.tf,
     form,
     atParam: state.at,
+    hide: state.hide,
     range: state.range,
     setAccount,
     adoptAccount,
@@ -70,6 +72,7 @@ export function useChartParams() {
     setZone,
     setTimeframe,
     setForm,
+    setHide,
     setAt,
     setRange,
     setView,

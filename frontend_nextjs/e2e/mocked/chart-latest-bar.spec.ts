@@ -11,6 +11,8 @@ test('Son muma dön düğmesi sola kaydırınca çıkar, tıklayınca kaybolur',
   const button = page.getByTestId('chart-latest-bar');
   const chart = page.getByTestId('analysis-chart');
   await expect(chart).toBeVisible();
+  // Langsamer Runner: erst ziehen, wenn die Kerzen da sind, sonst setzt das spätere Laden die Ansicht zurück.
+  await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
   await expect(button).toHaveAttribute('aria-hidden', 'true');
   await expect(button).toHaveAttribute('aria-label', msg('analysis.chart.latest'));
 
