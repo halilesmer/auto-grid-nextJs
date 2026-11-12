@@ -32,18 +32,19 @@ async function drawLine(page: Page, yOffset: number) {
   return { x: (x1 + x2) / 2, y: (y1 + y2) / 2, x1, y1, x2, y2 };
 }
 type Drawn = Awaited<ReturnType<typeof drawLine>>;
-/** Auf einem langsamen Runner verschiebt sich die Linie, wenn die Kerzen nach dem Zeichnen ankommen: mehrere Punkte der Linie probieren. */
+/** Die Enden der Linie rasten auf Kerzenwerte ein (Magnet), die Linie liegt also nicht genau zwischen den Klickpunkten:
+ *  von der Mitte aus nach oben und unten abtasten, bis die Leiste erscheint. */
 async function select(page: Page, at: Drawn) {
+  const offsets = [0];
+  for (let d = 4; d <= 72; d += 4) offsets.push(d, -d);
   await expect(async () => {
-    for (const t of [.5, .35, .65, .2, .8]) {
-      const x = at.x1 + (at.x2 - at.x1) * t, y = at.y1 + (at.y2 - at.y1) * t;
-      await page.mouse.move(x, y);
-      await page.waitForTimeout(150);
-      await page.mouse.click(x, y);
+    for (const dy of offsets) {
+      await page.mouse.move(at.x, at.y + dy);
+      await page.mouse.click(at.x, at.y + dy);
       if (await bar(page).isVisible()) return;
     }
     throw new Error('Leiste nicht sichtbar');
-  }).toPass({ timeout: 15_000 });
+  }).toPass({ timeout: 30_000 });
   await expect(bar(page)).toBeVisible();
 }
 async function ready(page: Page) {
