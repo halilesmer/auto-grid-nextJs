@@ -57,8 +57,8 @@ On the owner's Mac, a LaunchAgent starts `npm run dev:frontend` and starts it ag
 
 ## Open points
 - [ ] Open the dev server from a real phone in the same Wi-Fi network (manual check of `SYS-12`).
-- [ ] After the merge: pull `main` in the main checkout.
-- [ ] The owner keeps the LaunchAgent on `127.0.0.1` for now (`-H 127.0.0.1`). No phone in the network reaches the dev server. The phone path through the public Vercel site works. For the phone check of `SYS-12`: remove `-H 127.0.0.1` from the plist, add `ALLOWED_DEV_ORIGINS`, and load the plist again.
+- [x] After the merge: pull `main` in the main checkout. Done. A dev panel can now update the checkout (see `2026-11-12-dev-panel.md`).
+- [x] The LaunchAgent no longer binds to `127.0.0.1` only. It sets `ALLOWED_DEV_ORIGINS`, so a phone in the same network can reach the dev server. Only the check on a real phone is open (first item).
 
 ## Lessons
 - A `next dev` run with a spare `NEXT_DIST_DIR` adds that folder to `include` in `frontend_nextjs/tsconfig.json`. Discard that change before the commit.
