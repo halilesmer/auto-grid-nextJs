@@ -263,6 +263,17 @@
     margin: 0;
   }
 
+  /* Sayı kutusu: oklar yalnız fare üstündeyken ya da odakta görünür, rakamlara yer kalır */
+  input[type='number'].spin-on-hover:not(:hover):not(:focus) {
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
+  input[type='number'].spin-on-hover:not(:hover):not(:focus)::-webkit-inner-spin-button,
+  input[type='number'].spin-on-hover:not(:hover):not(:focus)::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
   .input-s:hover:not(:disabled) {
     border-color: color-mix(in oklab, var(--foreground) 22%, transparent);
   }
