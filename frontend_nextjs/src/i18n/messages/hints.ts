@@ -116,6 +116,7 @@ const existingHints = defineArea(
 
     // --- Dashboard ---
     'dashboard.sysinfo.checkUpdates.hint': 'GitHub’daki (origin/main) sürümle karşılaştırır, yeni sürüm varsa sunar.',
+    'dashboard.sysinfo.devPanel.hint': 'Geliştirme panelini (localhost:3030) yeni sekmede açar: sunucuyu başlatır, durdurur, yeniden başlatır, güncellersin. Yalnız bu Mac’in kendi localhost’unda görünür; Vercel’de ve telefonda görünmez.',
     'dashboard.shutdown.hint': 'Sistemi kapatma penceresini açar. Seçili hesabın botu durdurulur; onay ister.',
     'dashboard.shutdown.noAccount.hint': 'Hesap seçilmedi. Kapatma seçili hesabın botunu durdurur; önce Dashboard’da bir hesap seç.',
     'dashboard.shutdown.confirm.hint':
@@ -772,6 +773,7 @@ const existingHints = defineArea(
 
     // --- Dashboard ---
     'dashboard.sysinfo.checkUpdates.hint': 'Compares with the version on GitHub (origin/main) and offers a new version if there is one.',
+    'dashboard.sysinfo.devPanel.hint': 'Opens the dev panel (localhost:3030) in a new tab, where you start, stop, restart and update the server. Shown only on this Mac’s own localhost; hidden on Vercel and on a phone.',
     'dashboard.shutdown.hint': 'Opens the shutdown dialog. The bot of the selected account is stopped; asks for confirmation.',
     'dashboard.shutdown.noAccount.hint': 'No account selected. Shutdown stops the bot of the selected account; select an account on the dashboard first.',
     'dashboard.shutdown.confirm.hint':
@@ -1428,6 +1430,7 @@ const existingHints = defineArea(
 
     // --- Dashboard ---
     'dashboard.sysinfo.checkUpdates.hint': 'Vergleicht mit der Version auf GitHub (origin/main) und bietet eine neue Version an.',
+    'dashboard.sysinfo.devPanel.hint': 'Öffnet das Entwicklungs-Panel (localhost:3030) in einem neuen Tab: dort startest, stoppst, startest du den Server neu und aktualisierst ihn. Nur auf dem eigenen localhost dieses Macs sichtbar; auf Vercel und am Telefon nicht.',
     'dashboard.shutdown.hint': 'Öffnet den Dialog zum Herunterfahren. Der Bot des gewählten Kontos wird gestoppt; mit Rückfrage.',
     'dashboard.shutdown.noAccount.hint': 'Kein Konto gewählt. Herunterfahren stoppt den Bot des gewählten Kontos; wähle zuerst im Dashboard ein Konto.',
     'dashboard.shutdown.confirm.hint':

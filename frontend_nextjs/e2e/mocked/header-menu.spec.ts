@@ -100,6 +100,34 @@ test.describe('UI-01 Kopf-Menü', () => {
     await expect(panel).toBeHidden();
   });
 
+  test('„Geliştirme panelini aç“ steht unter der Adresse und öffnet localhost:3030 in neuem Tab', { tag: ['@UI-01', '@SYS-15'] }, async ({ page, dashboard }) => {
+    await dashboard.open(DEMO_ID);
+    // window.open ersetzen: im Test lauscht auf Port 3030 kein Server
+    await page.evaluate(() => {
+      const w = window as unknown as { __opened: unknown[][] };
+      w.__opened = [];
+      window.open = (...args: unknown[]) => {
+        w.__opened.push(args);
+        return null;
+      };
+    });
+    const panel = await openHeaderMenu(page);
+    const row = panel.getByTestId('dev-panel-open');
+    await expect(row).toBeVisible();
+    await expect(row).toContainText(msg('dashboard.sysinfo.devPanel'));
+    // Reihenfolge: Adresse, dann diese Zeile, dann „Nach Updates suchen“; Herunterfahren bleibt zuletzt
+    const rowBox = (await row.boundingBox())!;
+    const updatesBox = (await panel.getByRole('button', { name: msg('dashboard.sysinfo.checkUpdates') }).boundingBox())!;
+    const shutdownBox = (await panel.getByRole('button', { name: msg('dashboard.shutdown') }).boundingBox())!;
+    expect(rowBox.y).toBeLessThan(updatesBox.y);
+    expect(updatesBox.y).toBeLessThan(shutdownBox.y);
+
+    await row.click();
+    await expect(panel).toBeHidden();
+    const opened = await page.evaluate(() => (window as unknown as { __opened: unknown[][] }).__opened);
+    expect(opened).toEqual([['http://localhost:3030', '_blank', 'noopener,noreferrer']]);
+  });
+
   test('Panel liegt über der Steuerleiste und verschiebt nichts', { tag: '@UI-01' }, async ({ page, dashboard }) => {
     await dashboard.open(DEMO_ID);
     const bar = page.getByTestId('control-bar');

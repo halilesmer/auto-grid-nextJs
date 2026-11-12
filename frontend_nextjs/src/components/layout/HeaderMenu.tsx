@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Globe, Monitor, Plug, Power, RefreshCw, Server, Settings } from 'lucide-react';
+import { Globe, LayoutDashboard, Monitor, Plug, Power, RefreshCw, Server, Settings } from 'lucide-react';
 import ConfirmModal from '@/components/ConfirmModal';
 import UpdateModal from '@/components/dashboard/UpdateModal';
 import { DropdownMenu, DropdownMenuGroup, DropdownMenuItem } from '@/components/ui/dropdown-menu';
@@ -9,6 +9,7 @@ import { StatusDot } from '@/components/ui/status-dot';
 import { useSystemActions } from '@/hooks/useSystemActions';
 import { useT, type MessageKey } from '@/i18n';
 import { hostOf } from '@/lib/connectionCode';
+import { DEV_PANEL_URL, isLocalHostname } from '@/lib/devPanel';
 import { useAccountStore } from '@/store/useAccountStore';
 import { useIsAdmin } from '@/store/useAuthStore';
 import { useConnectionDialogStore } from '@/store/useConnectionDialogStore';
@@ -44,6 +45,22 @@ function SystemInfo() {
         </div>
       ))}
     </div>
+  );
+}
+
+/** Öffnet das Geliştirme-Panel (localhost:3030) in neuem Tab; nur auf dem eigenen localhost sichtbar (SYS-15). Eigene Komponente: `window` wird erst beim Öffnen des Menüs gelesen (kein SSR). */
+function DevPanelItem() {
+  const t = useT();
+  if (!isLocalHostname(window.location.hostname)) return null;
+  return (
+    <DropdownMenuItem
+      icon={<LayoutDashboard size={14} />}
+      hint={t('dashboard.sysinfo.devPanel.hint')}
+      onSelect={() => window.open(DEV_PANEL_URL, '_blank', 'noopener,noreferrer')}
+      data-testid="dev-panel-open"
+    >
+      {t('dashboard.sysinfo.devPanel')}
+    </DropdownMenuItem>
   );
 }
 
@@ -118,6 +135,7 @@ export default function HeaderMenu() {
 
           <Section title={t('header.menu.system')}>
             <SystemInfo />
+            <DevPanelItem />
             {/* Worker-Update (git pull + Neustart) ist Admin-Sache: der Worker antwortet Benutzern mit 403 */}
             {isAdmin && (
               <DropdownMenuItem

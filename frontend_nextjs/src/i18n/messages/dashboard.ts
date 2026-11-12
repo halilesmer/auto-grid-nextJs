@@ -9,6 +9,7 @@ export default defineArea(
     'dashboard.sysinfo.port': 'Port',
     'dashboard.sysinfo.url': 'URL',
     'dashboard.sysinfo.checkUpdates': 'Güncellemeleri Denetle',
+    'dashboard.sysinfo.devPanel': 'Geliştirme panelini aç',
     'dashboard.shutdown': 'Sistemi Kapat',
     'dashboard.shutdown.message':
       '{account} ({env}) hesabının botu durdurulur ve arayüz kapatılır. Açık pozisyonlar broker tarafında güvende kalır.',
@@ -43,6 +44,7 @@ export default defineArea(
     'dashboard.sysinfo.port': 'Port',
     'dashboard.sysinfo.url': 'URL',
     'dashboard.sysinfo.checkUpdates': 'Check for Updates',
+    'dashboard.sysinfo.devPanel': 'Open dev panel',
     'dashboard.shutdown': 'System Shutdown',
     'dashboard.shutdown.message':
       'This stops the bot of account {account} ({env}) and closes the interface. Open positions will remain safe on the broker side.',
@@ -77,6 +79,7 @@ export default defineArea(
     'dashboard.sysinfo.port': 'Port',
     'dashboard.sysinfo.url': 'URL',
     'dashboard.sysinfo.checkUpdates': 'Nach Updates suchen',
+    'dashboard.sysinfo.devPanel': 'Entwicklungs-Panel öffnen',
     'dashboard.shutdown': 'System herunterfahren',
     'dashboard.shutdown.message':
       'Der Bot des Kontos {account} ({env}) wird gestoppt und die Oberfläche geschlossen. Offene Positionen bleiben beim Broker sicher bestehen.',
