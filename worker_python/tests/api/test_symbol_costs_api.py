@@ -33,7 +33,7 @@ def test_symbolliste_liefert_kostenfelder(client, broker):
     [sym] = [s for s in body["symbols"] if s["name"] == "XAUUSD"]
     assert {k: sym[k] for k in mh.SYMBOL_COST_FIELDS} == {
         "trade_calc_mode": 2, "trade_tick_value_profit": 1.0, "trade_tick_value_loss": 1.01,
-        "currency_profit": "USD", "swap_mode": 1, "swap_long": -35.5, "swap_short": 12.25,
+        "currency_profit": "USD", "currency_base": "USD", "currency_margin": "USD", "swap_mode": 1, "swap_long": -35.5, "swap_short": 12.25,
         "swap_rollover3days": 5, "spread": 18, "trade_stops_level": 7,
     }
 
@@ -48,3 +48,15 @@ def test_symbolliste_liefert_pips_und_broker_ticks(client, broker):
     assert by_name["EURUSD.SUFFIX"]["distance_unit_size"] == 0.0001
     assert by_name["XAUUSD"]["distance_unit"] == "ticks"
     assert by_name["XAUUSD"]["distance_unit_size"] == 0.25
+
+
+@pytest.mark.feature("BKT-04")
+def test_symbolliste_liefert_basis_und_margin_waehrung(client, broker):
+    """1112-K10.1: Das Frontend wählt das Umrechnungspaar (EURCHF -> USDCHF) über currency_base."""
+    broker.add_symbol("EURCHF", 0.93, digits=5, point=0.00001, trade_calc_mode=0,
+                      currency_base="EUR", currency_profit="CHF", currency_margin="EUR")
+    broker.add_symbol("USDCHF", 0.88, digits=5, point=0.00001, trade_calc_mode=0,
+                      currency_base="USD", currency_profit="CHF", currency_margin="USD")
+    by_name = {s["name"]: s for s in client.get(f"/api/symbols/{TEST_ACCOUNT_ID}").json()["symbols"]}
+    assert (by_name["EURCHF"]["currency_base"], by_name["EURCHF"]["currency_margin"]) == ("EUR", "EUR")
+    assert (by_name["USDCHF"]["currency_base"], by_name["USDCHF"]["currency_profit"]) == ("USD", "CHF")

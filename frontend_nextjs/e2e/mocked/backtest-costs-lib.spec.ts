@@ -131,7 +131,7 @@ test.describe('Kommissions-Vorschlag je Lot', () => {
 
 test('Mock-Daten: jedes Symbol hat alle Kostenfelder (wie mt5_helpers.SYMBOL_COST_FIELDS)', { tag: '@BKT-04' }, () => {
   const fields = [
-    'trade_calc_mode', 'trade_tick_value_profit', 'trade_tick_value_loss', 'currency_profit', 'swap_mode',
+    'trade_calc_mode', 'trade_tick_value_profit', 'trade_tick_value_loss', 'currency_profit', 'currency_base', 'currency_margin', 'swap_mode',
     'swap_long', 'swap_short', 'swap_rollover3days', 'spread', 'trade_stops_level',
   ] as const;
   for (const sym of defaultState().symbols) {
