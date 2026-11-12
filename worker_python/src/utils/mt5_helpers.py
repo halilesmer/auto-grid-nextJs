@@ -447,6 +447,7 @@ def connect_internal_helper(
 # (mt5_market._SYMBOL_FIELDS) aynı listeyi kullanır. MT5 bir alanı vermezse değer None kalır, tahmin edilmez.
 SYMBOL_COST_FIELDS = (
     "trade_calc_mode", "trade_tick_value_profit", "trade_tick_value_loss", "currency_profit",
+    "currency_base", "currency_margin",
     "swap_mode", "swap_long", "swap_short", "swap_rollover3days", "spread", "trade_stops_level",
 )
 

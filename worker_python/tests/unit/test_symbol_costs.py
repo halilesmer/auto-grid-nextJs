@@ -12,7 +12,8 @@ from tests.fakes.fake_mt5 import SymbolInfo
 
 COST_FIELDS = {
     "trade_calc_mode", "trade_tick_value_profit", "trade_tick_value_loss", "currency_profit",
-    "swap_mode", "swap_long", "swap_short", "swap_rollover3days", "spread", "trade_stops_level",
+    "currency_base", "currency_margin",
+    "currency_base", "currency_margin", "swap_mode", "swap_long", "swap_short", "swap_rollover3days", "spread", "trade_stops_level",
 }
 
 
@@ -20,7 +21,7 @@ COST_FIELDS = {
 def test_alle_kostenfelder_aus_mt5_objekt():
     info = SymbolInfo(
         name="XAUUSD", digits=2, point=0.01, trade_calc_mode=2, trade_tick_value_profit=1.0,
-        trade_tick_value_loss=1.01, currency_profit="USD", swap_mode=1, swap_long=-35.5,
+        trade_tick_value_loss=1.01, currency_base="XAU", currency_profit="USD", currency_margin="XAU", swap_mode=1, swap_long=-35.5,
         swap_short=12.25, swap_rollover3days=5, spread=18, trade_stops_level=7,
     )
     [row] = build_detailed_symbols([info])
@@ -28,7 +29,8 @@ def test_alle_kostenfelder_aus_mt5_objekt():
     assert set(SYMBOL_COST_FIELDS) == COST_FIELDS
     assert {k: row[k] for k in COST_FIELDS} == {
         "trade_calc_mode": 2, "trade_tick_value_profit": 1.0, "trade_tick_value_loss": 1.01,
-        "currency_profit": "USD", "swap_mode": 1, "swap_long": -35.5, "swap_short": 12.25,
+        "currency_profit": "USD", "currency_base": "XAU", "currency_margin": "XAU",
+        "swap_mode": 1, "swap_long": -35.5, "swap_short": 12.25,
         "swap_rollover3days": 5, "spread": 18, "trade_stops_level": 7,
     }
     # Bisherige Felder bleiben

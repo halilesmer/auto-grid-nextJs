@@ -49,7 +49,9 @@ class SymbolInfo:
     trade_tick_value_profit: float = 0.0
     trade_tick_value_loss: float = 0.0
     trade_calc_mode: int = 0  # SYMBOL_CALC_MODE_FOREX
+    currency_base: str = "USD"
     currency_profit: str = "USD"
+    currency_margin: str = "USD"
     spread: int = 10
     swap_mode: int = 1  # SYMBOL_SWAP_MODE_POINTS
     swap_long: float = 0.0
