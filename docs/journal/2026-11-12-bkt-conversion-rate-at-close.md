@@ -3,7 +3,7 @@ date: 2026-11-12
 author: Claude
 type: feature
 status: done
-pr: []
+pr: [520]
 features: [BKT-28]
 areas: [backtest, frontend]
 ---
