@@ -3,7 +3,7 @@ date: 2026-11-12
 author: Claude
 type: feature
 status: done
-pr: []
+pr: [511]
 features: [UI-27]
 areas: [frontend, docs]
 ---
