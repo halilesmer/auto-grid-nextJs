@@ -12,7 +12,7 @@ const zoneSymbol = (id: string) => (id === 'z1' ? 'EURUSD' : null);
 
 ui('Defaults: empty URL gives H4, range All, no symbol', () => {
   const r = parseChartUrl(p(''));
-  expect(r).toEqual({ account: null, symbol: null, zone: null, tf: 'H4', form: null, at: null, range: { preset: 'all' } });
+  expect(r).toEqual({ account: null, symbol: null, zone: null, tf: 'H4', form: null, at: null, hide: false, range: { preset: 'all' } });
   expect(DEFAULT_CHART_TF).toBe('H4');
   expect(DEFAULT_CHART_RANGE).toEqual({ preset: 'all' });
 });

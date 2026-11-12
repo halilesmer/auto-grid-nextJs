@@ -98,7 +98,7 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
   const locale = useLocale();
   const format = useFormat();
   const compact = useCompact();
-  const { timeframe, form: urlForm, atParam, zoneId, setSymbol, setZone, setView, setAt } = useChartParams();
+  const { timeframe, form: urlForm, hide: formHidden, atParam, zoneId, setSymbol, setZone, setView, setHide, setAt } = useChartParams();
   const source = useConnectionStore((s) => s.baseUrl);
   const details = useSymbolDetails(accountId);
   const isLoading = useSettingsStore((s) => s.isLoadingSymbols);
@@ -377,6 +377,9 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
         setPicked(null);
         setView({ form: next });
       }}
+      hidden={formHidden}
+      onToggle={() => setHide(!formHidden)}
+      toggleHint={({ form: name, count, hidden }) => t(hidden ? 'formation.form.hidden.hint' : 'formation.form.shown.hint', { form: name, count })}
       onlyWithHits
       emptyNote={scan.loading ? undefined : t('chart.formation.noneTf')}
       optionHint={({ form: name, count }) => t('formation.form.optionTf.hint', { form: name, count })}
@@ -553,7 +556,7 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
               renderOverlay={
                 formationTf && hit
                   ? (scene) => (
-                      <FormationLayer scene={scene} hit={hit} bars={signalBars.length > 0 ? signalBars : NO_BARS} points={shownData.points} running={scan.running[hit.tf]} asOf={pastAt !== null} active={active} onActive={setActive} onCapture={registerCapture} onPriceBottom={setPriceBottom} visible={overlays.formations} rsiVisible={overlays.rsi && rsiMatches} others={others} workspaceKey={contextKey} onSelectHit={(h: ScanHit) => { setView({ form: h.form, tf: h.tf }); setPicked(`${h.form}-${h.tf}`); }} atr={atr} />
+                      <FormationLayer scene={scene} hit={hit} bars={signalBars.length > 0 ? signalBars : NO_BARS} points={shownData.points} running={scan.running[hit.tf]} asOf={pastAt !== null} active={active} onActive={setActive} onCapture={registerCapture} onPriceBottom={setPriceBottom} visible={overlays.formations && !formHidden} rsiVisible={overlays.rsi && rsiMatches} others={others} workspaceKey={contextKey} onSelectHit={(h: ScanHit) => { setView({ form: h.form, tf: h.tf }); setPicked(`${h.form}-${h.tf}`); }} atr={atr} />
                     )
                   : undefined
               }
@@ -575,7 +578,7 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
               <FormationAsOfSteps float pastAt={pastAt} tfSec={tfSec} now={now} onChange={setAt} />
             </div>
           )}
-          {formationTf && hit && (
+          {formationTf && hit && !formHidden && (
             <ul className={`pointer-events-none absolute max-lg:mt-(--chart-top) left-[64px] right-20 z-10 hidden w-fit max-w-[calc(100%-6rem)] flex-wrap gap-x-3 gap-y-1 rounded-lg border border-border bg-background/90 px-3 py-2 text-[11px] text-muted-foreground min-[900px]:flex ${priceBottom > 0 ? '' : 'invisible'}`} style={{ top: priceBottom - 8, transform: 'translateY(-100%)' }} data-testid="formation-legend">
               {drawsZigzag(hit.candidate) && <li>{t('formation.legend.zigzag', { points: Object.entries(hit.candidate.points).sort(([, a], [, b]) => a.time - b.time).map(([name]) => name).join('–') })}</li>}
               <li>{t('formation.legend.ratio')}</li>
