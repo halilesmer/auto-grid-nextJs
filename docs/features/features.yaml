@@ -1659,6 +1659,16 @@ kategorien:
           - "/chart öffnen, die Preisachse nach unten ziehen und loslassen: die Skala bleibt; die Kerzen nach oben ziehen: sie bleiben oben; „Ansicht zurücksetzen“: automatische Skala."
         erwartet: "Gezogene Preisachse und senkrecht verschobene Kerzen bleiben nach dem Loslassen und bei neuen Kerzen; „Ansicht zurücksetzen“ stellt die automatische Skala her."
 
+      - id: UI-31
+        titel: "Formationsknopf blendet die Zeichnung ein und aus"
+        beschreibung: "Halil 2026-11-12 (1112-A1): ein Klick auf den gewählten Formationsknopf in der Chart-Kopfleiste nimmt die Zeichnung (und die Zeichnungslegende) von den Kerzen; der Knopf bleibt gewählt, zeigt aber nur einen Rahmen statt der Füllung und ein durchgestrichenes Auge (offen: Füllung und Auge); das Badge bleibt. aria-pressed ist offen true, ausgeblendet false. Ein Klick auf den ausgeblendeten Knopf blendet wieder ein, ein anderer Knopf wählt seine Formation und zeigt sie. Der Zustand steht in der Adresse (hide=1): Neuladen und geteilte Links bleiben ausgeblendet; ein anderer Knopf entfernt den Parameter, ein Zeitrahmenwechsel behält ihn. Bedingungen-Panel und Kandidatenliste bleiben wie sie sind. Der Hinweis wechselt mit dem Zustand. Die Favoritenleiste verhält sich wie vorher."
+        code: [frontend_nextjs/src/components/formation/FormationForms.tsx, frontend_nextjs/src/components/chart-page/OneChart.tsx, frontend_nextjs/src/lib/chart/chartUrl.ts, frontend_nextjs/src/hooks/useChartParams.ts]
+        tiers: [e2e]
+        pruefung:
+          - "Playwright-Test e2e/mocked/chart-formation-toggle.spec.ts (@UI-31) ausführen."
+          - "/chart öffnen, den gewählten Formationsknopf zweimal anklicken: Zeichnung weg, Rahmen und durchgestrichenes Auge, Badge bleibt; nach dem Neuladen bleibt sie weg; zweiter Klick: wieder da."
+        erwartet: "Der Klick auf den gewählten Knopf schaltet die Zeichnung um, das Badge bleibt, der Zustand überlebt das Neuladen, ein anderer Knopf zeigt seine Zeichnung."
+
   # ---------------------------------------------------------------------------
   - id: ANA
     titel: Analyse (Chart, Statistik, Backtest)

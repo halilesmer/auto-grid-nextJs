@@ -22,6 +22,8 @@ export interface ChartUrlState {
   tf: ChartTimeframe;
   form: string | null;
   at: string | null;
+  /** `hide=1`: the selected formation stays selected but its drawing is off the chart (1112-A1.1) */
+  hide: boolean;
   range: ChartRange;
 }
 
@@ -43,6 +45,7 @@ export function parseChartUrl(params: URLSearchParams, zoneSymbol?: (zoneId: str
     // Not validated here: the caller checks `form` against the known formations (the caller checks it against the scan hits)
     form: params.get('form') || null,
     at: params.get('at') || null,
+    hide: params.get('hide') === '1',
     range: parseRange(params),
   };
 }
@@ -70,6 +73,7 @@ export type ChartUrlChange = Partial<{
   tf: ChartTimeframe;
   form: string | null;
   at: string | null;
+  hide: boolean;
   range: ChartRange;
 }>;
 
@@ -86,6 +90,8 @@ export function buildChartUrl(current: URLSearchParams, change: ChartUrlChange):
   const out = new URLSearchParams(current);
   out.delete('mode');
   out.delete('tab');
+  if ('form' in change && (change.form || null) !== (current.get('form') || null)) out.delete('hide');
+  if ('hide' in change) setOrDelete(out, 'hide', change.hide ? '1' : null);
   for (const key of ['account', 'symbol', 'zone', 'form', 'at'] as const) {
     if (key in change) setOrDelete(out, key, change[key]);
   }
@@ -109,6 +115,7 @@ export function buildChartUrl(current: URLSearchParams, change: ChartUrlChange):
   if (!hasFormations(tf)) {
     out.delete('form');
     out.delete('at');
+    out.delete('hide');
   }
   return out;
 }
