@@ -2,14 +2,14 @@
  * Trend-Einstellung der Formations-Fixtures (FRM-41, Halil 2026-11-05). Formationen rechnen nur auf dem Trendzug des
  * Nutzers. Die von Hand geprüften Reihen und Fixtures zeigen ihre Formation auf dem feinsten Zug, den der Regler zulässt:
  * Mindestgröße 0,5 ATR (TREND_LIMITS.minSize.min) und zwei Schlüsse für den Wechsel. Fixtures, deren Formation erst mit
- * einer anderen Einstellung entsteht, tragen sie selbst (Feld `trend` im JSON, siehe trendOf).
+ * einer anderen Einstellung entsteht (Regel „Mindestgröße“ fest: der Chart-Standard ist seit 2026-11-12 EWO + Fibo 382), tragen sie selbst (Feld `trend` im JSON, siehe trendOf).
  */
 import { existsSync } from 'node:fs';
 import { type Page } from '@playwright/test';
 import { DEFAULT_TREND_SETTINGS, TREND_LIMITS, type TrendSettings } from '../../src/lib/formation/params';
 import { sanitizeTrendSettings, usableTrendSettings } from '../../src/lib/formation/trdPath';
 
-export const FIXTURE_TREND: TrendSettings = { ...DEFAULT_TREND_SETTINGS, minSize: TREND_LIMITS.minSize.min, changeCloses: 2 };
+export const FIXTURE_TREND: TrendSettings = { ...DEFAULT_TREND_SETTINGS, rule: 'groesse', minSize: TREND_LIMITS.minSize.min, changeCloses: 2 };
 
 /**
  * Seiten-Tests: der Browser rechnet mit der Einstellung der Fixture (Standard FIXTURE_TREND). Ohne `force` bleibt eine

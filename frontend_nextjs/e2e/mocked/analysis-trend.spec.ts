@@ -25,7 +25,16 @@ const ratesCalls = (worker: MockWorker) => worker.calls.filter((c) => {
 });
 const stored = (page: Page) => page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? '{}').state ?? {}, PREFS_KEY);
 
-async function open(page: Page, worker: MockWorker, tf = 'D1') {
+/**
+ * `legacy`: Die Zahlen dieser Datei (sechs Segmente, Punkte 14 … 133) gehören zur Regel „Mindestgröße“. Der Chart-Standard ist seit 2026-11-12
+ * EWO + Fibo 382; darum startet der Browser hier mit dieser Regel gespeichert. Ohne `legacy` (false) gilt der echte Standard.
+ */
+async function open(page: Page, worker: MockWorker, tf = 'D1', legacy = true) {
+  if (legacy) {
+    await page.addInitScript((key) => {
+      if (localStorage.getItem(key) === null) localStorage.setItem(key, JSON.stringify({ state: { trend: { rule: 'groesse' } }, version: 1 }));
+    }, PREFS_KEY);
+  }
   worker.state.ratesSeries = { D1: D1_SERIES, M30: D1_SERIES };
   await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=${tf}&range=all`);
   await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-bars', String(bars.length));
@@ -67,6 +76,9 @@ test.describe('ANA-21 Trendzug im Chart', () => {
   });
 
   test('Der Zug rechnet über den Zeitraum des Charts plus Vorlauf davor, auch in der Vergangenheit', { tag: '@ANA-21' }, async ({ page, worker }) => {
+    await page.addInitScript((key) => {
+      if (localStorage.getItem(key) === null) localStorage.setItem(key, JSON.stringify({ state: { trend: { rule: 'groesse' } }, version: 1 }));
+    }, PREFS_KEY);
     worker.state.ratesSeries = { D1: D1_SERIES };
     await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=D1&from=2025-03-01&to=2025-03-31`);
     await expect(chart(page)).toHaveAttribute('data-bars', String(bars.length));
@@ -118,10 +130,13 @@ test.describe('ANA-21 Trendzug im Chart', () => {
   });
 
   test('Mindestgröße ändert die Linie, bleibt im Browser gespeichert und der Zurücksetzen-Knopf stellt den Standard her', { tag: '@ANA-21' }, async ({ page, worker }) => {
-    await open(page, worker);
+    await open(page, worker, 'D1', false);
     await trend(page).click();
-    await expect(chart(page)).toHaveAttribute('data-trend', '6');
+    // Standard ist seit 2026-11-12 EWO + Fibo 382; die Mindestgröße gilt erst bei der Regel „Mindestgröße“
+    const base = await chart(page).getAttribute('data-trend');
     const panel = await openSettings(page);
+    await panel.getByTestId('trend-rule').selectOption('groesse');
+    await expect(chart(page)).toHaveAttribute('data-trend', '6');
     await panel.getByTestId('trend-minSize').fill('1');
     await expect(chart(page)).not.toHaveAttribute('data-trend', '6');
     // Seit UI-22 (1107-A21.8) gilt auf jeder Zeiteinheit Entwurf und Bestätigen: gespeichert wird erst mit „Anwenden“
@@ -134,15 +149,17 @@ test.describe('ANA-21 Trendzug im Chart', () => {
     const again = await openSettings(page);
     await expect(again.getByTestId('trend-minSize')).toHaveValue('1');
     await again.getByTestId('trend-reset').click();
-    await expect(chart(page)).toHaveAttribute('data-trend', '6');
+    await expect(chart(page)).toHaveAttribute('data-trend', base ?? '');
     // Entwurf und Bestätigen (UI-22): gespeichert wird erst mit „Anwenden“
     await page.getByTestId('trend-confirm-apply').click();
     expect((await stored(page)).trend.minSize).toBe(2.5);
   });
 
   test('Regeln: Mindestgröße ist bei „Ein Punkt je EWO-Welle“ gesperrt, der EWO-Rücksetzer nur beim EWO-Filter aktiv', { tag: '@ANA-21' }, async ({ page, worker }) => {
-    await open(page, worker);
+    await open(page, worker, 'D1', false);
     const panel = await openSettings(page);
+    await expect(panel.getByTestId('trend-rule')).toHaveValue('welle382');
+    await panel.getByTestId('trend-rule').selectOption('groesse');
     await expect(panel.getByTestId('trend-minSize')).toBeEnabled();
     await expect(panel.getByTestId('trend-ewoRetreat')).toBeDisabled();
     await panel.getByTestId('trend-rule').selectOption('welle');

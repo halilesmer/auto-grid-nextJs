@@ -3,6 +3,7 @@
 import { useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
+import { CardTitle } from '@/components/chart-page/CardTitle';
 import { Button } from '@/components/ui/button';
 import { Tooltip, type HintContent } from '@/components/ui/tooltip';
 import { useT } from '@/i18n';
@@ -20,7 +21,7 @@ export interface FloatingCardTab {
  * Zugeklappt steht sie in einem eigenen Streifen über den Werkzeugen: ihre Höhe steht als `--floating-card` auf `formation-main`, die Chartfläche endet darüber (ChartCore),
  * damit sie den untersten Bereich (EWO) nicht verdeckt. Aufgeklappt liegt sie über dem Chart.
  */
-export function FloatingCard({ title, tabs, defaultOpen = true, collapseSignal = false, open: openProp, onOpenChange, tab: tabProp, onTabChange }: { title: string; tabs: FloatingCardTab[]; /** Gesteuert (ChartCard): Auf/Zu und Reiter kommen von außen und bleiben im Browser */ open?: boolean; onOpenChange?: (open: boolean) => void; tab?: string; onTabChange?: (id: string) => void; /** Ab lg zunächst aufgeklappt; mit false zunächst zu */ defaultOpen?: boolean; /** Wechselt auf true: die Karte klappt zu (der eine Chart: die offene Karte würde die Formationszeichnung rechts überdecken); danach gilt wieder die Wahl des Nutzers */ collapseSignal?: boolean }) {
+export function FloatingCard({ title, form, tabs, defaultOpen = true, collapseSignal = false, open: openProp, onOpenChange, tab: tabProp, onTabChange }: { title: string; /** Formation name beside the title (1112-A1) */ form?: string; tabs: FloatingCardTab[]; /** Gesteuert (ChartCard): Auf/Zu und Reiter kommen von außen und bleiben im Browser */ open?: boolean; onOpenChange?: (open: boolean) => void; tab?: string; onTabChange?: (id: string) => void; /** Ab lg zunächst aufgeklappt; mit false zunächst zu */ defaultOpen?: boolean; /** Wechselt auf true: die Karte klappt zu (der eine Chart: die offene Karte würde die Formationszeichnung rechts überdecken); danach gilt wieder die Wahl des Nutzers */ collapseSignal?: boolean }) {
   const t = useT();
   // The user's click wins; until then the card follows the defaults (open from lg) and the signal (closed while a formation is drawn)
   const [userOpen, setUserOpen] = useState<boolean | null>(null);
@@ -54,7 +55,7 @@ export function FloatingCard({ title, tabs, defaultOpen = true, collapseSignal =
   return (
     <aside
       ref={card}
-      aria-label={title}
+      aria-label={form ? `${title} · ${form}` : title}
       data-testid="chart-floating-card"
       className={cn(
         'pointer-events-auto absolute z-[52] flex max-h-[calc(100dvh-var(--chart-top,0px)-9.5rem)] flex-col overflow-hidden rounded-xl border border-border bg-background/97 shadow-lg',
@@ -63,7 +64,7 @@ export function FloatingCard({ title, tabs, defaultOpen = true, collapseSignal =
       )}
     >
       <div className="flex items-center justify-between gap-2 px-3 py-1.5">
-        <strong className="min-w-0 truncate text-xs">{title}</strong>
+        <CardTitle title={title} form={form} className="min-w-0 text-xs" />
         <Button
           size="icon-xs"
           variant="ghost"

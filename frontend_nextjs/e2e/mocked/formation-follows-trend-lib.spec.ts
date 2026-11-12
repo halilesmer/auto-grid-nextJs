@@ -18,7 +18,9 @@ const FX = 'e2e/fixtures/formation';
 const DUR = { D1: 86400, H4: 14400, H1: 3600, M15: 900 } as const;
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-41' }, fn);
 const load = (name: string) => parseFixture(JSON.parse(readFileSync(`${FX}/${name}.json`, 'utf-8')));
-const SETTINGS: TrendSettings[] = [DEFAULT_TREND_SETTINGS, { ...DEFAULT_TREND_SETTINGS, minSize: 1 }, { ...DEFAULT_TREND_SETTINGS, minSize: 3.5, changeCloses: 2 }];
+/** Die Zahlen gehören zur Regel „Mindestgröße“; der Chart-Standard ist seit 2026-11-12 EWO + Fibo 382 */
+const SIZE: TrendSettings = { ...DEFAULT_TREND_SETTINGS, rule: 'groesse' };
+const SETTINGS: TrendSettings[] = [SIZE, { ...SIZE, minSize: 1 }, { ...SIZE, minSize: 3.5, changeCloses: 2 }];
 const NAMES = readdirSync(FX).filter((f) => /^(trd-|crb-|abcd-)/.test(f) && f.endsWith('.json')).map((f) => f.replace(/\.json$/, ''));
 
 const contextOf = (name: string, trend: TrendSettings) => {

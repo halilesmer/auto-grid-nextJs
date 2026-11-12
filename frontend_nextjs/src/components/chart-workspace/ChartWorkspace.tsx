@@ -21,7 +21,7 @@ import { withAlpha } from '@/lib/chartTheme';
 import type { Appearance, Section } from '@/lib/chart-workspace/settings';
 import { OPEN_SETTINGS_EVENT } from '@/lib/chart-workspace/settingsRequest';
 import { useShallow } from 'zustand/react/shallow';
-import { applyAppearance, appearanceColors, IndicatorRenderer, type ChartBinding, type SystemPaneInput, type SystemPaneModel, type SystemSeriesRefs } from './runtime';
+import { applyAppearance, appearanceColors, enableVerticalPan, IndicatorRenderer, resetPriceScale, type ChartBinding, type SystemPaneInput, type SystemPaneModel, type SystemSeriesRefs } from './runtime';
 import { isSystemPane, orderPanes, presentPanes, SYSTEM_PANE_IDS, type SystemPaneId } from '@/lib/chart-workspace/paneOrder';
 import { applySystemLayer } from './systemLayers';
 import { Choice, ColorField, fieldClass, Numeric, SettingsDialog, Toggle } from './SettingsDialog';
@@ -368,6 +368,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
       originalLocks.current.clear();
     }
   }, [locked, revision, binding, drawingKey, state.hydrated]);
+  useEffect(() => (binding && !binding.isDisposed() ? enableVerticalPan(binding) : undefined), [binding]);
   useEffect(() => { manager.current?.setMagnet(magnet); manager.current?.setStayInDrawingMode(keepDrawing); }, [magnet, keepDrawing, binding, drawingKey, state.hydrated]);
   useEffect(() => {
     if (!binding || binding.isDisposed()) return;
@@ -524,7 +525,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     {/* Araç grupları (UI-16, 1105-A5.8): Görünüm · Göstergeler · Düzen · Pencere; yerleşim dock/ altında (DockProvider, DockSurface; UI-17) */}
     <DockSurface host={root} symbol={context.symbol} movable={overlayLayout} bottomRef={setToolbarCard} groups={{
       view: overlayLayout && (appearance.navigation || viewActions) ? <>
-        {appearance.navigation && <Button size="icon-xs" variant="ghost" hint={t('cw.fit.hint')} aria-label={t('cw.fit')} onClick={() => binding?.chart.timeScale().fitContent()}><Scan size={15} /></Button>}
+        {appearance.navigation && <Button size="icon-xs" variant="ghost" hint={t('cw.fit.hint')} aria-label={t('cw.fit')} onClick={() => { if (!binding) return; binding.chart.timeScale().fitContent(); resetPriceScale(binding, appearance.autoScale); }}><Scan size={15} /></Button>}
         {viewActions}
       </> : null,
       indicators: <>
@@ -557,7 +558,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
         {(appearance.title || appearance.timeframe || (appearance.countdown && remaining !== null)) && <div style={statusStyle} className={`${overlayLayout ? 'absolute bottom-2 left-[60px] z-10 rounded bg-card' : ''} px-2 py-1 text-xs text-muted-foreground`}>{appearance.title ? context.symbol : ''}{appearance.timeframe ? ` ${TIMEFRAME_LABEL[timeframeSec] ?? fmt.number(timeframeSec)}` : ''}{appearance.countdown && remaining !== null ? ` · ${fmt.number(remaining, { maximumFractionDigits: 0 })}s` : ''}</div>}
         <IndicatorLegend key={context.key} binding={binding} renderer={renderer} manager={manager} indicators={effectiveIndicators} latest={lastValues} names={names} favorites={state.favorites} sideOf={sideOf} maximizedPaneId={maximizedPaneId} alarmsAvailable={alarmsAvailable} atLimit={doc.indicators.length >= 20} overlayLayout={overlayLayout} showNames={appearance.names} showParams={appearance.params} showValues={appearance.values} lineMenuMode={appearance.lineMenu} textStyle={statusStyle} actions={oscillatorActions} systemPanes={systemModels} paneOrder={paneOrder} />
         <DrawingPriorityContext.Provider value={drawingPriority}>{children}</DrawingPriorityContext.Provider>
-        {appearance.navigation && !overlayLayout && <div className="flex justify-center gap-1 py-1">{[-1, 1, 0].map(n => <Button key={n} size="sm" variant="ghost" hint={t(zoomHint(n))} onClick={() => { if (!binding) return; const scale = binding.chart.timeScale(), range = scale.getVisibleLogicalRange(); if (!n) scale.fitContent(); else if (range) { const mid = (range.from + range.to) / 2, half = (range.to - range.from) / (n > 0 ? 2.5 : 1.6); scale.setVisibleLogicalRange({ from: mid - half, to: mid + half }); } }}>{zoomLabel(n, t('cw.fit'))}</Button>)}</div>}
+        {appearance.navigation && !overlayLayout && <div className="flex justify-center gap-1 py-1">{[-1, 1, 0].map(n => <Button key={n} size="sm" variant="ghost" hint={t(zoomHint(n))} onClick={() => { if (!binding) return; const scale = binding.chart.timeScale(), range = scale.getVisibleLogicalRange(); if (!n) { scale.fitContent(); resetPriceScale(binding, appearance.autoScale); } else if (range) { const mid = (range.from + range.to) / 2, half = (range.to - range.from) / (n > 0 ? 2.5 : 1.6); scale.setVisibleLogicalRange({ from: mid - half, to: mid + half }); } }}>{zoomLabel(n, t('cw.fit'))}</Button>)}</div>}
       </div>
     </div>
     {binding && !binding.isDisposed() && gesture && <ChartGestureLayer key={`${context.key}-${gesture}`} binding={binding} mode={gesture} digits={digits} cancel={() => setGesture(null)} finishZoom={previous => { zoomActive.current = true; setZoomSnapshot(previous); setGesture(null); arm(null); }} />}

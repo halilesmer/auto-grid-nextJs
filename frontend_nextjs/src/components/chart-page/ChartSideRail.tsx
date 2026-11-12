@@ -3,6 +3,7 @@
 import { useId, type KeyboardEvent, type ReactNode } from 'react';
 import { Bookmark, LayoutList } from 'lucide-react';
 
+import { CardTitle } from '@/components/chart-page/CardTitle';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useT } from '@/i18n';
 import { CARD_TABS, type CardTab } from '@/hooks/useFormationSidebar';
@@ -17,8 +18,10 @@ export const RAIL_CARD_TABS = CARD_TABS.filter((x): x is Exclude<CardTab, 'favor
  * Das Panel schiebt den Chart zur Seite (`panelShown` in `ChartPage`: `right-10`, offen `lg:right-82`), es liegt nie über dem Chart
  * und nie über der Preisachse. Die Breiten w-10 und w-72 stehen in `ChartPage` als right-10 und lg:right-82.
  */
-export function ChartSideRail({ title, open, tab, onToggle, onTab, conditions, favorites, favoritesAction, overview, trades }: {
+export function ChartSideRail({ title, form, open, tab, onToggle, onTab, conditions, favorites, favoritesAction, overview, trades }: {
   title: string;
+  /** Name of the formation shown on the chart, beside the title (1112-A1) */
+  form?: string;
   open: boolean;
   tab: CardTab;
   /** Klick auf einen Knopf der Leiste: gleicher Reiter und offen = zuklappen */
@@ -78,7 +81,7 @@ export function ChartSideRail({ title, open, tab, onToggle, onTab, conditions, f
           ) : (
             <>
               {/* The title of the setup stays visible, as in the header of the old floating card */}
-              <strong className="shrink-0 truncate border-b border-border px-3 py-1.5 text-xs" data-testid="chart-panel-title">{title}</strong>
+              <CardTitle title={title} form={form} className="shrink-0 border-b border-border px-3 py-1.5 text-xs" testId="chart-panel-title" />
               <div className="flex h-[38px] shrink-0 items-center border-b border-border px-1.5">
                 <div role="tablist" aria-label={title} className="flex h-full items-center gap-0.5">
                   {RAIL_CARD_TABS.map((id, index) => (

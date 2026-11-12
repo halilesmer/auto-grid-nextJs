@@ -64,9 +64,16 @@ test('UI-27: Level-Text steht auf der Linie; Deckkraft je Level, Trendlinie und 
   await open(page, at);
   const d = dialog(page);
   const first = d.getByTestId('fib-level').first();
+  // Seviye: tek satır (onay · katsayı · renk); metin ve opaklık renk panelinde
+  await first.getByRole('button', { name: `${msg('fib.levelColor')} 0`, exact: true }).click();
   await first.getByTestId('fib-level-text').fill('Hedef');
   await first.getByLabel(`${msg('fib.levelAlpha')} 0`, { exact: true }).fill('50');
+  await page.keyboard.press('Escape');
+  await expect(d.getByTestId('color-palette')).toHaveCount(0);
+  await expect(d).toBeVisible();
+  await d.getByTestId('fib-trend-color').click();
   await d.getByLabel(msg('fib.trendAlpha'), { exact: true }).fill('40');
+  await page.keyboard.press('Escape');
   await d.getByTestId('fib-ok').click();
   await expect(d).toHaveCount(0);
   let fib = (await stored(page))[0];
@@ -77,7 +84,9 @@ test('UI-27: Level-Text steht auf der Linie; Deckkraft je Level, Trendlinie und 
   // Deckkraft für alle Level: alle Farben bekommen dieselbe Deckkraft, die Farbtöne bleiben
   const before = fib.style.levels!.map(l => splitColor(l.color).rgb);
   await open(page, at);
+  await d.getByTestId('fib-one-color').click();
   await d.getByLabel(msg('fib.oneAlpha'), { exact: true }).fill('25');
+  await page.keyboard.press('Escape');
   await d.getByTestId('fib-ok').click();
   fib = (await stored(page))[0];
   expect(fib.style.levels!.map(l => splitColor(l.color).alpha)).toEqual(fib.style.levels!.map(() => 25));

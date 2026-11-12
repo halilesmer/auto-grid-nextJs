@@ -22,7 +22,7 @@ const menu = (page: Page) => page.getByTestId('trend-menu');
 
 /** Trend an, nur wenn noch nichts gespeichert ist (ein Neuladen darf den gespeicherten Stil nicht überschreiben) */
 async function open(page: Page, worker: MockWorker) {
-  await page.addInitScript((key) => { if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify({ state: { showTrend: true }, version: 0 })); }, PREFS_KEY);
+  await page.addInitScript((key) => { if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify({ state: { showTrend: true, trend: { rule: 'groesse' } }, version: 0 })); }, PREFS_KEY);
   worker.state.ratesSeries = { D1: D1_SERIES };
   await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=D1&range=all`);
   await expect(chart(page)).toHaveAttribute('data-bars', String(bars.length));
@@ -131,7 +131,7 @@ test.describe('ANA-25 Trendlinie: Menü per Rechtsklick und Doppelklick', () => 
     test(`Graue Trendlinie (var(--muted-foreground)) wird gezeichnet, nicht in der Saumfarbe versteckt (${theme})`, { tag: '@ANA-25' }, async ({ page, worker }) => {
       await page.addInitScript(([key, value]) => {
         localStorage.setItem('grid-robot-theme', JSON.stringify({ state: { theme: value }, version: 0 }));
-        localStorage.setItem(key, JSON.stringify({ state: { showTrend: true, formationStyle: { trendUp: { color: 'var(--muted-foreground)' }, trendDown: { color: 'var(--muted-foreground)' } } }, version: 1 }));
+        localStorage.setItem(key, JSON.stringify({ state: { showTrend: true, trend: { rule: 'groesse' }, formationStyle: { trendUp: { color: 'var(--muted-foreground)' }, trendDown: { color: 'var(--muted-foreground)' } } }, version: 1 }));
       }, [PREFS_KEY, theme]);
       worker.state.ratesSeries = { D1: D1_SERIES };
       await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=D1&range=all`);
