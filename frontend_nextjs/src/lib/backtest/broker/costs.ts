@@ -35,6 +35,8 @@ export interface SymbolCosts {
   point: number;
   digits: number;
   tickSize: number;
+  /** Vertragsgröße (BKT-28: Gewinn in Gewinnwährung für die Umrechnung zum Kurs des Schließens) */
+  contractSize: number;
   /** Wert eines Ticks bei 1 Lot, für Gewinn bzw. Verlust */
   tickValueProfit: number;
   tickValueLoss: number;
@@ -122,7 +124,7 @@ export function snapshotSymbol(detail: SymbolDetail, options: SnapshotOptions): 
   return {
     snapshot: {
       info,
-      costs: { point: info.point, digits: info.digits, tickSize: info.trade_tick_size, tickValueProfit, tickValueLoss, swap },
+      costs: { point: info.point, digits: info.digits, tickSize: info.trade_tick_size, contractSize: info.trade_contract_size, tickValueProfit, tickValueLoss, swap },
       spreadPoints: isNum(detail.spread) ? detail.spread : null,
       currencyProfit: detail.currency_profit,
       calcMode,
@@ -147,9 +149,29 @@ export function profitRaw(c: SymbolCosts, buy: boolean, volume: number, open: nu
   return ticks * perTick * volume;
 }
 
-/** Gewinn einer geschlossenen Position auf Cent, wie der Deal bei MT5 */
-export function profitOf(c: SymbolCosts, buy: boolean, volume: number, open: number, close: number): number {
-  return cents(profitRaw(c, buy, volume, open, close));
+/**
+ * Umrechnung in die Kontowährung mit einem Kurs (BKT-28): `invert` = durch den Kurs teilen (Paar Konto/Gewinnwährung),
+ * sonst malnehmen. Ohne Umrechnung rechnen profitOf und swapPerNight mit dem Schnappschuss-Tickwert.
+ */
+export interface RateConversion {
+  rate: number;
+  invert: boolean;
+  /** Vertragsgröße des Symbols (Gewinn in Gewinnwährung = Preisdifferenz × Vertragsgröße × Lot) */
+  contractSize: number;
+}
+
+const convert = (amount: number, conv: RateConversion): number => (conv.invert ? amount / conv.rate : amount * conv.rate);
+
+/** Berechnungsarten, deren Gewinn Preisdifferenz × Vertragsgröße × Lot in der Gewinnwährung ist (Forex, CFD, Index, CFD mit Hebel) */
+export const CONVERTIBLE_CALC_MODES: readonly number[] = [0, 2, 3, 4];
+
+/** Gewinn einer geschlossenen Position auf Cent, wie der Deal bei MT5; mit `conv` zum Kurs des Schließens */
+export function profitOf(c: SymbolCosts, buy: boolean, volume: number, open: number, close: number, conv?: RateConversion): number {
+  if (!conv) return cents(profitRaw(c, buy, volume, open, close));
+  const diff = buy ? close - open : open - close;
+  // Preisdifferenz auf ganze Ticks glätten wie in profitRaw (Preisrauschen darf keinen Cent kippen)
+  const clean = (Math.round((diff / c.tickSize) * 1e6) / 1e6) * c.tickSize;
+  return cents(convert(clean * conv.contractSize * volume, conv));
 }
 
 /** Kosten des Spreads für `volume` Lot, nur zur Anzeige ("davon Spread"): Preisabstand in Ticks × Verlust-Tickwert */
@@ -164,9 +186,11 @@ export function commissionHalf(perLot: number, volume: number): number {
 }
 
 /** Swap einer Nacht für eine Position (positiv = Gutschrift), ohne Dreifach-Faktor */
-export function swapPerNight(swap: SwapRates, c: SymbolCosts, buy: boolean, volume: number): number {
+export function swapPerNight(swap: SwapRates, c: SymbolCosts, buy: boolean, volume: number, conv?: RateConversion): number {
   const rate = buy ? swap.long : swap.short;
   if (swap.mode === SWAP_MODE_DEPOSIT) return rate * volume;
+  // Punkte: Gewinnwährung, dann zum Kurs der Rollover-Zeit umgerechnet (BKT-28)
+  if (conv) return convert(rate * c.point * conv.contractSize * volume, conv);
   const perTick = rate >= 0 ? c.tickValueProfit : c.tickValueLoss;
   return rate * c.point * (perTick / c.tickSize) * volume;
 }

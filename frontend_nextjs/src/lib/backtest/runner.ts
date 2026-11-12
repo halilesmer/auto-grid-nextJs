@@ -22,6 +22,7 @@ import { TF_SECONDS, type Timeframe, type ZoneDict } from '@/lib/backtest/engine
 import { toTimeframe, zget, zoneLogId } from '@/lib/backtest/engine/helpers';
 import { BOT_REACT_DELAY_S, sltpDelaySeconds } from '@/lib/backtest/botDelay';
 import { zoneSymbolOf } from '@/lib/backtest/engine/zoneSelector';
+import type { ConversionPair, RateSeries } from '@/lib/backtest/broker/conversion';
 import { RunError, RunLog, type RunLogLine } from '@/lib/backtest/runContext';
 import { downsampleCurve, EquityTrack, type RunSummary } from '@/lib/backtest/runSummary';
 
@@ -58,6 +59,11 @@ export interface RunModel {
   askExtremes?: boolean;
   /** BKT-22: Füllpreise und Marken auf dem Kursraster der Minute (nur Spread „tick“, Minuten ohne Replay); Standard an */
   quoteGrid?: boolean;
+  /**
+   * BKT-28: Umrechnung des Gewinns in die Kontowährung. 'close' (Standard) = Kurs des Umrechnungspaars im Moment des
+   * Schließens, 'snapshot' = fester Tickwert von heute (altes Verhalten). Ohne Paar (RunInput.conversion) gilt 'snapshot'.
+   */
+  conversionRate?: 'close' | 'snapshot';
   /**
    * BKT-23: Ein-/Ausstiegsminuten der eigenen Trades mit den echten Ticks nachspielen (der Auftrag holt sie in mehreren
    * Durchgängen vom Worker) und dort Füllung/Ausstieg mit Ausführungsverzögerung rechnen. Wirkt nur mit Spread „tick“,
@@ -97,6 +103,8 @@ export interface RunInput {
   /** Kontostand zu Beginn für die Equity-Kurve; ohne Angabe 0 (Kurve = Gewinn/Verlust) */
   startCapital?: number;
   accountCurrency?: string;
+  /** BKT-28: Umrechnungspaar mit M1-Kursreihe; ohne Angabe oder null rechnet der Lauf mit dem Schnappschuss */
+  conversion?: { pair: ConversionPair; series: RateSeries | null } | null;
   zoneLabel?: string | null;
   /** Startzustand: Positionen, die zum Start live offen waren (Standard: leer wie bisher) */
   initialPositions?: InitialPosition[];
@@ -220,7 +228,9 @@ export function runBacktest(input: RunInput): RunResult {
   log.add('INFO', model.tradeSessions !== false && snapshot.tradeSessions ? 'run.rejectsNotSimulatedExceptClosed' : 'run.rejectsNotSimulated');
   log.add('INFO', 'run.stopsLevelNotSimulated', { stopsLevel: snapshot.info.trade_stops_level });
   log.add('INFO', 'run.costsEstimated');
-  if (input.accountCurrency && snapshot.currencyProfit && input.accountCurrency !== snapshot.currencyProfit) {
+  const pairInput = input.conversion;
+  const conversion = model.conversionRate !== 'snapshot' && pairInput && pairInput.pair.kind !== 'none' && (pairInput.pair.kind === 'self' || pairInput.series !== null) ? pairInput : null;
+  if (!conversion && input.accountCurrency && snapshot.currencyProfit && input.accountCurrency !== snapshot.currencyProfit) {
     log.add('INFO', 'run.currencyToday', { profit: snapshot.currencyProfit, account: input.accountCurrency });
   }
   for (const note of input.notes ?? []) log.add('WARN', note.code, note.params);
@@ -247,6 +257,7 @@ export function runBacktest(input: RunInput): RunResult {
     zoneLabel: () => input.zoneLabel ?? null,
     carrySpread: model.carrySpread,
     slSlippagePoints: model.slSlippagePoints,
+    conversion: conversion ?? undefined,
     fillSltpDelay: fillSltpDelayOn(model) && !botReactOn(model) ? sltpDelaySeconds(symbol) : 0,
   });
   for (const init of input.initialPositions ?? []) broker.seedPosition(init);
@@ -475,6 +486,7 @@ export function runBacktest(input: RunInput): RunResult {
   if (quotesMissing > 0) log.add('WARN', 'run.askExtremesMissing', { candles: quotesMissing });
   if (replayMismatches > 0) log.add('WARN', 'run.tickReplayMismatch', { minutes: replayMismatches });
   if (tickFallbacks > 0) log.add('WARN', 'run.tickSpreadFallback', { candles: tickFallbacks, total: total });
+  if (broker.convFallbacks > 0 && input.conversion) log.add('WARN', 'run.convRateFallback', { pair: input.conversion.pair.name, count: broker.convFallbacks });
   if (spreadFallbacks > 0) log.add('WARN', 'run.spreadFallback', { candles: spreadFallbacks, points: snapshot.spreadPoints });
   if (model.closeAtEnd) {
     broker.closeAll();

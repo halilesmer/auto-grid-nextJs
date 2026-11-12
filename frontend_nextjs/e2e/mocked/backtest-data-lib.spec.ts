@@ -26,7 +26,7 @@ import { RUN_LOG_MAX_LINES, RunLog } from '../../src/lib/backtest/runContext';
 import type { SymbolDetail } from '../../src/store/types';
 
 /** Gold-ähnliches Symbol: Tick 0,01, Tickwert 1,00 bei Gewinn und 1,05 bei Verlust (je Lot) */
-const COSTS: SymbolCosts = { point: 0.01, digits: 2, tickSize: 0.01, tickValueProfit: 1, tickValueLoss: 1.05, swap: null };
+const COSTS: SymbolCosts = { point: 0.01, digits: 2, tickSize: 0.01, contractSize: 100, tickValueProfit: 1, tickValueLoss: 1.05, swap: null };
 
 const DETAIL: SymbolDetail = {
   name: 'XAUUSD',
