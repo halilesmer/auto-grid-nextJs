@@ -37,7 +37,7 @@ export function NumberBox({ label, hint, value, min, max, step = 1, onChange, di
     const n = Number(raw);
     if (Number.isFinite(n)) onChange(clampNumber(n, min, max, step));
   };
-  return <Tooltip content={hint}><input aria-label={label} disabled={disabled} className={cn(box, className, 'px-2.5 text-right tabular-nums disabled:cursor-not-allowed disabled:opacity-50')} type="number" min={min} max={max} step={step} value={text ?? value}
+  return <Tooltip content={hint}><input aria-label={label} disabled={disabled} className={cn(box, 'spin-on-hover', className, 'px-2 text-right tabular-nums disabled:cursor-not-allowed disabled:opacity-50')} type="number" min={min} max={max} step={step} value={text ?? value}
     onChange={e => { setText(e.target.value); const n = Number(e.target.value); if (e.target.value !== '' && Number.isFinite(n) && n >= min && n <= max) onChange(clampNumber(n, min, max, step)); }}
     onBlur={e => commit(e.target.value)} onKeyDown={e => { handleDecimalKeyDown(e); if (e.key === 'Enter') commit(e.currentTarget.value); }} onPaste={handleDecimalPaste} /></Tooltip>;
 }

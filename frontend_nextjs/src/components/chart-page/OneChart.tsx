@@ -41,7 +41,7 @@ import { useSetupLayers } from '@/hooks/useSetupLayers';
 import { useSignalBars } from '@/hooks/useSignalBars';
 import { useSymbolDetails } from '@/hooks/useSymbolDetails';
 import { contextTimeframe, useTrendPath } from '@/hooks/useTrendPath';
-import { useFormat, useLocale, useT } from '@/i18n';
+import { useFormat, useLocale, useT, type MessageKey } from '@/i18n';
 import { barEnd, calendarFromDaily, isCalendarTimeframe, liveCalendarBar, periodStart } from '@/lib/analysis/calendarBars';
 import { buildChartData, CHART_TIMEFRAME_SEC, CHART_TIMEFRAMES, dataTimeframeOf, type Bar, type ChartTimeframe } from '@/lib/analysis/candles';
 import { hasFormations } from '@/lib/chart/chartUrl';
@@ -457,7 +457,9 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
     </>
   );
 
-  const cardTitle = zone ? t('chart.zone.title', { n: layers.setupNo, symbol: zone.symbol || '—' }) : (symbolKey ?? t('nav.chart'));
+  // Card title: the symbol only, the formation shown on the chart beside it (1112-A1); with several setups the overview tab picks one
+  const cardTitle = zone ? zone.symbol || '—' : (symbolKey ?? t('nav.chart'));
+  const cardForm = list.length > 0 ? t(`formation.form.${form}` as MessageKey) : undefined;
   const noSetup = symbolKey && zones ? <NoSetupNote symbol={symbolKey} /> : null;
   const conditionsNode = formationTf ? (
     <FormationConditions list={list} hit={hit} loading={scan.loading} tf={favTf} digits={scan.digits} active={active} onSelect={(h) => setPicked(`${h.form}-${h.tf}`)} onActive={setActive} />
@@ -483,6 +485,7 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
   const card = (
     <ChartCard
       title={cardTitle}
+      form={cardForm}
       open={sidebar.open}
       onOpenChange={sidebar.setOpen}
       tab={sidebar.tab}
@@ -593,6 +596,7 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
         wide ? (
           <ChartSideRail
             title={cardTitle}
+            form={cardForm}
             open={sidebar.open}
             tab={sidebar.tab}
             onToggle={toggleRail}

@@ -4,7 +4,7 @@ author: Claude
 type: decision
 status: done
 pr: [512]
-features: [UI-30]
+features: [UI-31]
 areas: [frontend, tests, docs]
 ---
 
@@ -24,4 +24,4 @@ The owner wanted one click on a formation button to show the drawing and a secon
 
 ## Tests
 
-`e2e/mocked/chart-formation-toggle.spec.ts` (`@UI-30`): hide, badge stays, reload keeps it, show, other button shows its own drawing.
+`e2e/mocked/chart-formation-toggle.spec.ts` (`@UI-31`): hide, badge stays, reload keeps it, show, other button shows its own drawing.

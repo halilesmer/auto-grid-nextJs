@@ -1,5 +1,5 @@
 /**
- * UI-30 Formation buttons of /chart toggle the drawing (1112-A1): a click on the selected button hides the drawing
+ * UI-31 Formation buttons of /chart toggle the drawing (1112-A1): a click on the selected button hides the drawing
  * (the button stays selected, outline instead of fill, badge stays), a click on it again shows it, the hidden state
  * lives in the address (`hide=1`) and survives a reload, another button shows its own drawing again.
  */
@@ -31,8 +31,8 @@ async function open(page: Page, worker: MockWorker, url = URL) {
 
 const btn = (page: Page, form: string) => page.getByTestId('chart-topbar').getByTestId(`formation-form-${form}`);
 
-test.describe('UI-30 Formasyon düğmesi aç/kapa', () => {
-  test('ikinci tık çizimi kaldırır, rozet kalır, adres taşır, başka düğme açar', { tag: '@UI-30' }, async ({ page, worker }) => {
+test.describe('UI-31 Formasyon düğmesi aç/kapa', () => {
+  test('ikinci tık çizimi kaldırır, rozet kalır, adres taşır, başka düğme açar', { tag: '@UI-31' }, async ({ page, worker }) => {
     await open(page, worker);
     const selected = page.getByTestId('chart-topbar').locator('button[data-testid^="formation-form-"][aria-pressed="true"]');
     await expect(selected).toHaveCount(1);

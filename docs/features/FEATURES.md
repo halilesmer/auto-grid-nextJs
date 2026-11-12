@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-12 · **234/263** abgehakt · ❌ 5 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-11 · **233/262** abgehakt · ❌ 5 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -26,7 +26,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 10 | **LOG** – Logs | 7/7 |
 | 11 | **UPD** – System & Updates | 6/6 |
 | 12 | **VPS** – VPS-Fernsteuerung vom Mac | 8/10 |
-| 13 | **UI** – Oberfläche | 24/30 |
+| 13 | **UI** – Oberfläche | 23/29 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 24/27 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 18/25 |
 | 16 | **FRM** – Formationserkennung | 40/44 |
@@ -783,10 +783,6 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Halil 2026-11-11 (1110-A4.13, S7): wird eine Zeichnung gewählt, öffnet sich oben in der Mitte des Charts eine Leiste (Griff, Vorlage bei jeder einzelnen Zeichnungsart, Farbe, Stärke, Stil/Füllfarbe/Schriftgröße je nach Art, Einstellungen, Sperre, Löschen, „…“). Esc oder Klick ins Leere schließt sie; beim Ziehen der Zeichnung ist sie verborgen. Die Farbe der Fibonacci-Zeichnung gilt für alle Level, die Deckkraft bleibt. Bei gesperrter Zeichnung sind Vorlage, Farbe, Stärke, Stil und Löschen aus (der Hinweis nennt den Grund), Einstellungen, Sperre und „…“ bleiben offen; „…“ öffnet das Rechtsklick-Menü (UI-28, ohne Alarm). Der Griff verschiebt die Leiste; der Platz (Anteil der Chartfläche) gilt in diesem Browser für alle Charts; Doppelklick stellt den ersten Platz wieder her, Pfeiltasten bewegen um 3 %, mit Umschalt um 10 %. Der erste Platz weicht Legende und freien Paketen aus. Unter 640 px Chartbreite sitzt die Leiste unten über die volle Breite ohne Griff. Systemebenen zeigen keine Leiste. S7b: der Vorlage-Knopf öffnet für jede einzelne Zeichnungsart (Linien, Formen, Text) deren eigene Liste: Vorlage anwenden, Stil als Vorlage speichern, Nutzervorlage löschen, Voreinstellungen anwenden (Fibonacci zusätzlich die eingebaute Vorlage). Eine Vorlage hält nur Stilfelder (Farbe, Stärke, Linienstil, Füllung, Schrift), keine Punkte; bei gemischter Auswahl gibt es keinen Vorlage-Knopf. Alte Fibonacci-Vorlagen im Speicher bleiben gültig.
   - **Prüfung:** Playwright-Tests e2e/mocked/chart-floating-bar.spec.ts und chart-floating-bar-lib.spec.ts (@UI-29) ausführen. → /chart öffnen, eine Fibonacci-Zeichnung ziehen und anklicken: Leiste oben in der Mitte; Farbe wählen: alle Level haben die Farbe; Löschen und ⌘Z: Zeichnung ist zurück; Esc schließt die Leiste. → Playwright-Test e2e/mocked/chart-floating-bar-templates.spec.ts (@UI-29): Trendlinie auf Stärke 4 stellen, Vorlage speichern, auf eine neue Linie anwenden, nach dem Neuladen steht die Liste noch, Löschen entfernt sie; alte Fibonacci-Vorlagen bleiben. → Griff ziehen, Seite neu laden, Zeichnung wählen: Leiste am gleichen Platz; Doppelklick auf den Griff: wieder oben in der Mitte. Bei 375 px: Leiste unten, kein Griff, kein seitliches Scrollen.
   - **Erwartet:** Die Leiste folgt der Auswahl, die Knöpfe passen zur Art, Sperre schaltet die richtigen Knöpfe ab, der gezogene Platz bleibt nach dem Neuladen, bei 375 px sitzt sie unten ohne Überlauf.
-- [x] **UI-30** Formationsknopf blendet die Zeichnung ein und aus — 🖥️ e2e ✅ 2026-11-12
-  - Halil 2026-11-12 (1112-A1): ein Klick auf den gewählten Formationsknopf in der Chart-Kopfleiste nimmt die Zeichnung (und die Zeichnungslegende) von den Kerzen; der Knopf bleibt gewählt, zeigt aber nur einen Rahmen statt der Füllung und ein durchgestrichenes Auge (offen: Füllung und Auge); das Badge bleibt. aria-pressed ist offen true, ausgeblendet false. Ein Klick auf den ausgeblendeten Knopf blendet wieder ein, ein anderer Knopf wählt seine Formation und zeigt sie. Der Zustand steht in der Adresse (hide=1): Neuladen und geteilte Links bleiben ausgeblendet; ein anderer Knopf entfernt den Parameter, ein Zeitrahmenwechsel behält ihn. Bedingungen-Panel und Kandidatenliste bleiben wie sie sind. Der Hinweis wechselt mit dem Zustand. Die Favoritenleiste verhält sich wie vorher.
-  - **Prüfung:** Playwright-Test e2e/mocked/chart-formation-toggle.spec.ts (@UI-30) ausführen. → /chart öffnen, den gewählten Formationsknopf zweimal anklicken: Zeichnung weg, Rahmen und durchgestrichenes Auge, Badge bleibt; nach dem Neuladen bleibt sie weg; zweiter Klick: wieder da.
-  - **Erwartet:** Der Klick auf den gewählten Knopf schaltet die Zeichnung um, das Badge bleibt, der Zustand überlebt das Neuladen, ein anderer Knopf zeigt seine Zeichnung.
 
 ## 14. ANA – Analyse (Chart, Statistik, Backtest)
 
