@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-11 · **233/262** abgehakt · ❌ 5 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-12 · **233/263** abgehakt · ❌ 5 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -28,7 +28,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 12 | **VPS** – VPS-Fernsteuerung vom Mac | 8/10 |
 | 13 | **UI** – Oberfläche | 23/29 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 24/27 |
-| 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 18/25 |
+| 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 18/26 |
 | 16 | **FRM** – Formationserkennung | 40/44 |
 | 17 | **NWS** – Nachrichten (Wirtschaftskalender) | 1/3 |
 | 18 | **TLS** – Werkzeuge (Rechner) | 1/1 |
@@ -767,7 +767,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Halil 2026-11-10 (1110-A1): die Formationsreihe auf /chart zeigt nur Formationen mit gezähltem Treffer auf der gewählten Zeiteinheit (Badge) und die gewählte Formation. Formationen mit nur ungültigen oder frühen Kandidaten stehen im Menü hinter dem Pfeil-Knopf mit ihrer Anzahl; jede Zeile nennt den Zustand (ungültig / im Aufbau). Eine Wahl im Menü setzt die Formation und zeigt sie aktiv in der Reihe. Ohne gezählten Treffer steht nur der Knopf „Kandidaten n“; ohne Kandidat der Hinweis „keine Formation“.
   - **Prüfung:** Playwright-Test e2e/mocked/chart-formation-more.spec.ts (@UI-25) ausführen. → /chart öffnen, H1 wählen: nur Formationen mit Badge stehen in der Reihe; den Pfeil öffnen, eine Formation ohne Badge wählen.
   - **Erwartet:** Die Reihe hat nur Formationen mit Badge und die gewählte; das Menü zeigt die übrigen Kandidaten mit Zustand; nach der Wahl steht die Formation aktiv in der Reihe.
-- [x] **UI-26** Knopf „Zur letzten Kerze“ — 🖥️ e2e ✅ 2026-11-10
+- [x] **UI-26** Knopf „Zur letzten Kerze“ — 🖥️ e2e ✅ 2026-11-12
   - Halil 2026-11-10: wer den Chart nach links verschoben hat, kommt mit einem runden Pfeil-Knopf (») schnell wieder ganz nach rechts. Der Knopf sitzt links der Preisachse über der Zeitachse und erscheint nur, wenn die letzte Kerze mehr als 3 Kerzen rechts aus dem sichtbaren Bereich ist. Klick: `scrollToRealTime()`, der Kerzenabstand (Zoom) bleibt, der Knopf verschwindet wieder. Mit Tooltip und Aria-Label (analysis.chart.latest).
   - **Prüfung:** Playwright-Test e2e/mocked/chart-latest-bar.spec.ts (@UI-26) ausführen. → /chart öffnen, den Chart nach links ziehen: Knopf erscheint; klicken: Chart springt zur letzten Kerze, Zoom unverändert.
   - **Erwartet:** Der Knopf ist nur sichtbar, solange die letzte Kerze außerhalb liegt; ein Klick bringt den Chart nach rechts, ohne den Zoom zu ändern.
@@ -1011,6 +1011,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Frontend-Teil (PR-C, Plan K5.1): Die Seite /backtest übergibt dem Lauf den Startzustand, den buildStartState (BKT-22/BKT-24) schon berechnen kann. Es gibt keinen Schalter und kein neues Bedienelement; der Startzustand gilt automatisch, wenn alle Bedingungen stimmen: gespeichertes Setup (nicht ungespeichert), MT5-Quelle (kein CSV-Import), M1, numerisches zone.magic und ein Fensterbeginn in der Vergangenheit. Die Deals kommen aus dem Archiv der Seite (useDealsHistory, 365 Tage), auf der Seite nach Magic gefiltert; RunParams.startState trägt nur diese Deals über postMessage. runJob holt die Pending Orders einmal je Auftrag (GET /history/{id}/orders?from=FROM&to=FROM+1; Fehler oder gefülltes `missing` zählt als nicht zu haben: WARN run.startOrdersMissing), ruft buildStartState und gibt initialPositions, initialOrders und initialFractalDone an alle Durchgänge und beide Wege (lowFirst/highFirst) gleich weiter; dessen Hinweise gehen ins Protokoll. Der Runner schreibt INFO run.startPositions (Zahl der Positionen und Fraktale). Deckt das Archiv den Fensterbeginn nicht ab (Beginn vor Archivanfang oder Lücke davor), läuft der Lauf ohne Startzustand, ohne Sperre, mit WARN run.startStateMissing. Ohne startState ist das Ergebnis bytegleich wie bisher. Die Ergebnistabelle zeigt den Startzustand noch nicht (K5.2).
   - **Prüfung:** Playwright-Logiktest e2e/mocked/backtest-start-state-run-lib.spec.ts und Seitentest e2e/mocked/backtest-start-state.spec.ts ausführen (Position und Start-Order im Lauf, Orders-Fehler = WARN und Position bleibt, Archiv ohne Deckung = WARN ohne Startzustand, CSV-Quelle ohne Startzeile, ohne startState bytegleich, beide Wege gleich). → Auf dem VPS (DEMO, nur lesen) ein gespeichertes Setup mit MT5-M1-Daten über ein Fenster laufen lassen, in dem das Konto zu Beginn offene Positionen und wartende Orders hatte; im Protokoll stehen run.startPositions und run.startOrders, und der Lauf übernimmt die Positionen (Plan 1111-K5.1 §4.2 und §4.3).
   - **Erwartet:** Die Tests bestehen. Auf dem VPS startet der Lauf mit den Live-Positionen und -Orders des Fensterbeginns; ohne Deckung des Archivs läuft er ohne Startzustand und warnt im Protokoll.
+- [ ] **BKT-26** Backtest: Tetik-Reihenfolge im selben Tick, Bot-Verzögerung und Reaktionsverzögerung — 🖥️ e2e ⏳
+  - Klassen A und B der BT↔MT5-Diagnose (P7, XAUUSD). Drei Schalter in RunModel, alle standardmäßig AUS (SAME_TICK_BATCH_DEFAULT, FILL_SLTP_DELAY_DEFAULT, BOT_REACT_DEFAULT), keine Oberfläche; Einschalten erst nach der P8-Messung (Σ|ΔNet| sinkt, K4 nicht schlechter, jeder Anstieg der Unmatched einzeln eingeordnet). Aus = Ergebnis bytegleich zum Stand vor BKT-26. A1 (sameTickBatch): Im Replay feuern alle Tetik eines Ticks, danach läuft der Bot einmal. A2 (fillSltpDelay): Nach einer Replay-Füllung behält die Position das Stufen-TP/SL für eine Verzögerung je Symbol; die Änderungsanfrage des Bots (TRADE_ACTION_SLTP) wird gehalten. B (botReact): Nach einer Marke läuft der Bot erst nach BOT_REACT_DELAY_S (2 s, Wert aus P7). B ersetzt die Haltung im Broker: ist B an, bleibt A2 aus, beide wirken nie zusammen (gemessen: mit beiden identisch). Alle Verzögerungswerte stehen in botDelay.ts. Gilt nur für Replay; Weg-Modus bleibt unverändert.
+  - **Prüfung:** Playwright-Logiktest e2e/mocked/backtest-tick-order-lib.spec.ts ausführen (Verzögerung im Fenster schließt mit Stufen-SL, ohne Verzögerung nicht, Frist-Ende, kein Rest nach Schließung, Weg ohne Replay unverändert, Tabelle je Symbol, Standard aus, B ersetzt A2, Schalter aus = bytegleich).
+  - **Erwartet:** Die Tests bestehen; mit allen Schaltern aus (Standard) ist das Ergebnis bytegleich zum Stand vor BKT-26.
 
 ## 16. FRM – Formationserkennung
 

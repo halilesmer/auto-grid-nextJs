@@ -2193,6 +2193,15 @@ kategorien:
           - Auf dem VPS (DEMO, nur lesen) ein gespeichertes Setup mit MT5-M1-Daten über ein Fenster laufen lassen, in dem das Konto zu Beginn offene Positionen und wartende Orders hatte; im Protokoll stehen run.startPositions und run.startOrders, und der Lauf übernimmt die Positionen (Plan 1111-K5.1 §4.2 und §4.3).
         erwartet: Die Tests bestehen. Auf dem VPS startet der Lauf mit den Live-Positionen und -Orders des Fensterbeginns; ohne Deckung des Archivs läuft er ohne Startzustand und warnt im Protokoll.
 
+      - id: BKT-26
+        titel: "Backtest: Tetik-Reihenfolge im selben Tick, Bot-Verzögerung und Reaktionsverzögerung"
+        beschreibung: "Klassen A und B der BT↔MT5-Diagnose (P7, XAUUSD). Drei Schalter in RunModel, alle standardmäßig AUS (SAME_TICK_BATCH_DEFAULT, FILL_SLTP_DELAY_DEFAULT, BOT_REACT_DEFAULT), keine Oberfläche; Einschalten erst nach der P8-Messung (Σ|ΔNet| sinkt, K4 nicht schlechter, jeder Anstieg der Unmatched einzeln eingeordnet). Aus = Ergebnis bytegleich zum Stand vor BKT-26. A1 (sameTickBatch): Im Replay feuern alle Tetik eines Ticks, danach läuft der Bot einmal. A2 (fillSltpDelay): Nach einer Replay-Füllung behält die Position das Stufen-TP/SL für eine Verzögerung je Symbol; die Änderungsanfrage des Bots (TRADE_ACTION_SLTP) wird gehalten. B (botReact): Nach einer Marke läuft der Bot erst nach BOT_REACT_DELAY_S (2 s, Wert aus P7). B ersetzt die Haltung im Broker: ist B an, bleibt A2 aus, beide wirken nie zusammen (gemessen: mit beiden identisch). Alle Verzögerungswerte stehen in botDelay.ts. Gilt nur für Replay; Weg-Modus bleibt unverändert."
+        code: [frontend_nextjs/src/lib/backtest/botDelay.ts, frontend_nextjs/src/lib/backtest/broker/pathBroker.ts, frontend_nextjs/src/lib/backtest/runner.ts, frontend_nextjs/e2e/mocked/backtest-tick-order-lib.spec.ts]
+        tiers: [e2e]
+        pruefung:
+          - Playwright-Logiktest e2e/mocked/backtest-tick-order-lib.spec.ts ausführen (Verzögerung im Fenster schließt mit Stufen-SL, ohne Verzögerung nicht, Frist-Ende, kein Rest nach Schließung, Weg ohne Replay unverändert, Tabelle je Symbol, Standard aus, B ersetzt A2, Schalter aus = bytegleich).
+        erwartet: Die Tests bestehen; mit allen Schaltern aus (Standard) ist das Ergebnis bytegleich zum Stand vor BKT-26.
+
   # ---------------------------------------------------------------------------
   - id: FRM
     titel: Formationserkennung

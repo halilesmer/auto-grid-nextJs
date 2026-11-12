@@ -22,10 +22,14 @@ import {
   ORDER_TYPE_SELL_STOP,
   POSITION_TYPE_BUY,
   POSITION_TYPE_SELL,
+  TRADE_ACTION_SLTP,
+  TRADE_RETCODE_DONE,
   type Bar,
   type Position,
   type SymbolInfo,
   type Timeframe,
+  type TradeRequest,
+  type TradeResult,
 } from '@/lib/backtest/engine/types';
 import type { Trade } from '@/lib/analysis/tradePairing';
 import type { Excursion } from '@/lib/analysis/excursions';
@@ -94,6 +98,8 @@ export interface PathBrokerOptions {
    * als die Stufe; TP füllt weiter auf der Stufe (live eher besser, also bleibt der Backtest konservativ).
    */
   slSlippagePoints?: number | null;
+  /** BKT-26: Sekunden, die eine in der Replay-Minute gefüllte Position ihr Stufen-SL/TP behält (0/leer = aus) */
+  fillSltpDelay?: number;
 }
 
 /** Position, die zum Startzeitpunkt schon offen war (Daten aus den Live-Deals vor `from`) */
@@ -180,6 +186,9 @@ export class PathBroker extends SimBroker {
   private grid = 1;
   private askPhase = 0;
   private bidPhase = 0;
+  /** BKT-26: gefüllte Positionen mit Stufen-SL/TP bis `until`; tp/sl = zuletzt vom Bot gewünschte Werte */
+  private readonly sltpHold = new Map<number, { until: number; tp?: number; sl?: number }>();
+  private readonly fillSltpDelay: number;
 
   constructor(options: PathBrokerOptions) {
     super({ symbol: options.info, start: options.start, firstBid: options.firstBid });
@@ -190,6 +199,7 @@ export class PathBroker extends SimBroker {
     this.zoneLabel = options.zoneLabel;
     this.carrySpread = options.carrySpread ?? true;
     this.slSlippagePoints = options.slSlippagePoints ?? null;
+    this.fillSltpDelay = options.fillSltpDelay ?? 0;
     for (const tf of options.timeframes) this.aggregators.set(tf.name, new TimeframeAggregator(tf.sec));
     this.hooks = {
       openedByBot: (position, price) => this.register(position, price),
@@ -275,6 +285,7 @@ export class PathBroker extends SimBroker {
   /** Kurs und Uhr setzen; Ask = Bid + Spread (oder der gegebene Ask eines Ticks) */
   setMarket(bid: number, time: number, ask?: number): void {
     this.now = time;
+    this.applyDueSltp();
     let quote = ask;
     if (quote === undefined) {
       quote = this.round(bid + this.spreadPrice);
@@ -489,6 +500,8 @@ export class PathBroker extends SimBroker {
       this.history.set(order.ticket, order);
       this.positions.push(position);
       this.register(position, price);
+      // BKT-26: der Bot ändert TP/SL erst nach der gemessenen Verzögerung; bis dahin gelten die Stufenwerte
+      if (this.replaying && this.fillSltpDelay > 0) this.sltpHold.set(position.ticket, { until: this.now + this.fillSltpDelay });
       return;
     }
     const position = this.positions.find((p) => p.ticket === trigger.ticket);
@@ -605,7 +618,21 @@ export class PathBroker extends SimBroker {
     this.profitStale = true;
   }
 
+  /** BKT-26: abgelaufene Haltezeiten beenden und den zuletzt gewünschten TP/SL setzen */
+  private applyDueSltp(): void {
+    if (this.sltpHold.size === 0) return;
+    for (const [ticket, hold] of this.sltpHold) {
+      if (hold.until > this.now) continue;
+      this.sltpHold.delete(ticket);
+      const position = this.positions.find((p) => p.ticket === ticket);
+      if (!position) continue;
+      if (hold.tp !== undefined) position.tp = hold.tp;
+      if (hold.sl !== undefined) position.sl = hold.sl;
+    }
+  }
+
   private closePosition(position: Position, price: number, reason: CloseReason): void {
+    this.sltpHold.delete(position.ticket);
     this.positions = this.positions.filter((p) => p.ticket !== position.ticket);
     this.settle(position, price, reason);
   }
@@ -675,7 +702,26 @@ export class PathBroker extends SimBroker {
       for (const p of this.positions) p.profit = this.floating(p);
       this.profitStale = false;
     }
-    return super.positionsGet(ticket);
+    const found = super.positionsGet(ticket);
+    if (this.sltpHold.size === 0) return found;
+    // BKT-26: der Bot sieht seinen eigenen Wunsch als gesetzt (wie live nach dem Modify), der Broker prüft die Stufenwerte
+    return found.map((p) => {
+      const hold = this.sltpHold.get(p.ticket);
+      if (!hold || (hold.tp === undefined && hold.sl === undefined)) return p;
+      return { ...p, tp: hold.tp ?? p.tp, sl: hold.sl ?? p.sl };
+    });
+  }
+
+  override orderSend(request: TradeRequest): TradeResult {
+    if (request.action === TRADE_ACTION_SLTP && this.tradeOpen) {
+      const hold = this.sltpHold.get(request.position ?? -1);
+      if (hold && this.now < hold.until) {
+        hold.tp = request.tp ?? 0;
+        hold.sl = request.sl ?? 0;
+        return { retcode: TRADE_RETCODE_DONE, order: 0, comment: '' };
+      }
+    }
+    return super.orderSend(request);
   }
 
   override copyRatesFromPos(symbol: string, timeframe: Timeframe, startPos: number, count: number): Bar[] | null {

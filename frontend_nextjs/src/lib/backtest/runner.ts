@@ -20,6 +20,7 @@ import { manageDynamicGrid, type ActiveZones } from '@/lib/backtest/engine/orche
 import { EngineState } from '@/lib/backtest/engine/state';
 import { TF_SECONDS, type Timeframe, type ZoneDict } from '@/lib/backtest/engine/types';
 import { toTimeframe, zget, zoneLogId } from '@/lib/backtest/engine/helpers';
+import { BOT_REACT_DELAY_S, sltpDelaySeconds } from '@/lib/backtest/botDelay';
 import { zoneSymbolOf } from '@/lib/backtest/engine/zoneSelector';
 import { RunError, RunLog, type RunLogLine } from '@/lib/backtest/runContext';
 import { downsampleCurve, EquityTrack, type RunSummary } from '@/lib/backtest/runSummary';
@@ -63,6 +64,14 @@ export interface RunModel {
    * M1-Daten und Replay-Karte; Vorgabe TRIGGER_REPLAY_DEFAULT.
    */
   triggerReplay?: boolean;
+  /** BKT-26 (A1): in der Replay-Minute feuern alle Marken desselben Ticks, danach läuft der Bot einmal; Vorgabe SAME_TICK_BATCH_DEFAULT */
+  sameTickBatch?: boolean;
+  /** BKT-26 (B): nach einer Marke läuft der Bot erst nach BOT_REACT_DELAY_S (oder botReactDelay); ersetzt die Broker-Verzögerung (A2), beide wirken nie zusammen; Vorgabe BOT_REACT_DEFAULT */
+  botReact?: boolean;
+  /** BKT-26 (B): Sekunden statt BOT_REACT_DELAY_S (nur mit botReact) */
+  botReactDelay?: number;
+  /** BKT-26 (A2): nach einer Füllung in der Replay-Minute bleibt das Stufen-SL/TP für die gemessene Bot-Verzögerung; Vorgabe FILL_SLTP_DELAY_DEFAULT */
+  fillSltpDelay?: boolean;
 }
 
 /** Fraktal, das vor `from` schon gehandelt wurde (Order gefüllt oder gelöscht): der Lauf legt dafür keine Order mehr */
@@ -118,6 +127,15 @@ export interface RunResult {
   /** BKT-23: Minutenbeginne (Sekunden), in denen Trades ein- oder ausgestiegen sind bzw. Positionen offen blieben und die noch nicht in der Replay-Karte stehen; leer ohne `triggerReplay` */
   triggerMinutes?: number[];
 }
+
+/** BKT-26: Vorgaben; zum Zurücknehmen auf false setzen */
+// Alle aus: P8 entscheidet über das Einschalten (Journal 2026-11-12). Aus = Ergebnis wie vor BKT-26.
+export const SAME_TICK_BATCH_DEFAULT = false;
+export const FILL_SLTP_DELAY_DEFAULT = false;
+export const BOT_REACT_DEFAULT = false;
+export const botReactOn = (model: Pick<RunModel, 'botReact'>): boolean => model.botReact ?? BOT_REACT_DEFAULT;
+export const sameTickBatchOn = (model: Pick<RunModel, 'sameTickBatch'>): boolean => model.sameTickBatch ?? SAME_TICK_BATCH_DEFAULT;
+export const fillSltpDelayOn = (model: Pick<RunModel, 'fillSltpDelay'>): boolean => model.fillSltpDelay ?? FILL_SLTP_DELAY_DEFAULT;
 
 export const triggerReplayOn = (model: Pick<RunModel, 'triggerReplay'>): boolean => model.triggerReplay ?? TRIGGER_REPLAY_DEFAULT;
 
@@ -229,6 +247,7 @@ export function runBacktest(input: RunInput): RunResult {
     zoneLabel: () => input.zoneLabel ?? null,
     carrySpread: model.carrySpread,
     slSlippagePoints: model.slSlippagePoints,
+    fillSltpDelay: fillSltpDelayOn(model) && !botReactOn(model) ? sltpDelaySeconds(symbol) : 0,
   });
   for (const init of input.initialPositions ?? []) broker.seedPosition(init);
   // BKT-25: eine Zeile, die den Live-Startzustand sichtbar macht (nur wenn etwas eingesetzt wurde)
@@ -251,6 +270,7 @@ export function runBacktest(input: RunInput): RunResult {
   }
 
   const latency = triggerReplayOn(model);
+  const batch = sameTickBatchOn(model);
   const state = new EngineState(
     () => broker.now,
     (entry) => log.add(entry.level, entry.code, entry.params, broker.now),
@@ -266,6 +286,8 @@ export function runBacktest(input: RunInput): RunResult {
   const sessions = model.tradeSessions === false ? null : snapshot.tradeSessions;
   let active: ActiveZones = {};
   let lastBot = -Infinity;
+  const reactDelay = botReactOn(model) ? (model.botReactDelay ?? BOT_REACT_DELAY_S) : 0;
+  let pendingBot: number | null = null;
   const runBot = () => {
     [, active] = manageDynamicGrid(broker, zones, active, infos, state);
     lastBot = broker.now;
@@ -402,6 +424,7 @@ export function runBacktest(input: RunInput): RunResult {
       for (let k = 0; k < replay.ms.length; k++) {
         broker.setQuote(replay.bid[k], replay.ask[k], t0 + replay.ms[k] / 1000);
         let ran = false;
+        if (pendingBot !== null && broker.now >= pendingBot) { pendingBot = null; runBot(); }
         for (const trigger of broker.quoteTriggers()) {
           if (!broker.hasTarget(trigger)) continue;
           countEvent();
@@ -409,9 +432,12 @@ export function runBacktest(input: RunInput): RunResult {
           let j = k;
           if (latency) while (j + 1 < replay.ms.length && replay.ms[j + 1] <= replay.ms[k] + REPLAY_FILL_LATENCY_MS) j += 1;
           broker.fire(trigger, true, j === k ? undefined : { bid: replay.bid[j], ask: replay.ask[j] });
-          runBot();
+          // BKT-26 (A1): alle Marken dieses Ticks feuern zuerst, der Bot läuft danach einmal
+          if (reactDelay > 0) { if (pendingBot === null) pendingBot = broker.now + reactDelay; ran = true; continue; }
+          if (!batch) runBot();
           ran = true;
         }
+        if (ran && batch && reactDelay <= 0) runBot();
         if (!ran && broker.now - lastBot >= REPLAY_BOT_INTERVAL) {
           countEvent();
           runBot();
