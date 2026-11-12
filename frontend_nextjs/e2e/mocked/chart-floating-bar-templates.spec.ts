@@ -29,19 +29,34 @@ async function drawLine(page: Page, yOffset: number) {
   await page.mouse.click(x2, y2);
   await page.waitForTimeout(800);
   await page.keyboard.press('Escape');
-  return { x: (x1 + x2) / 2, y: (y1 + y2) / 2 };
+  return { x: (x1 + x2) / 2, y: (y1 + y2) / 2, x1, y1, x2, y2 };
 }
-async function select(page: Page, at: { x: number; y: number }) {
-  await page.mouse.move(at.x, at.y);
-  await page.waitForTimeout(150);
-  await page.mouse.click(at.x, at.y);
+type Drawn = Awaited<ReturnType<typeof drawLine>>;
+/** Die Enden der Linie rasten auf Kerzenwerte ein (Magnet), die Linie liegt also nicht genau zwischen den Klickpunkten:
+ *  von der Mitte aus nach oben und unten abtasten, bis die Leiste erscheint. */
+async function select(page: Page, at: Drawn) {
+  const offsets = [0];
+  for (let d = 4; d <= 72; d += 4) offsets.push(d, -d);
+  await expect(async () => {
+    for (const dy of offsets) {
+      await page.mouse.move(at.x, at.y + dy);
+      await page.mouse.click(at.x, at.y + dy);
+      if (await bar(page).isVisible()) return;
+    }
+    throw new Error('Leiste nicht sichtbar');
+  }).toPass({ timeout: 30_000 });
   await expect(bar(page)).toBeVisible();
+}
+async function ready(page: Page) {
+  await page.getByTestId('analysis-chart').waitFor();
+  await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
 }
 
 test('UI-29: Trendlinien-Vorlage speichern, auf neue Linie anwenden, nach dem Neuladen noch da, löschen', { tag: '@UI-29' }, async ({ page, worker }) => {
   void worker;
   await page.setViewportSize({ width: 1280, height: 1000 });
   await page.goto(URL);
+  await ready(page);
   const first = await drawLine(page, 100);
   await expect.poll(async () => (await lines(page)).length).toBe(1);
   await select(page, first);
@@ -65,7 +80,7 @@ test('UI-29: Trendlinien-Vorlage speichern, auf neue Linie anwenden, nach dem Ne
   await expect.poll(async () => (await lines(page)).map(l => l.style.width).sort()).toEqual([4, 4]);
 
   await page.reload();
-  await page.getByTestId('analysis-chart').waitFor();
+  await ready(page);
   const saved = await page.evaluate((key) => JSON.parse(localStorage.getItem(key) || '{}').drawingTemplates, KEY);
   expect(Object.keys(saved['trend-line'])).toEqual(['Kalın']);
   expect(saved['trend-line']['Kalın'].width).toBe(4);
