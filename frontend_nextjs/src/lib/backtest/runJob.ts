@@ -4,12 +4,14 @@
  * Code, alles andere als `run.unexpected` mit der Meldung.
  */
 import { snapshotSymbol } from '@/lib/backtest/broker/costs';
+import { limitHoleNotes, unexplainedHoles } from '@/lib/backtest/candles/dataHoles';
 import { loadReplayMinutes } from '@/lib/backtest/candles/loadReplay';
 import { loadRates, type FetchJson, type LoadedRates } from '@/lib/backtest/candles/loadRates';
 import type { PathMode } from '@/lib/backtest/candles/pathModel';
 import type { RunRequest, WorkerMessage } from '@/lib/backtest/protocol';
 import { RunError } from '@/lib/backtest/runContext';
 import { buildStartState, type LiveOrder, type StartState } from '@/lib/backtest/startState';
+import { TF_SECONDS } from '@/lib/backtest/engine/types';
 import { runBacktest, triggerReplayOn, warmupSeconds, type RunResult } from '@/lib/backtest/runner';
 
 /** Anteil des Fortschritts, der auf das Laden entfällt; der Rest ist der Lauf */
@@ -56,6 +58,10 @@ export async function runJob(
       onProgress: (fraction) => post({ type: 'progress', runId, phase: 'load', fraction: fraction * LOAD_SHARE }),
     });
     onRates?.(rates);
+    // BKT-27: Strecken ohne Kerzen mitten in der Handelszeit, die der Worker nicht als `missing` meldet
+    const holeNotes = limitHoleNotes(
+      unexplainedHoles(rates.t, TF_SECONDS[params.dataTimeframe], params.from, Math.min(params.to, rates.liveFrom ?? params.to), snapshot.snapshot.tradeSessions, rates.missing, params.symbol.name),
+    );
     // BKT-25: Live-Startzustand einmal bauen; alle Durchgänge und beide Wege starten mit denselben Tickets
     let start: StartState | null = null;
     if (params.startState) {
@@ -98,7 +104,7 @@ export async function runJob(
           startCapital: params.startCapital,
           accountCurrency: params.accountCurrency,
           zoneLabel: params.zoneLabel,
-          notes: [...snapshot.warnings, ...(params.notes ?? []), ...(start?.notes ?? [])],
+          notes: [...snapshot.warnings, ...(params.notes ?? []), ...holeNotes, ...(start?.notes ?? [])],
           ...(start ? { initialPositions: start.positions, initialOrders: start.orders, initialFractalDone: start.fractalDone } : {}),
           onProgress: (fraction) => post({ type: 'progress', runId, phase: 'run', fraction: slice(((passIndex - 1) + fraction) / (wantTrigger ? limits.passes : 1)) }),
         });

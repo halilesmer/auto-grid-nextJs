@@ -423,6 +423,16 @@ class FakeMT5:
         found = [dict(r) for r in rows if int(date_from) * 1000 <= r["time_msc"] <= int(date_to) * 1000 + 999]
         return found or None
 
+    COPY_TICKS_INFO = 1
+    TICK_FLAG_BID = 2
+    TICK_FLAG_ASK = 4
+
+    def copy_ticks_from(self, symbol, date_from, count, flags):
+        """Wie MT5: die ersten `count` Ticks ab date_from (Sekunde), alt → neu; None ohne Treffer."""
+        rows = getattr(self, "tick_history", {}).get(symbol) or []
+        found = [dict(r, time=r["time_msc"] // 1000) for r in rows if r["time_msc"] >= int(date_from) * 1000]
+        return found[:count] or None
+
     def copy_rates_from(self, symbol, timeframe, date_from, count):
         """Wie MT5: `count` Kerzen bis einschließlich date_from (Brokerzeit), alt → neu."""
         bars = [dict(b) for b in self.rates.get((symbol, timeframe)) or [] if b["time"] <= int(date_from)]

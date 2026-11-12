@@ -867,3 +867,63 @@ def test_rates_timing_log_written(client, broker):
     assert f"[rates-timing] fetch_slot {SYMBOL} M1 wait=" in text
     assert f"[rates-timing] get_rates {SYMBOL} M1 bars=" in text and "total=" in text
     assert TEST_ACCOUNT_ID not in text  # keine Kontonummer im Log
+
+
+# --------------------------------------------------------------------------- Tick-Probe (1112-D1)
+def _ticks(*rows):
+    return [{"time_msc": t * 1000, "bid": 1.0, "ask": 1.1, "flags": flags} for t, flags in rows]
+
+
+@pytest.mark.feature("ANA-04")
+def test_pause_mit_bid_ticks_wird_nicht_bestaetigt_sondern_syncing(client, broker, monkeypatch):
+    # Kerzen enden Freitag 24:00, Ticks gibt es aber noch (Terminal hat die M1-Kerzen noch nicht gebaut):
+    # kein "gap_confirmed", das nie wieder gefragt würde
+    broker.set_tick_history(SYMBOL, _ticks((SAT + 3600, broker.TICK_FLAG_BID | broker.TICK_FLAG_ASK)))
+    monkeypatch.setattr(market_sync.time, "time", lambda: SAT + DAY)
+    body = get_rates(client, FRI_20, MON)
+    assert [(m["from"], m["to"], m["reason"]) for m in body["missing"]] == [(SAT, MON, "syncing")]
+    assert not any(state in ("unavailable", "gap_confirmed") for _, _, state in coverage_rows())
+    assert coverage_rows() == [(FRI_20, SAT, "complete")]
+
+
+@pytest.mark.feature("ANA-04")
+def test_pause_nur_mit_ask_ticks_bleibt_bestaetigte_pause(client, broker, monkeypatch):
+    broker.set_tick_history(SYMBOL, _ticks((SAT + 3600, broker.TICK_FLAG_ASK)))  # M1 entsteht aus Bid
+    monkeypatch.setattr(market_sync.time, "time", lambda: SAT + DAY)
+    body = get_rates(client, FRI_20, MON)
+    assert body["missing"] == []
+    assert (SAT, MON, "gap_confirmed") in coverage_rows()
+
+
+@pytest.mark.feature("ANA-04")
+def test_tick_erst_nach_der_pause_aendert_nichts(client, broker, monkeypatch):
+    broker.set_tick_history(SYMBOL, _ticks((MON, broker.TICK_FLAG_BID)))  # Wochenendende: gehört zur Montagskerze
+    monkeypatch.setattr(market_sync.time, "time", lambda: SAT + DAY)
+    body = get_rates(client, FRI_20, MON)
+    assert body["missing"] == []
+    assert (SAT, MON, "gap_confirmed") in coverage_rows()
+
+
+@pytest.mark.feature("ANA-04")
+def test_alte_strecke_mit_bid_ticks_ist_nicht_verfuegbar(client, broker, monkeypatch):
+    broker.set_tick_history(SYMBOL, _ticks((SAT + 3600, broker.TICK_FLAG_BID)))
+    monkeypatch.setattr(market_sync.time, "time", lambda: MON + market_sync.TICK_HOLE_RECENT_SEC + 1)
+    body = get_rates(client, FRI_20, MON)
+    assert [(m["from"], m["to"], m["reason"]) for m in body["missing"]] == [(SAT, MON, "unavailable")]
+    assert (SAT, MON, "unavailable") in coverage_rows()
+
+
+@pytest.mark.feature("ANA-04")
+def test_migration_loescht_bestaetigte_pausen_ausser_csv(client, broker):
+    get_rates(client, MON, MON + 60)  # legt die Datenbank im aktuellen Stand an
+    with market_db.writing() as conn:
+        for source, state in (("srv", "gap_confirmed"), ("srv", "complete"), ("csv:" + "a" * 32, "gap_confirmed")):
+            conn.execute("INSERT INTO rate_coverage VALUES (?, 'XAUUSD', 60, ?, ?, ?, 1)", (source, SAT, MON, state))
+        conn.execute("PRAGMA user_version=11")  # feste Zahl: Stand vor der Pausen-Migration
+    market_db.reset_cache()
+    get_rates(client, MON, MON + 60)  # löst die Migration aus
+    with market_db.reading() as conn:
+        rows = sorted(tuple(r) for r in conn.execute(
+            "SELECT source, state FROM rate_coverage WHERE from_t = ?", (SAT,)))
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == market_db.SCHEMA_VERSION >= 12
+    assert rows == [("csv:" + "a" * 32, "gap_confirmed"), ("srv", "complete")]
