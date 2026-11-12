@@ -3,6 +3,7 @@
  * auf). Fehler gehen als Nachricht `error` an die Seite, nie verschluckt: Abbruchgründe der Läufe (`RunError`) mit
  * Code, alles andere als `run.unexpected` mit der Meldung.
  */
+import { buildRateSeries, MAX_RATE_AGE_SEC, type RateSeries } from '@/lib/backtest/broker/conversion';
 import { snapshotSymbol } from '@/lib/backtest/broker/costs';
 import { limitHoleNotes, unexplainedHoles } from '@/lib/backtest/candles/dataHoles';
 import { loadReplayMinutes } from '@/lib/backtest/candles/loadReplay';
@@ -58,6 +59,32 @@ export async function runJob(
       onProgress: (fraction) => post({ type: 'progress', runId, phase: 'load', fraction: fraction * LOAD_SHARE }),
     });
     onRates?.(rates);
+    // BKT-28: M1-Kerzen des Umrechnungspaars (immer vom MT5-Server, auch bei CSV-Quelle); Fehler = Schnappschuss + WARN
+    const convNotes: { code: string; params?: Record<string, unknown> }[] = [];
+    let rateSeries: RateSeries | null = null;
+    let rateLoadMs = 0;
+    const conversion = params.conversion;
+    const wantConversion = params.model.conversionRate !== 'snapshot' && conversion !== undefined;
+    if (wantConversion && conversion === null) {
+      convNotes.push({ code: 'run.convRateUnavailable', params: { pair: '' } });
+    } else if (wantConversion && conversion && conversion.kind === 'pair') {
+      const started = Date.now();
+      try {
+        const pairRates = await loadRates({
+          fetchJson,
+          accountId: params.accountId,
+          symbol: conversion.name,
+          timeframe: 'M1',
+          from: params.from - MAX_RATE_AGE_SEC,
+          to: params.to,
+        });
+        rateSeries = buildRateSeries(pairRates);
+      } catch {
+        rateSeries = null; // Paar nicht ladbar: der Lauf rechnet mit dem Schnappschuss
+      }
+      rateLoadMs = Date.now() - started;
+      if (!rateSeries) convNotes.push({ code: 'run.convRateUnavailable', params: { pair: conversion.name } });
+    }
     // BKT-27: Strecken ohne Kerzen mitten in der Handelszeit, die der Worker nicht als `missing` meldet
     const holeNotes = limitHoleNotes(
       unexplainedHoles(rates.t, TF_SECONDS[params.dataTimeframe], params.from, Math.min(params.to, rates.liveFrom ?? params.to), snapshot.snapshot.tradeSessions, rates.missing, params.symbol.name),
@@ -103,8 +130,9 @@ export async function runJob(
           model: { ...params.model, path },
           startCapital: params.startCapital,
           accountCurrency: params.accountCurrency,
+          conversion: wantConversion && conversion ? { pair: conversion, series: rateSeries } : null,
           zoneLabel: params.zoneLabel,
-          notes: [...snapshot.warnings, ...(params.notes ?? []), ...holeNotes, ...(start?.notes ?? [])],
+          notes: [...snapshot.warnings, ...(params.notes ?? []), ...convNotes, ...holeNotes, ...(start?.notes ?? [])],
           ...(start ? { initialPositions: start.positions, initialOrders: start.orders, initialFractalDone: start.fractalDone } : {}),
           onProgress: (fraction) => post({ type: 'progress', runId, phase: 'run', fraction: slice(((passIndex - 1) + fraction) / (wantTrigger ? limits.passes : 1)) }),
         });
@@ -137,6 +165,7 @@ export async function runJob(
         fetchedTicks += [...loaded.minutes.values()].reduce((sum, m) => sum + m.ms.length, 0);
         if (loaded.minutes.size === 0) break;
       }
+      if (rateSeries && conversion) addLog(result, 'INFO', 'run.convRateLoaded', { pair: conversion.name, candles: rateSeries.t.length, ms: rateLoadMs });
       if (wantTrigger) {
         if (unavailable) addLog(result, 'WARN', 'run.triggerReplayUnavailable', {});
         if (fetchedMinutes > 0) addLog(result, 'INFO', 'run.triggerReplay', { passes, minutes: fetchedMinutes, ticks: fetchedTicks });

@@ -3,6 +3,7 @@
  * ihn mit `terminate()` ab; sie verwirft Nachrichten mit einer alten `runId`. Der Worker lädt die Kerzen selbst
  * (er bekommt Adresse und Schlüssel mit), liefert die Zusammenfassung und auf Anfrage begrenzte Chart-Kerzen.
  */
+import type { ConversionPair } from '@/lib/backtest/broker/conversion';
 import type { SpreadSetting } from '@/lib/backtest/broker/costs';
 import type { Timeframe, ZoneDict } from '@/lib/backtest/engine/types';
 import type { RunModel, RunResult } from '@/lib/backtest/runner';
@@ -20,6 +21,11 @@ export interface RunParams {
   /** Symbolwerte zum Start des Laufs (Schnappschuss) */
   symbol: SymbolDetail;
   accountCurrency?: string;
+  /**
+   * BKT-28: Umrechnungspaar des Gewinns (gewählt aus der Symbolliste, pickConversionPair). Der Lauf lädt dessen M1-Kerzen
+   * vom MT5-Server. undefined = Seite kennt keine Umrechnung (Schnappschuss, still), null = kein Paar gefunden (WARN).
+   */
+  conversion?: ConversionPair | null;
   /** Zeitraum [from, to), MT5-Sekunden (Brokerzeit) */
   from: number;
   to: number;

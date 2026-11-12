@@ -2243,6 +2243,16 @@ kategorien:
           - "Auf dem VPS (DEMO, nur lesen) das Fenster P7 laufen lassen: fehlen Kerzen am Terminal weiterhin, steht run.dataEndsEarly im Protokoll; sonst läuft der Lauf mit allen Kerzen."
         erwartet: Die Tests bestehen. Fehlende Kerzen in der Handelszeit sind im Protokoll sichtbar und erklären einen Unterschied zu MT5.
 
+      - id: BKT-28
+        titel: Gewinn zum Kurs des Schließmoments umrechnen (statt Schnappschuss von heute)
+        beschreibung: "Plan 1112-K9, PR-2: MT5 rechnet den Gewinn eines Deals in die Kontowährung mit dem Kurs des Umrechnungspaars im Moment des Schließens um. Der Backtest nimmt dafür bisher den Tickwert vom Abrufzeitpunkt. Jetzt wählt pickConversionPair (lib/backtest/broker/conversion.ts) das Paar aus der Symbolliste (currency_base/currency_profit, nie am Namen): direkt = Gewinn × Kurs, umgekehrt = Gewinn ÷ Kurs, Symbol selbst (USDJPY) = Kurs des Deals, Gewinnwährung = Kontowährung = keine Umrechnung. runJob lädt die M1-Kerzen des Paars (4 Tage vor FROM bis TO) und der PathBroker rechnet Gewinn und Swap (Modus Punkte) beim Schließen bzw. Rollover um: Kauf mit Bid (Schlusskurs), Verkauf mit Ask (Schluss + Spread × Punkt); Lücke = letzter Schlusskurs; älter als 4 Tage oder Paar nicht ladbar = Schnappschuss mit WARN (run.convRateFallback / run.convRateUnavailable). Nur Berechnungsarten 0, 2, 3, 4; MFE/MAE bleiben beim Schnappschuss. model.conversionRate 'close' (Standard) oder 'snapshot' (alter Weg), ohne sichtbares Bedienelement."
+        code: [frontend_nextjs/src/lib/backtest/broker/conversion.ts, frontend_nextjs/src/lib/backtest/broker/costs.ts, frontend_nextjs/src/lib/backtest/broker/pathBroker.ts, frontend_nextjs/src/lib/backtest/runner.ts, frontend_nextjs/src/lib/backtest/runJob.ts, frontend_nextjs/src/lib/backtest/runSettings.ts, frontend_nextjs/src/components/backtest/BacktestView.tsx, frontend_nextjs/src/i18n/messages/backtest.ts, frontend_nextjs/e2e/mocked/backtest-conversion-lib.spec.ts]
+        tiers: [e2e, manuell]
+        pruefung:
+          - "Playwright-Logiktest e2e/mocked/backtest-conversion-lib.spec.ts ausführen (Paarwahl direkt/umgekehrt/selbst/keins, Kurs je Zeit mit Bid/Ask, Lücke, 4-Tage-Grenze, Gewinn und Swap mit Kurs, Broker-Rundläufe)."
+          - "Fenster P6+ und P7 auf dem DEMO-Konto vergleichen (nur lesen): mit 'close' sinkt die Summe der Netto-Abweichungen gegenüber 'snapshot' und der Anteil netto-exakter Trades steigt."
+        erwartet: Die Tests bestehen. Im Modus 'close' weicht der Nettogewinn je Trade weniger von MT5 ab als im Modus 'snapshot'.
+
   # ---------------------------------------------------------------------------
   - id: FRM
     titel: Formationserkennung

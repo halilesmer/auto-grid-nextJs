@@ -14,6 +14,7 @@ import { useBacktestRun } from '@/hooks/useBacktestRun';
 import { useBrokerClock } from '@/hooks/useBrokerClock';
 import { useCsvImports } from '@/hooks/useCsvImports';
 import { useDealsHistory } from '@/hooks/useDealsHistory';
+import { pickConversionPair } from '@/lib/backtest/broker/conversion';
 import { useSymbolDetails } from '@/hooks/useSymbolDetails';
 import { useFormat, useT, type MessageKey } from '@/i18n';
 import type { SpreadSetting } from '@/lib/backtest/broker/costs';
@@ -250,6 +251,7 @@ export function BacktestView() {
       zone: { ...zone },
       symbol,
       accountCurrency: currency ?? undefined,
+      conversion: currency ? pickConversionPair(Object.values(symbolDetails), symbol, currency) : undefined,
       from: bounds.from,
       to: bounds.to,
       dataTimeframe,
@@ -258,7 +260,7 @@ export function BacktestView() {
       commissionPerLot: commission,
       swapEnabled: form.swapEnabled,
       approximate: form.approximate,
-      model: { fill: form.fill, slFirst: form.slFirst, closeAtEnd: form.closeAtEnd },
+      model: { fill: form.fill, slFirst: form.slFirst, closeAtEnd: form.closeAtEnd, conversionRate: form.conversionRate ?? 'close' },
       path: form.path,
       startCapital: form.startCapital,
       zoneLabel,

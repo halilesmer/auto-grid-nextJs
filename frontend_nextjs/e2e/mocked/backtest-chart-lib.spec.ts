@@ -51,7 +51,7 @@ for (const side of ['buy', 'sell'] as const) {
   test(`${side}: MFE/MAE enthält den Spread beim Einstieg und nur den gehaltenen Weg`, { tag: '@BKT-07' }, () => {
     const info = { name: 'TEST', point: 0.01, digits: 2, volume_min: 0.01, volume_max: 50, volume_step: 0.01,
       trade_stops_level: 0, trade_contract_size: 100, trade_tick_size: 0.01, trade_tick_value: 1 };
-    const broker = new PathBroker({ info, costs: { point: 0.01, digits: 2, tickSize: 0.01, tickValueProfit: 1, tickValueLoss: 1.05, swap: null },
+    const broker = new PathBroker({ info, costs: { point: 0.01, digits: 2, tickSize: 0.01, contractSize: 100, tickValueProfit: 1, tickValueLoss: 1.05, swap: null },
       start: 0, firstBid: 100, fill: 'gap', commissionPerLot: 0, slFirst: false, timeframes: [], zoneLabel: () => null });
     broker.beginCandle(0, 100, 20);
     broker.setMarket(100, 0);

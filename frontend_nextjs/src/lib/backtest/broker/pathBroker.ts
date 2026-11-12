@@ -38,6 +38,8 @@ import {
   cents,
   commissionHalf,
   profitOf,
+  CONVERTIBLE_CALC_MODES,
+  type RateConversion,
   profitRaw,
   spreadCost,
   swapNights,
@@ -45,6 +47,7 @@ import {
   type SymbolCosts,
 } from './costs';
 import { SimBroker } from './simBroker';
+import { rateAt, type ConversionPair, type RateSeries } from './conversion';
 
 export type FillModel = 'gap' | 'parity';
 
@@ -100,6 +103,11 @@ export interface PathBrokerOptions {
   slSlippagePoints?: number | null;
   /** BKT-26: Sekunden, die eine in der Replay-Minute gefüllte Position ihr Stufen-SL/TP behält (0/leer = aus) */
   fillSltpDelay?: number;
+  /**
+   * BKT-28: Gewinn zum Kurs des Schließens umrechnen. `series` null = Paar nicht geladen (Schnappschuss).
+   * Ohne diese Option (oder bei 'none') rechnet der Broker mit dem Schnappschuss-Tickwert.
+   */
+  conversion?: { pair: ConversionPair; series: RateSeries | null };
 }
 
 /** Position, die zum Startzeitpunkt schon offen war (Daten aus den Live-Deals vor `from`) */
@@ -189,6 +197,9 @@ export class PathBroker extends SimBroker {
   /** BKT-26: gefüllte Positionen mit Stufen-SL/TP bis `until`; tp/sl = zuletzt vom Bot gewünschte Werte */
   private readonly sltpHold = new Map<number, { until: number; tp?: number; sl?: number }>();
   private readonly fillSltpDelay: number;
+  private readonly conversion: { pair: ConversionPair; series: RateSeries | null } | null;
+  /** BKT-28: Anzahl Umrechnungen ohne Kurs (Lücke über 4 Tage): sie rechneten mit dem Schnappschuss */
+  convFallbacks = 0;
 
   constructor(options: PathBrokerOptions) {
     super({ symbol: options.info, start: options.start, firstBid: options.firstBid });
@@ -200,6 +211,8 @@ export class PathBroker extends SimBroker {
     this.carrySpread = options.carrySpread ?? true;
     this.slSlippagePoints = options.slSlippagePoints ?? null;
     this.fillSltpDelay = options.fillSltpDelay ?? 0;
+    const conv = options.conversion;
+    this.conversion = conv && conv.pair.kind !== 'none' && CONVERTIBLE_CALC_MODES.includes(options.info.trade_calc_mode ?? -1) ? conv : null;
     for (const tf of options.timeframes) this.aggregators.set(tf.name, new TimeframeAggregator(tf.sec));
     this.hooks = {
       openedByBot: (position, price) => this.register(position, price),
@@ -386,7 +399,7 @@ export class PathBroker extends SimBroker {
       if (nights === 0) continue;
       for (const p of this.positions) {
         const info = this.opens.get(p.ticket);
-        if (info) info.swap = cents(info.swap + cents(swapPerNight(swap, this.costs, p.type === POSITION_TYPE_BUY, p.volume) * nights));
+        if (info) info.swap = cents(info.swap + cents(swapPerNight(swap, this.costs, p.type === POSITION_TYPE_BUY, p.volume, this.rateConversion(p.type === POSITION_TYPE_BUY, time, this.tick.bid)) * nights));
       }
     }
   }
@@ -631,6 +644,23 @@ export class PathBroker extends SimBroker {
     }
   }
 
+  /**
+   * BKT-28: Umrechnung zum Kurs von `time`; undefined = Schnappschuss. `symbolPrice`: Kurs des Symbols selbst
+   * (gilt, wenn das Paar das Symbol ist, z. B. USDJPY).
+   */
+  private rateConversion(buy: boolean, time: number, symbolPrice: number): RateConversion | undefined {
+    const conv = this.conversion;
+    if (!conv) return undefined;
+    const contractSize = this.costs.contractSize;
+    if (conv.pair.kind === 'self') return { rate: symbolPrice, invert: conv.pair.invert, contractSize };
+    const rate = conv.series ? rateAt(conv.series, Math.floor(time), buy) : null;
+    if (rate === null || !(rate > 0)) {
+      this.convFallbacks += 1;
+      return undefined;
+    }
+    return { rate, invert: conv.pair.invert, contractSize };
+  }
+
   private closePosition(position: Position, price: number, reason: CloseReason): void {
     this.sltpHold.delete(position.ticket);
     this.positions = this.positions.filter((p) => p.ticket !== position.ticket);
@@ -642,7 +672,7 @@ export class PathBroker extends SimBroker {
     if (!info) throw new RunError('run.internal', { what: 'open info missing', ticket: position.ticket });
     this.opens.delete(position.ticket);
     const buy = position.type === POSITION_TYPE_BUY;
-    const profit = profitOf(this.costs, buy, position.volume, info.price, price);
+    const profit = profitOf(this.costs, buy, position.volume, info.price, price, this.rateConversion(buy, this.now, price));
     const commission = cents(info.commission + commissionHalf(this.commissionPerLot, position.volume));
     const net = cents(profit + commission + info.swap);
     const fractal = parseFractalComment(position.comment);

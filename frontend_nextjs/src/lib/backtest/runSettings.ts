@@ -20,6 +20,8 @@ export interface RunSettingsValue {
   path: PathChoice;
   closeAtEnd: boolean;
   approximate: boolean;
+  /** BKT-28: Umrechnung des Gewinns zum Kurs des Schließens ('close', Standard) oder mit dem Tickwert von heute ('snapshot'); ohne Bedienelement */
+  conversionRate?: 'close' | 'snapshot';
 }
 
 export const DEFAULT_RUN_SETTINGS: RunSettingsValue = {
@@ -35,5 +37,6 @@ export const DEFAULT_RUN_SETTINGS: RunSettingsValue = {
   path: 'auto',
   closeAtEnd: false,
   approximate: false,
+  conversionRate: 'close',
 };
 

@@ -74,15 +74,17 @@ export function parsePresetData(input: unknown): PresetData {
     const value = form[key];
     if (key === 'csvImportId') { checked[key] = null; continue; }
     if (key === 'commission' && value === null) { checked[key] = null; continue; }
+    // BKT-28: ältere Vorlagen kennen conversionRate nicht; fehlt es, gilt der Standard ('close')
+    if (key === 'conversionRate' && value === undefined) continue;
     const expected = key === 'commission' ? 'number' : typeof fallback;
     if (typeof value !== expected || (typeof value === 'number' && (!Number.isFinite(value) || value < 0))) throw new Error(t('backtest.presets.invalid'));
     checked[key] = value;
   }
   const choices: Record<string, readonly string[]> = {
     timeframe: ['M1', 'M5', 'M15', 'H1'], spreadMode: ['candle', 'fixed', 'max', 'tick'], fill: ['gap', 'parity'],
-    path: ['auto', 'lowFirst', 'highFirst', 'both'],
+    path: ['auto', 'lowFirst', 'highFirst', 'both'], conversionRate: ['close', 'snapshot'],
   };
-  for (const [key, values] of Object.entries(choices)) if (!values.includes(String(checked[key]))) throw new Error(t('backtest.presets.invalid'));
+  for (const [key, values] of Object.entries(choices)) if ((key !== 'conversionRate' || key in checked) && !values.includes(String(checked[key]))) throw new Error(t('backtest.presets.invalid'));
   const range = record(data.range);
   let selection: RangeSelection;
   if (typeof range.preset === 'string' && (RANGE_PRESETS as readonly string[]).includes(range.preset)) {
