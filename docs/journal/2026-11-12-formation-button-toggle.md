@@ -3,7 +3,7 @@ date: 2026-11-12
 author: Claude
 type: decision
 status: done
-pr: []
+pr: [512]
 features: [UI-30]
 areas: [frontend, tests, docs]
 ---
