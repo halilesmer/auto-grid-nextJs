@@ -4,12 +4,15 @@
  * Läuft im Web Worker; die HTTP-Anfrage selbst kommt als Funktion herein (`fetchJson`), damit der Test ohne Netz läuft.
  */
 import type { MissingRange } from '@/lib/analysis/candles';
-import { RunError } from '@/lib/backtest/runContext';
+import { RunError } from '../runContext';
 
 export const MAX_CANDLES = 1_000_000;
 /** Der Worker rechnet Tick-Stücke in Etappen (`budget`) und lädt unfertige Historie nach (`syncing`): so oft dieselbe Seite neu holen */
 export const TICK_RETRIES = 15;
 const RETRY_REASONS = new Set(['budget', 'syncing']);
+/** BKT-27 (D1.4): Kerzen-Strecken mit Grund `syncing` (Terminal lädt Historie nach) so oft neu anfragen, mit Pause dazwischen */
+export const SYNC_RETRIES = 3;
+export const SYNC_RETRY_PAUSE_MS = 2000;
 
 export type FetchJson = (path: string) => Promise<unknown>;
 
@@ -59,6 +62,8 @@ export interface LoadRatesParams {
   tickSpread?: boolean;
   /** BKT-20: dazu die Ticks der Rollover-/Sprung-Minuten (braucht `tickSpread`) */
   tickReplay?: boolean;
+  /** Pause vor einer erneuten `syncing`-Anfrage in ms (Tests setzen 0) */
+  syncPauseMs?: number;
   /** Anteil des Zeitraums, der geladen ist (0…1) */
   onProgress?: (fraction: number) => void;
 }
@@ -179,6 +184,11 @@ export async function loadRates(p: LoadRatesParams): Promise<LoadedRates> {
     let page = parsePage(await p.fetchJson(`/market/${encodeURIComponent(p.accountId)}/rates?${query}`));
     // Noch nicht fertig berechnete oder noch ladende Tick-Stücke: dieselbe Seite erneut holen (der Worker macht weiter)
     for (let retry = 0; p.tickSpread && retry < TICK_RETRIES - 1 && page.tick_missing?.some((m) => RETRY_REASONS.has(m.reason ?? '')); retry++) {
+      page = parsePage(await p.fetchJson(`/market/${encodeURIComponent(p.accountId)}/rates?${query}`));
+    }
+    // Kerzen, die das Terminal noch nachlädt: kurz warten und dieselbe Seite neu holen
+    for (let retry = 0; retry < SYNC_RETRIES && page.missing?.some((m) => m.reason === 'syncing'); retry++) {
+      await new Promise((resolve) => setTimeout(resolve, p.syncPauseMs ?? SYNC_RETRY_PAUSE_MS));
       page = parsePage(await p.fetchJson(`/market/${encodeURIComponent(p.accountId)}/rates?${query}`));
     }
     // Die laufende Kerze ist unfertig: sie zählt nicht (docs/analyse-regeln.md §3), sonst wäre der Lauf nicht wiederholbar

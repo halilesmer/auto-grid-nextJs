@@ -230,6 +230,13 @@ MIGRATIONS: list[list] = [
             account_id TEXT NOT NULL, from_t INTEGER NOT NULL, to_t INTEGER NOT NULL, synced_at INTEGER NOT NULL
         )""",
     ],
+    [
+        # 1112-D1: Bis hierher wurden Strecken ohne M1-Kerzen als bestätigte Pause gespeichert, auch wenn Ticks da waren
+        # (Terminal hatte die Kerzen nicht gebaut) und nie wieder gefragt. Alle Pausen (nicht von CSV-Importen) werden
+        # gelöscht; Kerzen bleiben. Die nächste Anfrage fragt nur diese Lücken neu und bewertet sie mit der Tick-Probe
+        # (Wochenenden werden wieder Pausen). Vor der Migration wird gesichert.
+        "DELETE FROM rate_coverage WHERE state = 'gap_confirmed' AND source NOT LIKE 'csv:%'",
+    ],
 ]
 SCHEMA_VERSION = len(MIGRATIONS)
 

@@ -109,6 +109,12 @@ Kurz gesagt:
 - Gelieferte Kerzen von der ersten bis zur letzten: **vollständig** (Lücken dazwischen sind Pausen).
 - Vor der ersten gelieferten Kerze: **Pause**, wenn MT5 davor noch eine Kerze hat, sonst
   **nicht verfügbar**. Nach der letzten: **Pause**, denn es gibt eine neuere Kerze.
+- **Tick-Probe (1112-D1):** Eine Strecke, die als Pause gelten würde, wird mit einem Tick-Abruf geprüft
+  (`copy_ticks_from`, ab Strecken-Anfang). Liegt dort ein Bid-Tick (M1-Kerzen entstehen aus Bid-Ticks), fehlen Kerzen
+  in Handelszeit: die Strecke ist **keine** Pause. Liegt ihr Ende höchstens 7 Tage zurück, wird nichts gespeichert und
+  der Bereich steht in `missing` mit Grund „syncing“ (nächster Abruf fragt MT5 neu); ist sie älter, ist sie
+  **nicht verfügbar** (nach 24 h neu versucht). Wochenenden und Tagespausen haben keine Ticks und bleiben Pause.
+  Migration 12 löscht alle bisherigen Pausen (nicht von CSV-Importen), damit sie so neu bewertet werden.
 - Eine leere Strecke gilt nur bis 4 Tage als Pause (Wochenende + Feiertag). Längere leere
   Strecken sind **nicht verfügbar**: Das Terminal kann die Historie gerade noch laden, und eine
   bestätigte Pause würde nie wieder abgefragt.

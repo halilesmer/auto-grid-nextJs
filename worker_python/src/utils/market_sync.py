@@ -66,6 +66,10 @@ LOWER_TF = {
     "TIMEFRAME_D1": "TIMEFRAME_H1", "TIMEFRAME_H4": "TIMEFRAME_H1", "TIMEFRAME_H1": "TIMEFRAME_M15",
     "TIMEFRAME_M30": "TIMEFRAME_M5", "TIMEFRAME_M15": "TIMEFRAME_M5", "TIMEFRAME_M5": "TIMEFRAME_M1",
 }
+# 1112-D1: Tick-Probe der onaylanacak aralıklar (ilk N tick yeter: biri Bid ise aralıkta mum olmalı)
+TICK_PROBE_COUNT = 50
+# Tick'i olan ama mumsuz aralık bu kadar yeniyse "syncing" (terminal yüklüyor olabilir), daha eskiyse "mevcut değil"
+TICK_HOLE_RECENT_SEC = 7 * 86400
 _TF_SEC_BY_NAME = {name: sec for name, sec in TIMEFRAMES.values()}
 ENTRY_IN = 0
 # BKT-24: so weit vor/nach dem Fenster sucht history_orders_get (MT5 sagt nicht, ob nach time_setup oder time_done gefiltert wird)
@@ -147,22 +151,48 @@ def classify(bars: list[dict], a: int, b: int, tf_sec: int, latest: dict | None,
     return stored, segments, live
 
 
+def _has_bid_tick(mt5, symbol: str, x: int, y: int) -> bool:
+    """1112-D1: Liegt in [x, y) (MT5-Sekunden) ein Bid-Tick? M1-Kerzen entstehen aus Bid-Ticks, ein reiner Ask-Tick
+    beweist keine fehlende Kerze. Ein Abruf: die ersten TICK_PROBE_COUNT Ticks ab x."""
+    ticks = mt5.copy_ticks_from(symbol, x, TICK_PROBE_COUNT, mt5.COPY_TICKS_INFO)
+    if ticks is None:
+        return False
+    bid = getattr(mt5, "TICK_FLAG_BID", 2)
+    for tick in ticks:
+        if int(tick["time"]) >= y:
+            break  # ab hier gehört der Tick zur Kerze nach der Strecke
+        if int(tick["flags"]) & bid:
+            return True
+    return False
+
+
 def _syncing_holes(mt5, symbol: str, tf_name: str, bars: list[dict], a: int, b: int, latest, has_before: bool):
-    """Mumsuz görünen aralıklardan, bir alt zaman diliminde mum bulunanlar (üst zaman dilimi yüklenmemiş)."""
-    lower = LOWER_TF.get(tf_name)
-    if lower is None or latest is None:
-        return []
+    """Mumsuz görünen aralıkları denetler (docs/analyse-regeln.md §3).
+
+    Dönüş: (syncing, old_ticked). `syncing`: kaydedilmeyecek, sonra yeniden sorulacak aralıklar (alt zaman diliminde
+    mum var = üst dilim yüklenmemiş; ya da onaylanacak "ara"da Bid tick'i var). `old_ticked`: Bid tick'i olan ama
+    bitişi TICK_HOLE_RECENT_SEC'ten eski aralıklar: "mevcut değil" olarak (24 saat sonra yeniden) kaydedilir.
+    """
+    if latest is None:
+        return [], []
     _, segments, _ = classify(bars, a, b, _TF_SEC_BY_NAME[tf_name], latest, has_before)
-    low_tf = getattr(mt5, lower)
-    holes = []
+    lower = LOWER_TF.get(tf_name)
+    low_tf = getattr(mt5, lower) if lower else None
+    now = time.time()
+    syncing, old_ticked = [], []
     for x, y, state in segments:
         if state == db.STATE_COMPLETE:
             continue
         # En yeni alt dilim mumu (≤ y−1) aralığın içindeyse aralıkta mum var demektir (ucuz: tek mum istenir)
-        probe = mt5.copy_rates_from(symbol, low_tf, y - 1, 1)
-        if probe is not None and len(probe) and x <= int(probe[-1]["time"]) < y:
-            holes.append((x, y))
-    return holes
+        if low_tf is not None:
+            probe = mt5.copy_rates_from(symbol, low_tf, y - 1, 1)
+            if probe is not None and len(probe) and x <= int(probe[-1]["time"]) < y:
+                syncing.append((x, y))
+                continue
+        # 1112-D1: alt dilim zinciri M1'de biter (ve M1'in alt dilimi yok): onaylanacak ara için tick kanıtı ara
+        if state == db.STATE_GAP and _has_bid_tick(mt5, symbol, x, y):
+            (syncing if now - y <= TICK_HOLE_RECENT_SEC else old_ticked).append((x, y))
+    return syncing, old_ticked
 
 
 def _timed_range(mt5, symbol: str, tf_name: str, tf, a: int, b: int):
@@ -205,12 +235,12 @@ def _fetch_chunk(account: dict, symbol: str, tf_name: str, a: int, b: int) -> di
         if not bars or bars[0]["time"] > a:
             before = mt5.copy_rates_from(symbol, tf, a - 1, 1)
             has_before = before is not None and len(before) > 0 and int(before[-1]["time"]) < a
-        syncing = _syncing_holes(mt5, symbol, tf_name, bars, a, b, latest, has_before)
+        syncing, old_ticked = _syncing_holes(mt5, symbol, tf_name, bars, a, b, latest, has_before)
         tick, utc_at = mm._offset_reading(mt5, symbol)
         offset = mm.broker_offset(tick.time, utc_at) if tick is not None and tick.time else None
         mm._check_account(mt5, account)  # 1110-A2: Terminal waehrend des langen Abrufs auf ein anderes Konto? Nicht speichern
         return {
-            "bars": bars, "latest": latest, "has_before": has_before, "syncing": syncing,
+            "bars": bars, "latest": latest, "has_before": has_before, "syncing": syncing, "old_ticked": old_ticked,
             "digits": mm._plain(getattr(info, "digits", None)), "point": mm._plain(getattr(info, "point", None)),
             "server": getattr(acc, "server", None), "offset": offset, "utc": utc_at,
         }
@@ -595,7 +625,10 @@ def _get_rates(account: dict, source: str, symbol: str, timeframe: str, a: int, 
             live = part_live or live
             # Üst zaman dilimi yüklenmemiş (alt dilimde mum var): "yok" diye kaydetme, sonra yeniden sor
             held = set(part["syncing"])
-            segments = [seg for seg in segments if seg[:2] not in held]
+            # 1112-D1: Tick'i olan ama eski mumsuz aralık "ara" değil, "mevcut değil" (24 saat sonra yeniden)
+            ticked = set(part.get("old_ticked") or [])
+            segments = [(s, t, db.STATE_UNAVAILABLE) if (s, t) in ticked else (s, t, st)
+                        for s, t, st in segments if (s, t) not in held]
             missing += [{"from": s, "to": t, "reason": "syncing", "checked_at": None} for s, t in sorted(held)]
             for r in stored:
                 fetched[r["time"]] = r
