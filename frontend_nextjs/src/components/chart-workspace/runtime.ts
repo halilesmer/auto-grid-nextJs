@@ -103,6 +103,66 @@ export function appearanceColors(a: Appearance) {
   const white = css.getPropertyValue('--chart-classic-fg').trim();
   return { ...c, background: bg, up: a.up || (classic ? bg : c.up), down: a.down || (classic ? white : c.down), borderUp: a.borderUp || (classic ? white : c.up), borderDown: a.borderDown || (classic ? white : c.down), wickUp: a.wickUp || (classic ? white : c.up), wickDown: a.wickDown || (classic ? white : c.down), text: a.textColor || (classic ? white : c.text) };
 }
+/** Son yazılan autoScale ve ölçek kipi; applyAppearance bunları yalnız değişince yeniden yazar */
+const appliedScale = new WeakMap<ChartBinding, { autoScale?: boolean; mode?: PriceScaleMode }>();
+/** Fiyat ölçeğini ayardaki otomatik ölçeğe döndürür (Sığdır düğmesi) */
+export function resetPriceScale(binding: ChartBinding, autoScale: boolean) {
+  if (binding.isDisposed()) return;
+  binding.candles.priceScale().setAutoScale(autoScale);
+  appliedScale.set(binding, { ...appliedScale.get(binding), autoScale });
+}
+/** Otomatik ölçek açıkken bu kadar dikey sürükleme mumları kaydırmaya başlar; daha azı yatay kaydırmadır */
+const VERTICAL_PAN_START_PX = 6;
+/**
+ * Mumları dikey sürükleme. lightweight-charts gövdeyi yalnız otomatik ölçek kapalıyken dikey kaydırır; açıkken dikey
+ * sürüklenen ilk harekette ölçek kapatılır ve bu sürükleme burada sürer. Sonraki sürüklemeleri kütüphane kendi yapar.
+ * Çizim sürüklenirken kütüphane handleScroll'u kapatır; o zaman dokunulmaz.
+ */
+export function enableVerticalPan(binding: ChartBinding): () => void {
+  const { chart, candles, host } = binding;
+  let start: { y: number; id: number } | null = null, pan: { from: number; to: number; log: boolean } | null = null;
+  const scrollAllowed = () => { const h = chart.options().handleScroll; return typeof h === 'object' ? h.pressedMouseMove : !!h; };
+  const down = (e: PointerEvent) => {
+    start = null; pan = null;
+    if (binding.isDisposed() || e.button !== 0 || e.pointerType !== 'mouse' || !(e.target instanceof HTMLCanvasElement)) return;
+    const scale = candles.priceScale(), mode = scale.options().mode;
+    if (!scale.options().autoScale || (mode !== PriceScaleMode.Normal && mode !== PriceScaleMode.Logarithmic)) return;
+    const box = host.getBoundingClientRect(), left = chart.priceScale('left').width(), pane = chart.paneSize(0);
+    const x = e.clientX - box.left, y = e.clientY - box.top;
+    if (x < left || x > left + pane.width || y < 0 || y > pane.height) return;
+    start = { y: e.clientY, id: e.pointerId };
+  };
+  const move = (e: PointerEvent) => {
+    if (!start || e.pointerId !== start.id || binding.isDisposed()) return;
+    if ((e.buttons & 1) === 0) { start = null; pan = null; return; }
+    const dy = e.clientY - start.y, scale = candles.priceScale();
+    if (!pan) {
+      if (Math.abs(dy) < VERTICAL_PAN_START_PX) return;
+      const range = scale.getVisibleRange();
+      if (!scrollAllowed() || !range) { start = null; return; }
+      const log = scale.options().mode === PriceScaleMode.Logarithmic;
+      if (log && (range.from <= 0 || range.to <= 0)) { start = null; return; }
+      pan = log ? { from: Math.log(range.from), to: Math.log(range.to), log } : { from: range.from, to: range.to, log };
+      scale.setAutoScale(false);
+    }
+    const height = chart.paneSize(0).height;
+    if (height <= 1) return;
+    const shift = (scale.options().invertScale ? -dy : dy) * (pan.to - pan.from) / (height - 1);
+    const from = pan.from + shift, to = pan.to + shift;
+    scale.setVisibleRange(pan.log ? { from: Math.exp(from), to: Math.exp(to) } : { from, to });
+  };
+  const up = (e: PointerEvent) => { if (start && e.pointerId === start.id) { start = null; pan = null; } };
+  host.addEventListener('pointerdown', down, true);
+  window.addEventListener('pointermove', move, true);
+  window.addEventListener('pointerup', up, true);
+  window.addEventListener('pointercancel', up, true);
+  return () => {
+    host.removeEventListener('pointerdown', down, true);
+    window.removeEventListener('pointermove', move, true);
+    window.removeEventListener('pointerup', up, true);
+    window.removeEventListener('pointercancel', up, true);
+  };
+}
 export function applyAppearance(binding: ChartBinding, a: Appearance, digits: number | null) {
   if (binding.isDisposed()) return;
   const { chart, candles } = binding, c = appearanceColors(a);
@@ -118,7 +178,13 @@ export function applyAppearance(binding: ChartBinding, a: Appearance, digits: nu
     priceLineVisible: a.priceLine, lastValueVisible: a.priceLabel, priceLineColor: a.priceColor || c.text, priceLineStyle: lineStyle(a.priceStyle),
     priceFormat: { type: 'price', precision: a.precision === 'auto' ? digits ?? 5 : Number(a.precision), minMove: 10 ** -(a.precision === 'auto' ? digits ?? 5 : Number(a.precision)) },
   });
-  candles.priceScale().applyOptions({ autoScale: a.autoScale, invertScale: a.invert, alignLabels: a.align, mode: scaleMode(a.scale), scaleMargins: !a.marginsSet && binding.defaultMargins ? binding.defaultMargins() : { top: a.marginTop / 100, bottom: a.marginBottom / 100 } });
+  // autoScale ve mode yalnız ayar değişince yazılır: fiyat eksenini ya da mumları dikey sürükleyen kullanıcı ölçeği kapatır.
+  // Bu fonksiyon her mum güncellemesinde çalışır; autoScale'i geri açmak ya da mode'u yeniden yazmak (kütüphane fiyat aralığını
+  // yeniden hesaplar) görünümü ilk tick'te eski hâline döndürür
+  const previous = appliedScale.get(binding), mode = scaleMode(a.scale);
+  const changed = { ...(previous?.autoScale === a.autoScale ? {} : { autoScale: a.autoScale }), ...(previous?.mode === mode ? {} : { mode }) };
+  appliedScale.set(binding, { autoScale: a.autoScale, mode });
+  candles.priceScale().applyOptions({ ...changed, invertScale: a.invert, alignLabels: a.align, scaleMargins: !a.marginsSet && binding.defaultMargins ? binding.defaultMargins() : { top: a.marginTop / 100, bottom: a.marginBottom / 100 } });
 }
 
 /** RSI band tint follows public series coordinates, so resizing and inverted axes remain correct. */

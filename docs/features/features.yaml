@@ -1649,6 +1649,16 @@ kategorien:
           - "Griff ziehen, Seite neu laden, Zeichnung wählen: Leiste am gleichen Platz; Doppelklick auf den Griff: wieder oben in der Mitte. Bei 375 px: Leiste unten, kein Griff, kein seitliches Scrollen."
         erwartet: "Die Leiste folgt der Auswahl, die Knöpfe passen zur Art, Sperre schaltet die richtigen Knöpfe ab, der gezogene Platz bleibt nach dem Neuladen, bei 375 px sitzt sie unten ohne Überlauf."
 
+      - id: UI-30
+        titel: "Preisachse ziehen und Kerzen senkrecht verschieben"
+        beschreibung: "Halil 2026-11-12: wer die Preisachse rechts nach oben oder unten zieht, behält die neue Skala nach dem Loslassen; vorher schrieb jede Aktualisierung des Charts (neue Kerze, Ende einer Geste) die automatische Skala zurück. Die Kerzen lassen sich mit der Maus senkrecht verschieben: ist die automatische Skala an, schaltet ein senkrechter Zug ab 6 px sie aus (wie in TradingView), danach verschiebt der Chart selbst. Beim Ziehen einer Zeichnung passiert das nicht. „Ansicht zurücksetzen“ stellt die automatische Skala aus den Einstellungen wieder her, ebenso ein Doppelklick auf die Preisachse."
+        code: [frontend_nextjs/src/components/chart-workspace/runtime.ts, frontend_nextjs/src/components/chart-workspace/ChartWorkspace.tsx]
+        tiers: [e2e]
+        pruefung:
+          - "Playwright-Test e2e/mocked/chart-price-scale.spec.ts (@UI-30) ausführen."
+          - "/chart öffnen, die Preisachse nach unten ziehen und loslassen: die Skala bleibt; die Kerzen nach oben ziehen: sie bleiben oben; „Ansicht zurücksetzen“: automatische Skala."
+        erwartet: "Gezogene Preisachse und senkrecht verschobene Kerzen bleiben nach dem Loslassen und bei neuen Kerzen; „Ansicht zurücksetzen“ stellt die automatische Skala her."
+
   # ---------------------------------------------------------------------------
   - id: ANA
     titel: Analyse (Chart, Statistik, Backtest)
