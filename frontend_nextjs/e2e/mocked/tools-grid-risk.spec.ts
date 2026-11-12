@@ -21,6 +21,19 @@ async function pickSymbol(page: import('@playwright/test').Page, name: string) {
 }
 
 test.describe('Grid-Risikorechner', { tag: '@TLS-01' }, () => {
+  test('Ohne Konto zeigt die Seite einen Kontowähler; Konto wählen lädt die Symbole', async ({ page, worker }) => {
+    void worker; // schaltet den Mock-Worker ein, ohne vorher das Dashboard zu öffnen
+    await page.goto('/tools/grid-risk');
+    await expect(page.getByText(msg('tools.noAccount')).first()).toBeVisible();
+    const select = page.getByTestId('grid-risk-account').getByRole('combobox', { name: msg('account.select.aria') });
+    await expect(select).toBeVisible();
+    await select.click();
+    const listId = await select.getAttribute('aria-controls');
+    await page.locator(`[id="${listId}"]`).getByRole('option').filter({ hasText: `(${DEMO_ID})` }).click();
+    await expect(page.getByText(msg('tools.noAccount'))).toHaveCount(0);
+    await pickSymbol(page, 'USOUSD');
+  });
+
   test('Menü → Seite, Werte kommen vom Konto, Zurück-Link, Balken folgt dem Prozentwert', async ({ page, dashboard }) => {
     await openCalculator(page, dashboard);
     await pickSymbol(page, 'USOUSD');
