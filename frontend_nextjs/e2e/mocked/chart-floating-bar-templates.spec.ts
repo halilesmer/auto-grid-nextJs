@@ -19,6 +19,9 @@ async function lines(page: Page) {
   }, KEY).then(all => all.filter(d => d.kind === 'trend-line'));
 }
 async function drawLine(page: Page, yOffset: number) {
+  // Mıknatıs açıkken uçlar mum değerine yapışır ve çizginin ortası tıklanan noktadan kayar (CI 2026-11-12); kapalıyken uçlar tıklanan noktadadır.
+  const magnet = page.getByRole('button', { name: msg('cw.magnet'), exact: true });
+  if ((await magnet.getAttribute('aria-pressed')) === 'true') await magnet.click();
   await page.getByTestId('chart-workspace').getByRole('button', { name: msg('cw.rail.linesMenu'), exact: true }).click();
   await page.getByTestId('tool-trend-line').click();
   const box = (await page.getByTestId('analysis-chart').boundingBox())!;
