@@ -8,6 +8,8 @@ const URL = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}&form=GAR`;
 const storageKey = 'grid-robot-chart-workspaces-v1';
 test.setTimeout(60_000);
 test.use({ viewport: { width: 1440, height: 900 } });
+// Der Mock rechnet seine Kerzen aus der Uhrzeit (Sinuskurve); ohne feste Uhr hängt die Zahl der Formations-Kandidaten von der Tageszeit ab (UI-17 fiel ab 21:00 UTC)
+test.use({ fakeNow: '2026-11-12T16:21:00Z' });
 test.beforeEach(({ page }) => seedFixtureTrend(page, fixtureTrend('gar-buy-h4-01')));
 
 const pkg = (page: Page, id: string) => page.locator(`[data-dock-pkg="${id}"]`);
