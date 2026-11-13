@@ -7,7 +7,6 @@ import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 import { parseFixture } from '../../src/lib/formation/fixture';
 import { groupZones, makeZone } from '../fixtures/data';
-import { msg } from '../fixtures/i18n';
 import { DEMO_ID, ZONE_ID, expect, test, type MockWorker } from '../fixtures/test';
 import { named, seedFixtureTrend, trendOf } from '../fixtures/formation-trend';
 
@@ -47,13 +46,19 @@ test.describe('UI-25 Formationsreihe: Treffer sichtbar, Kandidaten im Menü', ()
       // Every unselected button in the row has a badge; the forming OBO is not in the row
       const buttons = row(page).locator('button[data-testid^="formation-form-"]');
       for (const b of await buttons.all()) {
-        if ((await b.getAttribute('aria-pressed')) !== 'true') await expect(b.getByTestId('hit-badge')).toBeVisible();
+        // 1113-A4: a near candidate (data-state=near) is in the row without badge
+        if ((await b.getAttribute('aria-pressed')) !== 'true' && (await b.getAttribute('data-state')) !== 'near') await expect(b.getByTestId('hit-badge')).toBeVisible();
+      }
+      // 1113-A4: colour is not the only signal; every state button has an icon and a label with state and score
+      for (const b of await row(page).locator('button[data-state]').all()) {
+        await expect(b).toHaveAttribute('aria-label', /\d+\/\d+/);
+        await expect(b.locator('svg').last()).toBeVisible();
       }
       await expect(row(page).locator('button[data-testid="formation-form-OBO"]')).toHaveCount(0);
       await page.getByTestId('formation-forms-more').click();
       const item = page.getByTestId('formation-more-OBO');
       await expect(item).toBeVisible();
-      await expect(item).toContainText(msg('formation.forms.state.forming'));
+      await expect(page.getByTestId('formation-more-why-OBO')).toHaveText(/\d+\/\d+/); // score and reason replace the old state word
       expect(await onTop(page, 'formation-more-OBO')).toBe(true);
       await item.click();
       await expect(page).toHaveURL(/form=OBO/);

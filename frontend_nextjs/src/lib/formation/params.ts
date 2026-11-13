@@ -471,3 +471,6 @@ export const KEI_PARAMS = {
   /** Z-KEI-02: Level der Fib auf die große Bewegung (Zahlen aus FIB_PARAMS) */
   targetLevels: [FIB_PARAMS.retrace[0], FIB_PARAMS.retrace[2]] as readonly number[],
 } as const;
+
+/** "Yakın" aday (1113-A4): geçersiz, en fazla bu kadar zorunlu şart eksik ve hiçbir dışlama tetiklenmemiş; şeritte görünür, rozete girmez */
+export const NEAR_MISS_MAX_MISSING = 2;

@@ -1,11 +1,12 @@
 'use client';
 
-import { ChevronDown, Eye, EyeOff } from 'lucide-react';
+import { Check, ChevronDown, CircleDashed, Clock, Eye, EyeOff } from 'lucide-react';
 import { DropdownMenu, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useT, type MessageKey } from '@/i18n';
 import type { ContextTimeframe } from '@/lib/formation/params';
-import { hitsCount, SCAN_FORMATIONS, type ScanFormation, type ScanHit } from '@/lib/formation/scan';
+import { checkScore } from '@/lib/formation/score';
+import { formState, hitsCount, reasonOf, SCAN_FORMATIONS, type HitState, type ScanFormation, type ScanHit } from '@/lib/formation/scan';
 import { cn } from '@/lib/utils';
 
 export function CountBadge({ count, active }: { count: number; active: boolean }) {
@@ -65,8 +66,8 @@ export function FormationForms({
   if (candidates.length === 0) {
     return emptyNote ? <span className="px-1 text-xs text-muted-foreground" data-testid="formation-forms-empty">{emptyNote}</span> : null;
   }
-  // Die Reihe zeigt nur gezählte Formationen (Badge) und die gewählte; die übrigen Kandidaten stehen im Menü dahinter (UI-25)
-  const counted = candidates.filter((x) => x === form || hitsCount(hits, { form: x, tf }) > 0);
+  // Die Reihe zeigt gültige, im Aufbau befindliche und nahe Kandidaten (1113-A4) und die gewählte; die übrigen stehen im Menü dahinter (UI-25)
+  const counted = candidates.filter((x) => x === form || formState(hits, x, tf)?.state !== 'other');
   const rest = candidates.filter((x) => !counted.includes(x));
   return (
     <>
@@ -92,12 +93,17 @@ export function FormationForms({
           <div className="px-3 pb-1 pt-0.5 text-[11px] text-muted-foreground">{t('formation.forms.more.caption')}</div>
           {rest.map((x) => {
             const name = t(`formation.form.${x}` as MessageKey);
-            const forming = hits.some((h) => h.form === x && h.tf === tf && h.candidate.verdict !== 'invalid');
+            const best = formState(hits, x, tf);
+            const score = best ? checkScore(best.hit.candidate) : null;
+            const reason = best ? reasonOf(best.hit) : null;
             return (
               <DropdownMenuItem key={x} icon={null} hint={t('formation.forms.item.hint', { form: name })} data-testid={`formation-more-${x}`} onSelect={() => onForm(x)}>
                 <span className="flex w-full items-center justify-between gap-3">
                   <span>{name}</span>
-                  <span className="text-[11px] text-muted-foreground">{t(forming ? 'formation.forms.state.forming' : 'formation.forms.state.invalid')}</span>
+                  <span className="text-[11px] tabular-nums text-muted-foreground" data-testid={`formation-more-why-${x}`}>
+                    {score && `${score.requiredMet}/${score.requiredTotal}`}
+                    {reason && ` · ${t(reason.kind === 'exclusion' ? 'formation.forms.reason.exclusion' : 'formation.forms.reason.missing', { id: reason.id })}`}
+                  </span>
                 </span>
               </DropdownMenuItem>
             );
@@ -106,6 +112,19 @@ export function FormationForms({
       )}
     </>
   );
+}
+
+/** Look je Zustand (1113-A4): Farbe = Zustand, Füllung = Auswahl; „nah dran“ behält den gestrichelten Rahmen */
+const STATE_ICON = { valid: Check, forming: Clock, near: CircleDashed, other: null } as const;
+
+function stateLook(state: HitState | null, selected: boolean, off: boolean): string {
+  if (!state) {
+    if (!selected) return idle;
+    return off ? 'border border-primary text-primary hover:bg-accent' : 'bg-primary text-primary-foreground';
+  }
+  if (state === 'valid') return selected && !off ? 'bg-success text-success-foreground' : cn('text-success hover:bg-accent', selected && 'border border-success');
+  if (state === 'forming') return selected && !off ? 'bg-warning text-warning-foreground' : cn('text-warning hover:bg-accent', selected && 'border border-warning');
+  return cn('border border-dashed border-warning/60 text-warning', selected && !off ? 'bg-warning/15' : 'hover:bg-accent');
 }
 
 function FormButtons({
@@ -139,18 +158,25 @@ function FormButtons({
         const selected = x === form;
         const toggling = !!onToggle && selected;
         const off = toggling && hidden;
-        const filled = 'bg-primary text-primary-foreground';
-        const outline = 'border border-primary text-primary hover:bg-accent';
-        let look = idle;
-        if (selected) look = off ? outline : filled;
+        const best = tf ? formState(hits, x, tf) : null;
+        const state: HitState | null = best && best.state !== 'other' ? best.state : null;
+        const score = best ? checkScore(best.hit.candidate) : null;
+        const look = stateLook(state, selected, off);
+        const StateIcon = state ? STATE_ICON[state] : null;
         const Icon = off ? EyeOff : Eye;
-        const plainHint = optionHint ? optionHint({ form: name, count }) : t('formation.form.option.hint', { form: name, count });
+        const countHint = optionHint ? optionHint({ form: name, count }) : t('formation.form.option.hint', { form: name, count });
+        const plainHint =
+          state && score
+            ? t('formation.forms.stateBtn.hint', { form: name, state: t(`formation.forms.state.${state}` as MessageKey), met: score.requiredMet, total: score.requiredTotal })
+            : countHint;
         const hint = toggling && toggleHint ? toggleHint({ form: name, count, hidden }) : plainHint;
         return (
           <Tooltip key={x} content={hint} role="presentation">
             <button
               type="button"
               aria-pressed={selected && !off}
+              aria-label={state && score ? t('formation.forms.aria', { form: name, state: t(`formation.forms.state.${state}` as MessageKey), met: score.requiredMet, total: score.requiredTotal }) : undefined}
+              data-state={state ?? undefined}
               data-keep={selected ? '' : undefined}
               data-hidden={off ? '' : undefined}
               data-testid={`formation-form-${x}`}
@@ -158,8 +184,10 @@ function FormButtons({
               className={cn(segment, 'h-6', look)}
             >
               {toggling && <Icon size={12} className="mr-1" aria-hidden="true" />}
+              {StateIcon && <StateIcon size={12} className="mr-1 shrink-0" aria-hidden="true" />}
               {name}
-              <CountBadge count={count} active={selected && !off} />
+              {state === 'near' && score && <span className="ml-1 text-[10px] tabular-nums opacity-85">{score.requiredMet}/{score.requiredTotal}</span>}
+              <CountBadge count={count} active={selected && !off && state !== 'near'} />
             </button>
           </Tooltip>
         );
