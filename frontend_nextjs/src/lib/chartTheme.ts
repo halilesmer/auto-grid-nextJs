@@ -7,6 +7,8 @@ export interface ChartColors {
   text: string;
   grid: string;
   border: string;
+  /** Panel ayıracı (grafik ↔ osilatör): ızgaradan belirgin */
+  separator: string;
   crosshair: string;
   crosshairLabel: string;
   up: string;
@@ -20,6 +22,7 @@ export interface ChartColors {
 const FALLBACK: Record<string, string> = {
   '--muted-foreground': '#6a6a70',
   '--border': '#e0e0e3',
+  '--chart-separator': '#8e8e97',
   '--primary': '#c9632b',
   '--success': '#16895c',
   '--danger': '#d93a3a',
@@ -44,6 +47,7 @@ export function readChartColors(): ChartColors {
     text: muted,
     grid: withAlpha(token('--border'), 0.55),
     border: token('--border'),
+    separator: token('--chart-separator'),
     crosshair: withAlpha(primary, 0.45),
     crosshairLabel: primary,
     up: token('--success'),
