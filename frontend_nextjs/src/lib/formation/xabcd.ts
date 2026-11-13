@@ -75,6 +75,21 @@ export function selectBases(pivots: readonly Pivot[]): XabcdBase[] {
   return out;
 }
 
+/**
+ * X auf den äußersten Docht der Schwingung (Halil 2026-11-13): die EWO-Regel des Trends meldet einen Pivot oft eine Kerze zu spät,
+ * die Fib-Verhältnisse brauchen aber die echte Dochtspitze. Gesucht wird zwischen der Kerze des Pivots vor X (ausgeschlossen; ohne ihn
+ * ab der ersten geladenen Kerze) und der Kerze von A (ausgeschlossen): bei einem Tief der tiefste Low, bei einem Hoch der höchste High.
+ * Nur eine strikt äußere Spitze ersetzt X; bei Gleichstand bleibt der Pivot. Der Trend selbst bleibt unverändert.
+ */
+export function deepestWickX(bars: Bars, x: XPoint, side: ZoneSide, prevIdx: number | null, aIdx: number): XPoint {
+  let best = x;
+  for (let k = prevIdx === null ? 0 : prevIdx + 1; k < aIdx && k < bars.length; k++) {
+    const price = wickEnd(bars[k], side);
+    if (outward(side, price) > outward(side, best.price)) best = { idx: k, price };
+  }
+  return best;
+}
+
 /** Ein Pip des Symbols (Annahme: Paare 0.0001, JPY-Paare 0.01, Gold 0.1, Silber 0.01, übrige Symbole 0.01) */
 export function pipOf(symbol: string): number {
   const p = HARMONIC_PARAMS.pip;
@@ -274,7 +289,11 @@ export function analyzeXabcd(
     const env = envFor(base, ctx, t, tf);
     const bars = env.views.get(tf)!.bars;
     let best: { candidate: Candidate; unmet: number } | null = null;
-    for (const picked of selectBases(env.trends.get(tf)!.pivots)) {
+    const pivots = env.trends.get(tf)!.pivots;
+    for (const base of selectBases(pivots)) {
+      const xi = pivots.findIndex((p) => p.idx === base.x.idx);
+      const prev = xi > 0 ? pivots[xi - 1].idx : null;
+      const picked = { ...base, x: deepestWickX(bars, base.x, pivots[xi].side, prev, base.a.idx) };
       const candidate = evaluate(env, tf, shapeOfX(bars, picked), pip);
       const unmet = misses(candidate);
       if (best === null || unmet < best.unmet) best = { candidate, unmet };
