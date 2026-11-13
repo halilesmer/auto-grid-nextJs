@@ -385,6 +385,18 @@ export class PathBroker extends SimBroker {
     return found.sort((x, y) => order[x.kind] - order[y.kind] || x.ticket - y.ticket);
   }
 
+  /**
+   * BKT-30: Live wählt Limit oder Stop beim Senden mit dem frischen Kurs (grid_orders.py). Setzt die Art der Order mit
+   * dem aktuellen Tick neu: BUY Limit, wenn der Preis unter dem Ask liegt, sonst Stop; SELL Limit, wenn über dem Bid.
+   */
+  retypePending(ticket: number): void {
+    const order = this.orders.find((o) => o.ticket === ticket);
+    if (!order) return;
+    const { bid, ask } = this.tick;
+    if (order.type === ORDER_TYPE_BUY_LIMIT || order.type === ORDER_TYPE_BUY_STOP) order.type = order.price_open < ask ? ORDER_TYPE_BUY_LIMIT : ORDER_TYPE_BUY_STOP;
+    else if (order.type === ORDER_TYPE_SELL_LIMIT || order.type === ORDER_TYPE_SELL_STOP) order.type = order.price_open > bid ? ORDER_TYPE_SELL_LIMIT : ORDER_TYPE_SELL_STOP;
+  }
+
   /** Gibt es die Order bzw. Position dieser Marke noch (eine frühere Auslösung im selben Tick kann sie entfernt haben)? */
   hasTarget(trigger: Trigger): boolean {
     return trigger.kind === 'fill' ? this.orders.some((o) => o.ticket === trigger.ticket) : this.positions.some((p) => p.ticket === trigger.ticket);

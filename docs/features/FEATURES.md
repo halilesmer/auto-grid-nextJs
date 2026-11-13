@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-13 · **234/270** abgehakt · ❌ 5 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-13 · **234/271** abgehakt · ❌ 5 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -28,7 +28,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 12 | **VPS** – VPS-Fernsteuerung vom Mac | 8/10 |
 | 13 | **UI** – Oberfläche | 24/31 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 24/27 |
-| 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 18/29 |
+| 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 18/30 |
 | 16 | **FRM** – Formationserkennung | 40/44 |
 | 17 | **NWS** – Nachrichten (Wirtschaftskalender) | 1/3 |
 | 18 | **TLS** – Werkzeuge (Rechner) | 1/1 |
@@ -1043,6 +1043,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Plan 1113, PR-1. Mit model.botReact wartet der Bot nach einem Tetik (Füllung, Schließung) BOT_REACT_DELAY_S = 1 s (vorher 2). In dieser Zeit (pendingBot) läuft er in der Tick-Replay-Minute nicht mehr periodisch dazwischen (E1); vorher durchbrach der 1-s-Lauf die Verzögerung. E1 ist Teil von botReact, kein eigener Schalter. BOT_REACT_DEFAULT bleibt false, P8 entscheidet über das Einschalten; mit botReact aus ist das Ergebnis bytegleich zu vorher. Keine Oberfläche.
   - **Prüfung:** Playwright-Logiktest e2e/mocked/backtest-tick-order-lib.spec.ts ausführen (@BKT-29: Bot läuft nach der Füllung erst nach 1 s, nicht beim periodischen Tick davor; ohne botReact sofort). → Fenster P6+ und P7 auf dem DEMO-Konto vergleichen (nur lesen): mit botReact sinkt die Summe der Netto-Abweichungen (P7 53,06 → 23,92; P6+ 5,71 → 4,85), mit botReact aus bleibt sie gleich.
   - **Erwartet:** Die Tests bestehen. Mit botReact aus ist das Ergebnis unverändert, mit botReact an weicht der Nettogewinn weniger von MT5 ab.
+- [ ] **BKT-30** Backtest: Tur-Raster des Live-Bots als Eingang des Motors (nur Motor, Vorgabe aus) — 🖥️ e2e ⏳ · 👤 manuell ⏳
+  - Plan 1113, PR-1 (bt-n1). Mit model.botTurns { starts, zoneAt } (Sekunden, Serverzeit) läuft der Bot in der Replay-Minute nur zu den Tur-Anfängen und entscheidet mit dem Kurs von dort; Tetik-, periodischer und Minutenend-Lauf entfallen. Eine neue Order wird erst zu ihrer Op-Zeit wirksam (zoneAt + Kosten der vorherigen Ops: Order setzen 0,225 s, Löschen 0,102 s, SLTP 0,10 s, botTurns.ts) und wählt ihre Art (Limit/Stop) mit dem Kurs dieser Zeit (PathBroker.retypePending). XSEND: Minuten, in denen der Bot eine Order sendete, bleiben in runJob für die späteren Durchgänge Replay-Minuten, die Durchgangsgrenze ist dann 8 (BOT_TURNS_MAX_PASSES). Ohne botTurns (fehlt, leer, ungleich lang) ist das Ergebnis bytegleich zu vorher. Das Raster liefert PR-2 (Telemetrie ENG-35 oder Orderverlauf), die Anbindung in runJob PR-3; Löschverzögerung und frische Positionsansicht am Zone-Anfang fehlen bewusst. Keine Oberfläche.
+  - **Prüfung:** Playwright-Logiktest e2e/mocked/backtest-tick-order-lib.spec.ts ausführen (@BKT-30: ohne Raster bytegleich; Bot läuft nach dem Tetik erst zum Tur-Anfang; Kurs zwischen Tur- und Zone-Anfang ändert die Entscheidung nicht; Order füllt erst zur Op-Zeit; Art mit dem Kurs der Op-Zeit; XSEND und Durchgangsgrenze 8). → Fenster P6+ und P7 auf dem DEMO-Konto vergleichen (nur lesen), Raster aus dem Orderverlauf: mit Raster P7 Summe der Netto-Abweichungen 12,63 → 0,46, P6+ 4,48 → 0,01, keine nicht zugeordneten Trades; ohne Raster unverändert.
+  - **Erwartet:** Die Tests bestehen. Ohne botTurns ist das Ergebnis unverändert; mit dem Live-Raster weicht der Nettogewinn kaum noch von MT5 ab.
 
 ## 16. FRM – Formationserkennung
 

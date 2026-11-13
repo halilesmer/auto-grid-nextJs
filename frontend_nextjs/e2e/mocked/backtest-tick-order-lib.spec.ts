@@ -15,6 +15,9 @@ import {
   TRADE_RETCODE_DONE,
 } from '../../src/lib/backtest/engine/types';
 import type { LoadedRates } from '../../src/lib/backtest/candles/loadRates';
+import { BOT_TURNS_MAX_PASSES } from '../../src/lib/backtest/botTurns';
+import { runJob } from '../../src/lib/backtest/runJob';
+import type { RunRequest, WorkerMessage } from '../../src/lib/backtest/protocol';
 import { BOT_REACT_DEFAULT, FILL_SLTP_DELAY_DEFAULT, runBacktest, SAME_TICK_BATCH_DEFAULT, type RunInput, type RunModel } from '../../src/lib/backtest/runner';
 import type { SymbolDetail } from '../../src/store/types';
 
@@ -243,5 +246,146 @@ test.describe('Tepki-Gecikmesi 1 s, ohne periodischen Lauf dazwischen (BKT-29)',
     const off = botTimes(run(rates)).filter((t) => t >= 0);
     expect(Math.min(...off)).toBeCloseTo(10, 6);
     expect(JSON.stringify(run(rates).trades)).toBe(JSON.stringify(run(rates, { botReact: false }).trades));
+  });
+});
+
+// ------------------------------------------------------------------ BKT-30: Tur-Raster des Live-Bots
+const M2 = T1 + 60;
+/**
+ * Minute M2: Füllung des Limits 2649 bei 10 s (TP 2650 greift bei 12 s). Tur-Anfang 12,5 s: Kurs dort 2651,0/2651,2.
+ * Bei 13,4 s fällt der Kurs unter 2649 (vor einer Op-Zeit von 13,5 s), bei 14 s liegt der Ask wieder unter 2649,
+ * bei 16 s steigt er auf 2649,3.
+ */
+const TURN_TICKS: Tick[] = [
+  [0, 2650.4, 2650.6], [10000, 2648.8, 2649.0], [12000, 2651.0, 2651.2], [13000, 2651.0, 2651.2],
+  [13400, 2648.4, 2648.6], [14000, 2648.6, 2648.8], [16000, 2649.1, 2649.3], [20000, 2651.0, 2651.2],
+];
+const keyOf = (r: ReturnType<typeof run>) => JSON.stringify({ trades: r.trades, lines: r.log.lines, summary: r.summary });
+const botLines = (r: ReturnType<typeof run>) => r.log.lines.filter((l) => l.time !== undefined && l.time >= M2 && l.code.startsWith('grid.') || l.code === 'position.tpslUpdate');
+const botTimesIn = (r: ReturnType<typeof run>) => [...new Set(botLines(r).filter((l) => (l.time ?? 0) >= M2).map((l) => Math.round(((l.time ?? 0) - M2) * 10) / 10))];
+/** Einstiege (Positions-Nr., ganze Sekunde nach M2, Preis) */
+const entries = (r: ReturnType<typeof run>) => r.trades.map((t) => [t.positionId, (t.entryTime ?? 0) - M2, t.entryPrice]);
+
+test.describe('Canlı tur takvimi (BKT-30)', () => {
+  test('Ohne Raster (fehlt, leer oder ungleich lang) ist das Ergebnis bytegleich zum alten Lauf', { tag: '@BKT-30' }, () => {
+    const rates = withReplay(candles(ROWS), { [M2]: TURN_TICKS });
+    for (const model of [{}, { botReact: true }]) {
+      const base = keyOf(run(rates, model));
+      expect(keyOf(run(rates, { ...model, botTurns: undefined }))).toBe(base);
+      expect(keyOf(run(rates, { ...model, botTurns: { starts: [], zoneAt: [] } }))).toBe(base);
+      expect(keyOf(run(rates, { ...model, botTurns: { starts: [M2 + 5], zoneAt: [] } }))).toBe(base);
+    }
+    expect(run(rates).sendMinutes).toBeUndefined();
+  });
+
+  test('Nach dem Tetik läuft der Bot nicht vor dem Tur-Anfang; Tetik-, periodischer und Minutenend-Lauf entfallen', { tag: '@BKT-30' }, () => {
+    const rates = withReplay(candles(ROWS), { [M2]: TURN_TICKS });
+    // Alter Weg: Lauf bei der Füllung (10 s), beim Ausstieg (12 s), bei der Füllung 13,4 s und am Minutenende
+    expect(botTimesIn(run(rates))).toEqual(expect.arrayContaining([10, 12, 13.4, 20]));
+    const r = run(rates, { botTurns: { starts: [M2 + 12.5], zoneAt: [M2 + 13.5] } });
+    // Genau ein Lauf: der Tur-Anfang 12,5 s; er läuft vor dem Tick bei 13 s und trägt die Zeit des letzten Ticks (12 s)
+    expect(botTimesIn(r)).toEqual([12]);
+    // Die Füllung bei 10 s (zwei Orders auf 2649) bleibt; der Bot reagiert erst auf den Tur-Anfang
+    expect(entries(r).filter((e) => e[1] === 10)).toHaveLength(2);
+  });
+
+  test('Kurs zwischen Tur-Anfang und Zone-Anfang ändert die Stufen-Entscheidung nicht', { tag: '@BKT-30' }, () => {
+    const botTurns = { starts: [M2 + 12.5], zoneAt: [M2 + 13.5] };
+    const a = run(withReplay(candles(ROWS), { [M2]: TURN_TICKS }), { botTurns });
+    // Gleiche Ticks, nur der Kurs von 13,0 s bis 14,0 s ist ein ganz anderer (nach dem Tur-Anfang)
+    const moved: Tick[] = TURN_TICKS.map((t) => (t[0] >= 13000 && t[0] < 16000 ? [t[0], 2700.0, 2700.2] : t));
+    const b = run(withReplay(candles(ROWS), { [M2]: moved }), { botTurns });
+    const decision = (r: ReturnType<typeof run>) => JSON.stringify(r.log.lines.filter((l) => l.time !== undefined && l.time >= M2 && l.time <= M2 + 12.5));
+    expect(decision(a)).toBe(decision(b));
+    expect(botLines(a).some((l) => l.code === 'grid.ordersPlaced')).toBe(true);
+  });
+
+  test('Eine Order wird erst zu ihrer Op-Zeit wirksam: ein Kurs davor füllt sie nicht, derselbe Kurs danach schon', { tag: '@BKT-30' }, () => {
+    const rates = withReplay(candles(ROWS), { [M2]: TURN_TICKS });
+    // Op-Zeit 12,6 s: der Tick bei 13,4 s (Ask 2648,6 ≤ 2649) füllt das Limit (Einstiegszeit in ganzen Sekunden: 13)
+    const early = run(rates, { botTurns: { starts: [M2 + 12.5], zoneAt: [M2 + 12.6] } });
+    expect(entries(early).some((e) => e[1] === 13 && e[2] === 2648.6)).toBe(true);
+    // Op-Zeit 13,5 s: derselbe Tick (13,4 s) liegt davor und füllt nicht
+    const late = run(rates, { botTurns: { starts: [M2 + 12.5], zoneAt: [M2 + 13.5] } });
+    expect(entries(late).some((e) => e[2] === 2648.6)).toBe(false);
+  });
+
+  test('Die Order-Art wird mit dem Kurs der Op-Zeit gewählt: Stop statt Limit, wenn der Kurs inzwischen unter dem Preis liegt (200047-Fall)', { tag: '@BKT-30' }, () => {
+    const rates = withReplay(candles(ROWS), { [M2]: TURN_TICKS });
+    // Am Tur-Anfang (Ask 2651,2) wählt der Bot BUY LIMIT 2649. Bei der Op-Zeit 13,5 s liegt der Ask bei 2648,6:
+    // ein Limit füllte sofort bei 14 s (Ask 2648,8 ≤ 2649); als BUY STOP 2649 wartet die Order, bis der Ask 2649 erreicht (16 s, 2649,3)
+    const r = run(rates, { botTurns: { starts: [M2 + 12.5], zoneAt: [M2 + 13.5] } });
+    const stop = entries(r).filter((e) => e[2] === 2649.3);
+    expect(stop).toHaveLength(1);
+    expect(stop[0][1]).toBe(16);
+    expect(entries(r).some((e) => e[1] === 14)).toBe(false);
+  });
+
+  test('XSEND: Minuten, in denen der Bot eine Order sendete, stehen im Ergebnis (nur mit Raster, nur ohne Replay-Karte)', { tag: '@BKT-30' }, () => {
+    const rates = withReplay(candles(ROWS), { [M2]: TURN_TICKS });
+    const r = run(rates, { botTurns: { starts: [M2 + 12.5], zoneAt: [M2 + 13.5] } });
+    // T1 liegt im Kerzenweg und der Bot setzt dort die ersten Orders; M2 hat schon Ticks
+    expect(r.sendMinutes).toEqual([T1]);
+    expect(run(rates).sendMinutes).toBeUndefined();
+  });
+
+  test('XSEND-Durchgangsgrenze: mit Raster 8 Durchgänge (BOT_TURNS_MAX_PASSES), ohne Raster gilt die gegebene Grenze', { tag: '@BKT-30' }, async () => {
+    expect(BOT_TURNS_MAX_PASSES).toBe(8);
+    const rows = ROWS;
+    const served: Record<number, Tick[]> = { [T1]: [[0, 2650.5, 2650.6], [30000, 2650.5, 2650.6]], [M2]: TURN_TICKS };
+    const worker = (calls: string[]) => async (path: string) => {
+      calls.push(path);
+      const url = new URL(path, 'https://w.example');
+      if (url.pathname.endsWith('/rates')) {
+        const col = (i: number) => rows.map((r) => r[i]);
+        const pts = (x: number) => Math.round(x / 0.01);
+        return {
+          t: col(0), o: col(1), h: col(2), l: col(3), c: col(4), s: col(5), sa: col(5), sx: col(5),
+          ahi: rows.map((r) => pts(r[2]) + 20), alo: rows.map((r) => pts(r[3]) + 20), g: rows.map(() => 1), tick_missing: [],
+          replay: { t: [], kind: [], off: [0], ms: [], b: [], a: [] }, missing: [], next_from: null, digits: 2, point: 0.01,
+        };
+      }
+      let at = Number(url.searchParams.get('start'));
+      const cols = { t: [] as number[], kind: [] as string[], off: [0], ms: [] as number[], b: [] as number[], a: [] as number[], missing: [] };
+      for (const d of (url.searchParams.get('m') ?? '').split(',')) {
+        at += Number(d) * 60;
+        const ticks = served[at];
+        if (!ticks) continue;
+        cols.t.push(at);
+        cols.kind.push('T');
+        for (const [ms, bid, ask] of ticks) {
+          cols.ms.push(ms);
+          cols.b.push(Math.round(bid / 0.01));
+          cols.a.push(Math.round(ask / 0.01));
+        }
+        cols.off.push(cols.ms.length);
+      }
+      return { account_id: 'acc', symbol: 'XAUUSD', ...cols };
+    };
+    const request = (botTurns?: RunModel['botTurns']): RunRequest => ({
+      type: 'run', runId: 5, apiBase: 'https://worker.example/api', headers: {},
+      params: {
+        accountId: 'acc', zone: ZONE, symbol: DETAIL, from: T1, to: T1 + 120, dataTimeframe: 'M1', spread: TICK0,
+        commissionPerLot: 0, swapEnabled: false, approximate: false,
+        model: { fill: 'gap', slFirst: false, closeAtEnd: true, triggerReplay: true, ...(botTurns ? { botTurns } : {}) }, path: 'auto', startCapital: 10_000,
+      },
+    });
+    const go = async (req: RunRequest, limits: { passes: number; minutes: number; ticks: number }) => {
+      const calls: string[] = [];
+      const messages: WorkerMessage[] = [];
+      await runJob(req, (m) => messages.push(m), worker(calls), undefined, limits);
+      const last = messages[messages.length - 1];
+      if (last.type !== 'result') throw new Error(JSON.stringify(last));
+      const done = last.results[0].log.lines.find((l) => l.code === 'run.triggerReplay');
+      return { calls: calls.filter((c) => c.includes('/replay')), passes: (done?.params?.passes as number | undefined) ?? 1 };
+    };
+    const one = { passes: 1, minutes: 5000, ticks: 1_000_000 };
+    // Ohne Raster: Grenze 1 = ein Durchgang, kein Abruf
+    expect((await go(request(), one)).calls).toEqual([]);
+    // Mit Raster: die Grenze 1 gilt nicht, Minuten mit gesendeten Orders werden abgerufen und neu gerechnet
+    const turned = await go(request({ starts: [M2 + 12.5], zoneAt: [M2 + 13.5] }), one);
+    expect(turned.calls.length).toBeGreaterThan(0);
+    expect(turned.passes).toBeGreaterThan(1);
+    expect(turned.passes).toBeLessThanOrEqual(BOT_TURNS_MAX_PASSES);
   });
 });

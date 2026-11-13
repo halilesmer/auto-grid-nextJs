@@ -18,9 +18,10 @@ import type { LoadedRates } from '@/lib/backtest/candles/loadRates';
 import { candleWaypoints, waypointTimes, type PathMode } from '@/lib/backtest/candles/pathModel';
 import { manageDynamicGrid, type ActiveZones } from '@/lib/backtest/engine/orchestrator';
 import { EngineState } from '@/lib/backtest/engine/state';
-import { TF_SECONDS, type Timeframe, type ZoneDict } from '@/lib/backtest/engine/types';
+import { TF_SECONDS, TRADE_ACTION_PENDING, TRADE_ACTION_REMOVE, TRADE_RETCODE_DONE, type Timeframe, type ZoneDict } from '@/lib/backtest/engine/types';
 import { toTimeframe, zget, zoneLogId } from '@/lib/backtest/engine/helpers';
 import { BOT_REACT_DELAY_S, sltpDelaySeconds } from '@/lib/backtest/botDelay';
+import { BOT_OP_COST_S, botTurnsActive, type BotTurns } from '@/lib/backtest/botTurns';
 import { zoneSymbolOf } from '@/lib/backtest/engine/zoneSelector';
 import type { ConversionPair, RateSeries } from '@/lib/backtest/broker/conversion';
 import { RunError, RunLog, type RunLogLine } from '@/lib/backtest/runContext';
@@ -78,6 +79,13 @@ export interface RunModel {
   botReactDelay?: number;
   /** BKT-26 (A2): nach einer Füllung in der Replay-Minute bleibt das Stufen-SL/TP für die gemessene Bot-Verzögerung; Vorgabe FILL_SLTP_DELAY_DEFAULT */
   fillSltpDelay?: boolean;
+  /**
+   * BKT-30: Tur-Raster des Live-Bots (nur im Live-Vergleich). Gegeben, läuft der Bot in der Replay-Minute nur zu den
+   * Tur-Anfängen (Entscheidung mit dem Kurs von dort); eine neue Order wird erst zu ihrer Op-Zeit (`zoneAt` + Kosten der
+   * vorherigen Ops) wirksam und wählt ihre Art (Limit/Stop) mit dem Kurs dieser Zeit. Tetik-, periodischer und
+   * Minutenend-Lauf entfallen. Ohne Angabe: Lauf bytegleich wie zuvor.
+   */
+  botTurns?: BotTurns;
 }
 
 /** Fraktal, das vor `from` schon gehandelt wurde (Order gefüllt oder gelöscht): der Lauf legt dafür keine Order mehr */
@@ -134,6 +142,8 @@ export interface RunResult {
   path: PathMode;
   /** BKT-23: Minutenbeginne (Sekunden), in denen Trades ein- oder ausgestiegen sind bzw. Positionen offen blieben und die noch nicht in der Replay-Karte stehen; leer ohne `triggerReplay` */
   triggerMinutes?: number[];
+  /** BKT-30 (XSEND): Minutenbeginne, in denen der Bot eine Order gesendet hat und die noch nicht in der Replay-Karte stehen; nur mit `botTurns` */
+  sendMinutes?: number[];
 }
 
 /** BKT-26: Vorgaben; zum Zurücknehmen auf false setzen */
@@ -304,6 +314,51 @@ export function runBacktest(input: RunInput): RunResult {
     lastBot = broker.now;
   };
 
+  // BKT-30: Tur-Raster des Live-Bots. Ohne Raster bleibt alles unten beim alten Weg.
+  const turns = botTurnsActive(model.botTurns) ? model.botTurns : null;
+  let turnIndex = 0;
+  /** Zeit, ab der die Op-Kosten der laufenden Tur zählen (null außerhalb einer Tur) */
+  let opClock: number | null = null;
+  /** Order-Nummer → frühester Zeitpunkt, ab dem sie live wirksam ist (Op-Zeit) */
+  const activeAt = new Map<number, number>();
+  const sendTimes: number[] = [];
+  if (turns) {
+    const send = broker.orderSend.bind(broker);
+    broker.orderSend = (req) => {
+      const result = send(req);
+      if (result.retcode === TRADE_RETCODE_DONE && (req.action === TRADE_ACTION_PENDING || req.action === TRADE_ACTION_REMOVE)) {
+        if (req.action === TRADE_ACTION_PENDING) sendTimes.push(broker.now);
+        if (opClock !== null) {
+          if (req.action === TRADE_ACTION_PENDING && result.order) activeAt.set(result.order, opClock);
+          opClock += req.action === TRADE_ACTION_PENDING ? BOT_OP_COST_S.pending : BOT_OP_COST_S.remove;
+        }
+      }
+      return result;
+    };
+  }
+  const runTurn = () => {
+    opClock = turns ? turns.zoneAt[turnIndex] : null;
+    runBot();
+    opClock = null;
+  };
+  /** Alle Tur-Anfänge vor `until` laufen lassen (mit dem Kurs, der jetzt gilt = Kurs des Tur-Anfangs) */
+  const runTurnsBefore = (until: number, count: () => void) => {
+    if (!turns) return;
+    while (turnIndex < turns.starts.length && turns.starts[turnIndex] < until) {
+      count();
+      runTurn();
+      turnIndex += 1;
+    }
+  };
+  /** Orders, deren Op-Zeit bis `upTo` erreicht ist, wählen ihre Art mit dem jetzigen Kurs */
+  const retypeDue = (upTo: number) => {
+    for (const [ticket, at] of activeAt) {
+      if (at > upTo) continue;
+      activeAt.delete(ticket);
+      broker.retypePending(ticket);
+    }
+  };
+
   const capital = input.startCapital ?? 0;
   const track = new EquityTrack(capital);
   let spreadFallbacks = 0;
@@ -432,7 +487,24 @@ export function runBacktest(input: RunInput): RunResult {
       replayMinutes += 1;
       replayTicks += replay.ms.length;
       broker.beginReplay();
+      if (turns) while (turnIndex < turns.starts.length && turns.starts[turnIndex] < t0) turnIndex += 1;
       for (let k = 0; k < replay.ms.length; k++) {
+        if (turns) {
+          const tq = t0 + replay.ms[k] / 1000;
+          runTurnsBefore(tq, countEvent);
+          retypeDue(tq);
+          broker.setQuote(replay.bid[k], replay.ask[k], tq);
+          for (const trigger of broker.quoteTriggers()) {
+            if (!broker.hasTarget(trigger)) continue;
+            // Eine Order, die live noch nicht gesendet ist, füllt nicht
+            if (trigger.kind === 'fill' && (activeAt.get(trigger.ticket) ?? -Infinity) > broker.now) continue;
+            countEvent();
+            let j = k;
+            if (latency) while (j + 1 < replay.ms.length && replay.ms[j + 1] <= replay.ms[k] + REPLAY_FILL_LATENCY_MS) j += 1;
+            broker.fire(trigger, true, j === k ? undefined : { bid: replay.bid[j], ask: replay.ask[j] });
+          }
+          continue;
+        }
         broker.setQuote(replay.bid[k], replay.ask[k], t0 + replay.ms[k] / 1000);
         let ran = false;
         if (pendingBot !== null && broker.now >= pendingBot) { pendingBot = null; runBot(); }
@@ -459,8 +531,9 @@ export function runBacktest(input: RunInput): RunResult {
       const seen = broker.setBarOhlc(rates.o[i], rates.h[i], rates.l[i], rates.c[i]);
       const tolerance = REPLAY_BAR_TOLERANCE_POINTS * info.point;
       if (seen && (Math.abs(seen.high - rates.h[i]) > tolerance || Math.abs(seen.low - rates.l[i]) > tolerance)) replayMismatches += 1;
+      if (turns) runTurnsBefore(t0 + 60, countEvent);
       broker.endReplay();
-      runBot();
+      if (!turns) runBot();
     } else {
       traverse(prevClose, way[0], t0, t0, true);
       for (let k = 1; k < way.length; k++) traverse(way[k - 1], way[k], times[k - 1], times[k], false);
@@ -514,6 +587,18 @@ export function runBacktest(input: RunInput): RunResult {
     for (const time of broker.openEntryTimes()) add(time);
     triggerMinutes.push(...[...found].sort((a, b) => a - b));
   }
+  // BKT-30 (XSEND): Minuten, in denen der Bot eine Order sendete, brauchen die echten Ticks (Typ und Füllung hängen vom Kurs ab)
+  let sendMinutes: number[] | undefined;
+  if (turns && input.spread.mode === 'tick' && dataTimeframe === 'M1' && rates.replay) {
+    const inRange = new Set<number>();
+    for (let i = first; i < end; i++) inRange.add(rates.t[i]);
+    const found = new Set<number>();
+    for (const time of sendTimes) {
+      const minute = time - (((time % 60) + 60) % 60);
+      if (inRange.has(minute) && !rates.replay.has(minute)) found.add(minute);
+    }
+    sendMinutes = [...found].sort((a, b) => a - b);
+  }
   const summary: RunSummary = {
     realized: broker.realized,
     openResult: broker.openResult(),
@@ -538,5 +623,6 @@ export function runBacktest(input: RunInput): RunResult {
     missing: rates.missing,
     path: model.path,
     triggerMinutes,
+    ...(sendMinutes ? { sendMinutes } : {}),
   };
 }
