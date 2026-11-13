@@ -5,7 +5,7 @@
  */
 import { closesBeyond, outward } from './frz';
 import { CYP_PARAMS } from './params';
-import { levelXA, type XabcdShape } from './xabcd';
+import { levelXA, pivotIdxOf, type XabcdShape } from './xabcd';
 import type { Anchor, FormationBar } from './types';
 
 /** Ausdehnung von C jenseits von A als Anteil von X → A (0.272 = Level 1.272); null bei Länge 0 */
@@ -40,6 +40,6 @@ export function closedBeyondBLimit(bars: readonly FormationBar[], s: XabcdShape)
 /** CYP-11: eine Kerze zwischen B und C schließt jenseits der Ausdehnung 1.414 der Fib X → A (Docht darüber ist erlaubt) */
 export function closedBeyondCLimit(bars: readonly FormationBar[], s: XabcdShape): boolean {
   const limit = levelXA(s, -CYP_PARAMS.cExclude);
-  for (let k = s.b.idx + 1; k <= s.c.idx; k++) if (closesBeyond(bars[k], limit, s.cs)) return true;
+  for (let k = s.b.idx + 1; k <= Math.max(s.c.idx, pivotIdxOf(s.c)); k++) if (closesBeyond(bars[k], limit, s.cs)) return true;
   return false;
 }

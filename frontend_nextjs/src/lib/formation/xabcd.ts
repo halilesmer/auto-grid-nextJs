@@ -5,7 +5,7 @@
  * Preise laufen über `outward(Seite, Preis)`; eine Kauf-Formation (X, B, D sind Tiefs) und ihr Spiegelbild sind derselbe Code.
  * Level der Fib X → A und der Fib A → B stehen in der Notation Start = 1, Ende = 0 (Ausdehnungen negativ).
  */
-import { shapeOf, gapToRect, type AbcdShape } from './abcd';
+import { shapeOf, extremeAfter, gapToRect, type AbcdShape } from './abcd';
 import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
 import type { FormationContext } from './context';
 import { closesBeyond, outward, probeFractal, wickEnd, type Rect, type ZoneSide } from './frz';
@@ -55,7 +55,9 @@ const N = FRZ_PARAMS.neighbors;
 
 /** Formen und Verhältnisse; `d` überschreibt den gemessenen äußersten Docht (eigene Punkte) */
 export function shapeOfX(bars: Bars, p: XabcdBase, d?: XPoint): XabcdShape {
-  const abcd = shapeOf(bars, { a: p.a, b: p.b, c: p.c }, d);
+  const base = shapeOf(bars, { a: p.a, b: p.b, c: p.c }, d);
+  // D sucht ab dem Trend-Pivot von C, nicht ab einer davor liegenden Dochtspitze von C
+  const abcd = d || p.c.pivotIdx === undefined ? base : { ...base, d: extremeAfter(bars, Math.max(p.c.idx, p.c.pivotIdx), base.es) };
   return {
     ...p,
     es: abcd.es,
@@ -101,7 +103,7 @@ export const deepestWickX = (bars: Bars, x: XPoint, side: ZoneSide, prevIdx: num
 
 /**
  * X, dann A, dann B auf ihre äußersten Dochte; jeder Punkt sucht nach dem verschobenen Vorgänger (Reihenfolge X → A → B):
- * A zwischen X und dem Pivot von B, B zwischen A und dem Pivot von C. C und D bleiben (offen, Halil 2026-11-13).
+ * A zwischen X und dem Pivot von B, B zwischen A und dem Pivot von C; C nur nach bestätigtem C→D-Bein (`shiftC`). D bleibt.
  * `pivotIdx` hält die Kerze des Trend-Pivots für die Strukturprüfungen fest.
  */
 export function shiftBase(bars: Bars, base: XabcdBase, xSide: ZoneSide, aSide: ZoneSide, prevIdx: number | null): XabcdBase {
@@ -109,7 +111,25 @@ export function shiftBase(bars: Bars, base: XabcdBase, xSide: ZoneSide, aSide: Z
   const x = pin(deepestWickX(bars, base.x, xSide, prevIdx, base.a.idx), base.x);
   const a = pin(extremeWick(bars, base.a, aSide, x.idx + 1, base.b.idx), base.a);
   const b = pin(extremeWick(bars, base.b, xSide, a.idx + 1, base.c.idx), base.b);
-  return { x, a, b, c: base.c };
+  return { x, a, b, c: shiftC(bars, base.c, b, aSide, xSide) };
+}
+
+/**
+ * C erst nach bestätigtem C→D-Bein (Halil 2026-11-13): C sucht seine Dochtspitze zwischen B (ausgeschlossen) und dem Pivot von C (eingeschlossen).
+ * Kerzen nach dem Pivot gehören zum C→D-Bein und zählen nicht. Verschoben wird nur, wenn nach dem Pivot schon eine Kerze jenseits von B schließt;
+ * ohne diesen Schluss bleibt C am Pivot.
+ */
+export function shiftC(bars: Bars, c: XPoint, b: XPoint, cSide: ZoneSide, bSide: ZoneSide): XPoint {
+  let end = -1;
+  for (let k = c.idx + 1; k < bars.length; k++) {
+    if (closesBeyond(bars[k], b.price, bSide)) {
+      end = k;
+      break;
+    }
+  }
+  if (end < 0) return c;
+  const moved = extremeWick(bars, c, cSide, b.idx + 1, c.idx + 1);
+  return moved.idx === c.idx ? c : { ...moved, pivotIdx: c.idx };
 }
 
 /** Ein Pip des Symbols (Annahme: Paare 0.0001, JPY-Paare 0.01, Gold 0.1, Silber 0.01, übrige Symbole 0.01) */
@@ -348,7 +368,7 @@ export const zigOf = (bars: Bars, s: XabcdShape, withD: boolean): Anchor[] => {
 /** Eine Kerze nach C schließt jenseits von B (ABCD-03): erst dann wird D gesucht; zählt bis zur Kerze von D, ohne D bis zur letzten Kerze */
 export function closedBeyondB(bars: Bars, s: XabcdShape): boolean {
   const to = s.d ? s.d.idx : bars.length - 1;
-  for (let k = s.c.idx + 1; k <= to; k++) if (closesBeyond(bars[k], s.b.price, s.es)) return true;
+  for (let k = Math.max(s.c.idx, pivotIdxOf(s.c)) + 1; k <= to; k++) if (closesBeyond(bars[k], s.b.price, s.es)) return true;
   return false;
 }
 
