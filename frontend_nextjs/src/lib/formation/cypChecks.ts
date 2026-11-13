@@ -35,6 +35,7 @@ import {
   type XabcdAnalysis,
   type XabcdInput,
   type XabcdShape,
+  pivotIdxOf,
 } from './xabcd';
 import { TRADE_RULES, type Candidate, type Check, type CheckState, type Drawing, type RuleKind, type RuleStatus, type Side, type Verdict } from './types';
 
@@ -93,7 +94,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number, li
   const add = (id: string, state: CheckState, value?: number) => checks.push(mk(id, state, value));
 
   // Struktur: Impuls X → A, neuer Impuls B → C jenseits von A, vier fertige Fraktale
-  const impulse = trend.pivots.some((p) => p.idx === a.idx && p.side === cs && p.kind === 'impulse');
+  const impulse = trend.pivots.some((p) => p.idx === pivotIdxOf(a) && p.side === cs && p.kind === 'impulse');
   const extC = extensionOfC(s);
   const structure =
     fractalDone(bars, x, es) &&

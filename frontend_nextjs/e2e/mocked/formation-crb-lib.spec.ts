@@ -306,7 +306,7 @@ test.describe('CRB: echte Kerzen', () => {
   frm('crb-deep-h4-01: Kauf-Deep-Crab, B bei 0.9, BC-Rückprojektion 2 und eine Zone am Ziel-D, D noch nicht erreicht', () => {
     const c = analyzeAt('crb-deep-h4-01', '2026-03-25T20:00');
     expect(c.side).toBe('buy');
-    expect(times(c)).toEqual(['2026-03-20T12:00', '2026-03-20T16:00', '2026-03-20T20:00', '2026-03-23T08:00', '2026-03-23T16:00']);
+    expect(times(c)).toEqual(['2026-03-20T12:00', '2026-03-20T16:00', '2026-03-23T04:00', '2026-03-23T08:00', '2026-03-23T16:00']);
     expect(states(c, CORE)).toEqual([M, M, N, N, M]);
     expect(states(c, VARIANT)).toEqual([M, M, M, N]);
     expect(states(c, ['CRB-10', 'CRB-11', 'CRB-12'])).toEqual([N, M, M]);

@@ -36,6 +36,7 @@ import {
   type XabcdAnalysis,
   type XabcdInput,
   type XabcdShape,
+  pivotIdxOf,
 } from './xabcd';
 import { TRADE_RULES, type Candidate, type Check, type CheckState, type Drawing, type RuleKind, type RuleStatus, type Verdict } from './types';
 
@@ -96,7 +97,7 @@ export function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: num
 
   // Form
   const fractals = fractalDone(bars, x, es) && fractalDone(bars, a, cs);
-  const impulse = trend.pivots.some((p) => p.idx === a.idx && p.side === cs && p.kind === 'impulse');
+  const impulse = trend.pivots.some((p) => p.idx === pivotIdxOf(a) && p.side === cs && p.kind === 'impulse');
   add('GAR-01', flag(fractals && impulse));
   add('GAR-02', flag(alternates(s)));
   const rB = retraceXA(s, b.price);
@@ -134,8 +135,8 @@ export function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: num
   add('GAR-18', flag(closedBeyondX(env, tf, s)));
   add('GAR-19', higherAgainst(env, side));
   add('GAR-20', flag(HARMONIC_PARAMS.excludedTimeframes.includes(tf)));
-  const xPos = trend.pivots.findIndex((p) => p.idx === x.idx && p.side === es);
-  const oneStep = xPos >= 0 && trend.pivots[xPos + 1]?.idx === a.idx;
+  const xPos = trend.pivots.findIndex((p) => p.idx === pivotIdxOf(x) && p.side === es);
+  const oneStep = xPos >= 0 && trend.pivots[xPos + 1]?.idx === pivotIdxOf(a);
   add('GAR-21', flag(fractals && impulse && oneStep));
 
   const drawings = drawingsOf(env, tf, s, dTarget, reached);

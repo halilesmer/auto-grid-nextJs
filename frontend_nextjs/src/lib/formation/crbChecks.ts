@@ -37,6 +37,7 @@ import {
   type XabcdAnalysis,
   type XabcdInput,
   type XabcdShape,
+  pivotIdxOf,
 } from './xabcd';
 import { TRADE_RULES, type Candidate, type Check, type CheckState, type Drawing, type RuleKind, type RuleStatus, type Verdict } from './types';
 
@@ -108,7 +109,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape): Candidate {
   const add = (id: string, state: CheckState, value?: number) => checks.push(mk(id, state, value));
 
   // Gemeinsamer Kern: Impuls X → A, C an 0.382 bis unter 0.886, D an 1.618, Bruch von B
-  const impulse = trend.pivots.some((p) => p.idx === a.idx && p.side === cs && p.kind === 'impulse');
+  const impulse = trend.pivots.some((p) => p.idx === pivotIdxOf(a) && p.side === cs && p.kind === 'impulse');
   add('CRB-01', flag(fractalDone(bars, x, es) && fractalDone(bars, a, cs) && impulse && alternates(s)));
   const rC = abcd.depth;
   add('CRB-02', flag(rC !== null && outward(cs, c.price) >= outward(cs, levelAB(s, P.cMin))), rC ?? undefined);

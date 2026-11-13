@@ -38,6 +38,7 @@ import {
   type XabcdAnalysis,
   type XabcdInput,
   type XabcdShape,
+  pivotIdxOf,
 } from './xabcd';
 import { TRADE_RULES, type Candidate, type Check, type CheckState, type Drawing, type RuleKind, type RuleStatus, type Verdict } from './types';
 
@@ -92,7 +93,7 @@ export function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: num
   const add = (id: string, state: CheckState, value?: number, kind?: RuleKind) => checks.push(mk(id, state, value, kind));
 
   // Form
-  const impulse = trend.pivots.some((p) => p.idx === a.idx && p.side === cs && p.kind === 'impulse');
+  const impulse = trend.pivots.some((p) => p.idx === pivotIdxOf(a) && p.side === cs && p.kind === 'impulse');
   const impulseState = flag(fractalDone(bars, x, es) && fractalDone(bars, a, cs) && impulse);
   add('BAT-01', impulseState);
   add('BAT-02', tri(wideShareOfMove(view.wide, s)), undefined, impulseState === 'met' ? 'bonus' : 'required');
