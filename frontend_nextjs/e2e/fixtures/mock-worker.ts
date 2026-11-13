@@ -1346,5 +1346,12 @@ export class MockWorker {
 
 /** Test-Uhr: mit E2E_FAKE_NOW (ISO) läuft der Mock wie der Browser auf einer festen Uhrzeit. */
 export function nowMs(): number {
-  return process.env.E2E_FAKE_NOW ? new Date(process.env.E2E_FAKE_NOW).getTime() : Date.now();
+  const fake = fakeNowOverride ?? process.env.E2E_FAKE_NOW;
+  return fake ? new Date(fake).getTime() : Date.now();
+}
+
+/** Pro Test festgelegte Uhr (Option `fakeNow` in test.ts); Vorrang vor E2E_FAKE_NOW. Ein Playwright-Worker führt Tests nacheinander aus. */
+let fakeNowOverride: string | null = null;
+export function setFakeNow(iso: string | null): void {
+  fakeNowOverride = iso;
 }

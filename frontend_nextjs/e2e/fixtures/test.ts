@@ -10,7 +10,7 @@
  */
 import { test as base, expect } from '@playwright/test';
 import { Dashboard, openSetup } from './dashboard';
-import { MockWorker } from './mock-worker';
+import { MockWorker, setFakeNow } from './mock-worker';
 
 export { expect, Dashboard, openSetup };
 export * from './data';
@@ -21,9 +21,12 @@ export type AppLocale = 'tr' | 'en' | 'de';
 
 export const LOCALE_STORAGE_KEY = 'grid-robot-locale';
 
-export const test = base.extend<{ worker: MockWorker; dashboard: Dashboard; appLocale: AppLocale }>({
+export const test = base.extend<{ worker: MockWorker; dashboard: Dashboard; appLocale: AppLocale; fakeNow: string | null }>({
   appLocale: ['tr', { option: true }],
-  page: async ({ page, appLocale }, provide) => {
+  // Feste Uhr (ISO) für Tests, deren Mock-Kerzen von der Uhrzeit abhängen (Sinuskurve in MockWorker.rates); null = echte Uhr
+  fakeNow: [null, { option: true }],
+  page: async ({ page, appLocale, fakeNow }, provide) => {
+    setFakeNow(fakeNow);
     if (appLocale !== 'tr') {
       await page.addInitScript(
         ([key, locale]) => {
@@ -32,8 +35,10 @@ export const test = base.extend<{ worker: MockWorker; dashboard: Dashboard; appL
         [LOCALE_STORAGE_KEY, appLocale],
       );
     }
-    if (process.env.E2E_FAKE_NOW) await page.clock.install({ time: new Date(process.env.E2E_FAKE_NOW) });
+    const clock = fakeNow ?? process.env.E2E_FAKE_NOW;
+    if (clock) await page.clock.install({ time: new Date(clock) });
     await provide(page);
+    setFakeNow(null);
   },
   worker: async ({ page }, provide) => {
     const worker = new MockWorker();
