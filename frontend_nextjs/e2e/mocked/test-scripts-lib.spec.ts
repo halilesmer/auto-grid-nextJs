@@ -244,6 +244,34 @@ test.describe('precheck.sh', { tag: '@SYS-10' }, () => {
   });
 });
 
+test.describe('precheck.sh: Python-Pakete vor der Sperre', { tag: '@SYS-10' }, () => {
+  test('fehlt ein Paket, endet der Lauf sofort mit Meldung und nimmt die Sperre nicht (SYS-10)', () => {
+    const { root, bin } = fakeRepo();
+    // Python ohne pytest/yaml: `-c 'import …'` schlägt fehl wie in einem Worktree ohne Venv
+    const pyWrap = path.join(root, 'worker_python/.venv/bin/python');
+    writeFileSync(pyWrap, `#!/bin/sh\n[ "$1" = "-c" ] && { echo "ModuleNotFoundError: No module named 'pytest'" >&2; exit 1; }\nexit 0\n`);
+    chmodSync(pyWrap, 0o755);
+    // Fremder Halter hält die Sperre: nähme das Skript sie, würde es warten (Zeitlimit 60 s, Exit 75)
+    const lock = path.join(work, 'held.lock');
+    mkdirSync(lock);
+    writeFileSync(path.join(lock, 'owner'), 'fremd anderes-skript 00:00:00\n');
+    const t0 = Date.now();
+    const r = runIn(root, bin, 'precheck.sh', [], {
+      HEAVY_LOCK: '1',
+      HEAVY_LOCK_DIR: lock,
+      HEAVY_LOCK_TIMEOUT: '60',
+      STUB_JSON: STATS_RAN,
+    });
+    expect(Date.now() - t0).toBeLessThan(20_000);
+    expect(r.status, r.stdout + r.stderr).toBe(1);
+    expect(r.stderr).toContain('Python-Pakete fehlen');
+    expect(r.stderr).toContain(pyWrap);
+    expect(r.stderr).toContain('ln -s');
+    expect(r.stderr).toContain('requirements-dev.txt');
+    expect(r.stdout).not.toContain('━━');
+  });
+});
+
 test.describe('run.sh', { tag: '@SYS-10' }, () => {
   test('alter Bericht wird nicht gelesen: ohne neuen Bericht schlägt der Lauf fehl (R3-08)', () => {
     const { root, bin } = fakeRepo();

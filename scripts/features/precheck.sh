@@ -27,6 +27,22 @@ PY="$WORKER/.venv/bin/python"
 [ -x "$PY" ] || PY="$(command -v python3)"
 mkdir -p "$REPORTS"
 
+# Python-Pakete prüfen, bevor die Sperre genommen wird: fehlen sie (z. B. neuer Worktree ohne Venv),
+# würden Katalog und Worker nach der Wartezeit sofort fallen, der e2e-Lauf aber trotzdem ~18 min laufen.
+# yaml = update_checklist.py (Katalog), pytest = Worker-Tests. Der Rückfall auf python3 bleibt (CI).
+if ! "$PY" -c 'import yaml, pytest' 2>/dev/null; then
+  {
+    echo "precheck.sh: Python-Pakete fehlen (yaml und/oder pytest). Der Lauf endet, bevor er auf die Sperre wartet."
+    echo "  gewähltes Python: $PY"
+    if [ ! -x "$WORKER/.venv/bin/python" ]; then
+      echo "  Es gibt kein $WORKER/.venv, daher der Rückfall auf python3."
+    fi
+    echo "  Lösung 1 (Worktree): ln -s <Haupt-Checkout>/worker_python/.venv \"$WORKER/.venv\""
+    echo "  Lösung 2: \"$PY\" -m pip install -r \"$WORKER/requirements-dev.txt\""
+  } >&2
+  exit 1
+fi
+
 # shellcheck source=heavy_lock.sh
 source "$ROOT/scripts/features/heavy_lock.sh"
 # shellcheck source=e2e_server.sh
