@@ -260,8 +260,17 @@ test('Umschalt+Tab führt aus dem Menü auf die Seite und schließt es (das Men�
 
 test('Escape gibt den Fokus an das vorherige Element zurück', { tag: '@FRM-47' }, async ({ page, worker }) => {
   await openPage(page, worker);
-  await page.getByTestId('workspace-settings').focus();
-  await openAt(page);
+  // Fokus und Öffnen in EINEM synchronen Schritt: Zwischen einem getrennten focus() und dem Öffnen kann die Seite unter Last den Fokus
+  // verlieren (gemessen: activeElement war BODY, 3 von 160 Läufen); dann gibt es nichts zurückzugeben und der Test prüfte etwas anderes.
+  const p = await pointOn(page, hitOf(page, 'zigzag'));
+  const focused = await hitOf(page, 'zigzag').evaluate((el, pt) => {
+    const trigger = document.querySelector<HTMLElement>('[data-testid="workspace-settings"]')!;
+    trigger.focus();
+    const had = document.activeElement === trigger;
+    el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: pt.x, clientY: pt.y, button: 2 }));
+    return had;
+  }, p);
+  expect(focused).toBe(true);
   await expect(menu(page)).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(menu(page)).toHaveCount(0);
