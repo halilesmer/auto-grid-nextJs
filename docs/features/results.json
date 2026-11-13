@@ -295,9 +295,9 @@
   },
   "ANA-20": {
     "e2e": {
-      "datum": "2026-11-06",
+      "datum": "2026-11-13",
       "status": "passed",
-      "tests": 5
+      "tests": 10
     }
   },
   "ANA-21": {
@@ -309,9 +309,9 @@
   },
   "ANA-22": {
     "e2e": {
-      "datum": "2026-11-06",
+      "datum": "2026-11-13",
       "status": "passed",
-      "tests": 3
+      "tests": 1
     }
   },
   "ANA-24": {
@@ -1282,8 +1282,8 @@
   },
   "NWS-03": {
     "e2e": {
-      "datum": "2026-11-12",
-      "status": "passed",
+      "datum": "2026-11-13",
+      "status": "failed",
       "tests": 9
     }
   },
@@ -1555,9 +1555,9 @@
   },
   "UI-07": {
     "e2e": {
-      "datum": "2026-11-11",
+      "datum": "2026-11-13",
       "status": "passed",
-      "tests": 4
+      "tests": 5
     }
   },
   "UI-08": {
@@ -1583,7 +1583,7 @@
   },
   "UI-11": {
     "e2e": {
-      "datum": "2026-11-06",
+      "datum": "2026-11-13",
       "status": "passed",
       "tests": 4
     }

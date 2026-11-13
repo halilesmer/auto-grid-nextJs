@@ -94,6 +94,7 @@ Zustand domain stores in `src/store/` (`useAccountStore`, `useSettingsStore`, `u
 - `configs/settings_<accountId>_<Engine_Name>.json` – per-account settings and zones; `configs/accounts.json` – account list
 - `data/state_<accountId>.json` – runtime state; MT5 is the source of truth and `state_manager.py` rebuilds this file from MT5 on startup
 - `data/fractal_state_<accountId>.json` – fractal zones: handled (filled / manually deleted) fractals per zone and side, so they aren't traded again after a restart
+- `data/turns/<accountId>/turns_YYYYMMDD.csv.gz` – bot turn telemetry (ENG-35): start, length and kind of each loop turn, gzip members appended by a background thread, 30 days kept; read by `GET /api/bot/{id}/turns`
 - `logs/` – per-account logs and PID files
 All of these are gitignored and may contain credentials.
 

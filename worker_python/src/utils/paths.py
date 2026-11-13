@@ -169,3 +169,9 @@ def get_media_dir(account_id: str) -> str:
     """Örn: data/media/<account_id>/ (hesap medyası, 1107-A20; index.json + <mediaId>.<uzantı>).
     Klasör burada oluşturulmaz: yalnız yükleme açar, okuma/silme açmaz."""
     return os.path.join(DATA_DIR, "media", safe_account_id(account_id))
+
+
+def get_turns_dir(account_id: str) -> str:
+    """Örn: data/turns/<account_id>/ (bot tur telemetrisi, ENG-35; günlük turns_YYYYMMDD.csv.gz).
+    Klasör burada oluşturulmaz: yalnız yazan taraf (turn_log) açar, okuma açmaz."""
+    return os.path.join(DATA_DIR, "turns", safe_account_id(account_id))
