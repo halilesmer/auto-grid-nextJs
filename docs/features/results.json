@@ -1674,8 +1674,8 @@
   },
   "UI-29": {
     "e2e": {
-      "datum": "2026-11-11",
-      "status": "failed",
+      "datum": "2026-11-12",
+      "status": "passed",
       "tests": 11
     }
   },

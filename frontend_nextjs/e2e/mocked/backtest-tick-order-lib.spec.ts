@@ -193,7 +193,7 @@ test.describe('Bot-Reaktionsverzögerung (B) und Vorgaben', () => {
     expect(SAME_TICK_BATCH_DEFAULT).toBe(false);
     expect(FILL_SLTP_DELAY_DEFAULT).toBe(false);
     expect(BOT_REACT_DEFAULT).toBe(false);
-    expect(BOT_REACT_DELAY_S).toBe(2);
+    expect(BOT_REACT_DELAY_S).toBe(1);
   });
 
   test('Ohne Schalter ist das Ergebnis gleich dem mit allen Schaltern ausdrücklich aus', { tag: '@BKT-26' }, () => {
@@ -219,5 +219,29 @@ test.describe('Bot-Reaktionsverzögerung (B) und Vorgaben', () => {
   test('Verzögerung 0 schaltet B ab, auch mit Schalter an', { tag: '@BKT-26' }, () => {
     const rates = withReplay(candles(ROWS), { [T1 + 60]: GAP });
     expect(JSON.stringify(run(rates, { botReact: true, botReactDelay: 0 }).trades)).toBe(JSON.stringify(run(rates).trades));
+  });
+});
+
+// ------------------------------------------------------------------ BKT-29: E1 + B 1 s
+/** Minute T1+60: Füllung des Limits 2649 bei 10,0 s, danach Ticks im Abstand von 0,3 s (Bot-Intervall wäre 1 s) */
+const REACT: Tick[] = [[0, 2650.4, 2650.6], [10000, 2648.8, 2649.0], [10300, 2648.8, 2649.0], [10600, 2648.8, 2649.0], [10900, 2648.8, 2649.0], [11200, 2648.8, 2649.0], [20000, 2648.8, 2649.0]];
+const botTimes = (r: ReturnType<typeof run>) =>
+  r.log.lines.filter((l) => l.code === 'grid.ordersPlaced' || l.code === 'position.tpslUpdate').map((l) => (l.time ?? 0) - (T1 + 60));
+
+test.describe('Tepki-Gecikmesi 1 s, ohne periodischen Lauf dazwischen (BKT-29)', () => {
+  test('Mit botReact läuft der Bot nach der Füllung erst im ersten Tick ab 1 s, nicht beim periodischen Tick davor', { tag: '@BKT-29' }, () => {
+    const rates = withReplay(candles(ROWS), { [T1 + 60]: REACT });
+    const on = botTimes(run(rates, { botReact: true })).filter((t) => t >= 0);
+    expect(on.length).toBeGreaterThan(0);
+    // Füllung bei 10,0 s + 1 s = 11,0 s → erster Tick danach 11,2 s; kein Lauf bei 10,3 / 10,6 / 10,9 s
+    expect(Math.min(...on)).toBeCloseTo(11.2, 6);
+    expect(on.some((t) => t > 10 && t < 11)).toBe(false);
+  });
+
+  test('Ohne botReact läuft der Bot sofort bei der Füllung (bytegleicher alter Weg)', { tag: '@BKT-29' }, () => {
+    const rates = withReplay(candles(ROWS), { [T1 + 60]: REACT });
+    const off = botTimes(run(rates)).filter((t) => t >= 0);
+    expect(Math.min(...off)).toBeCloseTo(10, 6);
+    expect(JSON.stringify(run(rates).trades)).toBe(JSON.stringify(run(rates, { botReact: false }).trades));
   });
 });

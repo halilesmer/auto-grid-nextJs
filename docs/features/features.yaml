@@ -2253,6 +2253,16 @@ kategorien:
           - "Fenster P6+ und P7 auf dem DEMO-Konto vergleichen (nur lesen): mit 'close' sinkt die Summe der Netto-Abweichungen gegenüber 'snapshot' und der Anteil netto-exakter Trades steigt."
         erwartet: Die Tests bestehen. Im Modus 'close' weicht der Nettogewinn je Trade weniger von MT5 ab als im Modus 'snapshot'.
 
+      - id: BKT-29
+        titel: "Backtest: Bot-Reaktionsverzögerung (1 s) wird vom periodischen Lauf nicht mehr durchbrochen"
+        beschreibung: "Plan 1113, PR-1. Mit model.botReact wartet der Bot nach einem Tetik (Füllung, Schließung) BOT_REACT_DELAY_S = 1 s (vorher 2). In dieser Zeit (pendingBot) läuft er in der Tick-Replay-Minute nicht mehr periodisch dazwischen (E1); vorher durchbrach der 1-s-Lauf die Verzögerung. E1 ist Teil von botReact, kein eigener Schalter. BOT_REACT_DEFAULT bleibt false, P8 entscheidet über das Einschalten; mit botReact aus ist das Ergebnis bytegleich zu vorher. Keine Oberfläche."
+        code: [frontend_nextjs/src/lib/backtest/runner.ts, frontend_nextjs/src/lib/backtest/botDelay.ts, frontend_nextjs/e2e/mocked/backtest-tick-order-lib.spec.ts]
+        tiers: [e2e, manuell]
+        pruefung:
+          - "Playwright-Logiktest e2e/mocked/backtest-tick-order-lib.spec.ts ausführen (@BKT-29: Bot läuft nach der Füllung erst nach 1 s, nicht beim periodischen Tick davor; ohne botReact sofort)."
+          - "Fenster P6+ und P7 auf dem DEMO-Konto vergleichen (nur lesen): mit botReact sinkt die Summe der Netto-Abweichungen (P7 53,06 → 23,92; P6+ 5,71 → 4,85), mit botReact aus bleibt sie gleich."
+        erwartet: Die Tests bestehen. Mit botReact aus ist das Ergebnis unverändert, mit botReact an weicht der Nettogewinn weniger von MT5 ab.
+
   # ---------------------------------------------------------------------------
   - id: FRM
     titel: Formationserkennung

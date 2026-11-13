@@ -26,4 +26,4 @@ export function sltpDelaySeconds(symbolName: string, table: Readonly<Record<stri
  * Live reagiert der Bot nach einem SL-Close erst nach einigen Sekunden; der Backtest platzierte im selben Moment neu.
  * Ein Wert aus einem Ereignisfenster (P7): in P8 prüfen. Wert 0 schaltet die Verzögerung ab.
  */
-export const BOT_REACT_DELAY_S = 2;
+export const BOT_REACT_DELAY_S = 1; // BKT-29: 2 → 1 (live Median Tetik→Order ≈1,3 s; Messung: B 1 am besten, 1,3/1,5/2,2 schlechter)
