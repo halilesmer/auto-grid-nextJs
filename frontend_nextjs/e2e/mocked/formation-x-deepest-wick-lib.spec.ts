@@ -7,7 +7,7 @@ import { expect, test } from '@playwright/test';
 import { FormationContext, type ContextInput } from '../../src/lib/formation/context';
 import { analyzeCyp } from '../../src/lib/formation/cypChecks';
 import { analyzeGar } from '../../src/lib/formation/garChecks';
-import { deepestWickX, extremeWick } from '../../src/lib/formation/xabcd';
+import { deepestWickX, extremeWick, pivotIdxOf, shapeOfX, shiftBase, shiftC } from '../../src/lib/formation/xabcd';
 import type { FormationBar } from '../../src/lib/formation/types';
 import { END, H4, barsOf, patched, plain, zig, type Row } from '../fixtures/formation-rows';
 import { FIXTURE_TREND } from '../fixtures/formation-trend';
@@ -98,4 +98,58 @@ frm('A-Docht: GAR-21 (Pivot X → Pivot A ohne Zwischenpivot) rechnet mit den Pi
   const cand = analyzeGar(ctxOf(AB), END)[0].candidate;
   expect(cand.points.A?.time).toBe(AI * H4);
   expect(cand.checks.find((c) => c.id === 'GAR-21')?.state).toBe('met');
+});
+
+/**
+ * C (Halil 2026-11-13): erst nach bestätigtem C→D-Bein, d. h. nach dem ersten Schluss jenseits von B. Der Trend wählt den Pivot von C auf
+ * einem Fraktal in grüner Welle, daher entsteht „Docht vor dem Pivot“ hier nur auf gebauten Kerzen (reine Funktionen), nicht in der Scan-Reihe.
+ */
+// Kauf-Formation: X und B sind Tiefs (Seite `support`), A und C Hochs (`resistance`)
+const CBARS = [bar(0, 10, 12, 9, 11), bar(1, 11, 15, 10, 14), bar(2, 14, 13, 11, 12), bar(3, 12, 20, 6, 7), bar(4, 7, 8, 5, 6)];
+const CB = { idx: 0, price: 9 };
+const CC = { idx: 2, price: 13 };
+
+frm('C-Docht: shiftC – Schluss jenseits von B begrenzt den Bereich, die Schlusskerze zählt nicht', () => {
+  // Kerze 3 schließt unter B (7 < 9): Bereich 1..2, höchster High 15 (Kerze 1); der High 20 der Schlusskerze zählt nicht
+  expect(shiftC(CBARS, CC, CB, 'resistance', 'support')).toEqual({ idx: 1, price: 15, pivotIdx: 2 });
+});
+
+frm('C-Docht: shiftC – ein tieferer Docht nach dem Pivot (C→D-Bein) zählt nicht', () => {
+  const bars = [...CBARS.slice(0, 3), bar(3, 12, 14, 6, 7), bar(4, 7, 8, 5, 6)];
+  // Pivot Kerze 2 (13); Kerze 1 hat 15 davor; Kerze 3 (High 14) liegt nach dem Pivot und bleibt außen vor
+  expect(shiftC(bars, { idx: 2, price: 13 }, CB, 'resistance', 'support')).toEqual({ idx: 1, price: 15, pivotIdx: 2 });
+  const after = [bar(0, 10, 12, 9, 11), bar(1, 11, 13, 10, 12), bar(2, 12, 13, 11, 12), bar(3, 12, 20, 6, 7)];
+  expect(shiftC(after, { idx: 2, price: 13 }, CB, 'resistance', 'support')).toEqual({ idx: 2, price: 13 });
+});
+
+frm('C-Docht: shiftC – ohne Schluss jenseits von B (Formation im Aufbau) bleibt C am Pivot', () => {
+  expect(shiftC(CBARS.slice(0, 3), CC, CB, 'resistance', 'support')).toBe(CC);
+});
+
+frm('C-Docht: shiftC – Gleichstand lässt C stehen; Kerze von B zählt nicht', () => {
+  const bars = [bar(0, 10, 16, 9, 11), ...CBARS.slice(1)];
+  expect(shiftC(bars, { idx: 1, price: 15 }, CB, 'resistance', 'support')).toEqual({ idx: 1, price: 15 });
+});
+
+frm('C-Docht: shiftBase lässt C in der Basis auf der Dochtspitze, pivotIdx hält den Pivot', () => {
+  const bars = Array.from({ length: 12 }, (_, i) => bar(i, 10, 11, 9, 10));
+  bars[2] = bar(2, 10, 11, 5, 10);
+  bars[4] = bar(4, 10, 30, 9, 20);
+  bars[6] = bar(6, 10, 11, 8, 10);
+  bars[7] = bar(7, 10, 27, 9, 20);
+  bars[8] = bar(8, 10, 26, 9, 20);
+  bars[9] = bar(9, 10, 12, 4, 7); // Schluss 7 unter B (8)
+  const base = { x: { idx: 2, price: 5 }, a: { idx: 4, price: 30 }, b: { idx: 6, price: 8 }, c: { idx: 8, price: 26 } };
+  const out = shiftBase(bars, base, 'support', 'resistance', null);
+  expect(out.c).toEqual({ idx: 7, price: 27, pivotIdx: 8 });
+  expect(pivotIdxOf(out.c)).toBe(8);
+});
+
+frm('C-Docht: D sucht ab dem Pivot von C, nicht ab der früheren Dochtspitze', () => {
+  const bars = Array.from({ length: 12 }, (_, i) => bar(i, 10, 11, 9, 10));
+  bars[7] = bar(7, 10, 27, 3, 20); // tiefer Docht VOR dem Pivot von C
+  bars[8] = bar(8, 10, 26, 9, 20);
+  bars[9] = bar(9, 10, 12, 4, 7);
+  const s = shapeOfX(bars, { x: { idx: 2, price: 5 }, a: { idx: 4, price: 30 }, b: { idx: 6, price: 8 }, c: { idx: 7, price: 27, pivotIdx: 8 } });
+  expect(s.d).toEqual({ idx: 9, price: 4 });
 });

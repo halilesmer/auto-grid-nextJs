@@ -64,7 +64,7 @@ export function selectPoints(pivots: readonly Pivot[]): AbcdPoints | null {
 }
 
 /** Äußerster Docht auf der Seite `es` nach Kerze `from` (ohne `from`); null ohne spätere Kerze */
-function extremeAfter(bars: Bars, from: number, es: ZoneSide): AbcdPoint | null {
+export function extremeAfter(bars: Bars, from: number, es: ZoneSide): AbcdPoint | null {
   let best: AbcdPoint | null = null;
   for (let k = from + 1; k < bars.length; k++) {
     const price = wickEnd(bars[k], es);
