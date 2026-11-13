@@ -15,7 +15,8 @@ import { analyzeObo } from './oboChecks';
 import { analyzeTdf } from './tdfChecks';
 import type { FormationContext } from './context';
 import { shareEnv } from './reasons';
-import { CONTEXT_TIMEFRAMES, type ContextTimeframe } from './params';
+import { CONTEXT_TIMEFRAMES, NEAR_MISS_MAX_MISSING, type ContextTimeframe } from './params';
+import { checkScore } from './score';
 import type { Candidate, CheckState } from './types';
 
 export const SCAN_FORMATIONS = ['ABCD', 'GAR', 'BAT', 'BUT', 'CRB', 'CYP', 'CDT', 'LIB', 'OBO', 'TDF', '2618'] as const;
@@ -107,6 +108,41 @@ export function countsAsHit({ form, candidate }: ScanHit): boolean {
   if (!points.some((point) => point in candidate.points)) return false;
   if (unfinished === undefined) return true;
   return !candidate.checks.some((c) => c.id === unfinished.id && c.state === unfinished.state);
+}
+
+/** Zustand eines Kandidaten in der Formationsreihe (1113-A4): gültig, im Aufbau (zählt), nah dran (≤ Schwelle fehlende Pflichtregeln, keine Ausschlussregel erfüllt) oder sonstige */
+export type HitState = 'valid' | 'forming' | 'near' | 'other';
+
+export function hitState(hit: ScanHit): HitState {
+  if (hit.candidate.verdict === 'valid') return 'valid';
+  if (countsAsHit(hit)) return 'forming';
+  if (hit.candidate.verdict !== 'invalid') return 'other';
+  const { requiredTotal, requiredMet } = checkScore(hit.candidate);
+  if (requiredTotal - requiredMet > NEAR_MISS_MAX_MISSING) return 'other';
+  if (hit.candidate.checks.some((c) => c.kind === 'exclusion' && c.state === 'met')) return 'other';
+  return 'near';
+}
+
+const STATE_RANK: Record<HitState, number> = { valid: 3, forming: 2, near: 1, other: 0 };
+
+/** Bester Zustand der Formation auf `tf` und der Kandidat dazu; ohne Kandidat `null` */
+export function formState(hits: readonly ScanHit[], form: ScanFormation, tf: ContextTimeframe): { state: HitState; hit: ScanHit } | null {
+  let best: { state: HitState; hit: ScanHit } | null = null;
+  for (const hit of hits) {
+    if (hit.form !== form || hit.tf !== tf) continue;
+    const state = hitState(hit);
+    if (!best || STATE_RANK[state] > STATE_RANK[best.state]) best = { state, hit };
+  }
+  return best;
+}
+
+/** Grund im Menü: erste ausgelöste Ausschlussregel, sonst erste fehlende Pflichtregel; leer, wenn keine zu nennen ist */
+export function reasonOf(hit: ScanHit): { kind: 'exclusion' | 'missing'; id: string } | null {
+  const checks = hit.candidate.checks.filter((c) => !c.inactive);
+  const ex = checks.find((c) => c.kind === 'exclusion' && c.state === 'met');
+  if (ex) return { kind: 'exclusion', id: ex.id };
+  const miss = checks.find((c) => c.kind === 'required' && c.state !== 'met');
+  return miss ? { kind: 'missing', id: miss.id } : null;
 }
 
 export const hitsCount = (hits: readonly ScanHit[], by: { form?: ScanFormation; tf?: ContextTimeframe }): number =>
