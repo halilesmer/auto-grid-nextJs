@@ -449,7 +449,8 @@ export function runBacktest(input: RunInput): RunResult {
           ran = true;
         }
         if (ran && batch && reactDelay <= 0) runBot();
-        if (!ran && broker.now - lastBot >= REPLAY_BOT_INTERVAL) {
+        // BKT-29 (E1): wartet der Bot auf seine Tepki-Verzögerung (pendingBot), läuft er nicht periodisch dazwischen (pendingBot ist ohne botReact immer null)
+        if (!ran && pendingBot === null && broker.now - lastBot >= REPLAY_BOT_INTERVAL) {
           countEvent();
           runBot();
         }
