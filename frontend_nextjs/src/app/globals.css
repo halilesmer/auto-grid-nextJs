@@ -46,6 +46,7 @@
   --accent: #e4e4e7;
   --accent-foreground: #1b1a1d;
   --border: #e0e0e3;
+  --chart-separator: #8e8e97;
   --input: #d4d4d8;
   --ring: #c9632b;
 
@@ -93,6 +94,7 @@
   --accent: #38373c;
   --accent-foreground: #ececee;
   --border: #3a393e;
+  --chart-separator: #7d7c85;
   --input: #3a393e;
   --ring: #e78a53;
 

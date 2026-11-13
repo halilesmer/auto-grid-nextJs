@@ -167,7 +167,7 @@ export function applyAppearance(binding: ChartBinding, a: Appearance, digits: nu
   if (binding.isDisposed()) return;
   const { chart, candles } = binding, c = appearanceColors(a);
   chart.applyOptions({
-    layout: { background: { type: ColorType.Solid, color: c.background }, textColor: c.text, fontSize: a.fontSize, panes: { separatorColor: a.separator || c.border, enableResize: true } },
+    layout: { background: { type: ColorType.Solid, color: c.background }, textColor: c.text, fontSize: a.fontSize, panes: { separatorColor: a.separator || (a.preset === 'classic' ? c.text : c.separator), separatorHoverColor: withAlpha(c.primary, 0.5), enableResize: true } },
     grid: { vertLines: { visible: a.gridV, color: a.gridColor || c.grid }, horzLines: { visible: a.gridH, color: a.gridColor || c.grid } },
     crosshair: { mode: a.crosshair ? CrosshairMode.Normal : CrosshairMode.Hidden, vertLine: { color: a.crosshairColor || c.crosshair, style: lineStyle(a.crosshairStyle), labelBackgroundColor: c.crosshairLabel }, horzLine: { color: a.crosshairColor || c.crosshair, style: lineStyle(a.crosshairStyle), labelBackgroundColor: c.crosshairLabel } },
     leftPriceScale: { visible: a.side === 'left', borderColor: a.axisColor || c.border }, rightPriceScale: { visible: a.side !== 'left', borderColor: a.axisColor || c.border }, timeScale: { borderColor: a.axisColor || c.border },
