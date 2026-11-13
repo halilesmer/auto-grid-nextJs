@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 import asyncio
 import os
 import json
@@ -27,6 +29,7 @@ from src.utils.bot_manager import (
     start_bot_process,
     stop_bot_process,
 )
+from src.utils.turn_log import read_turns
 from src.utils.bot_watchdog import account_exists, account_lock, is_watched, unwatch, watch
 from src.utils.paths import (
     get_metrics_path,
@@ -311,6 +314,41 @@ async def stop_bot(account_id: str):
     except Exception:
         pass
     return {"status": "success", "message": f"Bot stopped for {account_id}"}
+
+
+MAX_TURNS_RANGE_MS = 2 * 86400 * 1000
+
+
+@router.get("/bot/{account_id}/turns", dependencies=[Depends(account_access)])
+async def get_bot_turns(
+    account_id: str,
+    from_ms: int = Query(..., alias="from", ge=0, le=4102444800000),
+    to_ms: Optional[int] = Query(None, alias="to", ge=0),
+):
+    """ENG-35: bot tur telemetrisi, [from, to) UTC ms (to varsayılan: şimdi), en çok 2 gün.
+
+    Kompakt çıktı: `t0` ilk başlangıç, `dt` ardışık başlangıç farkları (ms), `dur` süreler (ms),
+    `kind` türler (t tam tur, m piyasa kapalı, c bağlantı, n netting), `pre` tur başından
+    manage_dynamic_grid'e kadar ms. Yalnız okuma."""
+    if to_ms is None:
+        to_ms = int(time.time() * 1000)
+    if to_ms <= from_ms:
+        raise HTTPException(status_code=422, detail="'to' must be greater than 'from'")
+    if to_ms - from_ms > MAX_TURNS_RANGE_MS:
+        raise HTTPException(status_code=422, detail="Range is limited to 2 days")
+    rows = await asyncio.to_thread(read_turns, account_id, from_ms, to_ms)
+    starts = [r[0] for r in rows]
+    return {
+        "account_id": account_id,
+        "from": from_ms,
+        "to": to_ms,
+        "count": len(rows),
+        "t0": starts[0] if starts else None,
+        "dt": [b - a for a, b in zip(starts, starts[1:])],
+        "dur": [r[1] for r in rows],
+        "kind": [r[2] for r in rows],
+        "pre": [r[3] for r in rows],
+    }
 
 
 @router.post("/action")

@@ -1067,6 +1067,14 @@ kategorien:
         pruefung:
           - Metrikdatei des laufenden Bots öffnen und die drei Margin-Felder mit MT5 vergleichen.
         erwartet: Die drei Werte stehen in den Metriken und stimmen mit MT5 überein.
+      - id: ENG-35
+        titel: Tur-Telemetrie des Bots
+        beschreibung: "Der Bot-Prozess schreibt je Tur Startzeit (UTC ms) und Dauer (ms, ohne Schlaf) mit Art (t volle Tur, m Markt zu, c Verbindung, n Netting) und Vorlaufzeit bis manage_dynamic_grid in data/turns/<Konto>/turns_YYYYMMDD.csv.gz (UTC-Tag, gzip-Glieder von einem Hintergrund-Thread alle 30 Zeilen oder 10 s angehängt, 30 Tage Aufbewahrung). Schreibfehler stoppen die Tur nie und ändern ihre Zeit nicht; keine Logzeile. GET /api/bot/{id}/turns?from=&to= (ms, höchstens 2 Tage, account_access) liefert t0, dt, dur, kind, pre kompakt. Keine Oberfläche; Grundlage für BKT-30."
+        code: [worker_python/src/utils/turn_log.py, worker_python/src/core/loop.py, worker_python/src/api/bot_control.py, worker_python/src/utils/paths.py]
+        tiers: [api]
+        pruefung:
+          - Nach dem Update auf dem VPS den Bot laufen lassen und GET /api/bot/<Konto>/turns mit einem Zeitfenster der letzten Minuten aufrufen.
+        erwartet: Etwa alle 2 Sekunden eine Tur (kind t, dur um 2100 ms); fremde Konten liefern 404.
   # ---------------------------------------------------------------------------
   - id: MET
     titel: Live-Daten & Diagramm
