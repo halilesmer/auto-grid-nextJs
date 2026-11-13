@@ -188,10 +188,10 @@ kategorien:
   const venvPy = path.join(CHECKOUT_ROOT, 'worker_python/.venv/bin/python');
   const py = existsSync(venvPy) ? venvPy : spawnSync('which', ['python3'], { encoding: 'utf8' }).stdout.trim();
   mkdirSync(path.join(root, 'worker_python/.venv/bin'), { recursive: true });
-  // Hülle statt Symlink (ein Symlink findet pyvenv.cfg und damit pyyaml nicht). `-m pytest` meldet
-  // Erfolg: der Nachbau hat keine Worker-Tests.
+  // Hülle statt Symlink (ein Symlink findet pyvenv.cfg und damit pyyaml nicht). `-m pytest` und die Paketprüfung
+  // vor der Sperre melden Erfolg (CI-e2e hat kein pytest): der Nachbau hat keine Worker-Tests.
   const pyWrap = path.join(root, 'worker_python/.venv/bin/python');
-  writeFileSync(pyWrap, `#!/bin/sh\n[ "$1" = "-m" ] && [ "$2" = "pytest" ] && exit 0\nexec "${py}" "$@"\n`);
+  writeFileSync(pyWrap, `#!/bin/sh\n[ "$1" = "-m" ] && [ "$2" = "pytest" ] && exit 0\n[ "$1" = "-c" ] && [ "$2" = "import yaml, pytest" ] && exit 0\nexec "${py}" "$@"\n`);
   chmodSync(pyWrap, 0o755);
   // falsche Befehle: npx schreibt auf Wunsch einen Bericht, npm tut nichts
   const bin = path.join(work, 'bin');
