@@ -108,7 +108,11 @@ const appliedScale = new WeakMap<ChartBinding, { autoScale?: boolean; mode?: Pri
 /** Fiyat ölçeğini ayardaki otomatik ölçeğe döndürür (Sığdır düğmesi) */
 export function resetPriceScale(binding: ChartBinding, autoScale: boolean) {
   if (binding.isDisposed()) return;
-  binding.candles.priceScale().setAutoScale(autoScale);
+  const scale = binding.candles.priceScale();
+  scale.setAutoScale(autoScale);
+  // setAutoScale yalnız seçeneği yazar; kütüphane fiyat aralığını bir sonraki ölçek/veri değişikliğine kadar yeniden hesaplamaz
+  // (sürüklemeden sonra Sığdır, eksenin eski kalmasına yol açardı). Aynı kipi yeniden yazmak aralığı geçersiz kılar (UI-30).
+  if (autoScale) scale.applyOptions({ mode: scale.options().mode });
   appliedScale.set(binding, { ...appliedScale.get(binding), autoScale });
 }
 /** Otomatik ölçek açıkken bu kadar dikey sürükleme mumları kaydırmaya başlar; daha azı yatay kaydırmadır */
