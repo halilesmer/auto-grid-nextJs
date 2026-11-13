@@ -21,7 +21,12 @@ type Bars = readonly FormationBar[];
 export interface XPoint {
   idx: number;
   price: number;
+  /** Kerze des Trend-Pivots, wenn der Punkt für die Messung auf die Dochtspitze verschoben wurde; sonst fehlt das Feld */
+  pivotIdx?: number;
 }
+
+/** Kerze des Trend-Pivots eines Punktes (Strukturprüfungen gegen `trend.pivots`); Messungen nehmen `idx` und `price` */
+export const pivotIdxOf = (p: XPoint): number => p.pivotIdx ?? p.idx;
 
 /** X, A, B, C vor der Messung: Kerzenindex und Preis */
 export interface XabcdBase {
@@ -76,18 +81,35 @@ export function selectBases(pivots: readonly Pivot[]): XabcdBase[] {
 }
 
 /**
- * X auf den äußersten Docht der Schwingung (Halil 2026-11-13): die EWO-Regel des Trends meldet einen Pivot oft eine Kerze zu spät,
- * die Fib-Verhältnisse brauchen aber die echte Dochtspitze. Gesucht wird zwischen der Kerze des Pivots vor X (ausgeschlossen; ohne ihn
- * ab der ersten geladenen Kerze) und der Kerze von A (ausgeschlossen): bei einem Tief der tiefste Low, bei einem Hoch der höchste High.
- * Nur eine strikt äußere Spitze ersetzt X; bei Gleichstand bleibt der Pivot. Der Trend selbst bleibt unverändert.
+ * Punkt auf den äußersten Docht der Schwingung (Halil 2026-11-13): die EWO-Regel des Trends meldet einen Pivot oft eine Kerze zu spät,
+ * die Fib-Verhältnisse brauchen aber die echte Dochtspitze. Gesucht wird in den Kerzen `fromIdx` bis ausschließlich `toIdx`:
+ * bei einem Tief der tiefste Low, bei einem Hoch der höchste High. Nur eine strikt äußere Spitze ersetzt den Punkt; bei Gleichstand
+ * bleibt der Pivot. Der Trend selbst bleibt unverändert.
  */
-export function deepestWickX(bars: Bars, x: XPoint, side: ZoneSide, prevIdx: number | null, aIdx: number): XPoint {
-  let best = x;
-  for (let k = prevIdx === null ? 0 : prevIdx + 1; k < aIdx && k < bars.length; k++) {
+export function extremeWick(bars: Bars, point: XPoint, side: ZoneSide, fromIdx: number, toIdx: number): XPoint {
+  let best = point;
+  for (let k = Math.max(0, fromIdx); k < toIdx && k < bars.length; k++) {
     const price = wickEnd(bars[k], side);
     if (outward(side, price) > outward(side, best.price)) best = { idx: k, price };
   }
   return best;
+}
+
+/** X: zwischen dem Pivot vor X (ausgeschlossen; ohne ihn ab der ersten geladenen Kerze) und der Kerze von A (ausgeschlossen) */
+export const deepestWickX = (bars: Bars, x: XPoint, side: ZoneSide, prevIdx: number | null, aIdx: number): XPoint =>
+  extremeWick(bars, x, side, prevIdx === null ? 0 : prevIdx + 1, aIdx);
+
+/**
+ * X, dann A, dann B auf ihre äußersten Dochte; jeder Punkt sucht nach dem verschobenen Vorgänger (Reihenfolge X → A → B):
+ * A zwischen X und dem Pivot von B, B zwischen A und dem Pivot von C. C und D bleiben (offen, Halil 2026-11-13).
+ * `pivotIdx` hält die Kerze des Trend-Pivots für die Strukturprüfungen fest.
+ */
+export function shiftBase(bars: Bars, base: XabcdBase, xSide: ZoneSide, aSide: ZoneSide, prevIdx: number | null): XabcdBase {
+  const pin = (moved: XPoint, orig: XPoint): XPoint => (moved.idx === orig.idx ? orig : { ...moved, pivotIdx: orig.idx });
+  const x = pin(deepestWickX(bars, base.x, xSide, prevIdx, base.a.idx), base.x);
+  const a = pin(extremeWick(bars, base.a, aSide, x.idx + 1, base.b.idx), base.a);
+  const b = pin(extremeWick(bars, base.b, xSide, a.idx + 1, base.c.idx), base.b);
+  return { x, a, b, c: base.c };
 }
 
 /** Ein Pip des Symbols (Annahme: Paare 0.0001, JPY-Paare 0.01, Gold 0.1, Silber 0.01, übrige Symbole 0.01) */
@@ -293,7 +315,7 @@ export function analyzeXabcd(
     for (const base of selectBases(pivots)) {
       const xi = pivots.findIndex((p) => p.idx === base.x.idx);
       const prev = xi > 0 ? pivots[xi - 1].idx : null;
-      const picked = { ...base, x: deepestWickX(bars, base.x, pivots[xi].side, prev, base.a.idx) };
+      const picked = shiftBase(bars, base, pivots[xi].side, pivots[xi + 1].side, prev);
       const candidate = evaluate(env, tf, shapeOfX(bars, picked), pip);
       const unmet = misses(candidate);
       if (best === null || unmet < best.unmet) best = { candidate, unmet };

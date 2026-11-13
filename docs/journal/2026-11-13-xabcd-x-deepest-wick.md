@@ -42,4 +42,5 @@ The range for C runs to the end of the series (no pivot after C), so the C numbe
 
 ## Open points
 
-- [ ] A, B and C show the same effect at a similar rate. The project owner has not decided on them.
+- [x] A and B: decided the same day, see `2026-11-13-xabcd-a-b-deepest-wick.md`.
+- [ ] C shows the same effect (13.0 %, upper bound). The project owner has not decided on it.

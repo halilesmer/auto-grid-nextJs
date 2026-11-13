@@ -257,15 +257,16 @@ const times = (c: Candidate) => ['X', 'A', 'B', 'C', 'D'].map((p) => time(c, p))
 const CORE = ['BUT-01', 'BUT-02', 'BUT-03', 'BUT-04', 'BUT-05', 'BUT-06', 'BUT-07'];
 
 test.describe('BUT: echte Kerzen', () => {
-  frm('but-buy-h4-01: Kauf-Butterfly, B bei 0.879, D bei 1.37, AB=CD und PRZ am Ziel-D ist gültig', () => {
+  // B liegt seit der Docht-Regel (Halil 2026-11-13) am tiefsten Docht 0.93007 der Kerze 2026-01-12 08:00 statt am Pivot 0.93014 (00:00): 0.905 statt 0.879 von X → A, über 0.886 (BUT-03 ☑).
+  frm('but-buy-h4-01: Kauf-Butterfly, B am tiefsten Docht bei 0.905 (über 0.886, BUT 03 ☑), D bei 1.37, ist ungültig', () => {
     const c = analyzeAt('but-buy-h4-01', '2026-01-14T12:00');
     expect(c.side).toBe('buy');
-    expect(times(c)).toEqual(['2026-01-09T00:00', '2026-01-09T16:00', '2026-01-12T00:00', '2026-01-12T12:00', '2026-01-13T00:00']);
-    expect(states(c, CORE)).toEqual([M, M, N, M, N, M, M]);
-    expect(states(c, ['BUT-08', 'BUT-09', 'BUT-10', 'BUT-11', 'BUT-12', 'BUT-13', 'BUT-14'])).toEqual([M, M, M, M, N, N, N]);
-    expect(find(c, 'BUT-02').value!).toBeCloseTo((0.93254 - 0.93014) / (0.93254 - 0.92981), 3);
+    expect(times(c)).toEqual(['2026-01-09T00:00', '2026-01-09T16:00', '2026-01-12T08:00', '2026-01-12T12:00', '2026-01-13T00:00']);
+    expect(states(c, CORE)).toEqual([M, M, M, M, N, M, M]);
+    expect(states(c, ['BUT-08', 'BUT-09', 'BUT-10', 'BUT-11', 'BUT-12', 'BUT-13', 'BUT-14'])).toEqual([M, N, M, M, N, N, N]);
+    expect(find(c, 'BUT-02').value!).toBeCloseTo((0.93254 - 0.93007) / (0.93254 - 0.92981), 3);
     expect(find(c, 'BUT-07').value!).toBeCloseTo((0.93254 - 0.9288) / (0.93254 - 0.92981), 3);
-    expect(c.verdict).toBe('valid');
+    expect(c.verdict).toBe('invalid');
   });
 
   frm('but-sell-h4-01: Verkauf-Butterfly mit RSI(7) 85 am D, das echte D liegt in einer Zone, ist gültig', () => {
