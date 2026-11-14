@@ -2,7 +2,7 @@
 
 import { ArrowDown, ArrowUp, TriangleAlert, X } from 'lucide-react';
 import { StateIcon, checkRowState } from '@/components/formation/FormationChecklist';
-import { InfoHint } from '@/components/ui/tooltip';
+import { InfoHint, Tooltip } from '@/components/ui/tooltip';
 import { useFormat, useLocale, useT } from '@/i18n';
 import { ruleText } from '@/lib/formation/ruleTexts';
 import type { ScanHit } from '@/lib/formation/scan';
@@ -68,10 +68,12 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
         <span className="text-xs font-semibold">{t('formation.trade.title')}</span>
         <span className="text-[11px] text-muted-foreground">{t('formation.trade.disclaimer')}</span>
         <InfoHint hint={t('formation.trade.title.hint')} />
-        <span className={cn('ml-auto inline-flex items-center gap-0.5 text-[11px] font-semibold', buy ? 'text-success' : 'text-danger')}>
-          {buy ? <ArrowUp size={12} aria-hidden="true" /> : <ArrowDown size={12} aria-hidden="true" />}
-          {t(`formation.trade.side.${candidate.side}`)}
-        </span>
+        <Tooltip content={t(`formation.trade.side.${candidate.side}.hint`)} role="presentation">
+          <span className={cn('ml-auto inline-flex cursor-help items-center gap-0.5 text-[11px] font-semibold', buy ? 'text-success' : 'text-danger')}>
+            {buy ? <ArrowUp size={12} aria-hidden="true" /> : <ArrowDown size={12} aria-hidden="true" />}
+            {t(`formation.trade.side.${candidate.side}`)}
+          </span>
+        </Tooltip>
       </div>
       {veto && (
         <div
