@@ -19,7 +19,12 @@ import { useSymbolDetails } from '@/hooks/useSymbolDetails';
 import { useFormat, useT, type MessageKey } from '@/i18n';
 import type { SpreadSetting } from '@/lib/backtest/broker/costs';
 import { proposeCommission } from '@/lib/backtest/commission';
+import { BOT_TURNS_DEFAULT } from '@/lib/backtest/botTurns';
+import { loadBotTurns } from '@/lib/backtest/botTurnsLoad';
 import type { RunParams } from '@/lib/backtest/protocol';
+import { botTurnsFor } from '@/lib/backtest/turnSchedule';
+import { fetchBotTurns } from '@/services/botTurnsApi';
+import { fetchLiveOrders } from '@/services/historyApi';
 import { spreadHistoryNote } from '@/lib/backtest/spreadHistoryNote';
 import type { CsvSeries } from '@/services/csvImportApi';
 import { brokerToday, DAY_SEC, dayStart, presetRange, rangeBounds } from '@/lib/serverTime';
@@ -237,10 +242,11 @@ export function BacktestView() {
     const spreadNote = spreadHistoryNote(zone, [...setups.filter((s) => s.id !== activeId).map((s) => s.zone), ...(zones ?? [])]);
     // BKT-25: Start im Live-Zustand von `from`, nur für gespeicherte Setups mit MT5-M1-Kerzen (wie die Live-Vergleichs-Läufe)
     const magic = Number(zone.magic);
+    // eslint-disable-next-line react-hooks/purity -- Klick-Handler, kein Render: die aktuelle Zeit ist hier erlaubt
+    const nowSec = Math.floor(Date.now() / 1000) + (offsetSec ?? 0);
     let startState: RunParams['startState'];
     let startNote: { code: string } | null = null;
-    // eslint-disable-next-line react-hooks/purity -- Klick-Handler, kein Render: die aktuelle Zeit ist hier erlaubt
-    if (!unsaved && !csvImport && dataTimeframe === 'M1' && Number.isFinite(magic) && zone.magic != null && bounds.from < Math.floor(Date.now() / 1000) + (offsetSec ?? 0)) {
+    if (!unsaved && !csvImport && dataTimeframe === 'M1' && Number.isFinite(magic) && zone.magic != null && bounds.from < nowSec) {
       const archiveData = deals.data;
       const covered = archiveData !== null && archiveData.from <= bounds.from && !archiveData.missing.some((m) => m.from < (bounds.from as number));
       if (covered) startState = { deals: archiveData.deals.filter((d) => d.magic === magic) };
@@ -267,7 +273,33 @@ export function BacktestView() {
       notes: spreadNote || startNote ? [...(spreadNote ? [spreadNote] : []), ...(startNote ? [startNote] : [])] : undefined,
       startState,
     };
-    start(accountId, { setupId: activeId, params, unsaved, currency, sourceLabel: csvImport ? t('backtest.data.csv', { symbol: csvImport.symbol, tf: csvImport.timeframe, from: fmt.mt5DateTime(csvImport.first_t), to: fmt.mt5DateTime(csvImport.last_t) }) : t('backtest.data.mt5') });
+    const launch = (final: RunParams) => {
+      start(accountId, { setupId: activeId, params: final, unsaved, currency, sourceLabel: csvImport ? t('backtest.data.csv', { symbol: csvImport.symbol, tf: csvImport.timeframe, from: fmt.mt5DateTime(csvImport.first_t), to: fmt.mt5DateTime(csvImport.last_t) }) : t('backtest.data.mt5') });
+    };
+    // BKT-30: Tur-Raster nur bei eingeschaltetem Schalter; aus = kein zusätzlicher Abruf, der Lauf startet sofort wie bisher
+    if (!BOT_TURNS_DEFAULT) {
+      launch(params);
+      return;
+    }
+    const to = bounds.to;
+    const from = bounds.from;
+    void loadBotTurns({
+      live: startState !== undefined || startNote !== null,
+      from,
+      to,
+      nowSec,
+      tzOffsetSec: offsetSec === null ? null : Math.round(offsetSec / 3600) * 3600,
+      loopSec: settings?.LOOP_INTERVAL_SECONDS ?? 1.0,
+      magics: (zones ?? []).map((z) => Number(z.magic)).filter((m) => Number.isFinite(m)),
+      fetchOrders: (range) => fetchLiveOrders(accountId, range),
+      fetchTurns: (range) => fetchBotTurns(accountId, range),
+    }).then(({ schedule, info }) => {
+      launch({
+        ...params,
+        model: schedule && Number.isFinite(magic) ? { ...params.model, botTurns: botTurnsFor(schedule, magic) } : params.model,
+        ...(info ? { botTurnsInfo: info } : {}),
+      });
+    });
   };
 
   // Ergebnis und Fehler gehören zu Konto und Setup ihres Laufs; bei einem anderen Setup zeigt die Seite sie nicht

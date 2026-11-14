@@ -6,6 +6,7 @@
 import type { ConversionPair } from '@/lib/backtest/broker/conversion';
 import type { SpreadSetting } from '@/lib/backtest/broker/costs';
 import type { Timeframe, ZoneDict } from '@/lib/backtest/engine/types';
+import type { BotTurnsInfo } from '@/lib/backtest/botTurns';
 import type { RunModel, RunResult } from '@/lib/backtest/runner';
 import type { Deal } from '@/lib/analysis/tradePairing';
 import type { MissingRange } from '@/lib/analysis/candles';
@@ -46,6 +47,8 @@ export interface RunParams {
   notes?: { code: string; params?: Record<string, unknown> }[];
   /** BKT-25: Live-Deals dieses Setups (nur sein Magic) aus dem Archiv der Seite; mit ihnen startet der Lauf im Live-Zustand von `from` */
   startState?: { deals: Deal[] };
+  /** BKT-30 (PR-3): Herkunft des Tur-Rasters in `model.botTurns`; die Seite setzt es nur bei eingeschaltetem Schalter. Landet als `run.botTurns` im Protokoll. */
+  botTurnsInfo?: BotTurnsInfo;
 }
 
 export interface RunRequest {

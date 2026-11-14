@@ -173,6 +173,7 @@ export async function runJob(
         fetchedTicks += [...loaded.minutes.values()].reduce((sum, m) => sum + m.ms.length, 0);
         if (loaded.minutes.size === 0) break;
       }
+      if (params.botTurnsInfo) addLog(result, 'INFO', 'run.botTurns', { ...params.botTurnsInfo });
       if (rateSeries && conversion) addLog(result, 'INFO', 'run.convRateLoaded', { pair: conversion.name, candles: rateSeries.t.length, ms: rateLoadMs });
       if (wantTrigger) {
         if (unavailable) addLog(result, 'WARN', 'run.triggerReplayUnavailable', {});

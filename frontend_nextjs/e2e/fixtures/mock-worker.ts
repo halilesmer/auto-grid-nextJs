@@ -510,6 +510,7 @@ export class MockWorker {
     if (seg[0] === 'ui-prefs' && (seg.length === 2 || seg.length === 3)) return seg[1];
     if (seg[0] === 'market' && seg.length === 3) return seg[1];
     if (seg[0] === 'history' && seg.length === 3) return seg[1];
+    if (seg[0] === 'bot' && seg[2] === 'turns') return seg[1];
     if (seg[0] === 'accounts' && seg.length === 2 && method !== 'GET') return seg[1];
     if (seg[0] === 'start' || seg[0] === 'stop') return url.searchParams.get('account_id') ?? '';
     return null;
@@ -1237,6 +1238,18 @@ export class MockWorker {
       const account = s.accounts.find((a) => String(a.id) === seg[1]);
       if (!account) return { status: 404, body: { detail: `Account '${seg[1]}' not found` } };
       return ok(this.liveOrders(seg[1], url.searchParams));
+    }
+
+    if (seg[0] === 'bot' && seg[2] === 'turns' && seg.length === 3 && method === 'GET') {
+      if (!s.accounts.some((a) => String(a.id) === seg[1])) return { status: 404, body: { detail: `Account '${seg[1]}' not found` } };
+      const from = Number(url.searchParams.get('from'));
+      const to = Number(url.searchParams.get('to') ?? Date.now());
+      if (to - from > 2 * 86400 * 1000) return { status: 422, body: { detail: 'Range is limited to 2 days' } };
+      const rows = (s.botTurns[seg[1]] ?? []).filter((r) => r[0] >= from && r[0] < to).sort((a, b) => a[0] - b[0]);
+      return ok({
+        account_id: seg[1], from, to, count: rows.length, t0: rows[0]?.[0] ?? null,
+        dt: rows.slice(1).map((r, i) => r[0] - rows[i][0]), dur: rows.map((r) => r[1]), kind: rows.map((r) => r[2]), pre: rows.map((r) => r[3]),
+      });
     }
 
     // --------------------------------------------------------------- Bot

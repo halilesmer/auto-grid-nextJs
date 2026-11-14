@@ -1282,8 +1282,8 @@
   },
   "NWS-03": {
     "e2e": {
-      "datum": "2026-11-13",
-      "status": "failed",
+      "datum": "2026-11-14",
+      "status": "passed",
       "tests": 9
     }
   },

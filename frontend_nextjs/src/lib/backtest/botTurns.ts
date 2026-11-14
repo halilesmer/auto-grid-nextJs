@@ -26,3 +26,21 @@ export const BOT_TURNS_MAX_PASSES = 8;
 /** Ein Raster ist nur brauchbar mit gleich langen Listen; sonst läuft der Lauf wie ohne Raster */
 export const botTurnsActive = (turns: BotTurns | undefined | null): turns is BotTurns =>
   !!turns && turns.starts.length > 0 && turns.zoneAt.length === turns.starts.length;
+
+/**
+ * BKT-30 (PR-3): Vorgabe für das Tur-Raster im Live-Vergleich. Aus = die Seite liest nichts zusätzlich und der Lauf ist
+ * bytegleich wie vorher. Das Einschalten entscheidet P8 (Journal); eine Oberfläche gibt es bewusst nicht.
+ */
+export const BOT_TURNS_DEFAULT: boolean = false;
+
+/** Eintrag `run.botTurns` im Laufprotokoll: woher das Raster kam und wie gut es zu den Live-Orders passt */
+export interface BotTurnsInfo {
+  source: 'telemetry' | 'liveOrders' | 'off';
+  turns: number;
+  /** Live-Op-Kerzen, die ans Raster ausgerichtet sind (Kette bzw. Uhr-Paare) */
+  alignedClusters: number;
+  totalClusters: number;
+  /** nur Telemetrie: feste Restverschiebung der Uhr in Sekunden */
+  clockShiftSec?: number;
+  clockReliable?: boolean;
+}
