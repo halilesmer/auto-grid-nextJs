@@ -1,9 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Globe, LayoutDashboard, Monitor, Plug, Power, RefreshCw, Server, Settings } from 'lucide-react';
-import ConfirmModal from '@/components/ConfirmModal';
-import UpdateModal from '@/components/dashboard/UpdateModal';
+import { Globe, LayoutDashboard, Monitor, Plug, Power, RefreshCw, Server } from 'lucide-react';
 import { DropdownMenu, DropdownMenuGroup, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { StatusDot } from '@/components/ui/status-dot';
 import { useSystemActions } from '@/hooks/useSystemActions';
@@ -15,6 +13,7 @@ import { useIsAdmin } from '@/store/useAuthStore';
 import { useConnectionDialogStore } from '@/store/useConnectionDialogStore';
 import { useConnectionStore, type ConnectionStatus } from '@/store/useConnectionStore';
 import LanguageSwitcher from './LanguageSwitcher';
+import SystemModals from './SystemModals';
 import ThemeToggle from './ThemeToggle';
 
 const TONES: Record<ConnectionStatus, 'success' | 'danger' | 'warning' | 'neutral'> = {
@@ -106,7 +105,7 @@ export default function HeaderMenu() {
           'data-testid': 'connection-chip',
           'data-status': shown,
         }}
-        icon={<Settings size={16} />}
+        icon={<Plug size={16} />}
       >
         <div data-testid="header-menu-panel">
           <Section title={t('header.menu.connection')}>
@@ -163,30 +162,7 @@ export default function HeaderMenu() {
         </div>
       </DropdownMenu>
 
-      <UpdateModal
-        isOpen={system.updateOpen}
-        onClose={() => {
-          system.setUpdateOpen(false);
-          system.setUpdateResult(null);
-        }}
-        updateResult={system.updateResult}
-        onApplyUpdate={system.handleApplyUpdate}
-      />
-
-      <ConfirmModal
-        open={system.shutdownOpen}
-        onClose={() => system.setShutdownOpen(false)}
-        onConfirm={system.handleShutdown}
-        title={t('dashboard.shutdown')}
-        message={t('dashboard.shutdown.message', {
-          account: activeAccount?.account_name ?? '',
-          env: activeAccount?.env_type === 'LIVE' ? t('dashboard.env.live') : t('dashboard.env.demo'),
-        })}
-        confirmLabel={t('dashboard.shutdown.confirm')}
-        confirmHint={t('dashboard.shutdown.confirm.hint')}
-        variant="danger"
-        loading={system.shuttingDown}
-      />
+      <SystemModals system={system} />
     </>
   );
 }

@@ -8,7 +8,9 @@ interface LocaleState {
   setLocale: (locale: Locale) => void;
 }
 
-// Dil cihaza özel bir tercih; resetAllStores() ile sıfırlanmaz, backend'e gönderilmez (useThemeStore gibi).
+// Dil kullanıcıya ait bir tercih (USR-09): asıl kaynak worker'dır, burası yerel önbellek ve anlık değerdir.
+// `setLocale` yalnız yerel yazar; kullanıcı seçimi `changeLocale` ile (useUserPrefsStore) worker'a da gider.
+// resetAllStores() ile sıfırlanmaz.
 export const useLocaleStore = create<LocaleState>()(
   persist(
     (set) => ({

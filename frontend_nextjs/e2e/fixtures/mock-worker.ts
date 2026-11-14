@@ -239,6 +239,12 @@ export class MockWorker {
   readonly uiPrefs: Record<string, Record<string, Json>> = {};
   /** PUT /ui-prefs schlägt mit 500 fehl (Worker-Fehler) */
   uiPrefsFail = false;
+  /** USR-09: Spiegel von worker_python/src/api/user_prefs.py (je Benutzer-ID ein Objekt je Schlüssel) */
+  readonly userPrefs: Record<string, Record<string, Json>> = {};
+  /** PUT /me/prefs schlägt mit 500 fehl (Worker-Fehler) */
+  userPrefsFail = false;
+  /** Verzögerung der Antwort auf PUT /me/prefs in ms (Zwischenzustand „Kaydediliyor…“ prüfen) */
+  userPrefsDelayMs = 0;
   newsAvailable = true;
   /** Worker nicht erreichbar: REST-Anfragen scheitern mit Netzwerkfehler. */
   offline = false;
@@ -438,6 +444,9 @@ export class MockWorker {
       return this.reply(route, mediaReply);
     }
 
+    if (this.userPrefsDelayMs > 0 && method === 'PUT' && url.pathname.startsWith('/api/me/prefs/')) {
+      await new Promise((resolve) => setTimeout(resolve, this.userPrefsDelayMs));
+    }
     const reply = this.dispatch(method, url, body, principal);
     if (!reply) {
       this.unhandled.push(`${method} ${url.pathname}`);
@@ -1075,6 +1084,17 @@ export class MockWorker {
         return ok({ status: 'saved', account_id: id, states });
       }
       if (method === 'GET') return ok({ account_id: id, states: s.uiState[id] ?? {} });
+    }
+    // USR-09: Spiegel von worker_python/src/api/user_prefs.py (jede Rolle, an die Kennung des Schlüssels gebunden)
+    if (seg[0] === 'me' && seg[1] === 'prefs' && seg.length === 2 && method === 'GET') {
+      return ok({ user_id: principal.id, prefs: this.userPrefs[principal.id] ?? {} });
+    }
+    if (seg[0] === 'me' && seg[1] === 'prefs' && seg.length === 3 && method === 'PUT') {
+      const value = (body as { value?: unknown } | null)?.value;
+      if (!/^[a-z0-9_-]{1,40}$/.test(seg[2]) || !value || typeof value !== 'object' || Array.isArray(value)) return { status: 422, body: { detail: 'invalid user pref' } };
+      if (this.userPrefsFail) return { status: 500, body: { detail: 'user prefs failed' } };
+      this.userPrefs[principal.id] = { ...(this.userPrefs[principal.id] ?? {}), [seg[2]]: value as Json };
+      return ok({ user_id: principal.id, key: seg[2], value });
     }
     // NWS-02: Spiegel von worker_python/src/api/ui_prefs.py
     if (seg[0] === 'ui-prefs' && seg.length === 2 && method === 'GET') return ok({ account_id: seg[1], prefs: this.uiPrefs[seg[1]] ?? {} });

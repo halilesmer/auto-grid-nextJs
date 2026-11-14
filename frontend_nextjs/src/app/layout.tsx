@@ -6,6 +6,8 @@ import ConnectionGate from "@/components/connection/ConnectionGate";
 import FormationScanRunner from "@/components/formation/FormationScanRunner";
 import AppNav from "@/components/layout/AppNav";
 import ConnectionSync from "@/components/layout/ConnectionSync";
+import UserPrefsSync from "@/components/layout/UserPrefsSync";
+import SettingsDialog from "@/components/settings/SettingsDialog";
 import LocaleSync from "@/components/layout/LocaleSync";
 import ThemeSync from "@/components/layout/ThemeSync";
 import NewsAlertRunner from "@/components/news/NewsAlertRunner";
@@ -75,6 +77,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeSync />
         <LocaleSync />
         <ConnectionSync />
+        <UserPrefsSync />
         <FormationScanRunner />
         <Suspense fallback={null}>
           <NewsAlertRunner />
@@ -84,6 +87,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ConnectionGate>{children}</ConnectionGate>
         </main>
         <ConnectionDialog />
+        <SettingsDialog />
         <Toaster />
         <script
           dangerouslySetInnerHTML={{

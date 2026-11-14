@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-14 · **234/271** abgehakt · ❌ 4 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-14 · **234/273** abgehakt · ❌ 4 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -16,7 +16,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 |---|---|---|
 | 1 | **SYS** – Verbindung & Infrastruktur | 11/15 |
 | 2 | **ACC** – Konten | 13/13 |
-| 3 | **USR** – Benutzer & Zugriff | 8/8 |
+| 3 | **USR** – Benutzer & Zugriff | 8/10 |
 | 4 | **SET** – Allgemeine Einstellungen | 6/6 |
 | 5 | **SYM** – Symbole | 4/4 |
 | 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 21/21 |
@@ -196,6 +196,14 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Mit einem persönlichen Schlüssel zeigen Kontoliste und Verbindungsdialog nur die eigenen Konten und die Rolle („Verbunden als …“). Die Navigation hat keine Einträge „VPS“ und „Benutzer“, die Seiten selbst zeigen „Nur für Administratoren“, das Dashboard-Menü hat keine Update-Prüfung und es wird keine Update-Anfrage gestellt. Ein neues Konto bekommt der Benutzer als Besitzer vom Worker (das Formular hat keine Besitzer-Auswahl). Chart-Seiten öffnen ohne gewähltes Konto keinen Stream.
   - **Prüfung:** Im Browser (privates Fenster) mit dem Verbindungs-Link eines Benutzers verbinden. → Kontoliste, Navigation, Einstellungsmenü im Dashboard und die Seiten /users und /vps ansehen.
   - **Erwartet:** Nur die eigenen Konten erscheinen; „VPS“ und „Benutzer“ fehlen in der Navigation, ihre Seiten zeigen den Administrator-Hinweis; die Update-Prüfung fehlt im Menü.
+- [ ] **USR-09** Persönliche Einstellungen gehören dem Benutzer (Worker) — 🔌 api ⏳ · 🖥️ e2e ✅ 2026-11-14 · 👤 manuell ⏳
+  - Plan 1114-A4 S1. GET /api/me/prefs und PUT /api/me/prefs/{key} speichern je Anfragendem eine Datei data/user_prefs_<id>.json (Admin: admin, Benutzer: die eigene ID aus dem Schlüssel), je Schlüssel ein JSON-Objekt (Schlüssel [a-z0-9_-]{1,40}, höchstens 8 KB je Wert, 40 Schlüssel). Jede Rolle darf; ein Benutzer sieht nie die Datei eines anderen. Das Frontend (useUserPrefsStore) lädt sie, sobald Verbindung und /auth/me bereit sind, schreibt jede Änderung sofort (optimistisch, Zustand saving/saved/failed je Schlüssel, bei Fehler zurück auf den alten Wert mit Fehler-Toast). Sprache (locale), Design (theme), Hinweis-Verzögerung (tooltip_delay) und Anzeigedauer (tooltip_hold) laufen darüber; localStorage ist nur Zwischenspeicher gegen Aufblitzen.
+  - **Prüfung:** Mit dem Admin-Schlüssel und mit einem Benutzerschlüssel je ein Design wählen (Einstellungen → Darstellung); auf dem VPS liegen data/user_prefs_admin.json und data/user_prefs_<id>.json getrennt. → Auf einem zweiten Gerät mit demselben Schlüssel verbinden; Sprache, Design und Hinweiszeiten sind dieselben.
+  - **Erwartet:** Die Tests @USR-09 bestehen. Die Werte folgen dem Benutzer auf jedes Gerät, ein Benutzer sieht nie die Werte eines anderen, und ein Schreibfehler stellt den alten Wert wieder her.
+- [ ] **USR-10** Einstellungsfenster (Darstellung, Verbindung, Robot, Benutzer, System) — 🖥️ e2e ✅ 2026-11-14 · 👤 manuell ⏳
+  - Plan 1114-A4 S1. Der Zahnrad-Knopf in der Kopfzeile öffnet ein Fenster mit gruppiertem Menü links (PERSÖNLICH: Darstellung; DIESES GERÄT: Verbindung; KONTO: Robot und Zone als Link zum Dashboard; ADMIN: Benutzer als Link zu /users, System und Update) und dem Bereich rechts mit Titel, Beschreibung und Abzeichen, wo gespeichert wird. Benutzer und System sehen nur Admins. Darstellung: Sprache, Design, Hinweis-Verzögerung („Sofort“ | „Eigene“ + Sekundenfeld 0,1–10 s; bei „Sofort“ zeigt das Feld 0 und ist aus; Komma und Punkt gehen; Enter oder Verlassen speichert; ungültig stellt den alten Wert wieder her) und Anzeigedauer („Bis Zeiger geht“ | „Eigene“, 1–60 s; nach Ablauf schließt der Hinweis auch bei ruhendem Zeiger). Der Probe-Knopf zeigt beide Werte an einem echten Hinweis. Jede Änderung speichert sofort; die Zeile zeigt „Speichert…“, dann ✓ „Gespeichert“ (verschwindet) oder ✕ „Nicht gespeichert“; dazu ein Toast; unten steht eine dauernde Statuszeile. Auf dem Telefon (Vollbild, 375 px) erscheint erst die Bereichsliste mit dem aktuellen Wert als Zusammenfassung; Antippen öffnet den Bereich, „‹ Einstellungen“ geht zurück. Benachrichtigungen und Chart folgen in S2. Verbindung bleibt in diesem Browser (useConnectionStore); „Verbindung ändern…“ öffnet den bekannten Dialog.
+  - **Prüfung:** Im Browser (Desktop und Handy, hell und dunkel) das Zahnrad öffnen und alle Bereiche durchgehen; als Benutzer fehlen Benutzer und System. → Hinweis-Verzögerung auf „Sofort“ und Anzeigedauer auf 3 s stellen, im Dashboard über Knöpfe fahren.
+  - **Erwartet:** Die Tests @USR-10 bestehen. Das Fenster sieht wie der freigegebene Entwurf aus, speichert sofort, und bei 375 px gibt es keinen waagerechten Überlauf.
 
 ## 4. SET – Allgemeine Einstellungen
 
@@ -526,7 +534,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Metrikdatei des laufenden Bots öffnen und die drei Margin-Felder mit MT5 vergleichen.
   - **Erwartet:** Die drei Werte stehen in den Metriken und stimmen mit MT5 überein.
 - [ ] **ENG-35** Tur-Telemetrie des Bots — 🔌 api ⏳
-  - Der Bot-Prozess schreibt je Tur Startzeit (UTC ms) und Dauer (ms, ohne Schlaf) mit Art (t volle Tur, m Markt zu, c Verbindung, n Netting) und Vorlaufzeit bis manage_dynamic_grid in data/turns/<Konto>/turns_YYYYMMDD.csv.gz (UTC-Tag, gzip-Glieder von einem Hintergrund-Thread alle 30 Zeilen oder 10 s angehängt, 30 Tage Aufbewahrung). Schreibfehler stoppen die Tur nie und ändern ihre Zeit nicht; keine Logzeile. GET /api/bot/{id}/turns?from=&to= (ms, höchstens 2 Tage, account_access) liefert t0, dt, dur, kind, pre kompakt. Keine Oberfläche; Grundlage für BKT-30.
+  - Der Bot-Prozess schreibt je Tur Startzeit (UTC ms) und Dauer (ms, ohne Schlaf) mit Art (t volle Tur, m Markt zu, c Verbindung, n Netting) und Vorlaufzeit bis manage_dynamic_grid sowie vier Messfelder (snap: Turanfang bis Ende der Kurslesung, ms; nsl: Zahl der in der Tur gesendeten TP/SL-Änderungen, gezählt im grid_orders-Tor; z0: Turanfang bis Beginn der Zonenschleife, ms; nsl0: Wert von nsl im Moment z0, also nur die TP/SL-Änderungen vom Turanfang, ohne die der Zonenschleife; ohne Verhaltens- oder MT5-Änderung, in alten Dateien und Nicht-t-Turen null) in data/turns/<Konto>/turns_YYYYMMDD.csv.gz (UTC-Tag, gzip-Glieder von einem Hintergrund-Thread alle 30 Zeilen oder 10 s angehängt, 30 Tage Aufbewahrung). Schreibfehler stoppen die Tur nie und ändern ihre Zeit nicht; keine Logzeile. GET /api/bot/{id}/turns?from=&to= (ms, höchstens 2 Tage, account_access) liefert t0, dt, dur, kind, pre, snap, nsl, z0, nsl0 kompakt. Keine Oberfläche; Grundlage für BKT-30.
   - **Prüfung:** Nach dem Update auf dem VPS den Bot laufen lassen und GET /api/bot/<Konto>/turns mit einem Zeitfenster der letzten Minuten aufrufen.
   - **Erwartet:** Etwa alle 2 Sekunden eine Tur (kind t, dur um 2100 ms); fremde Konten liefern 404.
 

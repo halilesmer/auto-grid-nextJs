@@ -140,6 +140,20 @@ def get_ui_prefs_path(account_id: str) -> str:
     return os.path.join(_ensure_data_dir(), f"ui_prefs_{safe_account_id(account_id)}.json")
 
 
+def safe_user_id(user_id) -> str:
+    """Kullanıcı kimliği dosya adında kullanılır (`admin` veya `u_<hex>`). Güvenli olmayan kimlik ortak bir dosyaya
+    düşmesin diye sessizce temizlenmez, reddedilir."""
+    text = str(user_id)
+    if not re.fullmatch(r"[a-z0-9_-]{1,40}", text):
+        raise ValueError("invalid user id")
+    return text
+
+
+def get_user_prefs_path(user_id: str) -> str:
+    """Örn: data/user_prefs_<user_id>.json (kullanıcıya ait kişisel tercihler, anahtar başına bir nesne; USR-09)"""
+    return os.path.join(_ensure_data_dir(), f"user_prefs_{safe_user_id(user_id)}.json")
+
+
 def get_ui_state_path(account_id: str) -> str:
     safe = safe_account_id(account_id)
     return os.path.join(get_account_log_dir(account_id), f"ui_{safe}.json")

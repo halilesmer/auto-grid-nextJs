@@ -2,6 +2,7 @@
 
 import { motion } from 'motion/react';
 import { useLocaleStore } from '@/store';
+import { changeLocale } from '@/store/useUserPrefsStore';
 import { LOCALES, LOCALE_NAMES, useT } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -10,7 +11,6 @@ import { Tooltip } from '@/components/ui/tooltip';
 export default function LanguageSwitcher() {
   const t = useT();
   const locale = useLocaleStore((s) => s.locale);
-  const setLocale = useLocaleStore((s) => s.setLocale);
 
   return (
     <div
@@ -29,7 +29,7 @@ export default function LanguageSwitcher() {
               aria-checked={active}
               aria-label={LOCALE_NAMES[value]}
               data-testid={`language-${value}`}
-              onClick={() => setLocale(value)}
+              onClick={() => void changeLocale(value)}
               className={cn(
                 'relative flex h-8 w-full cursor-pointer items-center justify-center rounded-md px-1.5 font-mono text-[11px] font-semibold uppercase transition-colors',
                 active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
