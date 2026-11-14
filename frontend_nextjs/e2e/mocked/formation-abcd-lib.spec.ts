@@ -72,6 +72,12 @@ const S1 = zig([100, 130, 114, 144], 8, 0);
 const S1_TAIL = zig([100, 130, 114, 144], 8, 3);
 /** D noch nicht erreicht: nach C drei kleine Schritte aufwärts */
 const S_FORMING = zig([100, 130, 114], 8, 3);
+/** ABCD-26: nach C ein Hoch 124 unter B, dann fällt der Kurs auf 105 unter C: der Trendzug dreht vor D abwärts, Bezug C */
+const S_BREAK_C = zig([100, 130, 114, 124, 105], 8, 3);
+/** Wie oben, aber erst nach dem D 144 (Level 1) fällt der Kurs unter C: das ist der Weg zum Ziel */
+const S_BREAK_AFTER_D = zig([100, 130, 114, 144, 105], 8, 3);
+/** Einstieg am Level 1 (144), dann Bruch von C (105), danach ein neuer äußerster Docht 150: der Bruch liegt nach dem Einstieg */
+const S_BREAK_AFTER_ENTRY = zig([100, 130, 114, 144, 105, 150], 8, 3);
 /** C 125: Tiefe 0,167 */
 const S_SHALLOW = zig([100, 130, 125, 155], 8, 0);
 /** C 95 unter A: Tiefe 1,167 */
@@ -205,6 +211,26 @@ const CASES: Case[] = [
     name: 'Ohne Schluss jenseits von B ist das D-Bein kein neuer Impuls',
     candidate: () => run({ H4: S_FORMING }, ABC),
     expect: { 'ABCD-03': N, 'ABCD-07': N, 'ABCD-08': N },
+  },
+  {
+    name: 'ABCD-26: der Trend dreht vor D und bricht C',
+    candidate: () => run({ H4: S_BREAK_C }, ABC),
+    expect: { 'ABCD-03': N, 'ABCD-08': N, 'ABCD-26': M },
+  },
+  {
+    name: 'ABCD-26: ohne Trendwechsel nach C bleibt die Formation im Aufbau',
+    candidate: () => run({ H4: S_FORMING }, ABC),
+    expect: { 'ABCD-26': N },
+  },
+  {
+    name: 'ABCD-26: ein Bruch von C erst nach dem D zählt nicht',
+    candidate: () => run({ H4: S_BREAK_AFTER_D }, ABC),
+    expect: { 'ABCD-08': M, 'ABCD-26': N },
+  },
+  {
+    name: 'ABCD-26: zählt ab der Einstiegskerze, nicht ab dem späteren äußersten Docht',
+    candidate: () => run({ H4: S_BREAK_AFTER_ENTRY }, ABC),
+    expect: { 'ABCD-08': M, 'ABCD-26': N },
   },
   {
     name: 'Korrektur nur 0,167: Mindestkorrektur 0,382 fehlt',
@@ -553,6 +579,13 @@ test.describe('ABCD: invalidBy', () => {
     const c = run({ H4: S_BEYOND_A }, ABC);
     expect([c.verdict, state(c, 'ABCD-03'), c.invalidBy]).toEqual(['invalid', N, ['ABCD-05', 'ABCD-06']]);
   });
+
+  frm('Trend dreht vor D und bricht C: ungültig statt im Aufbau, invalidBy nennt ABCD-26', () => {
+    const c = run({ H4: S_BREAK_C }, ABC);
+    expect([c.verdict, c.invalidBy]).toEqual(['invalid', ['ABCD-26']]);
+    const mirrored = run({ H4: mirror(S_BREAK_C) }, ABC, { sell: false });
+    expect([mirrored.side, mirrored.verdict, mirrored.invalidBy]).toEqual(['buy', 'invalid', ['ABCD-26']]);
+  });
 });
 
 test.describe('ABCD: echte Kerzen', () => {
@@ -630,6 +663,14 @@ test.describe('ABCD: echte Kerzen', () => {
     expect(states(c, ['ABCD-23', 'ABCD-10', 'ABCD-20'])).toEqual([N, M, N]);
     expect(c.invalidBy).toEqual(['ABCD-20']);
     expect(c.verdict).toBe('invalid');
+  });
+
+  frm('abcd-breakc-h4-01: Verkauf, der Trend dreht vor D abwärts und bricht C: davor im Aufbau, danach ungültig (ABCD-26)', () => {
+    // A 1.32721, B 1.35026, C 1.33412, D bisher 1.34587 (Level 1 1.35717); die H4-Kerze 08:00 schließt unter C, der Trendzug dreht abwärts
+    const before = analyzeAt('abcd-breakc-h4-01', '2026-11-11T08:00');
+    expect([before.side, before.points.C?.price, before.verdict, state(before, 'ABCD-26')]).toEqual(['sell', 1.33412, 'forming', N]);
+    const after = analyzeAt('abcd-breakc-h4-01', '2026-11-11T12:00');
+    expect([after.side, after.points.C?.price, state(after, 'ABCD-26'), after.verdict, after.invalidBy]).toEqual(['sell', 1.33412, M, 'invalid', ['ABCD-26']]);
   });
 
   frm('sig-diverg-h4-02: Negativ – C unter A, die Mindest-Extension fehlt', () => {

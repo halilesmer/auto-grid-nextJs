@@ -3,7 +3,7 @@
  * `analyzeAbcd` sucht je geladener Zeiteinheit die letzten Punkte A, B, C aus den Wendepunkten und misst D;
  * `checkAbcdCandidate` prüft eigene Punkte, auch wenn sie keine Formation ergeben (Zeichnung und ☐ gibt es trotzdem).
  *
- * Lesart der Zustände: bei Ereignis-Bedingungen (ABCD-03, ABCD-07, ABCD-08, ABCD-21 bis ABCD-25) heißt ☑
+ * Lesart der Zustände: bei Ereignis-Bedingungen (ABCD-03, ABCD-07, ABCD-08, ABCD-21 bis ABCD-26) heißt ☑
  * „liegt vor“, bei Ausschlüssen also „ausgeschlossen“. Ohne die nötigen Daten ist der Zustand „nicht messbar“.
  * Die Art von ABCD-19 und ABCD-20 hängt von anderen Bedingungen ab und steht im Feld `kind` des Ergebnisses.
  */
@@ -18,6 +18,7 @@ import {
   shapeOf,
   shortfall,
   timeframeExcluded,
+  trendBreaksC,
   type AbcdPoint,
   type AbcdPoints,
   type AbcdShape,
@@ -63,6 +64,7 @@ const RULES: Record<string, [RuleKind, RuleStatus]> = {
   'ABCD-23': ['exclusion', 'assumption'],
   'ABCD-24': ['exclusion', 'confirmed'],
   'ABCD-25': ['exclusion', 'confirmed'],
+  'ABCD-26': ['exclusion', 'assumption'],
 };
 
 /** Bedingungen mit Prüfung, in der Reihenfolge des Regelwerks */
@@ -294,6 +296,8 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: n
     const harmonicK = !divHolds && near !== null && harmonicD(env, p, dk, pip, [Math.min(...zonePrices), Math.max(...zonePrices)]) === 'met';
     frozenFrom = divHolds || harmonicK ? s.a : s.c;
   }
+  // ABCD-26 nach der Einstiegskerze: ein Bruch von C ab dem Einstieg ist der Weg zum Ziel
+  add('ABCD-26', flag(trendBreaksC(trend, s, reached && d ? freezeIdx : null)));
   // Gleitkomma-Rauschen (Docht genau auf Level 1) zählt nicht als verfehlt
   const gap = d ? Math.max(0, outward(es, s.level1) - outward(es, d.price)) : 0;
   const missed = gap > 1e-9 * s.len ? gap : 0;
@@ -309,7 +313,7 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: n
   // Die übrigen Pflichten zählen nur, solange kein Endpunkt wartet.
   const waiting = stateOf('ABCD-03') === 'unmet' || stateOf('ABCD-08') === 'unmet';
   const causesInvalid = (c: Check) =>
-    (['ABCD-21', 'ABCD-22', 'ABCD-23', 'ABCD-24', 'ABCD-25'].includes(c.id) && c.state === 'met') ||
+    (['ABCD-21', 'ABCD-22', 'ABCD-23', 'ABCD-24', 'ABCD-25', 'ABCD-26'].includes(c.id) && c.state === 'met') ||
     (['ABCD-01', 'ABCD-02', 'ABCD-04', 'ABCD-05', 'ABCD-06'].includes(c.id) && c.state === 'unmet') ||
     (!waiting && c.kind === 'required' && c.state === 'unmet' && c.id !== 'ABCD-07');
   const invalidBy = checks.filter(causesInvalid).map((c) => c.id);

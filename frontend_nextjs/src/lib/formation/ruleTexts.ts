@@ -43,6 +43,7 @@ export const RULE_TEXTS: Record<string, Text> = {
   'ABCD-23': ['D bacağında iki güçlü mum', 'Two strong candles in the D leg', 'Zwei volumenstarke Kerzen im D-Bein'],
   'ABCD-24': ['Yapı bir çift tepe/dip’e benziyor', 'The shape is a double top or bottom', 'Form ist ein Doppeltop/-boden'],
   'ABCD-25': ['Zaman dilimi M1 veya M5', 'Timeframe is M1 or M5', 'Zeiteinheit M1 oder M5'],
+  'ABCD-26': ['Trend D’den önce döndü, C kırıldı', 'The trend turned before D and broke C', 'Trend dreht vor D und bricht C'],
 
   'GAR-01': FRACTAL_AB,
   'GAR-02': ALT,
