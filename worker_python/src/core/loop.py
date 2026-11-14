@@ -100,7 +100,7 @@ def main_loop(mt5_module, account_id, password, server, mt5_path=None):
                 )
             recorder.add(
                 turn_start_ms, (time.perf_counter() - turn_t0) * 1000, "t", pre_ms,
-                probe.snap_ms, probe.nsl, probe.z0_ms,
+                probe.snap_ms, probe.nsl, probe.z0_ms, probe.nsl0,
             )
 
             time.sleep(state.loop_interval_seconds)

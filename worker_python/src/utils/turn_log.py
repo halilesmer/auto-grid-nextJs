@@ -1,13 +1,14 @@
 # src/utils/turn_log.py
 """Bot tur telemetrisi (ENG-35): her turun başlangıcı (UTC ms) ve süresi (ms, uyku hariç).
 
-Satır: ``başlangıç_ms,süre_ms,tür,ön_ms,snap_ms,nsl,z0_ms`` (ilk dört alan eski biçimdir; eski dosyada son üçü
-yoktur ve okununca null olur). Tür: ``t`` tam tur (manage_dynamic_grid), ``m`` piyasa
+Satır: ``başlangıç_ms,süre_ms,tür,ön_ms,snap_ms,nsl,z0_ms,nsl0`` (ilk dört alan eski biçimdir; 7 alanlı satırda
+``nsl0`` yoktur; eksik alanlar okununca null olur). Tür: ``t`` tam tur (manage_dynamic_grid), ``m`` piyasa
 kapalı, ``c`` bağlantı sağlıksız, ``n`` netting çakışması. ``ön_ms`` = tur başından
 manage_dynamic_grid'e kadar geçen süre (yalnız ``t``; diğerlerinde 0).
 Ölçüm alanları (yalnız ``t``, davranışı değiştirmez, ek MT5 çağrısı yok): ``snap_ms`` tur başından fiyat okumasının
 bittiği ana, ``nsl`` o turda gönderilen TP/SL modify isteği sayısı (``grid_orders`` kapısı sayar), ``z0_ms`` tur
-başından zone döngüsünün başlangıcına. Diğer türlerde üçü de boş (null).
+başından zone döngüsünün başlangıcına, ``nsl0`` zone döngüsü başladığı anda ``nsl`` değeri (yani yalnız tur başı
+TP/SL düzeltmeleri; ``nsl`` zone döngüsündeki modify'ları da sayar). Diğer türlerde hepsi boş (null).
 Günlük dosya ``turns_YYYYMMDD.csv.gz`` (UTC günü, tur başlangıcına göre); her tampon boşaltma
 dosyaya yeni bir gzip üyesi ekler (birleşik üyeler tek akış olarak okunur). 30 günden eski dosyalar silinir.
 
@@ -34,7 +35,7 @@ FILE_RE = re.compile(r"^turns_(\d{8})\.csv\.gz$")
 
 
 class TurnProbe:
-    """Tur içi ölçümler (snap, nsl, z0). Tek bot süreci, tek ana döngü iş parçacığı: kilit gerekmez.
+    """Tur içi ölçümler (snap, nsl, z0, nsl0). Tek bot süreci, tek ana döngü iş parçacığı: kilit gerekmez.
     ``begin`` tur başında her şeyi sıfırlar; ``mark_*`` ilk çağrıyı tutar. Hata turu asla durdurmaz."""
 
     def __init__(self):
@@ -42,12 +43,14 @@ class TurnProbe:
         self.snap_ms = None
         self.z0_ms = None
         self.nsl = 0
+        self.nsl0 = None
 
     def begin(self, t0_perf: float) -> None:
         self.t0 = t0_perf
         self.snap_ms = None
         self.z0_ms = None
         self.nsl = 0
+        self.nsl0 = None
 
     def _since(self):
         return None if self.t0 is None else max(0, int((time.perf_counter() - self.t0) * 1000))
@@ -59,6 +62,7 @@ class TurnProbe:
     def mark_z0(self) -> None:
         if self.z0_ms is None:
             self.z0_ms = self._since()
+            self.nsl0 = self.nsl
 
     def count_sltp(self) -> None:
         self.nsl += 1
@@ -84,13 +88,13 @@ class TurnRecorder:
         self._last_prune_day = None
         self.errors = 0  # yalnız sayaç: hesap log'una (stderr dahil) hiçbir şey yazılmaz
 
-    def add(self, start_ms: int, dur_ms: int, kind: str, pre_ms: int = 0, snap_ms=None, nsl=None, z0_ms=None) -> None:
+    def add(self, start_ms: int, dur_ms: int, kind: str, pre_ms: int = 0, snap_ms=None, nsl=None, z0_ms=None, nsl0=None) -> None:
         try:
             if kind not in KINDS:
                 return
             line = f"{int(start_ms)},{max(0, int(dur_ms))},{kind},{max(0, int(pre_ms))}"
-            if snap_ms is not None or nsl is not None or z0_ms is not None:
-                line += "".join("," if v is None else f",{max(0, int(v))}" for v in (snap_ms, nsl, z0_ms))
+            if any(v is not None for v in (snap_ms, nsl, z0_ms, nsl0)):
+                line += "".join("," if v is None else f",{max(0, int(v))}" for v in (snap_ms, nsl, z0_ms, nsl0))
             self._rows.append((_day_of(start_ms), line + "\n"))
             if len(self._rows) >= FLUSH_ROWS or time.monotonic() - self._last_handoff >= FLUSH_SECONDS:
                 self._handoff()
@@ -157,8 +161,8 @@ def prune_old(directory: str, now_ms: int = None, days: int = RETENTION_DAYS) ->
 
 
 def read_turns(account_id: str, from_ms: int, to_ms: int) -> list:
-    """[from_ms, to_ms) aralığındaki turlar, başlangıca göre sıralı: (start, dur, kind, pre, snap, nsl, z0);
-    eski satırda (4 alan) ya da boş alanda snap/nsl/z0 None."""
+    """[from_ms, to_ms) aralığındaki turlar, başlangıca göre sıralı: (start, dur, kind, pre, snap, nsl, z0, nsl0);
+    eski satırda (4 ya da 7 alan) ya da boş alanda eksik değer None."""
     directory = get_turns_dir(account_id)
     out = []
     day = datetime.fromtimestamp(from_ms / 1000, tz=timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -173,11 +177,12 @@ def read_turns(account_id: str, from_ms: int, to_ms: int) -> list:
                             break  # yarım yazılmış son satır
                         try:
                             parts = raw.decode("ascii").rstrip("\n").split(",")
-                            if len(parts) not in (4, 7):
+                            if len(parts) not in (4, 7, 8):
                                 continue
                             start = int(parts[0])
                             if from_ms <= start < to_ms:
-                                extra = [int(v) if v != "" else None for v in parts[4:]] or [None] * 3
+                                extra = [int(v) if v != "" else None for v in parts[4:]]
+                                extra += [None] * (4 - len(extra))
                                 out.append((start, int(parts[1]), parts[2], int(parts[3]), *extra))
                         except ValueError:
                             continue

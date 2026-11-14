@@ -224,7 +224,7 @@ export function defaultState() {
     /** Pending-Order-Verlauf je Konto (BKT-24, GET /history/{id}/orders); fehlt die Liste, antwortet der Mock mit leerer Liste */
     liveOrders: {} as Record<string, LiveOrder[]>,
     /** Tur-Telemetrie je Konto (BKT-30, GET /bot/{id}/turns): Zeilen [UTC ms, Dauer ms, Art, pre ms, optional snap ms, nsl, z0 ms]; fehlt die Liste, antwortet der Mock leer */
-    botTurns: {} as Record<string, [number, number, string, number, (number | null)?, (number | null)?, (number | null)?][]>,
+    botTurns: {} as Record<string, [number, number, string, number, (number | null)?, (number | null)?, (number | null)?, (number | null)?][]>,
     /** Zonen-Register je Konto (created_at = echte Unix-Sekunden) */
     zoneRegistry: {} as Record<string, ZoneRegistryEntry[]>,
     /** Margin-Modus des Kontos im Deal-Archiv (account.margin_mode): 0 Netting, 1 Exchange, 2 Hedging; null = unbekannt */
