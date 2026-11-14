@@ -130,6 +130,15 @@ test.describe('BKT-30 turnSchedule', () => {
     expect(decodeTurns({ t0: null, dt: [], dur: [], kind: [], pre: [] })).toEqual([]);
   });
 
+  test('decodeTurns: ölçüm alanları isteğe bağlı (eski kayıt = null), saniyeye çevrilir', { tag: '@BKT-30' }, () => {
+    const base = { t0: 1_000_000, dt: [2000], dur: [75, 80], kind: ['t', 't'], pre: [4, 5] };
+    const old = decodeTurns(base);
+    expect(old.map((t) => [t.snap, t.nsl, t.z0])).toEqual([[null, null, null], [null, null, null]]);
+    const withProbe = decodeTurns({ ...base, snap: [12, null], nsl: [3, 0], z0: [40, null] });
+    expect([withProbe[0].snap, withProbe[0].nsl, withProbe[0].z0]).toEqual([0.012, 3, 0.04]);
+    expect([withProbe[1].snap, withProbe[1].nsl, withProbe[1].z0]).toEqual([null, 0, null]);
+  });
+
   test('liveOpsFromOrders: kurma ve bot silmesi (state 2), pencere ve magic süzgeci; clusterOps 0,8 s ile böler', { tag: '@BKT-30' }, () => {
     const row = (magic: number, setup: number, done: number, state: number) =>
       ({ ticket: 1, time_setup: 0, time_setup_msc: setup * 1000, time_done: 0, time_done_msc: done * 1000, type: 2, state, magic, symbol: 'X', volume_initial: 0.01, price_open: 1, sl: null, tp: null, comment: null }) as LiveOrder;
