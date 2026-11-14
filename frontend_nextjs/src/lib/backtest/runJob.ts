@@ -13,6 +13,7 @@ import type { RunRequest, WorkerMessage } from '@/lib/backtest/protocol';
 import { RunError } from '@/lib/backtest/runContext';
 import { buildStartState, type LiveOrder, type StartState } from '@/lib/backtest/startState';
 import { TF_SECONDS } from '@/lib/backtest/engine/types';
+import { BOT_TURNS_MAX_PASSES, botTurnsActive } from '@/lib/backtest/botTurns';
 import { runBacktest, triggerReplayOn, warmupSeconds, type RunResult } from '@/lib/backtest/runner';
 
 /** Anteil des Fortschritts, der auf das Laden entfällt; der Rest ist der Lauf */
@@ -113,6 +114,11 @@ export async function runJob(
       let fetchedTicks = 0;
       let unavailable = false;
       const dropped = new Set<number>();
+      // BKT-30 (XSEND): mit Tur-Raster gehören die Minuten, in denen der Bot eine Order sendete, zu den Replay-Minuten und
+      // bleiben in den späteren Durchgängen; die Durchgangsgrenze ist dann BOT_TURNS_MAX_PASSES
+      const xsend = botTurnsActive(params.model.botTurns);
+      const maxPasses = xsend ? BOT_TURNS_MAX_PASSES : limits.passes;
+      const sendSeen = new Set<number>();
       let passes = 0;
       let result: RunResult;
       for (;;) {
@@ -134,10 +140,12 @@ export async function runJob(
           zoneLabel: params.zoneLabel,
           notes: [...snapshot.warnings, ...(params.notes ?? []), ...convNotes, ...holeNotes, ...(start?.notes ?? [])],
           ...(start ? { initialPositions: start.positions, initialOrders: start.orders, initialFractalDone: start.fractalDone } : {}),
-          onProgress: (fraction) => post({ type: 'progress', runId, phase: 'run', fraction: slice(((passIndex - 1) + fraction) / (wantTrigger ? limits.passes : 1)) }),
+          onProgress: (fraction) => post({ type: 'progress', runId, phase: 'run', fraction: slice(((passIndex - 1) + fraction) / (wantTrigger ? maxPasses : 1)) }),
         });
-        if (!wantTrigger || unavailable || passes >= limits.passes) break;
-        const todo = (result.triggerMinutes ?? []).filter((minute) => !requested.has(minute) && !dropped.has(minute));
+        if (!wantTrigger || unavailable || passes >= maxPasses) break;
+        for (const minute of result.sendMinutes ?? []) sendSeen.add(minute);
+        const wanted = xsend ? [...new Set([...(result.triggerMinutes ?? []), ...sendSeen])].sort((a, b) => a - b) : (result.triggerMinutes ?? []);
+        const todo = wanted.filter((minute) => !requested.has(minute) && !dropped.has(minute));
         if (todo.length === 0) break;
         // Bündelgrenze: früheste Minuten zuerst; was darüber liegt, bleibt im Kerzenweg
         const room = Math.max(0, limits.minutes - requested.size);
@@ -174,6 +182,7 @@ export async function runJob(
         if (left > 0) addLog(result, 'WARN', 'run.triggerReplayBudget', { minutes: fetchedMinutes, dropped: left });
       }
       delete result.triggerMinutes;
+      delete result.sendMinutes;
       post({ type: 'progress', runId, phase: 'run', fraction: slice(1) });
       results.push(result);
     }
