@@ -10,7 +10,7 @@ import { useSystemActions } from '@/hooks/useSystemActions';
 import { LOCALE_NAMES, useLocale, useT, type MessageKey } from '@/i18n';
 import { effectiveDelayMs } from '@/lib/userPrefs';
 import { cn } from '@/lib/utils';
-import { useAuthStore, useIsAdmin } from '@/store/useAuthStore';
+import { useIsAdmin } from '@/store/useAuthStore';
 import { useConnectionStore } from '@/store/useConnectionStore';
 import { useSettingsDialogStore, type SettingsSection } from '@/store/useSettingsDialogStore';
 import { useThemeStore } from '@/store/useThemeStore';
@@ -93,7 +93,6 @@ function CloseButton({ className }: { className?: string }) {
         type="button"
         onClick={hide}
         aria-label={t('sdlg.close')}
-        data-testid="settings-close"
         className="inline-flex size-11 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:size-9"
       >
         <X className="size-5 md:size-4" />
@@ -113,7 +112,6 @@ export default function SettingsDialog() {
   const hide = useSettingsDialogStore((s) => s.hide);
   const setSection = useSettingsDialogStore((s) => s.setSection);
   const isAdmin = useIsAdmin();
-  const me = useAuthStore((s) => s.me);
   const summary = useSummary();
   const system = useSystemActions();
   const prefStatus = useUserPrefsStore((s) => s.status);
@@ -135,7 +133,7 @@ export default function SettingsDialog() {
         label={t('sdlg.title')}
         className="flex h-[min(780px,calc(100dvh-2rem))] max-w-5xl overflow-hidden p-0"
       >
-        <div className="flex min-h-0 w-full flex-col bg-background md:flex-row" data-testid="settings-dialog" data-me={me?.id ?? ''}>
+        <div className="flex min-h-0 w-full flex-col bg-background md:flex-row" data-testid="settings-dialog">
           <aside
             className={cn(
               'flex min-h-0 shrink-0 flex-col overflow-y-auto bg-card md:w-72 md:border-r md:border-border',

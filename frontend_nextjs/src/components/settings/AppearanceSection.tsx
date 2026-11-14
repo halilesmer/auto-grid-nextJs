@@ -2,7 +2,7 @@
 
 import { Eye } from 'lucide-react';
 import { Tooltip } from '@/components/ui/tooltip';
-import { LOCALES, LOCALE_NAMES, useLocale, useT } from '@/i18n';
+import { LOCALES, LOCALE_NAMES, useFormat, useLocale, useT } from '@/i18n';
 import type { ThemePreference } from '@/lib/theme';
 import {
   DELAY_MAX_MS,
@@ -27,24 +27,20 @@ export default function AppearanceSection() {
   const delay = useTooltipPrefsStore((s) => s.delay);
   const hold = useTooltipPrefsStore((s) => s.hold);
   const change = useUserPrefsStore((s) => s.change);
+  const f = useFormat();
+  const secText = (ms: number) => `${f.number(ms / 1000, { maximumFractionDigits: 2 })} ${t('sdlg.unit.sec')}`;
 
   const setDelay = (mode: TooltipDelayMode, ms: number) =>
     change(
       'tooltip_delay',
       { mode, ms },
-      {
-        name: t('sdlg.delay'),
-        value: mode === 'instant' ? t('sdlg.delay.instant') : `${secs(ms)} ${t('sdlg.unit.sec')}`,
-      },
+      () => ({ name: t('sdlg.delay'), value: mode === 'instant' ? t('sdlg.delay.instant') : secText(ms) }),
     );
   const setHold = (mode: TooltipHoldMode, ms: number) =>
     change(
       'tooltip_hold',
       { mode, ms },
-      {
-        name: t('sdlg.hold'),
-        value: mode === 'pointer' ? t('sdlg.hold.pointer') : `${secs(ms)} ${t('sdlg.unit.sec')}`,
-      },
+      () => ({ name: t('sdlg.hold'), value: mode === 'pointer' ? t('sdlg.hold.pointer') : secText(ms) }),
     );
 
   const limits = (min: number, max: number) => ({ min: secs(min), max: secs(max) });
@@ -130,7 +126,7 @@ export default function AppearanceSection() {
               error={t('sdlg.hold.error', limits(HOLD_MIN_MS, HOLD_MAX_MS))}
             />
           </div>
-          <Tooltip content={t('sdlg.try.text')} className="self-start" data-testid="settings-try-tooltip">
+          <Tooltip content={t('sdlg.try.text')} className="self-start">
             <button
               type="button"
               data-testid="settings-try"

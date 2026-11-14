@@ -46,8 +46,10 @@ export function parseHold(v: unknown): TooltipHoldPref {
 
 /** Saniye alanındaki metni (virgül ya da nokta) ms'ye çevirir; geçersiz ya da aralık dışıysa null. */
 export function parseSeconds(text: string, minMs: number, maxMs: number): number | null {
-  const n = Number(text.trim().replace(',', '.'));
-  if (!Number.isFinite(n) || text.trim() === '') return null;
+  const clean = text.trim();
+  if (!/^\d+([.,]\d+)?$/.test(clean)) return null; // "0x10" ve "1e1" geçmez
+  const n = Number(clean.replace(',', '.'));
+  if (!Number.isFinite(n)) return null;
   const ms = Math.round(n * 1000);
   return ms >= minMs && ms <= maxMs ? ms : null;
 }

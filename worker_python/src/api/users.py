@@ -3,12 +3,15 @@
 Yönetici bir kullanıcı oluşturur, kişisel anahtarı bir kez görür ve kullanıcıya iletir.
 Kullanıcı bu anahtarla bağlanınca yalnızca kendi hesaplarını görür (bkz. access.py).
 """
+import os
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from src.api import auth, users_store
 from src.api.auth import Principal, get_principal, require_admin
 from src.api.helpers import _load_accounts, _save_accounts
 from src.api.models import UserCreate
+from src.utils.paths import get_user_prefs_path
 
 router = APIRouter(tags=["Users"])
 
@@ -59,6 +62,11 @@ async def rotate_user_key(user_id: str):
 async def delete_user(user_id: str):
     if not users_store.delete_user(user_id):
         raise HTTPException(status_code=404, detail=f"User '{user_id}' not found")
+    # Kişisel tercih dosyası kullanıcıyla birlikte gider
+    try:
+        os.remove(get_user_prefs_path(user_id))
+    except (OSError, ValueError):
+        pass
     # Hesaplar ve çalışan botlar kalır; sahipsiz (yöneticiye ait) olurlar
     accounts = _load_accounts()
     released = 0

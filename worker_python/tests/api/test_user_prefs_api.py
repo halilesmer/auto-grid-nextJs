@@ -83,3 +83,11 @@ def test_too_many_keys_is_413(client, multi):
         assert client.put(f"/api/me/prefs/k{i}", json={"value": {"a": 1}}, headers=multi["anna"]).status_code == 200
     assert client.put("/api/me/prefs/k40", json={"value": {"a": 1}}, headers=multi["anna"]).status_code == 413
     assert len(client.get("/api/me/prefs", headers=multi["anna"]).json()["prefs"]) == 40
+
+
+def test_deleting_a_user_removes_the_preference_file(client, multi, worker_dir):
+    client.put("/api/me/prefs/theme", json={"value": THEME}, headers=multi["anna"])
+    path = worker_dir / "data" / f"user_prefs_{multi['ids']['anna']}.json"
+    assert path.exists()
+    assert client.delete(f"/api/users/{multi['ids']['anna']}", headers=multi["admin"]).status_code == 200
+    assert not path.exists()

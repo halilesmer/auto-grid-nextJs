@@ -14,7 +14,7 @@ import time
 from fastapi import APIRouter, Body, Depends, HTTPException
 
 from src.api.auth import Principal, get_principal
-from src.utils.paths import get_user_prefs_path
+from src.utils.paths import get_user_prefs_path, safe_user_id
 
 router = APIRouter(tags=["User Prefs"])
 
@@ -76,7 +76,7 @@ def _read_locked(user_id: str) -> dict:
 
 def _user_id(principal: Principal) -> str:
     try:
-        get_user_prefs_path(principal.user_id)
+        safe_user_id(principal.user_id)
     except ValueError:
         raise HTTPException(status_code=403, detail="no preferences for this principal")
     return principal.user_id
