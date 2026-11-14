@@ -30,5 +30,8 @@ Result with the same load: 24 of 24 passed (before: 11 of 24).
 ## Why
 - Alternatives rejected: a larger `expect.poll` timeout, retries and a weaker assertion (forbidden, they hide the defect); calling `candles.setData` again (heavy, resets other state); changing the order of `fitContent` and `resetPriceScale` (tried by an earlier session, no effect).
 
-## Open
-- A second, different failure exists at some clock hours (observed at 23:30 UTC, 4 of 4 runs): the second drag in the same test (line 75) changes nothing, probably because a formation drawing of the clock-dependent mock data sits under the drag start. It is not part of this fix. Follow-up needed.
+## Second failure: clock-dependent formation under the second drag
+- Symptom: at some clock times (23:30 UTC on 2026-11-13, 00:08 UTC on 2026-11-14 in CI, 4 of 4 and 2 of 2 local runs) the second drag at line 75 left the price axis unchanged. With `E2E_FAKE_NOW=2026-11-13T11:00:00Z` the test passed; with `2026-11-14T11:00:00Z` and `2026-11-13T23:30:00Z` it failed. The date, not only the hour, changes the mock data.
+- Cause: the mock candles follow the clock, so the formation drawing (ABCD, A to C zigzag and its level lines) sits in another place. In the failing data it covers the second drag start (x from 0.5 of the chart width, y 0.3 to 0.45 of its height). The drawing manager takes the drag and moves the drawing, not the price scale. Starts at x 0.2 or 0.35, or y 0.2, moved the axis. This is the designed drawing behavior, so it is a data issue and not a product defect.
+- Fix: the spec fixes the clock (`test.use({ fakeNow: '2026-11-13T11:00:00Z' })`), so the chart is the same in every run. No timeout, retry or assertion change.
+- Result: at the real clock (2026-11-14 00:32 UTC) 12 of 12 passed (before: 2 of 2 failed at 00:xx).

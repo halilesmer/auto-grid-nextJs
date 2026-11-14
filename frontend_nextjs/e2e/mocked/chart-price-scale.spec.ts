@@ -3,6 +3,9 @@ import type { Page } from '@playwright/test';
 import { msg } from '../fixtures/i18n';
 
 // UI-30: a dragged price axis and vertically moved candles stay after the mouse is released and after the chart updates.
+// The mock candles and the formation drawings on them follow the clock. At some hours and dates a formation sits where the second drag of the
+// second test starts (the chart drawing manager takes that drag, so the price axis stays). A fixed clock gives the same chart on every run (UI-30).
+test.use({ fakeNow: '2026-11-13T11:00:00Z' });
 test.beforeEach(({ page }) => page.addInitScript(() => localStorage.setItem('grid-robot-formation-sidebar', JSON.stringify({ open: false, tab: 'conditions' }))));
 
 /** The canvases of the right price axis (last cell of the first lightweight-charts table row) as data URLs */
