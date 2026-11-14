@@ -258,6 +258,7 @@ const CORE = ['BUT-01', 'BUT-02', 'BUT-03', 'BUT-04', 'BUT-05', 'BUT-06', 'BUT-0
 
 test.describe('BUT: echte Kerzen', () => {
   // B liegt seit der Docht-Regel (Halil 2026-11-13) am tiefsten Docht 0.93007 der Kerze 2026-01-12 08:00 statt am Pivot 0.93014 (00:00): 0.905 statt 0.879 von X → A, über 0.886 (BUT-03 ☑).
+  // Bleibt als Negativfall bewusst „ungültig“ (1113-A17.2): das gültige Kauf-Gegenstück auf echten Kerzen ist but-buy-h4-02.
   frm('but-buy-h4-01: Kauf-Butterfly, B am tiefsten Docht bei 0.905 (über 0.886, BUT 03 ☑), D bei 1.37, ist ungültig', () => {
     const c = analyzeAt('but-buy-h4-01', '2026-01-14T12:00');
     expect(c.side).toBe('buy');
@@ -267,6 +268,23 @@ test.describe('BUT: echte Kerzen', () => {
     expect(find(c, 'BUT-02').value!).toBeCloseTo((0.93254 - 0.93007) / (0.93254 - 0.92981), 3);
     expect(find(c, 'BUT-07').value!).toBeCloseTo((0.93254 - 0.9288) / (0.93254 - 0.92981), 3);
     expect(c.verdict).toBe('invalid');
+  });
+
+  // 1113-A17.2: gültiger Kauf auf echten Kerzen (GBPUSD H4, Reihe unverändert aus der Fixture cyp-sell-h4-01, Trend-Standard FIXTURE_TREND).
+  // X 1.31354 (2025-11-17 08:00) → A 1.31925 (12:00) → B 1.31444 (11-18 04:00) → C 1.31763 (08:00) → D 1.31172 (11-19 08:00), Auswertung nach der Kerze von D.
+  // BUT 02: B an 0.843 von X → A (≥ 0.786 ☑, Abstand 0.057); BUT 03: 0.843 < 0.886, Ausschluss ☐ (Abstand 0.043).
+  // BUT 04: C an 0.662 von A → B (≥ 0.382 ☑); BUT 05: 0.662 < 0.886, Ausschluss ☐; BUT 06: Schluss unter B ☑; BUT 07: D an 1.318 von X → A (≥ 1.272 ☑).
+  // Filter: BUT 08 ☑ (C ≥ 0.618), BUT 09 ☑ (0.286 ATR), BUT 10 ☑ (0.204 ATR), BUT 11 ☑ (0.322 ATR), BUT 12 ☑, BUT 13 ☐ (RSI 35.4), BUT 14 ☐.
+  frm('but-buy-h4-02: Kauf-Butterfly, B 0.843 (BUT 02 ☑, BUT 03 ☐), C 0.662 (BUT 04 ☑, BUT 05 ☐), D 1.318 (BUT 07 ☑), ist gültig', () => {
+    const c = analyzeAt('but-buy-h4-02', '2025-11-19T12:00');
+    expect(c.side).toBe('buy');
+    expect(times(c)).toEqual(['2025-11-17T08:00', '2025-11-17T12:00', '2025-11-18T04:00', '2025-11-18T08:00', '2025-11-19T08:00']);
+    expect(states(c, CORE)).toEqual([M, M, N, M, N, M, M]);
+    expect(states(c, ['BUT-08', 'BUT-09', 'BUT-10', 'BUT-11', 'BUT-12', 'BUT-13', 'BUT-14'])).toEqual([M, M, M, M, M, N, N]);
+    expect(find(c, 'BUT-02').value!).toBeCloseTo(0.843, 2);
+    expect(find(c, 'BUT-04').value!).toBeCloseTo(0.662, 2);
+    expect(find(c, 'BUT-07').value!).toBeCloseTo(1.318, 2);
+    expect(c.verdict).toBe('valid');
   });
 
   frm('but-sell-h4-01: Verkauf-Butterfly mit RSI(7) 85 am D, das echte D liegt in einer Zone, ist gültig', () => {
