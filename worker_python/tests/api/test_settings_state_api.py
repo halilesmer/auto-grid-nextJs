@@ -93,3 +93,80 @@ def test_zonen_befehle_auch_ohne_states_huelle(client):
     url = f"/api/ui-state/{TEST_ACCOUNT_ID}"
     client.post(url, json={"settings": {"2": "pause"}})
     assert client.get(url).json()["states"] == {"2": "PAUSE"}
+
+
+# --------------------------------------------------------------------------- ZON-08 atomares Schreiben
+URL_UI = f"/api/ui-state/{TEST_ACCOUNT_ID}"
+
+
+def _post_start(client, idx="1"):
+    return client.post(URL_UI, json={"settings": {"states": {idx: "START"}}})
+
+
+@pytest.mark.feature("ZON-08")
+def test_ui_state_schreiben_ersetzt_datei_erst_am_ende(client, ui_state_file, monkeypatch):
+    """Beim Austausch ist die Zieldatei noch komplett alt; die Temp-Datei ist komplett neu und heisst nicht .tmp (Bot)."""
+    import os
+
+    ui_state_file.write_text(json.dumps({"0": "PAUSE"}), encoding="utf-8")
+    seen = {}
+    real_replace = os.replace
+
+    def spy(src, dst):
+        seen["target"] = json.loads(open(dst, encoding="utf-8").read())
+        seen["tmp"] = json.loads(open(src, encoding="utf-8").read())
+        seen["src"] = str(src)
+        return real_replace(src, dst)
+
+    monkeypatch.setattr(os, "replace", spy)
+    assert _post_start(client).status_code == 200
+    assert seen["target"] == {"0": "PAUSE"}
+    assert seen["tmp"] == {"0": "PAUSE", "1": "START"}
+    assert seen["src"] != str(ui_state_file) + ".tmp"
+    assert json.loads(ui_state_file.read_text()) == {"0": "PAUSE", "1": "START"}
+
+
+@pytest.mark.feature("ZON-08")
+def test_ui_state_alter_inhalt_bleibt_wenn_replace_scheitert(client, ui_state_file, monkeypatch):
+    import os
+
+    ui_state_file.write_text(json.dumps({"0": "PAUSE"}), encoding="utf-8")
+    monkeypatch.setattr(os, "replace", lambda *a, **k: (_ for _ in ()).throw(PermissionError("busy")))
+    monkeypatch.setattr("time.sleep", lambda s: None)
+    res = _post_start(client)
+    assert res.status_code == 500
+    assert json.loads(ui_state_file.read_text()) == {"0": "PAUSE"}
+    assert [p.name for p in ui_state_file.parent.iterdir() if p.name.endswith(".tmp")] == []
+
+
+@pytest.mark.feature("ZON-08")
+def test_ui_state_replace_wird_bei_permissionerror_wiederholt(client, ui_state_file, monkeypatch):
+    import os
+
+    real_replace = os.replace
+    calls = {"n": 0}
+
+    def flaky(src, dst):
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise PermissionError("busy")
+        return real_replace(src, dst)
+
+    monkeypatch.setattr(os, "replace", flaky)
+    monkeypatch.setattr("time.sleep", lambda s: None)
+    assert _post_start(client).status_code == 200
+    assert calls["n"] == 3
+    assert json.loads(ui_state_file.read_text()) == {"1": "START"}
+
+
+@pytest.mark.feature("ZON-08")
+def test_ui_state_abbruch_beim_schreiben_laesst_datei_unberuehrt(client, ui_state_file, monkeypatch):
+    ui_state_file.write_text(json.dumps({"0": "PAUSE"}), encoding="utf-8")
+
+    def boom(*a, **k):
+        raise OSError("disk full")
+
+    monkeypatch.setattr("json.dump", boom)
+    assert _post_start(client).status_code == 500
+    assert json.loads(ui_state_file.read_text()) == {"0": "PAUSE"}
+    assert [p.name for p in ui_state_file.parent.iterdir() if p.name.endswith(".tmp")] == []

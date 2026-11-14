@@ -3,6 +3,7 @@ import json
 import os
 from src.api.access import account_access
 from src.api.models import SettingsPayload
+from src.utils.atomic_json import atomic_write_json
 from src.utils.paths import get_ui_state_path
 
 router = APIRouter(tags=["UI State"])
@@ -45,8 +46,7 @@ async def update_ui_state(account_id: str, payload: SettingsPayload):
                 if str(k).isdigit():
                     existing_states[str(k)] = str(v).upper()
 
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(existing_states, f, indent=4, ensure_ascii=False)
+        atomic_write_json(path, existing_states)
 
         return {"status": "saved", "account_id": account_id, "states": existing_states}
     except Exception as exc:
