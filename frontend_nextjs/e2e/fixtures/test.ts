@@ -17,16 +17,27 @@ export * from './data';
 export type { MockWorker };
 
 // Fixture-Callback heißt `provide` statt `use`: sonst hält react-hooks/rules-of-hooks ihn für React.use
+/** 1114-A1: `auto` answers the formation question with "Evet, ara" at once (most tests need the search); `manual` leaves it to the test (FRM-48) */
+export type FormationAsk = 'auto' | 'manual';
+
 export type AppLocale = 'tr' | 'en' | 'de';
 
 export const LOCALE_STORAGE_KEY = 'grid-robot-locale';
 
-export const test = base.extend<{ worker: MockWorker; dashboard: Dashboard; appLocale: AppLocale; fakeNow: string | null }>({
+export const test = base.extend<{ worker: MockWorker; dashboard: Dashboard; appLocale: AppLocale; fakeNow: string | null; formationAsk: FormationAsk }>({
+  formationAsk: ['auto', { option: true }],
   appLocale: ['tr', { option: true }],
   // Feste Uhr (ISO) für Tests, deren Mock-Kerzen von der Uhrzeit abhängen (Sinuskurve in MockWorker.rates); null = echte Uhr
   fakeNow: [null, { option: true }],
-  page: async ({ page, appLocale, fakeNow }, provide) => {
+  page: async ({ page, appLocale, fakeNow, formationAsk }, provide) => {
     setFakeNow(fakeNow);
+    if (formationAsk === 'auto') {
+      // Die Frage „Formasyonlar aransın mı?“ erscheint nach den Kerzen; dieser Beobachter drückt „Evet, ara“, sobald sie da ist
+      await page.addInitScript(() => {
+        const press = () => document.querySelector<HTMLButtonElement>('[data-testid="formation-ask-yes"]')?.click();
+        new MutationObserver(press).observe(document, { childList: true, subtree: true });
+      });
+    }
     if (appLocale !== 'tr') {
       await page.addInitScript(
         ([key, locale]) => {

@@ -52,6 +52,9 @@ test('Gruppen merken das Werkzeug, Favoriten zeigen echte Symbole und bleiben ge
 test('Messung ist vorübergehend und Bereichszoom kann zurückgesetzt werden', { tag: '@ANA-17' }, async ({ page, worker }) => {
   void worker;
   await page.goto(URL);
+  // The running-search strip sits at the top left like the data chip; start the drag when the search is done (1114-A1)
+  await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+  await expect(page.getByTestId('formation-ask-running')).toHaveCount(0);
   const initial = await storedDrawings(page);
   await page.getByRole('button', { name: msg('cw.rail.measure'), exact: true }).click();
   const layer = page.getByTestId('chart-gesture-layer');

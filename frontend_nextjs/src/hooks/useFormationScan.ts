@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { t } from '@/i18n';
 import { runningBar, type Bar, type MissingRange } from '@/lib/analysis/candles';
-import { FormationContext, type ContextInput } from '@/lib/formation/context';
+import type { ContextInput } from '@/lib/formation/context';
 import type { ContextTimeframe } from '@/lib/formation/params';
 import { formationRequests } from '@/lib/formation/requests';
 import { splitDaily } from '@/lib/formation/weekly';
-import { scanFormations, scanTime, type ScanHit } from '@/lib/formation/scan';
+import { scanTime, type ScanHit } from '@/lib/formation/scan';
+import { runScan, type ScanAtr, type ScanRequest, type ScanResponse } from '@/lib/formation/scanRun';
 import { scanSignature } from '@/lib/formation/scanKey';
 import { trendFingerprint } from '@/lib/formation/trdPath';
 import { pastDayEnd, pastRequestEnd } from '@/lib/formation/asOf';
@@ -19,7 +20,8 @@ export interface FormationScan {
   loading: boolean;
   error: string | null;
   hits: ScanHit[];
-  context: FormationContext | null;
+  /** Letzte ATR je Zeiteinheit zum Suchzeitpunkt (aus dem Kontext der Suche; der Kontext selbst bleibt im Worker) */
+  atr: ScanAtr;
   /** Zeitpunkt der Suche (MT5-Sekunden): Anfang der laufenden M15-Kerze */
   scanAt: number | null;
   /** Rechenzeit der letzten Suche in Millisekunden */
@@ -36,12 +38,16 @@ export interface FormationScan {
 interface Settled {
   key: string;
   hits: ScanHit[];
-  context: FormationContext | null;
+  atr: ScanAtr;
   failed: boolean;
   scanAt: number;
   scanMs: number;
   runs: number;
 }
+
+/** Stable empty values: a new `[]` or `{}` on every render would change the memo inputs of the page while no search has run */
+const NO_HITS: ScanHit[] = [];
+const NO_ATR: ScanAtr = {};
 
 const tfData = (data: { bars: Bar[]; liveFrom: number | null } | null) => ({ bars: data?.bars ?? [], liveFrom: data?.liveFrom ?? null });
 
@@ -58,14 +64,16 @@ export function useFormationScan(
   clockReady: boolean,
   /** Suche zu einem Zeitpunkt in der Vergangenheit (MT5-Sekunden, auf 15 min gerundet, aus resolveAsOf); null = live */
   pastAt: number | null = null,
+  /** 1114-A1.4: ohne Freigabe (Antwort „Evet“ oder Favorit) und ohne die eigenen Kerzen des Charts gehen keine Suchanfragen los */
+  enabled = true,
 ): FormationScan {
   const nowSec = useCallback(() => (offsetSec !== null ? brokerNow(offsetSec) : Date.now() / 1000), [offsetSec]);
   const dayEnd = pastAt !== null ? pastDayEnd(pastAt) : dayStart(brokerToday(offsetSec ?? 0)) + DAY_SEC;
   const to = pastAt !== null ? pastRequestEnd(pastAt) : dayEnd;
   const requests = useMemo(() => {
-    if (!accountId || !symbol || !clockReady) return null;
+    if (!enabled || !accountId || !symbol || !clockReady) return null;
     return formationRequests(accountId, symbol, to);
-  }, [accountId, symbol, clockReady, to]);
+  }, [enabled, accountId, symbol, clockReady, to]);
   const d1 = useMarketRates(requests?.D1 ?? null, nowSec);
   const h4 = useMarketRates(requests?.H4 ?? null, nowSec);
   const h1 = useMarketRates(requests?.H1 ?? null, nowSec);
@@ -99,23 +107,43 @@ export function useFormationScan(
   });
 
   const [settled, setSettled] = useState<Settled | null>(null);
+  const worker = useRef<Worker | null>(null);
+  const requestId = useRef(0);
+  useEffect(() => () => {
+    worker.current?.terminate();
+    worker.current = null;
+  }, []);
   useEffect(() => {
     if (!key || at === null) return;
-    // Rechnung nach dem nächsten Anstrich, damit die Seite nicht beim Laden einfriert
-    const timer = setTimeout(() => {
-      const started = performance.now();
-      try {
-        const context = new FormationContext(symbol as string, latest.current, { trend });
-        const hits = scanFormations(context, at);
-        setSettled((prev) => ({ key, hits, context, failed: false, scanAt: at, scanMs: Math.round(performance.now() - started), runs: (prev?.runs ?? 0) + 1 }));
-      } catch (err) {
-        // Ungültige Kerzen vom Worker (Reihenfolge, NaN): Meldung statt die Seite zu stören; die technische
-        // Meldung der Bibliothek ist deutsch und nur für Entwickler, daher nur in der Konsole
-        console.error('Formation scan failed', err);
-        setSettled((prev) => ({ key, hits: [], context: null, failed: true, scanAt: at, scanMs: Math.round(performance.now() - started), runs: (prev?.runs ?? 0) + 1 }));
-      }
-    }, 0);
-    return () => clearTimeout(timer);
+    const request: ScanRequest = { id: ++requestId.current, symbol: symbol as string, input: latest.current, at, trend };
+    let cancelled = false;
+    const settle = (res: ScanResponse) => {
+      if (cancelled) return;
+      setSettled((prev) => ({ key, hits: res.ok ? res.hits : [], atr: res.ok ? res.atr : {}, failed: !res.ok, scanAt: at, scanMs: res.ms, runs: (prev?.runs ?? 0) + 1 }));
+    };
+    // Die Rechnung läuft im Web Worker (1114-A1.5); ohne Worker (alte Umgebung) nach dem nächsten Anstrich im Hauptthread
+    let instance: Worker | null = null;
+    try {
+      instance = worker.current ??= new Worker(new URL('../lib/formation/scan.worker.ts', import.meta.url));
+    } catch {
+      instance = null;
+    }
+    if (!instance) {
+      const timer = setTimeout(() => settle(runScan(request)), 0);
+      return () => { cancelled = true; clearTimeout(timer); };
+    }
+    const onMessage = (event: MessageEvent<ScanResponse>) => {
+      if (event.data.id === request.id) settle(event.data);
+    };
+    const onError = () => settle({ id: request.id, ok: false, ms: 0 });
+    instance.addEventListener('message', onMessage);
+    instance.addEventListener('error', onError);
+    instance.postMessage(request);
+    return () => {
+      cancelled = true;
+      instance.removeEventListener('message', onMessage);
+      instance.removeEventListener('error', onError);
+    };
   }, [key, at, symbol, trend]);
 
   // Gemeinsamer Preis: Schluss der laufenden M15-Kerze, so zeigen alle Zeiteinheiten denselben aktuellen Preis
@@ -135,8 +163,8 @@ export function useFormationScan(
   return {
     loading: ready && !loadError && !current && !beforeHistory,
     error: loadError ?? scanError,
-    hits: current?.hits ?? [],
-    context: current?.context ?? null,
+    hits: current?.hits ?? NO_HITS,
+    atr: current?.atr ?? NO_ATR,
     scanAt: current?.scanAt ?? null,
     scanMs: current?.scanMs ?? null,
     scanRuns: settled?.runs ?? 0,

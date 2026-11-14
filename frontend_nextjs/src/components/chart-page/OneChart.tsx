@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, PanelRight } from 'lucide-react';
+import { PanelRight, ScanSearch } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 
 import { TimeframeSelect } from '@/components/analysis/chart/TimeframeSelect';
@@ -20,6 +20,7 @@ import { FormationDrawingsToggle } from '@/components/chart-workspace/FormationD
 import { TrendToggle } from '@/components/chart-workspace/TrendToggle';
 import { FavoritesAddButton, FavoritesSidebar } from '@/components/formation/FavoritesSidebar';
 import { FormationActions } from '@/components/formation/FormationActions';
+import { FormationAskStrip } from '@/components/chart-page/FormationAskStrip';
 import { FormationAsOf, FormationAsOfSteps, useCompact } from '@/components/formation/FormationAsOf';
 import { FormationConditions } from '@/components/formation/FormationConditions';
 import { FavoritesForms, FavoritesTimeframes } from '@/components/formation/FormationFavoritesBar';
@@ -34,6 +35,7 @@ import { useChartParams } from '@/hooks/useChartParams';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useFormationAlarm } from '@/hooks/useFormationAlarm';
+import { useFormationAsk, useFormationAskStatus } from '@/hooks/useFormationAsk';
 import { useFormationScan } from '@/hooks/useFormationScan';
 import { useFormationSidebar, type CardTab } from '@/hooks/useFormationSidebar';
 import { useMarketRates } from '@/hooks/useMarketRates';
@@ -124,24 +126,6 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
     if (atParam !== null && pastAt === null && clockReady) setAt(null);
   }, [atParam, pastAt, clockReady, setAt]);
 
-  // Formation search (all formations, all four timeframes) of the symbol. A symbol that is not in the loaded broker list gets no requests (an empty list: no search either way)
-  const listKnown = Object.keys(details).length > 0;
-  const scanSymbol = !listKnown || accepted ? urlSymbol : null;
-  const scan = useFormationScan(accountId, scanSymbol, offsetSec, clockReady, pastAt);
-  const formsWithHits = useMemo(() => (contextTf ? SCAN_FORMATIONS.filter((x) => scan.hits.some((h) => h.form === x && h.tf === contextTf)) : []), [scan.hits, contextTf]);
-  // A formation without a candidate on this timeframe has no button: the first one with a badge (else with any candidate) is shown instead
-  const badged = contextTf ? formsWithHits.find((x) => hitsCount(scan.hits, { form: x, tf: contextTf }) > 0) : undefined;
-  const form: ScanFormation = urlForm && formsWithHits.includes(urlForm) ? urlForm : (badged ?? formsWithHits[0] ?? urlForm ?? DEFAULT_FORMATION);
-  const list = useMemo(() => (contextTf ? scan.hits.filter((h) => h.form === form && h.tf === contextTf) : []), [scan.hits, form, contextTf]);
-  const [pickedId, setPicked] = useState<string | null>(null);
-  const hit = list.find((h) => `${h.form}-${h.tf}` === pickedId) ?? list[0] ?? null;
-  const [active, setActive] = useState<string[] | null>(null);
-  const [priceBottom, setPriceBottom] = useState(0);
-  const clearSelection = () => {
-    setActive(null);
-    setPicked(null);
-  };
-
   // Candles: W1 and MN are built from D1 in the browser (1107-A4.2). The request starts at a week or month start, so the first candle is whole.
   const calendar = isCalendarTimeframe(timeframe) ? timeframe : null;
   const askRange = useMemo(() => {
@@ -174,6 +158,30 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
   }, [ratesData, calendar, tfSec, now]);
   const dailyMissing = useMemo(() => (calendar && d1.data ? buildChartData(d1.data.bars, d1.data.missing, DAY_SEC, now()).missing : null), [calendar, d1.data, now]);
   const signalBars = useSignalBars(ratesData, timeframe, offsetSec, now);
+
+  // Formation search (all formations, all four timeframes) of the symbol. A symbol that is not in the loaded broker list gets no requests (an empty list: no search either way)
+  const listKnown = Object.keys(details).length > 0;
+  const scanSymbol = !listKnown || accepted ? urlSymbol : null;
+  // 1114-A1: the search starts after the answer (or at once for a favorite) and only after the chart's own candles are here
+  const sidebar = useFormationSidebar();
+  const favorites = useFavorites(accountId);
+  const askKey = scanSymbol ? `${accountId}|${scanSymbol.toUpperCase()}` : null;
+  const ask = useFormationAsk({ key: askKey, favoritesReady: favorites.ready, favorite: scanSymbol ? favorites.isFavorite(scanSymbol) : false, chartReady: d1.data !== null || (ready && !isLoading && request === null && clockReady) });
+  const scan = useFormationScan(accountId, scanSymbol, offsetSec, clockReady, pastAt, ask.enabled);
+  const askPhase = useFormationAskStatus(ask, { symbol: scanSymbol, scan, tf: contextTf ?? 'H4', onShow: () => sidebar.show('conditions') });
+  const formsWithHits = useMemo(() => (contextTf ? SCAN_FORMATIONS.filter((x) => scan.hits.some((h) => h.form === x && h.tf === contextTf)) : []), [scan.hits, contextTf]);
+  // A formation without a candidate on this timeframe has no button: the first one with a badge (else with any candidate) is shown instead
+  const badged = contextTf ? formsWithHits.find((x) => hitsCount(scan.hits, { form: x, tf: contextTf }) > 0) : undefined;
+  const form: ScanFormation = urlForm && formsWithHits.includes(urlForm) ? urlForm : (badged ?? formsWithHits[0] ?? urlForm ?? DEFAULT_FORMATION);
+  const list = useMemo(() => (contextTf ? scan.hits.filter((h) => h.form === form && h.tf === contextTf) : []), [scan.hits, form, contextTf]);
+  const [pickedId, setPicked] = useState<string | null>(null);
+  const hit = list.find((h) => `${h.form}-${h.tf}` === pickedId) ?? list[0] ?? null;
+  const [active, setActive] = useState<string[] | null>(null);
+  const [priceBottom, setPriceBottom] = useState(0);
+  const clearSelection = () => {
+    setActive(null);
+    setPicked(null);
+  };
 
   // The setup layers of the symbol: the setup of the URL if it is one of this symbol, else its first setup (1107-A21.2)
   const symbolKey = (accepted ?? urlSymbol)?.toUpperCase().trim() ?? null;
@@ -256,18 +264,15 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
   });
   const others = useMemo(() => (hit ? scan.hits.filter((h) => h.tf === hit.tf) : []), [scan.hits, hit]);
   const atr = useMemo(() => {
-    const view = hit && scan.context && scan.scanAt !== null ? scan.context.view(hit.tf, scan.scanAt) : null;
-    return [...(view?.atr ?? [])].reverse().find((v): v is number => v !== null && v > 0) ?? null;
-  }, [hit, scan.context, scan.scanAt]);
+    return hit ? (scan.atr[hit.tf] ?? null) : null;
+  }, [hit, scan.atr]);
   const priceRange = useMemo(() => (hit ? drawingPriceRange(hit.candidate) : null), [hit]);
 
   // Favorites (FRM-29): the search runs in the layout (FormationScanRunner), the page reads the store
-  const favorites = useFavorites(accountId);
   const found = useFavoritesScanStore((s) => s.results);
   const favoritesScanMs = useFavoritesScanStore((s) => s.scanMs);
   const hasFavorites = favorites.ready && favorites.symbols.length > 0;
   const results = useMemo(() => Object.fromEntries(favorites.symbols.filter((s) => found[s]).map((s) => [s, found[s]])), [favorites.symbols, found]);
-  const sidebar = useFormationSidebar();
   // From lg the card lives in the right rail and its panel (1107-A21.22); below lg it floats over the chart as before
   const wide = useMediaQuery('(min-width: 1024px)');
   // The button "Kart" reopens the card tab that was open last (the store holds one tab; "favorites" is the other button)
@@ -448,11 +453,7 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
           <DataQualityBanner missing={dailyMissing ?? data.missing} clipped={ratesData.clipped} dbFull={ratesData.dbFull} loadedFrom={ratesData.from} calendar={calendar !== null} scroll chip allHistory={range.from === null} limit={d1.data?.older === 'limit'} />
         </div>
       )}
-      {scan.loading && formationTf && (
-        <p className="flex items-center gap-2 rounded-lg bg-background/95 p-2 text-xs text-muted-foreground" role="status" data-testid="formation-loading">
-          <Loader2 size={14} className="animate-spin" /> {t('formation.scan.loading')}
-        </p>
-      )}
+      <FormationAskStrip phase={askPhase} symbol={urlSymbol ?? ''} onYes={ask.yes} onNo={ask.no} onRetry={ask.retry} />
       {d1.loading && <p className="rounded-lg bg-background/95 p-2 text-sm text-muted-foreground">{t('analysis.chart.loading')}</p>}
     </>
   );
@@ -521,7 +522,7 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
           timeframes={<TimeframeSelect value={timeframe} onChange={onTimeframe} options={CHART_TIMEFRAMES} counts={tfCounts} flat />}
           forms={forms}
           range={chrome.range}
-          tools={<>{formationActions}<LicenseInfo /></>}
+          tools={<>{askPhase === 'declined' && <Button size="xs" variant="ghost" hint={t('formation.ask.search.hint')} data-testid="formation-ask-search" onClick={ask.yes}><ScanSearch size={13} aria-hidden="true" />{t('formation.ask.search')}</Button>}{formationActions}<LicenseInfo /></>}
         />
       }
       surface={

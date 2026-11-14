@@ -20,6 +20,11 @@ import { named, seedFixtureTrend, trendOf } from '../fixtures/formation-trend';
 // Formationen rechnen auf dem Trendzug des Nutzers (FRM-41); die Fixtures zeigen ihre Formation mit FIXTURE_TREND
 test.beforeEach(({ page }) => seedFixtureTrend(page, trendOf(fixtureBars)));
 
+
+/** "Anzeigen" button of the alarm card. The "search done" card (1114-A1) has a button with the same Turkish name, so the locator skips that card */
+const alarmShow = (page: Page) =>
+  page.getByRole('status').filter({ hasNotText: msg('formation.ask.done', { symbol: '' }).replace(/^[:\s]+/, '') }).getByRole('button', { name: msg('formation.alarm.show'), exact: true });
+
 const URL = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}`;
 const NOW = Date.UTC(2025, 10, 17, 12) / 1000;
 
@@ -955,7 +960,7 @@ test.describe('FRM-27 Formationsalarm', () => {
     await advance(page, worker, NOW);
     await expect(page.getByText(gartley())).toBeVisible();
 
-    await page.getByRole('button', { name: msg('formation.alarm.show'), exact: true }).click();
+    await alarmShow(page).click();
     await expect(page.getByTestId('formation-form-GAR')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByTestId('timeframe-H4')).toHaveAttribute('aria-checked', 'true');
     await expect(page.getByTestId('candidate-item').first()).toHaveAttribute('aria-pressed', 'true');
@@ -968,7 +973,7 @@ test.describe('FRM-27 Formationsalarm', () => {
     await remembered(page, 'EURUSD');
     await advance(page, worker, NOW);
     await expect(page.getByText(msg('formation.alarm.notice.many', { count: 5 }))).toBeVisible();
-    await expect(page.getByRole('button', { name: msg('formation.alarm.show'), exact: true })).toHaveCount(0);
+    await expect(alarmShow(page)).toHaveCount(0);
   });
 
   test('Mehr als drei neue Treffer in einem Lauf kommen als eine Sammelmeldung', { tag: '@FRM-27' }, async ({ page, worker }) => {
@@ -1320,7 +1325,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     await page.goto(ALARM_URL);
     await remembered(page, 'EURUSD');
     await nextSlot(page, worker);
-    await page.getByRole('button', { name: msg('formation.alarm.show'), exact: true }).click();
+    await alarmShow(page).click();
     await expect(page).toHaveURL(new RegExp(`/chart\\?account=${DEMO_ID}&symbol=EURUSD&form=GAR&tf=H4`));
     await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
     // Mit Favoriten stehen die Formationen in der Favoriten-Zeile: die Liste zeigt die Gartley der Zeiteinheit H4
@@ -1400,7 +1405,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     await seed(page, { favoritesEnabled: [DEMO_ID], memory: { [`${DEMO_ID}|EURUSD`]: {} }, forms: ['ABCD', 'GAR', 'BAT', 'BUT', 'CRB', 'CYP', 'CDT'] });
     await page.goto(ALARM_URL);
     await expect(page.getByText(msg('formation.alarm.notice.since', { count: 5 }))).toBeVisible();
-    await expect(page.getByRole('button', { name: msg('formation.alarm.show'), exact: true })).toHaveCount(0);
+    await expect(alarmShow(page)).toHaveCount(0);
     await expect(page.getByRole('button', { name: msg('formation.alarm.openFavorites'), exact: true })).toBeVisible();
     const [note] = await shown(page);
     expect(note.url).toBe(`/chart?account=${DEMO_ID}`);

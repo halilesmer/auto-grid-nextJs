@@ -84,16 +84,20 @@ test.describe('ANA-11 Kerzen, fehlende Daten und Marktpausen', () => {
     });
   }
 
-  test('Zeitrahmen steht in der Adresse und lädt passende Kerzen', { tag: '@ANA-11' }, async ({ page, worker }) => {
-    await page.goto(URL);
-    await expect(page.getByTestId('analysis-chart')).toBeVisible();
-    await page.getByTestId('timeframe-H1').click();
-    await expect(page).toHaveURL(/tf=H1/);
-    await expect.poll(() => ratesCalls(worker).at(-1)?.query.get('timeframe')).toBe('H1');
+  // Ohne Formationssuche (FRM-48, Frage unbeantwortet): die letzte Kerzen-Anfrage ist die des Charts, nicht eine Suchanfrage
+  test.describe('ohne Formationssuche', () => {
+    test.use({ formationAsk: 'manual' });
+    test('Zeitrahmen steht in der Adresse und lädt passende Kerzen', { tag: '@ANA-11' }, async ({ page, worker }) => {
+      await page.goto(URL);
+      await expect(page.getByTestId('analysis-chart')).toBeVisible();
+      await page.getByTestId('timeframe-H1').click();
+      await expect(page).toHaveURL(/tf=H1/);
+      await expect.poll(() => ratesCalls(worker).at(-1)?.query.get('timeframe')).toBe('H1');
 
-    await page.reload();
-    await expect(page.getByTestId('timeframe-H1')).toHaveAttribute('aria-checked', 'true');
-    await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-bars', /^[1-9]\d*$/);
+      await page.reload();
+      await expect(page.getByTestId('timeframe-H1')).toHaveAttribute('aria-checked', 'true');
+      await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-bars', /^[1-9]\d*$/);
+    });
   });
 
   test('Fehler beim Laden: Meldung statt leerem Chart', { tag: '@ANA-11' }, async ({ page, worker }) => {

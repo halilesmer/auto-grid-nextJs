@@ -14,6 +14,8 @@ const storageKey = 'grid-robot-chart-workspaces-v1';
 const BOTH = ['@UI-17', '@UI-08'];
 test.setTimeout(90_000);
 test.use({ viewport: { width: 1440, height: 900 } });
+// Layout tests: the "search done" toast (1114-A1) would cover the bottom of the range panel; these tests need no search
+test.use({ formationAsk: 'manual' });
 test.beforeEach(({ page, worker }) => {
   worker.state.settings[DEMO_ID] = { LOOP_INTERVAL_SECONDS: 2, SYMBOLS: groupZones([makeZone({ symbol: 'EURUSD' })]) };
   return seedFixtureTrend(page, fixtureTrend('gar-buy-h4-01'));
