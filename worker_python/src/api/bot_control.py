@@ -330,7 +330,7 @@ async def get_bot_turns(
     Kompakt çıktı: `t0` ilk başlangıç, `dt` ardışık başlangıç farkları (ms), `dur` süreler (ms),
     `kind` türler (t tam tur, m piyasa kapalı, c bağlantı, n netting), `pre` tur başından
     manage_dynamic_grid'e kadar ms. `snap` (tur başı → fiyat okuma bitti, ms), `nsl` (turda gönderilen
-    TP/SL modify sayısı), `z0` (tur başı → zone döngüsü başı, ms): eski kayıtta ve t dışı turlarda null. Yalnız okuma."""
+    TP/SL modify sayısı), `z0` (tur başı → zone döngüsü başı, ms), `nsl0` (z0 anındaki nsl: yalnız tur başı TP/SL modify sayısı): eski kayıtta ve t dışı turlarda null. Yalnız okuma."""
     if to_ms is None:
         to_ms = int(time.time() * 1000)
     if to_ms <= from_ms:
@@ -352,6 +352,7 @@ async def get_bot_turns(
         "snap": [r[4] for r in rows],
         "nsl": [r[5] for r in rows],
         "z0": [r[6] for r in rows],
+        "nsl0": [r[7] for r in rows],
     }
 
 

@@ -280,3 +280,36 @@ def test_probe_counts_sltp_and_resets_each_turn():
         assert probe.nsl == 1
     finally:
         grid_orders.safe_send_order = orig
+
+
+@pytest.mark.feature("ENG-35")
+def test_nsl0_roundtrip_and_seven_field_row(client, multi, worker_dir):
+    """nsl0 (z0 anındaki nsl) yazılıp okunur; 7 alanlı eski satırda nsl0 null olur."""
+    from src.utils import turn_log
+    from src.utils.paths import get_turns_dir
+    import gzip
+
+    _record("1001", [(BASE, 2105, "t", 3, 12, 6, 40, 2), (BASE + 2105, 40, "m", 0)])
+    d = get_turns_dir("1001")
+    with open(os.path.join(d, f"turns_{turn_log._day_of(BASE)}.csv.gz"), "ab") as fh:
+        fh.write(gzip.compress(f"{BASE + 4000},2100,t,2,9,1,31\n".encode("ascii")))
+    body = client.get(f"/api/bot/1001/turns?from={BASE}&to={BASE + 10000}", headers=multi["anna"]).json()
+    assert body["nsl"] == [6, None, 1]
+    assert body["nsl0"] == [2, None, None]
+
+
+@pytest.mark.feature("ENG-35")
+def test_probe_nsl0_is_nsl_at_z0():
+    """nsl0 yalnız z0 anına kadar sayılanı tutar; sonraki modify'lar nsl'yi artırır, nsl0'ı değil."""
+    from src.utils.turn_log import TurnProbe
+
+    p = TurnProbe()
+    p.begin(time.perf_counter())
+    p.count_sltp()
+    p.count_sltp()
+    p.mark_z0()
+    p.count_sltp()
+    p.mark_z0()  # ikinci çağrı ilk değeri korur
+    assert (p.nsl, p.nsl0) == (3, 2)
+    p.begin(time.perf_counter())
+    assert (p.nsl, p.nsl0) == (0, None)

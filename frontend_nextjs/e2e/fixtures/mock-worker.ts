@@ -1249,7 +1249,7 @@ export class MockWorker {
       return ok({
         account_id: seg[1], from, to, count: rows.length, t0: rows[0]?.[0] ?? null,
         dt: rows.slice(1).map((r, i) => r[0] - rows[i][0]), dur: rows.map((r) => r[1]), kind: rows.map((r) => r[2]), pre: rows.map((r) => r[3]),
-        snap: rows.map((r) => r[4] ?? null), nsl: rows.map((r) => r[5] ?? null), z0: rows.map((r) => r[6] ?? null),
+        snap: rows.map((r) => r[4] ?? null), nsl: rows.map((r) => r[5] ?? null), z0: rows.map((r) => r[6] ?? null), nsl0: rows.map((r) => r[7] ?? null),
       });
     }
 
