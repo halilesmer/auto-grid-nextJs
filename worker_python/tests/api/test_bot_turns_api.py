@@ -218,3 +218,65 @@ def test_main_loop_skip_kinds(worker_dir, monkeypatch, kind):
     now = int(time.time() * 1000)
     assert [r[2] for r in read_turns("1001", now - 60000, now + 60000)] == [kind]
     assert manage_calls == []
+
+
+def test_probe_fields_roundtrip_and_old_format(client, multi):
+    """Yeni alanlar (snap, nsl, z0) yazılıp okunur; eski 4 alanlı satır null verir."""
+    _record("1001", [(BASE, 2105, "t", 3, 12, 4, 40), (BASE + 2105, 40, "m", 0), (BASE + 4000, 2100, "t", 2, 9, 0, 31)])
+    body = client.get(f"/api/bot/1001/turns?from={BASE}&to={BASE + 10000}", headers=multi["anna"]).json()
+    assert body["snap"] == [12, None, 9]
+    assert body["nsl"] == [4, None, 0]
+    assert body["z0"] == [40, None, 31]
+    assert body["pre"] == [3, 0, 2]
+
+
+def test_old_file_without_probe_fields_reads_null(client, multi, worker_dir):
+    from src.utils import turn_log
+    from src.utils.paths import get_turns_dir
+
+    d = get_turns_dir("1001")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, f"turns_{turn_log._day_of(BASE)}.csv.gz"), "wb") as fh:
+        fh.write(gzip.compress(f"{BASE},2100,t,3\n{BASE + 2100},2100,t,2\n".encode("ascii")))
+    body = client.get(f"/api/bot/1001/turns?from={BASE}&to={BASE + 10000}", headers=multi["anna"]).json()
+    assert body["count"] == 2 and body["pre"] == [3, 2]
+    assert body["snap"] == [None, None] and body["nsl"] == [None, None] and body["z0"] == [None, None]
+
+
+def test_probe_counts_sltp_and_resets_each_turn():
+    """nsl yalnız grid_orders kapısındaki TP/SL modify çağrılarını sayar, begin() sıfırlar; snap/z0 ilk işareti tutar."""
+    import time
+    from types import SimpleNamespace
+
+    from src.core import grid_orders
+    from src.utils.turn_log import probe
+
+    class Mt5:
+        TRADE_ACTION_SLTP = 6
+        TRADE_ACTION_MODIFY = 7
+        ORDER_TIME_GTC = 0
+
+    sent = []
+    orig = grid_orders.safe_send_order
+    grid_orders.safe_send_order = lambda mt5, req, log: sent.append(req) or True
+    try:
+        pos = SimpleNamespace(symbol="EURUSD", ticket=1)
+        order = SimpleNamespace(symbol="EURUSD", ticket=2, price_open=1.1)
+        infos = {}
+        probe.begin(time.perf_counter())
+        grid_orders.modify_position_tp_sl(Mt5, pos, 1.2, 1.0, infos)
+        grid_orders.modify_pending_order(Mt5, order, 1.0, 1.2, infos)
+        assert probe.nsl == 2
+        probe.mark_snap()
+        first = probe.snap_ms
+        time.sleep(0.01)
+        probe.mark_snap()
+        assert probe.snap_ms == first and probe.z0_ms is None
+        probe.mark_z0()
+        assert probe.z0_ms is not None
+        probe.begin(time.perf_counter())
+        assert probe.nsl == 0 and probe.snap_ms is None and probe.z0_ms is None
+        grid_orders.modify_position_tp_sl(Mt5, pos, 1.2, 1.0, infos)
+        assert probe.nsl == 1
+    finally:
+        grid_orders.safe_send_order = orig

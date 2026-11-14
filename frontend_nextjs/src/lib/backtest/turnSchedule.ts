@@ -180,6 +180,10 @@ export interface TelemetryTurns {
   dur: readonly number[];
   kind: readonly string[];
   pre: readonly number[];
+  /** ENG-35 ölçüm alanları (eski kayıtta yok ya da null); BT davranışı bunları kullanmaz */
+  snap?: readonly (number | null)[];
+  nsl?: readonly (number | null)[];
+  z0?: readonly (number | null)[];
 }
 
 /** Açılmış bir telemetri turu: UTC saniye (ondalıklı), süreler saniye */
@@ -187,6 +191,12 @@ export interface DecodedTurn {
   start: number;
   dur: number;
   pre: number;
+  /** tur başı → fiyat okuma anı, saniye (yoksa null) */
+  snap: number | null;
+  /** turda gönderilen TP/SL modify sayısı (yoksa null) */
+  nsl: number | null;
+  /** tur başı → zone döngüsü başı, saniye (yoksa null) */
+  z0: number | null;
 }
 
 /** Yalnız tam turlar (`kind` t) açılır; piyasa kapalı (m), bağlantı (c) ve netting (n) turları bot kararı üretmez, atlanır */
@@ -197,7 +207,16 @@ export function decodeTurns(turns: TelemetryTurns): DecodedTurn[] {
   for (let i = 0; i < turns.kind.length; i++) {
     if (i > 0) ms += turns.dt[i - 1] ?? 0;
     if (turns.kind[i] !== 't') continue;
-    out.push({ start: ms / 1000, dur: (turns.dur[i] ?? 0) / 1000, pre: (turns.pre[i] ?? 0) / 1000 });
+    const snap = turns.snap?.[i] ?? null;
+    const z0 = turns.z0?.[i] ?? null;
+    out.push({
+      start: ms / 1000,
+      dur: (turns.dur[i] ?? 0) / 1000,
+      pre: (turns.pre[i] ?? 0) / 1000,
+      snap: snap === null ? null : snap / 1000,
+      nsl: turns.nsl?.[i] ?? null,
+      z0: z0 === null ? null : z0 / 1000,
+    });
   }
   return out;
 }

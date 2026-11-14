@@ -7,6 +7,7 @@ from src.core.grid_helpers import (
 )
 from src.core.grid_orders import get_all_robot_orders, get_all_robot_positions
 from src.utils.paths import get_ui_state_path
+from src.utils.turn_log import probe
 
 from .grid_zone_selector import (
     detect_zone_entry,
@@ -84,6 +85,7 @@ def manage_dynamic_grid(
         sell = get_current_market_price(mt5, sym, "SELL")
         if buy is not None and sell is not None:
             prices[sym] = (buy + sell) / 2.0
+    probe.mark_snap()  # ENG-35: fiyat okuması bitti (ölçüm, davranış aynı)
     if not prices:
         return False, active_zones
 
@@ -111,6 +113,7 @@ def manage_dynamic_grid(
     retry_exit_closes(mt5, zones, robot_positions, active_zones_state, filling_mode)
 
     ok = len(prices) == len(symbols)
+    probe.mark_z0()  # ENG-35: zone döngüsü başlıyor
     for idx, zone in enumerate(zones):
         sym = zone_symbol_of(zone)
         if sym not in prices or not _is_enabled(zone):

@@ -11,7 +11,7 @@ from .startup import netting_conflict, run_startup_checks
 from src.core.grid_helpers import log_message, is_market_open
 from src.core.grid_orders import get_all_robot_orders, cancel_order
 from src.core.spread_guard import refresh_spread_guard
-from src.utils.turn_log import TurnRecorder
+from src.utils.turn_log import TurnRecorder, probe
 
 
 def main_loop(mt5_module, account_id, password, server, mt5_path=None):
@@ -34,6 +34,7 @@ def main_loop(mt5_module, account_id, password, server, mt5_path=None):
             turn_start_ms = int(time.time() * 1000)
             turn_t0 = time.perf_counter()
 
+            probe.begin(turn_t0)
             load_dynamic_settings()
             is_healthy, consecutive_losses = check_connection_health(
                 mt5_module, account_id, password, server, consecutive_losses, mt5_path
@@ -97,7 +98,10 @@ def main_loop(mt5_module, account_id, password, server, mt5_path=None):
                     f"🚨 Hata (Crash Koruması): manage_dynamic_grid'de hata: {e}",
                     "ERROR",
                 )
-            recorder.add(turn_start_ms, (time.perf_counter() - turn_t0) * 1000, "t", pre_ms)
+            recorder.add(
+                turn_start_ms, (time.perf_counter() - turn_t0) * 1000, "t", pre_ms,
+                probe.snap_ms, probe.nsl, probe.z0_ms,
+            )
 
             time.sleep(state.loop_interval_seconds)
 

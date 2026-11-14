@@ -4,6 +4,7 @@ import re
 from src.core import clock
 from src.utils.trade_utils import safe_send_order, TradeState
 from src.utils.paths import get_ui_state_path
+from src.utils.turn_log import probe
 from src.core.grid_helpers import (
     normalize_price,
     normalize_volume,
@@ -223,6 +224,7 @@ def modify_position_tp_sl(mt5, position, tp_price, sl_price, symbol_infos):
         "tp": tp_norm,
         "sl": sl_norm,
     }
+    probe.count_sltp()  # ENG-35: tur başına TP/SL modify sayısı
     return safe_send_order(mt5, request, log_message)
 
 
@@ -240,6 +242,7 @@ def modify_pending_order(mt5, order, sl_price, tp_price, symbol_infos):
         "tp": normalize_price(tp_price, symbol, symbol_infos) if tp_price else 0.0,
         "type_time": mt5.ORDER_TIME_GTC,
     }
+    probe.count_sltp()  # ENG-35: tur başına TP/SL modify sayısı
     return safe_send_order(mt5, request, log_message)
 
 
