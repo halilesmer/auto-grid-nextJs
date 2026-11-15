@@ -158,6 +158,17 @@ kategorien:
           - Denselben Befehl mit run_in_background ausführen lassen.
         erwartet: Der Vordergrund-Befehl startet nicht; Claude bekommt die Meldung „pre-bash-wait (SYS-14)“ mit dem Hinweis auf Hintergrund oder Monitor. Im Hintergrund startet er normal.
 
+      - id: SYS-16
+        titel: Kein kapsamloses pkill (Claude-Hook) und precheck.sh --stop
+        beschreibung: "hooks/claude/pre-bash-kill.sh läuft als zweiter PreToolUse-Hook vor jedem Bash-Aufruf von Claude Code (.claude/settings.json). Er lehnt pkill, killall und pgrep mit kill (pgrep … | xargs kill, kill $(pgrep …)) ab (Exit 2, Begründung auf stderr, auch mit run_in_background), wenn das Muster den Pfad des eigenen Checkouts nicht enthält (echter Pfad, logischer Pfad oder $CLAUDE_PROJECT_DIR). Jedes Teilkommando einer Kette (; && || | bash -c) wird einzeln geprüft. Erlaubt bleiben kill <pid>, kill $(lsof -ti tcp:<Port>) und Befehle, die pkill nur als Text enthalten (echo, grep). Grund: pkill -f \"scripts/features/precheck.sh\" und pkill -f playwright trafen die Läufe aller Worktrees; ein Lauf mit der Sperre und zwei wartende Läufe starben in drei Sekunden (Diagnose 2026-11-15). scripts/features/precheck.sh --stop ist der sichere Ersatz: precheck.sh schreibt .feature-results/precheck.pid (PID und Checkout-Pfad); --stop beendet nur den Lauf, den diese Datei für diesen Checkout nennt und dessen Befehl precheck.sh ist, samt Kindprozessen. Sein Signal-Handler gibt Sperre und Testserver frei. Fehlt die Datei oder passt der Prozess nicht, beendet --stop nichts."
+        code: [hooks/claude/pre-bash-kill.sh, scripts/features/precheck.sh, .claude/settings.json]
+        tiers: [e2e]
+        pruefung:
+          - In einer Claude-Code-Sitzung dieses Projekts pkill -f "scripts/features/precheck.sh" im Vordergrund ausführen lassen.
+          - Denselben Befehl mit dem Pfad des eigenen Checkouts im Muster ausführen lassen.
+          - Während eines laufenden precheck.sh in diesem Checkout scripts/features/precheck.sh --stop ausführen.
+        erwartet: Der erste Befehl startet nicht; Claude bekommt die Meldung „pre-bash-kill (SYS-16)“ mit dem Hinweis auf TaskStop und precheck.sh --stop. Der zweite läuft. --stop beendet nur den Lauf dieses Checkouts; Läufe anderer Worktrees laufen weiter.
+
       - id: SYS-15
         titel: Geliştirme-Panel aus dem Einstellungsmenü öffnen
         beschreibung: "Im Kopf-Menü (UI-01), Abschnitt System, steht direkt unter der Adresse (Host, Port, URL) die Zeile „Geliştirme panelini aç“ (EN „Open dev panel“, DE „Entwicklungs-Panel öffnen“). Sie öffnet http://localhost:3030 in einem neuen Tab (noopener, noreferrer); danach schließt das Menü. Die Zeile erscheint nur, wenn die Seite von localhost, 127.0.0.1 oder [::1] geladen wurde (src/lib/devPanel.ts, isLocalHostname): auf Vercel und am Telefon im LAN (Hostname des Mac oder LAN-Adresse) fehlt sie, weil localhost dort eine andere Maschine wäre. Das Panel selbst (eigener Prozess auf Port 3030, außerhalb des Repositorys) ist nicht Teil dieses Features; solange es nicht läuft, zeigt der neue Tab einen Verbindungsfehler."

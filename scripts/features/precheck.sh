@@ -13,9 +13,42 @@
 # Maschinenweite Sperre (SYS-11, heavy_lock.sh): der ganze Lauf wartet, bis kein anderer schwerer Lauf
 # mehr läuft (HEAVY_LOCK=0 schaltet ab, in CI aus). Ein verwaister eigener Testserver auf dem Port
 # wird vor dem e2e-Schritt und beim Exit beendet (e2e_server.sh).
+#
+#   scripts/features/precheck.sh --stop           beendet NUR den Lauf dieses Checkouts (SYS-16): sicherer
+#                                                  Ersatz für `pkill -f`, das auch fremde Läufe trifft
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+PID_FILE="${PRECHECK_PID_FILE:-$ROOT/.feature-results/precheck.pid}"
+
+if [ "${1:-}" = "--stop" ]; then
+  # Datei: "<pid> <ROOT>". Nur ein Lauf, dessen Datei diesen Checkout nennt und dessen Befehl precheck.sh ist.
+  read -r pid pid_root < "$PID_FILE" 2>/dev/null || { echo "precheck.sh --stop: kein Lauf in diesem Checkout (keine PID-Datei)."; exit 0; }
+  if [ "${pid_root:-}" != "$ROOT" ] || ! kill -0 "${pid:-0}" 2>/dev/null \
+     || ! ps -o command= -p "$pid" 2>/dev/null | grep -q 'precheck.sh'; then
+    echo "precheck.sh --stop: kein Lauf in diesem Checkout (PID ${pid:-?} gehört nicht zu diesem precheck.sh); nichts beendet."
+    exit 0
+  fi
+  # Nachfahren vorher sammeln; zuerst den Lauf (sein Signal-Handler räumt Sperre und Testserver auf,
+  # sobald der laufende Schritt endet), dann die Nachfahren.
+  kids=""; todo="$pid"
+  while [ -n "$todo" ]; do
+    next=""
+    for p in $todo; do
+      for c in $(pgrep -P "$p" 2>/dev/null); do kids="$c $kids"; next="$next $c"; done
+    done
+    todo="$next"
+  done
+  kill -TERM "$pid" 2>/dev/null
+  for c in $kids; do kill -TERM "$c" 2>/dev/null; done
+  # Zombie (Z) zählt als beendet: der Elternprozess hat ihn nur noch nicht abgeholt
+  alive() { kill -0 "$pid" 2>/dev/null && ! ps -o stat= -p "$pid" 2>/dev/null | grep -q '^Z'; }
+  i=0
+  while alive && [ "$i" -lt 40 ]; do sleep 0.5; i=$((i + 1)); done
+  if alive; then echo "precheck.sh --stop: PID $pid läuft noch nach 20 s." >&2; exit 1; fi
+  echo "precheck.sh --stop: Lauf (PID $pid) und $(echo $kids | wc -w | tr -d ' ') Kindprozesse beendet."
+  exit 0
+fi
 WORKER="$ROOT/worker_python"
 FRONTEND="$ROOT/frontend_nextjs"
 REPORTS="$ROOT/.feature-results"
@@ -26,6 +59,9 @@ JSON="$REPORTS/precheck-e2e.json"
 PY="$WORKER/.venv/bin/python"
 [ -x "$PY" ] || PY="$(command -v python3)"
 mkdir -p "$REPORTS"
+# PID-Datei für --stop: gehört diesem Lauf, verschwindet beim Exit (nur wenn noch die eigene PID drinsteht)
+echo "$$ $ROOT" > "$PID_FILE" 2>/dev/null
+_cleanup_pid() { [ "$(cut -d' ' -f1 "$PID_FILE" 2>/dev/null)" = "$$" ] && rm -f "$PID_FILE"; return 0; }
 
 # Python-Pakete prüfen, bevor die Sperre genommen wird: fehlen sie (z. B. neuer Worktree ohne Venv),
 # würden Katalog und Worker nach der Wartezeit sofort fallen, der e2e-Lauf aber trotzdem ~18 min laufen.
@@ -50,6 +86,7 @@ source "$ROOT/scripts/features/e2e_server.sh"
 E2E_PORT_NUM=$(e2e_port "$FRONTEND")
 _cleanup_server() { e2e_server_cleanup "$E2E_PORT_NUM" "$FRONTEND" exit; }
 heavy_on_exit _cleanup_server
+heavy_on_exit _cleanup_pid
 lock_t0=$(date +%s)
 heavy_lock_acquire || exit $?
 LOCK_WAIT=$(( $(date +%s) - lock_t0 ))
