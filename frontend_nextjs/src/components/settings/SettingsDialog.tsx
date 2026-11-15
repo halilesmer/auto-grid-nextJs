@@ -12,7 +12,7 @@ import { LOCALE_NAMES, useLocale, useT, type MessageKey } from '@/i18n';
 import { activeMinutes } from '@/lib/newsAlerts';
 import { effectiveDelayMs } from '@/lib/userPrefs';
 import { cn } from '@/lib/utils';
-import { useIsAdmin } from '@/store/useAuthStore';
+import { useAuthStore, useIsAdmin } from '@/store/useAuthStore';
 import { useChartPrefsStore } from '@/store/useChartPrefsStore';
 import { useConnectionStore, type ConnectionStatus } from '@/store/useConnectionStore';
 import { useCustomColorsStore } from '@/store/useCustomColorsStore';
@@ -29,7 +29,14 @@ import ChartSection from './ChartSection';
 import ConnectionSection from './ConnectionSection';
 import NotificationsSection, { NOTIFICATION_TABS, type NotificationsTab } from './NotificationsSection';
 import LinkSection from './LinkSection';
-import SystemSection from './SystemSection';
+import SystemSection, { SYSTEM_TABS, type SystemTab } from './SystemSection';
+
+type SectionTab = NotificationsTab | SystemTab;
+/** Sekmeli bölümler ve sekme sırası; sekme etiketi `sdlg.tab.<kimlik>`, ipucu `.hint`. */
+const SECTION_TABS: Partial<Record<SettingsSection, readonly SectionTab[]>> = {
+  notifications: NOTIFICATION_TABS,
+  system: SYSTEM_TABS,
+};
 
 interface SectionDef {
   id: SettingsSection;
@@ -148,30 +155,39 @@ export default function SettingsDialog() {
   const connHydrated = useConnectionStore((s) => s.hydrated);
   const system = useSystemActions();
   const prefStatus = useUserPrefsStore((s) => s.status);
-  const [tabState, setTab] = useState<{ section: string; tab: NotificationsTab }>({ section: '', tab: 'general' });
+  const [tabState, setTab] = useState<{ section: string; tab: SectionTab }>({ section: '', tab: 'general' });
 
-  const groups = GROUPS.filter((g) => !g.admin || isAdmin);
+  // Kimlik bilinmiyorsa (worker kapalı ya da bağlı değil) yalnız „VPS ve sistem“ açılabilir: ölü worker'ı SSH ile
+  // ayağa kaldırmak için eski /vps sayfası gibi. Gerçek yetkiyi worker (403) ve yerel SSH rotası denetler.
+  const identityUnknown = useAuthStore((st) => st.me === null);
+  const systemOnly = !isAdmin && identityUnknown && section === 'system';
+  const groups = GROUPS.flatMap((g) => {
+    if (!g.admin || isAdmin) return [g];
+    return systemOnly ? [{ ...g, sections: g.sections.filter((x) => x.id === 'system') }] : [];
+  });
   const all = groups.flatMap((g) => g.sections);
   // Masaüstünde ilk bölüm açık gelir; yetkisiz bölüm (admin değil) asla gösterilmez
   const active = all.find((s) => s.id === section) ?? all[0];
 
   // Sekme bölüm değişince başa döner
-  const tab: NotificationsTab = tabState.section === active.id ? tabState.tab : 'general';
+  const sectionTabs = SECTION_TABS[active.id] ?? [];
+  const tab: SectionTab = tabState.section === active.id ? tabState.tab : (sectionTabs[0] ?? 'general');
   const foot = footState(Object.values(prefStatus));
 
   // Sekmeler (WAI-ARIA): ← → döner, Home/End uçlara gider; odak ve seçim birlikte taşınır
-  const tabId = (id: NotificationsTab) => `settings-tab-${id}`;
-  const panelId = (id: NotificationsTab) => `settings-tabpanel-${id}`;
+  const tabId = (id: SectionTab) => `settings-tab-${id}`;
+  // Sistem bölümünde tek panel var (yalnız seçili sekme görünür); sekmeler hep aynı panele işaret eder
+  const panelId = (id: SectionTab) => ((SYSTEM_TABS as readonly string[]).includes(id) ? 'settings-tabpanel-system' : `settings-tabpanel-${id}`);
   const onTabKey = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {
     if (e.altKey || e.ctrlKey || e.metaKey) return; // tarayıcı kısayollarını yutma
-    const last = NOTIFICATION_TABS.length - 1;
-    const n = NOTIFICATION_TABS.length;
+    const last = sectionTabs.length - 1;
+    const n = sectionTabs.length;
     const targets: Record<string, number> = { ArrowRight: (index + 1) % n, ArrowLeft: (index - 1 + n) % n, Home: 0, End: last };
     const next = targets[e.key] ?? -1;
     if (next < 0) return;
     e.preventDefault();
-    setTab({ section: active.id, tab: NOTIFICATION_TABS[next] });
-    document.getElementById(tabId(NOTIFICATION_TABS[next]))?.focus();
+    setTab({ section: active.id, tab: sectionTabs[next] });
+    document.getElementById(tabId(sectionTabs[next]))?.focus();
   };
 
   return (
@@ -287,9 +303,9 @@ export default function SettingsDialog() {
                   {t(`sdlg.badge.${active.badge}`)}
                 </span>
               </div>
-              {active.id === 'notifications' && (
-                <div role="tablist" aria-label={t('sdlg.tabs.aria')} className="-mb-4 mt-4 flex gap-6 overflow-x-auto md:-mb-5" data-testid="settings-tabs">
-                  {NOTIFICATION_TABS.map((id, index) => (
+              {sectionTabs.length > 0 && (
+                <div role="tablist" aria-label={t(active.id === 'system' ? 'sdlg.sys.tabs.aria' : 'sdlg.tabs.aria')} className="-mb-4 mt-4 flex gap-6 overflow-x-auto md:-mb-5" data-testid="settings-tabs">
+                  {sectionTabs.map((id, index) => (
                     <Tooltip key={id} content={t(`sdlg.tab.${id}.hint` as MessageKey)}>
                       <button
                         type="button"
@@ -327,7 +343,11 @@ export default function SettingsDialog() {
               {active.id === 'connection' && <ConnectionSection />}
               {active.id === 'robot' && <LinkSection href="/" textKey="sdlg.robot.text" openKey="sdlg.robot.open" testId="settings-robot" />}
               {active.id === 'users' && isAdmin && <LinkSection href="/users" textKey="sdlg.users.text" openKey="sdlg.users.open" testId="settings-users" />}
-              {active.id === 'system' && isAdmin && <SystemSection system={system} />}
+              {active.id === 'system' && (isAdmin || systemOnly) && (
+                <div role="tabpanel" id={panelId(tab)} aria-labelledby={tabId(tab)}>
+                  <SystemSection tab={tab as SystemTab} system={system} />
+                </div>
+              )}
             </div>
 
             <div

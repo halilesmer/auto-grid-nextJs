@@ -148,8 +148,9 @@ test.describe('SYS-07 Verbindung im Browser', () => {
     void worker;
     await startDisconnected(page);
     await page.goto('/vps');
-    await expect(page.getByTestId('vps-disabled')).toBeVisible();
-    await expect(page.getByTestId('connection-gate')).toBeHidden();
+    // /vps leitet in die Einstellungen um; „VPS und System“ öffnet auch ohne Worker (SSH läuft lokal)
+    await expect(page.getByTestId('settings-pane')).toHaveAttribute('data-section', 'system');
+    await expect(page.getByTestId('sys-ssh-note').first()).toBeVisible();
   });
 });
 

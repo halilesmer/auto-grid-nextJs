@@ -253,12 +253,14 @@ for (const lang of LOCALES) {
       await expectNoPageOverflow(page);
     });
 
-    test('/vps: Tab-Leiste des VPS-Logs ist bedienbar', { tag: '@UI-08' }, async ({ page, worker }) => {
+    test('Einstellungen „VPS und System“: Tab-Leiste ist bedienbar', { tag: '@UI-08' }, async ({ page, worker }) => {
       void worker;
       await mockVps(page);
       await page.goto('/vps');
-      await expect(page.getByTestId('vps-log-output')).toBeVisible();
-      await expectTabsReachable(page, page.getByRole('tablist'), 4);
+      await expect(page.getByTestId('sys-worker-state')).toBeVisible();
+      await expectTabsReachable(page, page.getByTestId('settings-tabs'), 4);
+      await page.getByTestId('settings-tab-logs').click();
+      await expect(page.getByTestId('sys-log-output')).toBeVisible();
       await expectNoPageOverflow(page);
     });
   });

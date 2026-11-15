@@ -3,17 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from '@/components/ui/animated-toast';
 import { t, type MessageKey } from '@/i18n';
-import { axiosInstance } from '@/lib/api';
 import {
   isVpsErrorCode,
   stripAnsi,
-  type AutoUpdateStatus,
   type VpsAction,
   type VpsActionResult,
   type VpsLog,
   type VpsLogResult,
   type VpsStatus,
-  type VpsUpdateCheck,
 } from '@/lib/vps';
 
 // Bewusst nur lokaler State (wie useMT5Scanner): die VPS-Daten braucht keine andere Komponente.
@@ -24,10 +21,8 @@ const POLL_MS = 15_000;
 // Nach Neustart/Update öfter nachsehen, bis der Worker wieder da ist
 const FAST_POLL_MS = 4_000;
 const FAST_POLL_DURATION_MS = 90_000;
-// Hängt der Tunnel, soll die Anfrage nicht unbegrenzt offen bleiben; die Seite kommt per SSH weiter
-const WORKER_STATUS_TIMEOUT_MS = 10_000;
 
-type PostAction = Extract<VpsAction, 'update' | 'restart' | 'fix-elevated' | 'restart-ngrok' | 'reboot'>;
+type PostAction = Extract<VpsAction, 'restart' | 'fix-elevated' | 'restart-ngrok' | 'reboot'>;
 
 async function callVps<T>(path: string, method: 'GET' | 'POST' = 'GET'): Promise<{ status: number; data: T }> {
   const res = await fetch(`/api/vps/${path}`, { method, cache: 'no-store' });
@@ -47,41 +42,26 @@ function errorOf(data: unknown, fallback: string): string {
   return d?.error || d?.message || fallback;
 }
 
-export function useVps() {
+/**
+ * `pollLogs: false` — log yalnız `selectLog` ile istenince okunur ve `setLogPolling(true)` ile durum yoklamasına katılır
+ * (ayar penceresi: worker logu worker'dan gelir, SSH yalnız ngrok logu için açılır).
+ */
+export function useVps({ pollLogs = true }: { pollLogs?: boolean } = {}) {
   const [status, setStatus] = useState<VpsStatus | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [disabled, setDisabled] = useState<string | null>(null);
   const [localOnly, setLocalOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshedAt, setRefreshedAt] = useState<Date | null>(null);
-  // undefined: noch nicht gelesen, status null: Worker liefert keinen Zustand
-  const [autoUpdate, setAutoUpdate] = useState<{ status: AutoUpdateStatus | null; readAt: number }>();
-  const [busy, setBusy] = useState<PostAction | 'check-update' | null>(null);
-  const [updateCheck, setUpdateCheck] = useState<VpsUpdateCheck | null>(null);
+  const [busy, setBusy] = useState<PostAction | null>(null);
   const [logName, setLogName] = useState<VpsLog>('worker');
   const [logLines, setLogLines] = useState<string[]>([]);
   const [logNote, setLogNote] = useState<string | null>(null);
   const [logLoading, setLogLoading] = useState(true);
   const fastUntil = useRef(0);
+  const logPolling = useRef(pollLogs);
   // Der Poll liest den gerade gewählten Tab; späte Antworten eines alten Tabs werden verworfen
   const logNameRef = useRef<VpsLog>('worker');
-  // Nur die neueste Anfrage zählt: eine späte alte Antwort würde einen neueren Fehler wieder grün machen
-  const autoUpdateRequest = useRef(0);
-
-  const refreshAutoUpdate = useCallback(async () => {
-    const request = ++autoUpdateRequest.current;
-    let next: AutoUpdateStatus | null = null;
-    try {
-      const { data } = await axiosInstance.get<{ auto_update?: AutoUpdateStatus }>('/system/worker/status', {
-        timeout: WORKER_STATUS_TIMEOUT_MS,
-      });
-      next = data.auto_update ?? null;
-    } catch {
-      // Worker weg oder nicht verbunden: die Zeile zeigt „unbekannt“, die Ursache die Worker-Kachel
-    }
-    if (request === autoUpdateRequest.current) setAutoUpdate({ status: next, readAt: Date.now() });
-  }, []);
-
   const refreshStatus = useCallback(async () => {
     try {
       const { status: code, data } = await callVps<VpsStatus | VpsActionResult>('status');
@@ -98,7 +78,6 @@ export function useVps() {
       }
       setDisabled(null);
       // Unabhängig vom SSH-Ergebnis: der Worker kann auch bei SSH-Ausfall antworten
-      void refreshAutoUpdate();
       if (data.ok) {
         setStatus(data as VpsStatus);
         setStatusError(null);
@@ -111,7 +90,7 @@ export function useVps() {
       setLoading(false);
       setRefreshedAt(new Date());
     }
-  }, [refreshAutoUpdate]);
+  }, []);
 
   // Setzt State erst nach dem ersten await (darf so auch direkt im Effect laufen).
   // background: Aufruf aus dem Status-Poll – scheitert er, bleiben die zuletzt gelesenen
@@ -144,31 +123,21 @@ export function useVps() {
     [loadLogs],
   );
 
+  // Kararlı kimlik: ayar penceresindeki log sekmesi bunu effect bağımlılığı olarak kullanır
+  const setLogPolling = useCallback((on: boolean) => {
+    logPolling.current = on;
+  }, []);
+
   const selectLog = useCallback(
     (which: VpsLog) => {
       logNameRef.current = which;
       setLogName(which);
+      setLogLines([]);
+      setLogNote(null);
       refreshLogs(which);
     },
     [refreshLogs],
   );
-
-  const checkUpdate = useCallback(async () => {
-    setBusy('check-update');
-    try {
-      const { data } = await callVps<VpsUpdateCheck & { error?: string }>('check-update');
-      if (data.ok) {
-        setUpdateCheck(data);
-      } else {
-        setUpdateCheck(null);
-        toast.error(errorOf(data, t('vps.update.checkFailed')), { title: t('vps.update.check') });
-      }
-    } catch {
-      toast.error(t('vps.update.checkFailed'), { title: t('vps.update.check') });
-    } finally {
-      setBusy(null);
-    }
-  }, []);
 
   const runAction = useCallback(
     async (action: PostAction, options: { stopBots?: boolean } = {}) => {
@@ -183,7 +152,6 @@ export function useVps() {
         } else if (data.ok) {
           toast.success(data.message || t('vps.action.done'), { title: t(ACTION_TITLE_KEYS[action]) });
           fastUntil.current = Date.now() + FAST_POLL_DURATION_MS;
-          if (action === 'update') setUpdateCheck(null);
         } else {
           toast.error(errorOf(data, t('vps.action.failed')), { title: t(ACTION_TITLE_KEYS[action]) });
         }
@@ -207,7 +175,7 @@ export function useVps() {
       // Erste Abfrage immer; danach nur, solange der Tab sichtbar ist (spart SSH-Verbindungen).
       // Das Log läuft mit: nach Update/Neustart zeigt es von selbst den neuen Stand.
       if (first || document.visibilityState === 'visible') {
-        await Promise.all([refreshStatus(), loadLogs(logNameRef.current, !first)]);
+        await Promise.all([refreshStatus(), logPolling.current ? loadLogs(logNameRef.current, !first) : null]);
       }
       first = false;
       if (cancelled) return;
@@ -222,14 +190,12 @@ export function useVps() {
 
   return {
     status,
-    autoUpdate,
     statusError,
     disabled,
     localOnly,
     loading,
     refreshedAt,
     busy,
-    updateCheck,
     logName,
     logLines,
     logNote,
@@ -237,13 +203,12 @@ export function useVps() {
     refreshStatus,
     refreshLogs: () => refreshLogs(logName),
     selectLog,
-    checkUpdate,
+    setLogPolling,
     runAction,
   };
 }
 
 export const ACTION_TITLE_KEYS: Record<PostAction, MessageKey> = {
-  update: 'vps.action.update',
   restart: 'vps.action.restart',
   'fix-elevated': 'vps.action.fixElevated',
   'restart-ngrok': 'vps.action.restartNgrok',
