@@ -10,9 +10,7 @@ Bu sistem, **Next.js 14+ (React/TypeScript)** frontend ve **Python FastAPI** wor
 ┣ 📜 VERSION                    # Proje sürüm takip dosyası (v0.7.39)
 ┣ 📜 .gitignore
 ┣ 📜 .gitattributes
-┣ 📂 .agents                    # Agent kuralları
-┃ ┗ 📂 rules
-┃   ┗ 📜 token-saver.md         # Token tasarrufu kuralı
+┣ 📂 .claude                    # Claude Code: rules/ (worker, frontend, tests), agents/, skills/
 ┣ 📂 .vscode                    # VS Code ayarları (Root workspace)
 ┃ ┣ 📜 settings.json            # CSS lint ignore (Tailwind v4 @theme/@utility direktifleri)
 ┃ ┗ 📜 tasks.json               # VS Code görevleri
