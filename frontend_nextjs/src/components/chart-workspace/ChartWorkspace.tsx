@@ -15,7 +15,7 @@ import { alarmsAfterRemove, INDICATOR_KINDS, indicatorFormula, isOscillator, isS
 import { useChartWorkspaceStore, emptyChartDocument, type ChartDocument } from '@/store/useChartWorkspaceStore';
 import { useThemeStore } from '@/store';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
-import { OPEN_REQUEST_MAX_AGE_MS, useSettingsDialogStore } from '@/store/useSettingsDialogStore';
+import { isOpenRequestFresh, useSettingsDialogStore } from '@/store/useSettingsDialogStore';
 import { extendFibHit } from '@/lib/chart-workspace/fibHit';
 import { ReplayDrawingVisibility } from '@/lib/chart-workspace/replayDrawings';
 import { withAlpha } from '@/lib/chartTheme';
@@ -122,7 +122,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   useEffect(() => {
     const take = () => {
       const requests = useSettingsDialogStore.getState();
-      const fresh = (at: number) => Date.now() - at <= OPEN_REQUEST_MAX_AGE_MS;
+      const fresh = (at: number) => isOpenRequestFresh(at);
       if (requests.appearanceRequested) {
         requests.clearAppearanceRequest();
         // Über denselben Weg wie das Linienmenü: openSettings sichert die Vorschau (Abbrechen stellt wieder her)

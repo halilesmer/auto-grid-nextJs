@@ -519,7 +519,8 @@ test.describe('Auto-Update-Zustand', () => {
     worker.offline = true;
     await page.getByTestId('settings-tab-status').click();
     await page.getByTestId('sys-refresh').click();
-    await expect(page.getByTestId('sys-worker-state')).toContainText(msg('sdlg.sys.worker.stale'));
+    // F2: eine fehlgeschlagene letzte Lesung gilt als „nicht erreichbar“, nicht als alter „läuft“-Stand
+    await expect(page.getByTestId('sys-worker-state')).toContainText(msg('sdlg.sys.worker.down'));
     await page.getByTestId('settings-tab-update').click();
     await expect(row(page)).toHaveAttribute('data-state', 'unknown');
   });

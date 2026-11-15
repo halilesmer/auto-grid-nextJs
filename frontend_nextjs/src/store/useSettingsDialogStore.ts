@@ -5,6 +5,9 @@ export type SettingsSection = 'appearance' | 'notifications' | 'chart' | 'connec
 /** „Grafikte aç“ isteği bu süreden eskiyse yok sayılır: gezinme olmazsa bayrak kalır ve grafik sonradan açılınca pencere kendiliğinden açılırdı (F13). */
 export const OPEN_REQUEST_MAX_AGE_MS = 15_000;
 
+/** İstek hâlâ geçerli mi (zamanında tüketildi mi)? */
+export const isOpenRequestFresh = (requestedAt: number, now: number = Date.now()) => now - requestedAt <= OPEN_REQUEST_MAX_AGE_MS;
+
 interface SettingsDialogState {
   open: boolean;
   /** Telefonda null = bölüm listesi; masaüstünde null = ilk bölüm. */

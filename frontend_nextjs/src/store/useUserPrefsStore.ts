@@ -87,8 +87,10 @@ function prefsChannel(): BroadcastChannel | null {
     const key = msg.key as PrefKey;
     // Okuma bitmeden ya da bu sekmede yazma sürerken yok sayılır (kendi değeri sunucuya gidiyor)
     if (useUserPrefsStore.getState().loadState !== 'ready' || (inflight[key] ?? 0) > 0) return;
-    apply(key, msg.value);
     confirmed[key] = msg.value;
+    // Aynı değer: uygulanmaz (yeni nesne bileşenleri boşuna tetikler; örn. formasyon taraması yeniden başlardı)
+    if (JSON.stringify(current(key)) === JSON.stringify(msg.value)) return;
+    apply(key, msg.value);
   };
   return channel;
 }

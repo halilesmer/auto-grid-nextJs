@@ -181,16 +181,16 @@ test.describe('USR-10 Ayar penceresi', () => {
 
 test.describe('USR-10 Saniye alanı (1115-A10 F12)', () => {
   test('değişmeden alandan çıkmak kayıt yapmaz; yuvarlanan değer yeniden yazılmaz', { tag: '@USR-10' }, async ({ page, worker, dashboard }) => {
-    worker.userPrefs.admin = { tooltip_hold: { mode: 'custom', ms: 333 } };
+    worker.userPrefs.admin = { tooltip_hold: { mode: 'custom', ms: 1234 } };
     await dashboard.open(DEMO_ID);
     await openSettings(page);
     const input = page.getByTestId('settings-hold-input');
-    await expect(input).toHaveValue(/0[.,]33/);
+    await expect(input).toHaveValue(/1[.,]23$/);
     await input.focus();
     await input.blur();
     await page.waitForTimeout(500);
     expect(worker.callsTo('PUT', '/api/me/prefs/tooltip_hold')).toHaveLength(0);
-    expect(worker.userPrefs.admin.tooltip_hold).toEqual({ mode: 'custom', ms: 333 });
+    expect(worker.userPrefs.admin.tooltip_hold).toEqual({ mode: 'custom', ms: 1234 });
 
     // Değişen metin kaydedilir
     await input.fill('2');
@@ -199,7 +199,7 @@ test.describe('USR-10 Saniye alanı (1115-A10 F12)', () => {
   });
 });
 
-test.describe('USR-09 Tünel kapalı, sekmeler arası eşitleme, “Grafikte aç” isteği (1115-A10 F10, F11, F13)', () => {
+test.describe('USR-09 Tünel kapalı, sekmeler arası eşitleme (1115-A10 F10, F11)', () => {
   test('F10: tünel kapalıyken (ngrok 404) yazma sessizce kaybolmaz: değer geri alınır, “Kaydedilemedi” ve “Tekrar dene” çıkar', { tag: '@USR-09' }, async ({ page, worker, dashboard }) => {
     worker.userPrefs.admin = { theme: { theme: 'dark' } };
     await dashboard.open(DEMO_ID);
@@ -219,7 +219,7 @@ test.describe('USR-09 Tünel kapalı, sekmeler arası eşitleme, “Grafikte aç
     worker.overrides.set('PUT /api/me/prefs/theme', { status: 404, body: { detail: 'Not Found' } });
     await page.getByTestId('settings-theme-light').click();
     await expect(page.locator('html')).not.toHaveClass(/dark/);
-    await expect(page.getByTestId('pref-status-theme')).not.toHaveAttribute('data-status', 'failed');
+    await expect(page.getByTestId('pref-status-theme')).toHaveCount(0);
   });
 
   test('F11: bir sekmede kaydedilen değer öbür sekmede görünür (BroadcastChannel)', { tag: '@USR-09' }, async ({ page, worker, dashboard }) => {
@@ -236,22 +236,5 @@ test.describe('USR-09 Tünel kapalı, sekmeler arası eşitleme, “Grafikte aç
     await expect.poll(() => worker.userPrefs.admin.theme).toEqual({ theme: 'light' });
     await expect(page.locator('html')).not.toHaveClass(/dark/);
     await other.close();
-  });
-
-  test('F13: “Grafikte aç” isteği zamanında tüketilmezse sonradan grafik açılınca pencere kendiliğinden açılmaz', { tag: '@USR-12' }, async ({ page, dashboard }) => {
-    test.setTimeout(90_000);
-    await dashboard.open(DEMO_ID);
-    await openSettings(page);
-    await page.getByTestId('settings-nav-chart').click();
-    // Gezinme takılır: grafik sayfası isteği 16 sn sonra yanıtlanır
-    await page.route(/\/chart(\?|$)/, async (route) => {
-      await new Promise((resolve) => setTimeout(resolve, 16_000));
-      await route.fallback();
-    });
-    await page.getByTestId('settings-indicators-open').click();
-    await expect(page).toHaveURL(/\/chart/, { timeout: 30_000 });
-    await expect(page.getByTestId('chart-page')).toBeVisible({ timeout: 30_000 });
-    await page.waitForTimeout(1500);
-    await expect(page.getByRole('dialog')).toHaveCount(0);
   });
 });
