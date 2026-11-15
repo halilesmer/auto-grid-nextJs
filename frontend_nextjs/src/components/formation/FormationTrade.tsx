@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowDown, ArrowUp, Check, Clock, Info, Minus, TriangleAlert, Undo2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, Clock, Info, Minus, RotateCcw, TriangleAlert, Undo2, X } from 'lucide-react';
 import { StateIcon, checkRowState } from '@/components/formation/FormationChecklist';
 import { InfoHint, Tooltip } from '@/components/ui/tooltip';
 import { useFormat, useLocale, useT } from '@/i18n';
@@ -119,6 +119,12 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
       })
     : dash;
   const riskShare = metrics ? (1 / (1 + metrics.crv)) * 100 : 0;
+  // Wiedereinstieg (1114-A4.4): eigene Werte und eigenes Verhältnis zum einen Ziel; der erste Handel bleibt oben unverändert
+  const re = trade.reentry;
+  const reMetrics = re ? tradeMetrics({ entry: re.entry, stop: re.stop, tp1: re.target }, candidate.side) : null;
+  const reCrvText = reMetrics ? number(reMetrics.crv, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : dash;
+  const reAway = (v: number, sign: '+' | '−') =>
+    re ? t(pipSize === null ? 'formation.trade.away.price' : 'formation.trade.away.pips', { n: `${sign}${dist(Math.abs(v - re.entry))}` }) : null;
 
   // Großes Ziel: bis eine Kerze jenseits von A schloss, steht unter dem Wert, was es aktiviert; danach „etkin“
   const bigNote = (() => {
@@ -398,6 +404,88 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
               );
             })}
           </div>
+        </div>
+      )}
+      {re && (
+        <div data-testid="trade-reentry" className="border-t border-border">
+          <div className="flex flex-wrap items-center gap-1.5 border-b border-info/35 bg-info/10 px-2.5 py-2">
+            <RotateCcw size={13} strokeWidth={2.5} aria-hidden="true" className="shrink-0 text-info" />
+            <span className="min-w-0 flex-1">
+              <span className="text-xs font-semibold text-info">{t('formation.trade.reentry.title')}</span>
+              <span className="text-[11.5px] text-muted-foreground">{` · ${t('formation.trade.reentry.sub')}`}</span>
+            </span>
+            <InfoHint hint={t('formation.trade.reentry.hint')} />
+          </div>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-2 px-2.5 py-2.5">
+            <div className="flex min-w-0 flex-col gap-px">
+              <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                {t('formation.trade.entry')}
+                <InfoHint hint={t('formation.trade.reentry.entry.hint')} />
+              </span>
+              <span data-testid="trade-reentry-entry" className="text-[13px] font-medium tabular-nums">
+                {fmt(re.entry)}
+              </span>
+              <span className="text-[10.5px] text-muted-foreground">{t(buy ? 'formation.trade.reentry.entry.buy' : 'formation.trade.reentry.entry.sell')}</span>
+            </div>
+            <div className="flex min-w-0 flex-col gap-px">
+              <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                {t('formation.trade.stop')}
+                <InfoHint hint={t('formation.trade.reentry.stop.hint')} />
+              </span>
+              <span data-testid="trade-reentry-stop" className="text-[13px] font-medium tabular-nums text-danger">
+                {fmt(re.stop)}
+              </span>
+              <span className="text-[10.5px] tabular-nums text-muted-foreground">
+                {reAway(re.stop, '−')}
+                {` · ${t(buy ? 'formation.trade.reentry.stop.buy' : 'formation.trade.reentry.stop.sell')}`}
+                {re.emergencyStop !== null && ` · ${t('formation.trade.emergency', { price: fmt(re.emergencyStop) })}`}
+              </span>
+            </div>
+            <div className="col-span-2 flex min-w-0 flex-col gap-px">
+              <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                {t('formation.trade.reentry.target')}
+                <InfoHint hint={t('formation.trade.reentry.target.hint')} />
+              </span>
+              <span data-testid="trade-reentry-target" className={cn('text-[13px] font-medium tabular-nums', re.target === null ? 'text-muted-foreground' : 'text-success')}>
+                {re.target === null ? dash : fmt(re.target)}
+              </span>
+              <span className="text-[10.5px] tabular-nums text-muted-foreground">
+                {re.target === null ? reasonText('noZone') : `${reAway(re.target, '+')} · ${t(buy ? 'formation.trade.reentry.target.buy' : 'formation.trade.reentry.target.sell')}`}
+              </span>
+            </div>
+          </div>
+          <div className="mx-2.5 mb-2 flex items-start gap-1.5 rounded-lg border border-info/35 bg-info/10 px-2 py-1.5 text-[11.5px]">
+            <Info size={13} aria-hidden="true" className="mt-px shrink-0 text-info" />
+            <span className="flex-1">{t(buy ? 'formation.trade.reentry.note.buy' : 'formation.trade.reentry.note.sell')}</span>
+          </div>
+          <div className="flex items-center gap-2.5 border-t border-border px-2.5 py-2">
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              {t('formation.trade.reentry.crv')}
+              <InfoHint hint={t('formation.trade.reentry.crv.hint')} />
+            </span>
+            <span data-testid="trade-reentry-crv" className={cn('text-[15px] font-semibold tabular-nums', !reMetrics && 'text-muted-foreground')}>
+              {reCrvText}
+            </span>
+            {reMetrics ? (
+              <span role="img" aria-label={t('formation.trade.ratio', { n: reCrvText })} className="flex h-1.5 flex-1 overflow-hidden rounded-[3px] bg-muted">
+                <span className="block h-full bg-danger" style={{ width: `${(1 / (1 + reMetrics.crv)) * 100}%` }} />
+                <span className="block h-full bg-success" style={{ width: `${100 - (1 / (1 + reMetrics.crv)) * 100}%` }} />
+              </span>
+            ) : (
+              <span className="flex-1 text-right text-[10.5px] text-muted-foreground">{t('formation.trade.reentry.crv.missing')}</span>
+            )}
+          </div>
+          <div className="border-t border-border px-2.5 py-2 text-[10.5px] text-muted-foreground">{t('formation.trade.reentry.footer')}</div>
+        </div>
+      )}
+      {trade.reentryTp1Only && (
+        <div
+          data-testid="trade-reentry-warning"
+          className="mx-2.5 mb-2 flex items-start gap-1.5 rounded-lg border border-warning/35 bg-warning/10 px-2 py-1.5 text-[11.5px] text-warning"
+        >
+          <TriangleAlert size={13} aria-hidden="true" className="mt-px shrink-0" />
+          <span className="flex-1">{t('formation.trade.reentry.warning')}</span>
+          <InfoHint hint={t('formation.trade.reentry.warning.hint')} className="text-warning" />
         </div>
       )}
       {trade.tp1StrongZone && (

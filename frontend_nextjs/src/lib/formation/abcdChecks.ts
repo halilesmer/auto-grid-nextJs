@@ -35,6 +35,7 @@ import { evaluate as evaluateGar } from './garChecks';
 import { buildEnv, dirSide, envFor, neighborTf, type Env } from './reasons';
 import { reversalAt } from './reversal';
 import { earlyReversalOf, type EarlyReversal } from './earlyReversal';
+import { reentryOf } from './reentry';
 import { exemptFor, settle } from './settle';
 import { levelXA, ordered, pipOf, shapeOfX } from './xabcd';
 import { divergenceOf, engulfZones, rsiExtreme, zoneSideOf } from './sig';
@@ -377,6 +378,16 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: n
         })
       : null;
   if (status) input.status = status;
+  // 1114-A4.4: Wiedereinstieg in die Engulf-Zone am D nach TP1 und TP2 (oder nur der Hinweis nach TP1); der erste Handel bleibt unberührt
+  const reentry =
+    status && d && status.tp1Fill !== undefined
+      ? reentryOf({ bars, side, dIdx: d.idx, status, engulfZones: engulfZones(bars, view.wide), zones: [...env.frz.zones, ...env.frz.reversed] })
+      : null;
+  if (reentry?.kind === 'reentry') {
+    input.reentry = { entry: reentry.entry, stop: reentry.stop, emergencyStop: emergencyStopOf(reentry.stop, side, atrNow), target: reentry.target };
+  } else if (reentry?.kind === 'tp1Only') {
+    input.reentryTp1Only = true;
+  }
   const drawings = drawingsOf(env, s, reached, divState === 'met', harmonic === 'met', secondLevels.find(isNear), input.stop, freezeIdx, status, early, input.tpBig ?? null);
   const withDrawings = checks.map((c) => ({
     ...c,
