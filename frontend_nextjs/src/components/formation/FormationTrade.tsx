@@ -55,20 +55,32 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
   // Tatsächliche Werte (1115-A21.1): nur für den hervorgehobenen Kasten und „TP2 kommt“; blasse Kästen bleiben beim Einstiegswert
   const realized = realizedOutcomesOf(trade, candidate.side, status);
   const stopped = status?.kind === 'stopped';
-  const tp1Taken = status !== undefined && ['tp1', 'tp12', 'breakeven'].includes(status.kind);
-  const tp2Taken = status?.kind === 'tp12';
+  // Großes AB=CD-Ziel (1114-A4.3): die Position ist von Anfang an in Drittel geteilt
+  const big = trade.tpBig !== undefined;
+  const shareText = big ? '⅓' : '½';
+  const tp1Taken = status !== undefined && ['tp1', 'tp12', 'tp123', 'breakeven'].includes(status.kind);
+  const tp2Taken = status?.kind === 'tp12' || status?.kind === 'tp123' || (status?.kind === 'breakeven' && status.tp2Fill !== undefined);
+  const bigTaken = status?.kind === 'tp123';
   const moved = status?.stopMovedIdx !== undefined;
   // Zustand eines Ziels nach dem Einstieg; ohne Status (Einstieg fehlt) keiner
-  const stateOf = (f: 'tp1' | 'tp2'): 'taken' | 'waiting' | 'missed' | undefined => {
+  const stateOf = (f: 'tp1' | 'tp2' | 'tpBig'): 'taken' | 'waiting' | 'missed' | undefined => {
     if (!status) return undefined;
-    if (f === 'tp1' ? tp1Taken : tp2Taken) return 'taken';
+    if ({ tp1: tp1Taken, tp2: tp2Taken, tpBig: bigTaken }[f]) return 'taken';
     if (status.kind === 'open') return undefined;
     return stopped || status.kind === 'breakeven' ? 'missed' : 'waiting';
   };
   // Ergebnis-Kasten des Stands `tp1` hebt „bisher“ hervor und nennt TP2 als offen
-  const outcomeView = (key: 'stop' | 'tp1' | 'tp12') => {
-    const base = t(`formation.trade.outcome.${key}`);
+  const outcomeView = (key: 'stop' | 'tp1' | 'tp12' | 'tp123') => {
+    const base = t(key === 'tp12' && big ? 'formation.trade.outcome.tp12be' : `formation.trade.outcome.${key}`);
     if (!status || status.kind === 'open') return { active: false, dim: false, label: base, actual: false };
+    if (big && (status.kind === 'tp1' || status.kind === 'tp12')) {
+      // Mit großem Ziel bleibt der Handel nach TP2 offen: „bisher“ steht beim erreichten Weg, der nächste nennt, was noch fehlt
+      const sofarKey = status.kind === 'tp1' ? 'tp1' : 'tp12';
+      if (key === sofarKey) return { active: true, dim: false, label: t('formation.trade.outcome.sofar'), actual: true };
+      if (key === 'tp12') return { active: false, dim: false, label: t('formation.trade.outcome.ifTp2'), actual: true };
+      if (key === 'tp123') return { active: false, dim: false, label: t('formation.trade.outcome.ifBig'), actual: true };
+      return { active: false, dim: true, label: base, actual: false };
+    }
     if (status.kind === 'tp1') {
       if (key === 'tp1')
         return {
@@ -86,7 +98,7 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
         };
       return { active: false, dim: true, label: base, actual: false };
     }
-    const hitKey = { stopped: 'stop', breakeven: 'tp1', tp12: 'tp12' }[status.kind];
+    const hitKey = { stopped: 'stop', breakeven: status.tp2Fill !== undefined ? 'tp12' : 'tp1', tp12: 'tp12', tp123: 'tp123' }[status.kind];
     return { active: key === hitKey, dim: key !== hitKey, label: base, actual: key === hitKey };
   };
   const rText = (v: number) =>
@@ -108,6 +120,22 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
     : dash;
   const riskShare = metrics ? (1 / (1 + metrics.crv)) * 100 : 0;
 
+  // Großes Ziel: bis eine Kerze jenseits von A schloss, steht unter dem Wert, was es aktiviert; danach „etkin“
+  const bigNote = (() => {
+    if (trade.tpBig === undefined || trade.tpBigActivation === undefined || bigTaken || stopped || status?.kind === 'breakeven') return undefined;
+    if (status?.bigActive) return t('formation.trade.big.active');
+    return t(buy ? 'formation.trade.big.pending.buy' : 'formation.trade.big.pending.sell', { price: fmt(trade.tpBigActivation) });
+  })();
+  // Titel und Zusatzzeile der Statuszeile: mit großem Ziel bleibt der Handel nach TP1 und TP2 offen, nach TP2 mit Rest am Einstieg
+  const statusKey = (sub: boolean) => {
+    if (!status) return '';
+    const open = big && (status.kind === 'tp1' || status.kind === 'tp12');
+    if (status.kind === 'stopped') return sub ? `formation.trade.status.stopped.${status.stopBy ?? 'close'}` : 'formation.trade.status.stopped';
+    if (status.kind === 'breakeven' && status.tp2Fill !== undefined) return sub ? 'formation.trade.status.breakeven.sub' : 'formation.trade.status.breakeven12';
+    if (open) return sub ? `formation.trade.status.${status.kind}.big.sub` : `formation.trade.status.${status.kind === 'tp12' ? 'tp12.big' : 'tp1'}`;
+    return `formation.trade.status.${status.kind}${sub ? '.sub' : ''}`;
+  };
+
   const entryCell = (sub: string | null) => (
     <div className="flex min-w-0 flex-col gap-px">
       <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
@@ -126,11 +154,11 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
   );
   // Ziel mit Abstand zum Einstieg darunter; fehlt der Wert, steht der Grund (reason) dort
   const target = (
-    field: 'tp1' | 'tp2' | 'tp3',
+    field: 'tp1' | 'tp2' | 'tp3' | 'tpBig',
     label: string,
     value: number | null,
     o: {
-      share?: boolean;
+      share?: string;
       wide?: boolean;
       state?: 'taken' | 'waiting' | 'missed';
       hint?: string;
@@ -140,7 +168,7 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
     <div className={cn('flex min-w-0 flex-col gap-px', o.wide && 'col-span-2')}>
       <span className="flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
         {label}
-        {o.share && <span className="rounded border border-border px-1 text-[10px] font-semibold leading-4">½</span>}
+        {o.share && <span className="rounded border border-border px-1 text-[10px] font-semibold leading-4">{o.share}</span>}
         <InfoHint hint={t((o.hint ?? `formation.trade.${field}.hint`) as 'formation.trade.tp1.hint')} />
       </span>
       <span data-testid={`trade-${field}`} className={cn('text-[13px] font-medium tabular-nums', value === null ? 'text-muted-foreground' : 'text-success')}>
@@ -202,14 +230,14 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
           className={cn(
             'flex flex-wrap items-center gap-1.5 border-b px-2.5 py-2',
             status.kind === 'stopped' && 'border-danger/35 bg-danger/12',
-            (status.kind === 'tp1' || status.kind === 'tp12' || status.kind === 'breakeven') && 'border-success/35 bg-success/12',
+            (status.kind === 'tp1' || status.kind === 'tp12' || status.kind === 'tp123' || status.kind === 'breakeven') && 'border-success/35 bg-success/12',
             status.kind === 'open' && 'border-border bg-muted/40',
           )}
         >
           {status.kind === 'open' && <Clock size={13} aria-hidden="true" className="shrink-0 text-info" />}
           {status.kind === 'stopped' && <X size={13} strokeWidth={3} aria-hidden="true" className="shrink-0 text-danger" />}
           {status.kind === 'breakeven' && <Minus size={13} strokeWidth={3} aria-hidden="true" className="shrink-0 text-success" />}
-          {(status.kind === 'tp1' || status.kind === 'tp12') && <Check size={13} strokeWidth={3} aria-hidden="true" className="shrink-0 text-success" />}
+          {(status.kind === 'tp1' || status.kind === 'tp12' || status.kind === 'tp123') && <Check size={13} strokeWidth={3} aria-hidden="true" className="shrink-0 text-success" />}
           <span className="min-w-0 flex-1">
             <span
               className={cn(
@@ -218,14 +246,14 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
                 status.kind !== 'open' && status.kind !== 'stopped' && 'text-success',
               )}
             >
-              {t(`formation.trade.status.${status.kind}`)}
+              {t(statusKey(false) as 'formation.trade.status.tp1')}
             </span>
             <span className="text-[11.5px] text-muted-foreground">
               {' · '}
-              {t(status.kind === 'stopped' ? `formation.trade.status.stopped.${status.stopBy ?? 'close'}` : `formation.trade.status.${status.kind}.sub`)}
+              {t(statusKey(true) as 'formation.trade.status.tp1.sub')}
             </span>
           </span>
-          <InfoHint hint={t('formation.trade.status.hint')} />
+          <InfoHint hint={t(big ? 'formation.trade.status.big.hint' : 'formation.trade.status.hint')} />
         </div>
       )}
       <div className={cn(veto && 'opacity-70')} data-testid="trade-values">
@@ -271,7 +299,7 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
             )}
           </div>
           {target('tp1', early ? t('formation.trade.early.target1') : t('formation.trade.tp1'), trade.tp1, {
-            share: trade.tp2 !== undefined,
+            share: trade.tp2 !== undefined ? shareText : undefined,
             state: stateOf('tp1'),
             ...(early ? { hint: 'formation.trade.early.target1.hint', note: t('formation.trade.early.target1.sub') } : {}),
           })}
@@ -282,10 +310,18 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
             })}
           {trade.tp2 !== undefined &&
             target('tp2', t('formation.trade.tp2'), trade.tp2, {
-              share: true,
+              share: shareText,
               state: stateOf('tp2'),
             })}
-          {trade.tp3 !== undefined && target('tp3', t('formation.trade.tp3'), trade.tp3, { wide: true })}
+          {trade.tpBig !== undefined &&
+            target('tpBig', t('formation.trade.tpBig'), trade.tpBig, {
+              share: shareText,
+              wide: true,
+              state: stateOf('tpBig'),
+              note: bigNote,
+            })}
+          {trade.tp3 !== undefined &&
+            target('tp3', t(big ? 'formation.trade.tp4' : 'formation.trade.tp3'), trade.tp3, { wide: true })}
         </div>
         {early && (
           <div
@@ -329,19 +365,20 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
         <div data-testid="trade-outcomes" className="flex flex-col gap-1.5 border-t border-border px-2.5 py-2">
           <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
             {t('formation.trade.outcome.title')}
-            <InfoHint hint={t('formation.trade.outcome.hint')} />
+            <InfoHint hint={t(big ? 'formation.trade.outcome.big.hint' : 'formation.trade.outcome.hint')} />
           </span>
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className={cn('grid gap-1.5', outcomes.tp123 === undefined ? 'grid-cols-3' : 'grid-cols-2')}>
             {(
               [
                 ['stop', outcomes.stop, 'text-danger'],
                 ['tp1', outcomes.tp1, 'text-success'],
                 ['tp12', outcomes.tp12, 'text-success'],
+                ...(outcomes.tp123 === undefined ? [] : ([['tp123', outcomes.tp123, 'text-success']] as const)),
               ] as const
             ).map(([key, v, tone]) => {
               // Tatsächliches Ergebnis: der Kasten wird hervorgehoben, die übrigen blass und durchgestrichen (nicht nur Farbe)
               const { active, dim, label, actual } = outcomeView(key);
-              const shown = actual && realized ? realized[key] : v;
+              const shown = actual && realized ? (realized[key] ?? v) : v;
               return (
                 <div
                   key={key}

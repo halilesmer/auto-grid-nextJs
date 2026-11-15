@@ -1,5 +1,5 @@
 /**
- * AB=CD (ABCD): Prüfung je Bedingungs-ID und Zeichnungen Z-ABCD-01 bis Z-ABCD-08.
+ * AB=CD (ABCD): Prüfung je Bedingungs-ID und Zeichnungen Z-ABCD-01 bis Z-ABCD-10.
  * `analyzeAbcd` sucht je geladener Zeiteinheit die letzten Punkte A, B, C aus den Wendepunkten und misst D;
  * `checkAbcdCandidate` prüft eigene Punkte, auch wenn sie keine Formation ergeben (Zeichnung und ☐ gibt es trotzdem).
  *
@@ -125,6 +125,13 @@ function harmonicD(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: 
   const bat = inZone(levelXA(s, BAT_PARAMS.dLevel));
   const holds = (hit: boolean, evaluate: typeof evaluateGar) => hit && evaluate(env, tf, s, pip).verdict !== 'invalid';
   return flag(holds(gartley, evaluateGar) || holds(bat, evaluateBat));
+}
+
+/** X der harmonischen Formation auf denselben A, B, C: der Wendepunkt vor A; null, wenn es keinen gibt */
+function harmonicXOf(env: Env, p: AbcdPoints): number | null {
+  const { pivots } = env.trends.get(env.tf)!;
+  const at = pivots.findIndex((q) => q.idx === p.a.idx);
+  return at > 0 ? pivots[at - 1].price : null;
 }
 
 function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: number): Candidate {
@@ -329,6 +336,9 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: n
           engulfZones: engulfZones(bars, view.wide),
         })
       : null;
+  // 1114-A4.3: großes AB=CD-Ziel nur bei harmonischem D mit bekanntem X; Versatz = A − X (Kauf: nach oben, Verkauf: nach unten)
+  const xPrice = harmonic === 'met' ? harmonicXOf(env, p) : null;
+  const big = xPrice === null ? null : { offset: s.a.price - xPrice, activation: s.a.price };
   const input = abcdTrade({
     from,
     frozenFrom,
@@ -337,7 +347,8 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: n
     reached,
     missed,
     targets: ABCD_PARAMS.targets,
-    fromA: from === s.a,
+    divergence: divState === 'met',
+    big,
     strongZone,
     reachedRule: 'ABCD-08',
   });
@@ -362,10 +373,11 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: n
           emergencyStop: emergencyStopOf(input.stop, side, atrNow),
           from: from.price,
           targets: ABCD_PARAMS.targets,
+          ...(big ? { big } : {}),
         })
       : null;
   if (status) input.status = status;
-  const drawings = drawingsOf(env, s, reached, divState === 'met', harmonic === 'met', secondLevels.find(isNear), input.stop, freezeIdx, status, early);
+  const drawings = drawingsOf(env, s, reached, divState === 'met', harmonic === 'met', secondLevels.find(isNear), input.stop, freezeIdx, status, early, input.tpBig ?? null);
   const withDrawings = checks.map((c) => ({
     ...c,
     drawings: [...new Set(drawings.filter((x) => x.rules.includes(c.id)).map((x) => x.id))],
@@ -386,7 +398,7 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: n
   return withTrade(candidate, env, tf, input, false);
 }
 
-function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolean, harmonic: boolean, second: number | undefined, stop: number | null, freezeIdx: number, status: TradeStatus | null, early: EarlyReversal | null): Drawing[] {
+function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolean, harmonic: boolean, second: number | undefined, stop: number | null, freezeIdx: number, status: TradeStatus | null, early: EarlyReversal | null, bigTarget: number | null): Drawing[] {
   const bars = env.views.get(env.tf)!.bars;
   const at = (idx: number, price: number): Anchor => ({ time: bars[idx].time, price });
   const lastTime = bars[bars.length - 1].time;
@@ -428,6 +440,11 @@ function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolea
       out.push({ id: 'Z-ABCD-07', tool: 'hline', anchors: [at(moved ?? freezeIdx, shown)], rules: TRADE_RULES, side });
       out.push({ id: 'Z-ABCD-08', tool: 'label', anchors: [{ time: lastTime, price: shown }], label: 'stop', rules: TRADE_RULES, side });
     }
+  }
+  // 1114-A4.3: großes AB=CD-Ziel als eine Linie mit Beschriftung (läuft mit dem äußersten Docht wie die Ziel-Fib)
+  if (s.d && reached && bigTarget !== null) {
+    out.push({ id: 'Z-ABCD-09', tool: 'hline', anchors: [at(freezeIdx, bigTarget)], rules: TRADE_RULES, side });
+    out.push({ id: 'Z-ABCD-10', tool: 'label', anchors: [{ time: lastTime, price: bigTarget }], label: 'bigTarget', rules: TRADE_RULES, side });
   }
   // Erken dönüş: der Stop (ferne Zonenkante) steht auf Z-ABCD-07/08 ab der Engulf-Kerze
   if (early && !reached) {

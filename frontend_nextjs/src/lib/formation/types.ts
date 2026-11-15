@@ -44,7 +44,7 @@ export interface Drawing {
   /** Trendrichtung der Zeichnung (TRD-14): buy = Aufwärtstrend (grün), sell = Abwärtstrend (rot) */
   side?: Side;
   /** Beschriftung eines Labels mit einem Anker; fehlt das Feld, heißt es „Level 1“ (mit zwei Ankern: Stop und Ziel) */
-  label?: 'stop' | 'target';
+  label?: 'stop' | 'target' | 'bigTarget';
 }
 
 /**
@@ -81,12 +81,21 @@ export interface Trade {
   tp1AtEntry?: number;
   /** AB=CD: Strecke (Preis), um die der Docht Level 1 verfehlt hat, wenn D nur innerhalb der Toleranz erreicht ist */
   missed?: number;
-  /** AB=CD (1114-A4.2): TP2 = 0.618 der Ziel-Fib, läuft wie `tp1` mit dem äußersten Docht; die Hälfte der Position schließt hier */
+  /** AB=CD (1114-A4.2): TP2 = 0.618 der Ziel-Fib, läuft wie `tp1` mit dem äußersten Docht; die Hälfte der Position schließt hier (mit großem Ziel ein Drittel) */
   tp2?: number;
   /** AB=CD: TP2 am Einstieg (Fib ab `from` zu Level 1), Grundlage der Ergebnisse in R */
   tp2AtEntry?: number;
-  /** AB=CD: TP3 (0.786 der Ziel-Fib), nur bei Divergenz oder harmonischem D (Fib ab A); Zusatzziel ohne Anteil */
+  /** AB=CD: TP3 (0.786 der Ziel-Fib), nur bei Divergenz (Fib ab A); Zusatzziel ohne Anteil */
   tp3?: number;
+  /**
+   * AB=CD (1114-A4.3): großes AB=CD-Ziel bei harmonischem D = D + (A − X) (Kauf; Verkauf spiegelgleich: D − (X − A)). Läuft wie `tp1` mit dem äußersten Docht.
+   * Mit diesem Ziel teilt sich die Position in Drittel; die Rechnung zählt es erst, wenn eine Kerze jenseits von `tpBigActivation` schloss.
+   */
+  tpBig?: number;
+  /** AB=CD: großes Ziel am Einstieg (D = Level 1), Grundlage der Ergebnisse in R */
+  tpBigAtEntry?: number;
+  /** AB=CD: A; eine Kerze, die jenseits davon (in Gewinnrichtung) schließt, aktiviert das große Ziel */
+  tpBigActivation?: number;
   /** AB=CD: TP1 liegt in einer sehr starken Zone der Gegenseite (nur Hinweis, die Rechnung bleibt) */
   tp1StrongZone?: boolean;
   /** AB=CD (1114-A4.2 b): Stand des Handels nach dem Einstieg (offen, TP1, TP1 und TP2, Stop, Rest am Einstieg); nur wenn der Einstieg erreicht ist */

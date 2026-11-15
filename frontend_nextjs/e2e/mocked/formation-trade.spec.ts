@@ -206,6 +206,48 @@ test.describe('FRM-39 Handelsblock AB=CD (TP2, Ergebnisse in R)', () => {
   });
 });
 
+test.describe('FRM-39 Handelsblock AB=CD (großes Ziel bei harmonischem D, 1114-A4.3)', () => {
+  // gar-buy-h4-03: Kauf-AB=CD mit Gartley-D; 1765569600 Einstieg erreicht und offen, 1765584000 TP1 erreicht
+  test('Harmonisches D: Drittel bei TP1, TP2 und großem Ziel, Aktivierungstext unter dem Wert, vier Ergebnisse, kein 0,786-Ziel', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'gar-buy-h4-03', 1765569600, 'ABCD');
+    const block = page.getByTestId('trade-block');
+    await expect(block.getByTestId('trade-tpBig')).not.toHaveText(/^\s*—\s*$/);
+    await expect(block.getByTestId('trade-tpBig-distance')).toHaveText(/^\+[\d.,]+ pip$/);
+    await expect(block.getByTestId('trade-tpBig-note')).toContainText(/A \(/);
+    await expect(block.getByTestId('trade-tp3')).toHaveCount(0);
+    for (const f of ['tp1', 'tp2', 'tpBig']) await expect(block.getByTestId(`trade-${f}`).locator('..')).toContainText('⅓');
+    await expect(block.getByTestId('trade-outcomes').locator('[data-testid^="trade-outcome-"]')).toHaveCount(4);
+    await expect(block.getByTestId('trade-outcome-stop')).toContainText('-1,00');
+    await expect(block.getByTestId('trade-outcome-tp123')).toContainText(msg('formation.trade.outcome.tp123'));
+  });
+
+  test('TP1 erreicht: Statuszeile nennt den Stop des Rests am Einstieg, „bisher“ steht beim TP1-Weg', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'gar-buy-h4-03', 1765584000, 'ABCD');
+    const block = page.getByTestId('trade-block');
+    await expect(block.getByTestId('trade-status')).toHaveAttribute('data-status', 'tp1');
+    await expect(block.getByTestId('trade-status')).toContainText(msg('formation.trade.status.tp1.big.sub'));
+    await expect(block.getByTestId('trade-outcome-tp1')).toHaveAttribute('data-active', 'true');
+    await expect(block.getByTestId('trade-outcome-tp123')).toContainText(msg('formation.trade.outcome.ifBig'));
+  });
+
+  test('375 px: der Block mit großem Ziel läuft nicht über', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await openPage(page, worker, 'gar-buy-h4-03', 1765569600, 'ABCD');
+    const block = page.getByTestId('trade-block');
+    await expect(block.getByTestId('trade-tpBig')).toBeVisible();
+    expect(await block.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+  });
+
+  test('Ohne harmonisches D: weiter zwei Anteile, drei Ergebnisse, kein großes Ziel', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'abcd-buy-h4-02', 1752624000 - 30 * 14400, 'ABCD');
+    const block = page.getByTestId('trade-block');
+    await expect(block.getByTestId('trade-tpBig')).toHaveCount(0);
+    await expect(block.getByTestId('trade-outcomes').locator('[data-testid^="trade-outcome-"]')).toHaveCount(3);
+    await expect(block.getByTestId('trade-tp2').locator('..')).toContainText('½');
+  });
+});
+
 test.describe('FRM-39 Handelsblock AB=CD (Erken dönüş, 1114-A4.5)', () => {
   // frz-support-h4-01: Kauf-AB=CD, D dreht in einer Stütze vor Level 1 mit einer Engulf-Kerze; Ziel 1 aus einer Gegenzone, an C keine Zone
   test('Kauf: Status Erken dönüş, Hinweiskasten, Einstieg/Stop/Ziel 1, kein Ziel 2, keine Ergebnisse', { tag: '@FRM-39' }, async ({ page, worker }) => {
