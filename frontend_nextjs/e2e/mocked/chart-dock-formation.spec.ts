@@ -74,6 +74,39 @@ test('Dar pencerede sığmayan formasyonlar ok menüsünde; seçili olan satırd
   await expect(page.getByTestId(id!).first()).toHaveAttribute('aria-pressed', 'true');
 });
 
+test('Satır 2 içeriği, satırın dolgusunu (içerik kutusunu) aşmaz; sığmayan düğme ok menüsüne geçer', { tag: '@UI-17' }, async ({ page, worker }) => {
+  void worker;
+  // Sığdırma satırın dolgu dahil genişliğiyle karşılaştırırsa, son paket sağ dolguya (px-2 = 8 px) taşar; ölçü içerik kutusudur
+  await page.setViewportSize({ width: 640, height: 800 });
+  await open(page);
+  const overflow = () => page.evaluate(() => {
+    const r = document.querySelector<HTMLElement>('[data-testid="dock-row-row2"]')!, cs = getComputedStyle(r);
+    const content = r.getBoundingClientRect().right - parseFloat(cs.paddingRight) - parseFloat(cs.borderRightWidth);
+    const kids = [...r.children].filter(c => (c as HTMLElement).matches('.dock-wrap:not(.dock-src)'));
+    return Math.max(...kids.map(k => k.getBoundingClientRect().right)) - content;
+  });
+  for (let w = 640; w >= 560; w -= 4) {
+    await page.setViewportSize({ width: w, height: 800 });
+    await page.waitForTimeout(150);
+    await expect.poll(overflow, { message: `genişlik ${w}`, timeout: 3000 }).toBeLessThanOrEqual(0.5);
+  }
+});
+
+test('Satır 2\'de sağa dayalı paket satırın içerik kutusunda biter (dolguya taşmaz)', { tag: '@UI-17' }, async ({ page, worker }) => {
+  void worker;
+  await open(page);
+  await page.evaluate(key => { const j = JSON.parse(localStorage.getItem(key) || '{}'); j.dockLayout = { ...(j.dockLayout ?? {}), pos: { formations: 1 } }; localStorage.setItem(key, JSON.stringify(j)); }, storageKey);
+  await page.reload();
+  await expect(pkg(page, 'formations')).toBeVisible();
+  const gap = () => page.evaluate(() => {
+    const r = document.querySelector<HTMLElement>('[data-testid="dock-row-row2"]')!, cs = getComputedStyle(r);
+    const content = r.getBoundingClientRect().right - parseFloat(cs.paddingRight) - parseFloat(cs.borderRightWidth);
+    return document.querySelector('[data-dock-pkg="formations"]')!.closest('.dock-wrap')!.getBoundingClientRect().right - content;
+  });
+  await page.waitForTimeout(800); // yerleşim oturana kadar (ilk çizimde boşluk henüz uygulanmamıştır)
+  expect(await gap()).toBeLessThanOrEqual(0.5);
+});
+
 test('Zaman dilimleri paketini alt çubuğa taşı: oradan seçim grafiği değiştirir', { tag: '@UI-17' }, async ({ page, worker }) => {
   void worker;
   await open(page);
