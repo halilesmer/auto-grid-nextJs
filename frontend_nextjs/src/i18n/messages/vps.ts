@@ -3,6 +3,7 @@ import { defineArea } from './define';
 // Not: `code` işaretli parçalar (`...`) arayüzde <code> olarak gösterilir.
 export default defineArea(
   {
+    'vps.redirect': 'Ayarlardaki “VPS ve sistem” bölümü açılıyor…',
     'vps.eyebrow': 'Windows-VPS',
     'vps.title': 'VPS Kontrolü',
     'vps.subtitle': 'Worker, ngrok, güncellemeler ve yeniden başlatmalar Mac’ten – RDP ve yönetici penceresi olmadan',
@@ -165,6 +166,7 @@ export default defineArea(
     'vps.online.restart.message': 'Worker yeniden başlatılır; dashboard yaklaşık 10–20 sn erişilemez olur. Botlar ayrı süreçlerdir ve çalışmaya devam eder.',
   },
   {
+    'vps.redirect': 'Opening “VPS and system” in the settings…',
     'vps.eyebrow': 'Windows VPS',
     'vps.title': 'VPS Control',
     'vps.subtitle': 'Worker, ngrok, updates and restarts from the Mac – no RDP and no administrator window',
@@ -327,6 +329,7 @@ export default defineArea(
     'vps.online.restart.message': 'The worker restarts; the dashboard is unreachable for ~10–20 s. Bots are separate processes and keep running.',
   },
   {
+    'vps.redirect': '„VPS und System“ in den Einstellungen wird geöffnet…',
     'vps.eyebrow': 'Windows-VPS',
     'vps.title': 'VPS-Steuerung',
     'vps.subtitle': 'Worker, ngrok, Updates und Neustarts vom Mac aus – ohne RDP und ohne Administrator-Fenster',

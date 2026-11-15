@@ -1,11 +1,9 @@
 'use client';
 
 import { useEffect, useLayoutEffect } from 'react';
-import { probeWorker, statusFromProbe } from '@/lib/connection';
+import { runConnectionCheck } from '@/lib/connectionCheck';
 import { readConnectHash } from '@/lib/connectionCode';
 import { useConnectionDialogStore } from '@/store/useConnectionDialogStore';
-import { loadMe } from '@/services/usersApi';
-import { useAuthStore } from '@/store/useAuthStore';
 import { useConnectionStore } from '@/store/useConnectionStore';
 
 const POLL_MS = 30_000;
@@ -41,26 +39,21 @@ export default function ConnectionSync() {
 
   useEffect(() => {
     if (!hydrated || !baseUrl) return;
-    let cancelled = false;
 
-    const check = async () => {
+    const check = () => {
       if (document.visibilityState === 'hidden') return;
-      const result = await probeWorker(baseUrl, apiKey);
-      if (cancelled) return;
-      useConnectionStore.getState().setStatus(statusFromProbe(result));
-      // Rolle (Admin/Benutzer) hängt am Schlüssel: einmal laden, sobald der Worker antwortet.
-      // Schlüsselwechsel lädt die Seite neu (ConnectionDialog), `me` bleibt also aktuell.
-      if (result.ok && !useAuthStore.getState().me) await loadMe();
+      void runConnectionCheck();
     };
 
-    void check();
-    const timer = setInterval(() => void check(), POLL_MS);
-    const onFocus = () => void check();
+    check();
+    const timer = setInterval(check, POLL_MS);
+    const onFocus = () => check();
     window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
     return () => {
-      cancelled = true;
       clearInterval(timer);
       window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
     };
   }, [hydrated, baseUrl, apiKey]);
 

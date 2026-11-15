@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Bell, ChartCandlestick, ChevronLeft, ChevronRight, ExternalLink, Palette, Bot, Link2, Server, Users, X, type LucideIcon } from 'lucide-react';
+import { useState, type KeyboardEvent } from 'react';
+import { Bell, ChartCandlestick, ChevronLeft, ChevronRight, ExternalLink, Lock, Palette, Bot, Link2, Server, Users, X, type LucideIcon } from 'lucide-react';
 import { VERSION } from '@/app/version';
 import SystemModals from '@/components/layout/SystemModals';
 import { Modal } from '@/components/ui/modal';
@@ -12,9 +12,9 @@ import { LOCALE_NAMES, useLocale, useT, type MessageKey } from '@/i18n';
 import { activeMinutes } from '@/lib/newsAlerts';
 import { effectiveDelayMs } from '@/lib/userPrefs';
 import { cn } from '@/lib/utils';
-import { useIsAdmin } from '@/store/useAuthStore';
+import { useAuthStore, useIsAdmin } from '@/store/useAuthStore';
 import { useChartPrefsStore } from '@/store/useChartPrefsStore';
-import { useConnectionStore } from '@/store/useConnectionStore';
+import { useConnectionStore, type ConnectionStatus } from '@/store/useConnectionStore';
 import { useCustomColorsStore } from '@/store/useCustomColorsStore';
 import { useNewsCurrencies } from '@/hooks/useNewsCurrencies';
 import { useNewsStore } from '@/store/useNewsStore';
@@ -23,11 +23,20 @@ import { useThemeStore } from '@/store/useThemeStore';
 import { useTooltipPrefsStore } from '@/store/useTooltipPrefsStore';
 import { useUserPrefsStore } from '@/store/useUserPrefsStore';
 import AppearanceSection from './AppearanceSection';
+import ConnectionBanner from './ConnectionBanner';
+import { FAULTY_STATUSES } from './parts';
 import ChartSection from './ChartSection';
 import ConnectionSection from './ConnectionSection';
 import NotificationsSection, { NOTIFICATION_TABS, type NotificationsTab } from './NotificationsSection';
 import LinkSection from './LinkSection';
-import SystemSection from './SystemSection';
+import SystemSection, { SYSTEM_TABS, type SystemTab } from './SystemSection';
+
+type SectionTab = NotificationsTab | SystemTab;
+/** Sekmeli bölümler ve sekme sırası; sekme etiketi `sdlg.tab.<kimlik>`, ipucu `.hint`. */
+const SECTION_TABS: Partial<Record<SettingsSection, readonly SectionTab[]>> = {
+  notifications: NOTIFICATION_TABS,
+  system: SYSTEM_TABS,
+};
 
 interface SectionDef {
   id: SettingsSection;
@@ -63,6 +72,15 @@ const GROUPS: GroupDef[] = [
     ],
   },
 ];
+
+const DOT_TONE: Record<ConnectionStatus, 'success' | 'danger' | 'warning' | 'neutral'> = {
+  unconfigured: 'neutral',
+  checking: 'neutral',
+  connected: 'success',
+  unauthorized: 'warning',
+  unreachable: 'danger',
+  insecure: 'danger',
+};
 
 const BADGE_TONE: Record<SectionDef['badge'], string> = {
   user: 'border-secondary/60 text-secondary',
@@ -133,18 +151,44 @@ export default function SettingsDialog() {
   const setSection = useSettingsDialogStore((s) => s.setSection);
   const isAdmin = useIsAdmin();
   const summary = useSummary();
+  const connStatus = useConnectionStore((s) => s.status);
+  const connHydrated = useConnectionStore((s) => s.hydrated);
   const system = useSystemActions();
   const prefStatus = useUserPrefsStore((s) => s.status);
-  const [tabState, setTab] = useState<{ section: string; tab: NotificationsTab }>({ section: '', tab: 'general' });
+  const [tabState, setTab] = useState<{ section: string; tab: SectionTab }>({ section: '', tab: 'general' });
 
-  const groups = GROUPS.filter((g) => !g.admin || isAdmin);
+  // Kimlik bilinmiyorsa (worker kapalı ya da bağlı değil) yalnız „VPS ve sistem“ açılabilir: ölü worker'ı SSH ile
+  // ayağa kaldırmak için eski /vps sayfası gibi. Gerçek yetkiyi worker (403) ve yerel SSH rotası denetler.
+  const identityUnknown = useAuthStore((st) => st.me === null);
+  const systemOnly = !isAdmin && identityUnknown && section === 'system';
+  const groups = GROUPS.flatMap((g) => {
+    if (!g.admin || isAdmin) return [g];
+    return systemOnly ? [{ ...g, sections: g.sections.filter((x) => x.id === 'system') }] : [];
+  });
   const all = groups.flatMap((g) => g.sections);
   // Masaüstünde ilk bölüm açık gelir; yetkisiz bölüm (admin değil) asla gösterilmez
   const active = all.find((s) => s.id === section) ?? all[0];
 
   // Sekme bölüm değişince başa döner
-  const tab: NotificationsTab = tabState.section === active.id ? tabState.tab : 'general';
+  const sectionTabs = SECTION_TABS[active.id] ?? [];
+  const tab: SectionTab = tabState.section === active.id ? tabState.tab : (sectionTabs[0] ?? 'general');
   const foot = footState(Object.values(prefStatus));
+
+  // Sekmeler (WAI-ARIA): ← → döner, Home/End uçlara gider; odak ve seçim birlikte taşınır
+  const tabId = (id: SectionTab) => `settings-tab-${id}`;
+  // Sistem bölümünde tek panel var (yalnız seçili sekme görünür); sekmeler hep aynı panele işaret eder
+  const panelId = (id: SectionTab) => ((SYSTEM_TABS as readonly string[]).includes(id) ? 'settings-tabpanel-system' : `settings-tabpanel-${id}`);
+  const onTabKey = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return; // tarayıcı kısayollarını yutma
+    const last = sectionTabs.length - 1;
+    const n = sectionTabs.length;
+    const targets: Record<string, number> = { ArrowRight: (index + 1) % n, ArrowLeft: (index - 1 + n) % n, Home: 0, End: last };
+    const next = targets[e.key] ?? -1;
+    if (next < 0) return;
+    e.preventDefault();
+    setTab({ section: active.id, tab: sectionTabs[next] });
+    document.getElementById(tabId(sectionTabs[next]))?.focus();
+  };
 
   return (
     <>
@@ -204,6 +248,22 @@ export default function SettingsDialog() {
                                 </span>
                               )}
                             </span>
+                            {s.badge === 'user' && (FAULTY_STATUSES.includes(connStatus) || (connStatus === 'unconfigured' && connHydrated && s.id !== 'appearance')) && (
+                              <Tooltip content={t('sdlg.nav.lock.hint')}>
+                                <span data-testid={`settings-nav-lock-${s.id}`} className="shrink-0 text-muted-foreground">
+                                  <Lock size={14} aria-hidden="true" />
+                                  <span className="sr-only">{t('sdlg.ro')}</span>
+                                </span>
+                              </Tooltip>
+                            )}
+                            {s.id === 'connection' && connHydrated && (
+                              <Tooltip content={t(`connection.status.${connStatus}`)}>
+                                <span data-testid="settings-nav-dot" data-status={connStatus} className="shrink-0">
+                                  <StatusDot tone={DOT_TONE[connStatus]} pulse={connStatus === 'checking'} />
+                                  <span className="sr-only">{t(`connection.status.${connStatus}`)}</span>
+                                </span>
+                              </Tooltip>
+                            )}
                             {s.link ? (
                               <ExternalLink size={16} className="shrink-0 text-muted-foreground md:hidden" aria-hidden="true" />
                             ) : (
@@ -243,16 +303,20 @@ export default function SettingsDialog() {
                   {t(`sdlg.badge.${active.badge}`)}
                 </span>
               </div>
-              {active.id === 'notifications' && (
-                <div role="tablist" aria-label={t('sdlg.tabs.aria')} className="-mb-4 mt-4 flex gap-6 overflow-x-auto md:-mb-5" data-testid="settings-tabs">
-                  {NOTIFICATION_TABS.map((id) => (
+              {sectionTabs.length > 0 && (
+                <div role="tablist" aria-label={t(active.id === 'system' ? 'sdlg.sys.tabs.aria' : 'sdlg.tabs.aria')} className="-mb-4 mt-4 flex gap-6 overflow-x-auto md:-mb-5" data-testid="settings-tabs">
+                  {sectionTabs.map((id, index) => (
                     <Tooltip key={id} content={t(`sdlg.tab.${id}.hint` as MessageKey)}>
                       <button
                         type="button"
                         role="tab"
+                        id={tabId(id)}
                         aria-selected={tab === id}
+                        aria-controls={panelId(id)}
+                        tabIndex={tab === id ? 0 : -1}
                         data-testid={`settings-tab-${id}`}
                         onClick={() => setTab({ section: active.id, tab: id })}
+                        onKeyDown={(e) => onTabKey(e, index)}
                         className={cn(
                           '-mb-px min-h-11 shrink-0 cursor-pointer whitespace-nowrap border-b-2 pb-3 pt-2 text-[15px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                           tab === id ? 'border-primary font-semibold text-primary' : 'border-transparent text-muted-foreground hover:text-foreground',
@@ -267,13 +331,23 @@ export default function SettingsDialog() {
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-2 md:px-10" data-testid="settings-body">
+              {active.badge === 'user' && <ConnectionBanner />}
               {active.id === 'appearance' && <AppearanceSection />}
-              {active.id === 'notifications' && <NotificationsSection tab={tab} />}
+              {active.id === 'notifications' &&
+                NOTIFICATION_TABS.map((id) => (
+                  <div key={id} role="tabpanel" id={panelId(id)} aria-labelledby={tabId(id)} hidden={tab !== id}>
+                    {tab === id && <NotificationsSection tab={id} />}
+                  </div>
+                ))}
               {active.id === 'chart' && <ChartSection />}
               {active.id === 'connection' && <ConnectionSection />}
               {active.id === 'robot' && <LinkSection href="/" textKey="sdlg.robot.text" openKey="sdlg.robot.open" testId="settings-robot" />}
               {active.id === 'users' && isAdmin && <LinkSection href="/users" textKey="sdlg.users.text" openKey="sdlg.users.open" testId="settings-users" />}
-              {active.id === 'system' && isAdmin && <SystemSection system={system} />}
+              {active.id === 'system' && (isAdmin || systemOnly) && (
+                <div role="tabpanel" id={panelId(tab)} aria-labelledby={tabId(tab)}>
+                  <SystemSection tab={tab as SystemTab} system={system} />
+                </div>
+              )}
             </div>
 
             <div

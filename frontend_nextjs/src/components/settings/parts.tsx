@@ -1,11 +1,81 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
-import { Check, X } from 'lucide-react';
+import { Check, Lock, Monitor, X } from 'lucide-react';
+import { claimEscape } from '@/components/ui/modal';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useFormat, useT } from '@/i18n';
 import { cn } from '@/lib/utils';
+import { useConnectionStore, type ConnectionStatus } from '@/store/useConnectionStore';
 import { useUserPrefsStore, type PrefKey } from '@/store/useUserPrefsStore';
+
+export type PrefsLock = 'loading' | 'failed' | 'offline' | 'readonly';
+
+/** Dil ve tema bu cihazda da çalışır (bugünkü isLocalOnly davranışı, 1115-A7.2). */
+const DEVICE_LOCAL: PrefKey[] = ['locale', 'theme'];
+
+/** Bağlantı hatası (ulaşılamıyor, anahtar geçersiz, güvensiz adres): kişisel alanlar salt okunur (1115-A7.1). */
+export const FAULTY_STATUSES: ConnectionStatus[] = ['unreachable', 'unauthorized', 'insecure'];
+
+/**
+ * USR-13 + 1115-A7: kişisel alanlar, kayıtlı değerler okunana kadar ve bağlantı yokken kilitlidir
+ * (yoksa varsayılan kayıtlının üstüne yazılırdı). `local`: bağlı olmasa da bu cihazda çalışan ayar.
+ */
+export function usePrefsLock(prefKey?: PrefKey): { lock: PrefsLock | null; local: boolean } {
+  const loadState = useUserPrefsStore((s) => s.loadState);
+  const hydrated = useConnectionStore((s) => s.hydrated);
+  const baseUrl = useConnectionStore((s) => s.baseUrl);
+  const status = useConnectionStore((s) => s.status);
+  if (!hydrated) return { lock: 'loading', local: false };
+  if (!baseUrl) {
+    const local = !!prefKey && DEVICE_LOCAL.includes(prefKey);
+    return { lock: local ? null : 'offline', local };
+  }
+  if (FAULTY_STATUSES.includes(status)) return { lock: 'readonly', local: false };
+  if (loadState === 'offline') return { lock: 'offline', local: false };
+  if (loadState === 'ready') return { lock: null, local: false };
+  return { lock: loadState === 'failed' ? 'failed' : 'loading', local: false };
+}
+
+/** Satırda etiketin yanındaki yükleme durumu: Yükleniyor… / Yüklenemedi + „Tekrar dene“ / Bağlanınca açılır / Salt okunur. */
+function PrefLoadBadge({ prefKey, lock }: { prefKey: PrefKey; lock: PrefsLock }) {
+  const t = useT();
+  const load = useUserPrefsStore((s) => s.load);
+  const keys = { offline: 'sdlg.locked.connect', readonly: 'sdlg.ro', loading: 'sdlg.load.loading', failed: 'sdlg.load.failed' } as const;
+  const text = t(keys[lock]);
+  const hint = t(`${keys[lock]}.hint`);
+  return (
+    <>
+      <Tooltip content={hint}>
+        <span
+          role="status"
+          tabIndex={0}
+          data-testid={`pref-load-${prefKey}`}
+          data-state={lock}
+          className={cn(
+            'inline-flex items-center gap-1 rounded text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            lock === 'failed' ? 'font-medium text-danger' : 'text-muted-foreground',
+          )}
+        >
+          {(lock === 'readonly' || lock === 'offline') && <Lock size={12} strokeWidth={2.5} aria-hidden="true" />}
+          {text}
+        </span>
+      </Tooltip>
+      {lock === 'failed' && (
+        <Tooltip content={t('sdlg.load.retry.hint')}>
+          <button
+            type="button"
+            data-testid={`pref-load-retry-${prefKey}`}
+            onClick={() => void load()}
+            className="min-h-6 cursor-pointer rounded text-xs text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {t('sdlg.load.retry')}
+          </button>
+        </Tooltip>
+      )}
+    </>
+  );
+}
 
 /** Satırda etiketin yanındaki durum: Kaydediliyor… → ✓ Kaydedildi (birkaç sn sonra kaybolur) ya da ✕ Kaydedilemedi. */
 export function PrefStatusBadge({ prefKey }: { prefKey: PrefKey }) {
@@ -43,6 +113,8 @@ interface RowProps {
 /** Bir ayar satırı: solda etiket ve açıklama, sağda kontrol (dar ekranda alt alta). */
 export function SettingsRow({ label, desc, prefKey, isNew, children, testId }: RowProps) {
   const t = useT();
+  const { lock, local } = usePrefsLock(prefKey);
+  const locked = prefKey && lock ? lock : null;
   return (
     <div
       data-testid={testId}
@@ -52,11 +124,22 @@ export function SettingsRow({ label, desc, prefKey, isNew, children, testId }: R
         <span className="flex min-h-[22px] flex-wrap items-center gap-x-2.5 gap-y-1">
           <span className="font-semibold">{label}</span>
           {isNew && <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] text-primary">{t('sdlg.new')}</span>}
-          {prefKey && <PrefStatusBadge prefKey={prefKey} />}
+          {locked && prefKey ? <PrefLoadBadge prefKey={prefKey} lock={locked} /> : prefKey && <PrefStatusBadge prefKey={prefKey} />}
+          {local && prefKey && (
+            <Tooltip content={t('sdlg.local.hint')}>
+              <span tabIndex={0} data-testid={`pref-local-${prefKey}`} className="inline-flex items-center gap-1 rounded text-xs text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <Monitor size={12} strokeWidth={2.5} aria-hidden="true" />
+                {t('sdlg.local')}
+              </span>
+            </Tooltip>
+          )}
         </span>
         {desc && <span className="text-[13px] leading-snug text-muted-foreground">{desc}</span>}
       </div>
-      <div className="min-w-0">{children}</div>
+      {/* fieldset disabled: içindeki tüm düğme ve alanlar kilitlenir */}
+      <fieldset disabled={locked !== null} className={cn('m-0 min-w-0 border-0 p-0', locked && 'opacity-50')}>
+        {children}
+      </fieldset>
     </div>
   );
 }
@@ -129,8 +212,7 @@ interface SecondsFieldProps {
 export function SecondsField(props: SecondsFieldProps) {
   const f = useFormat();
   const shown = props.disabled ? f.number(0) : f.number(props.ms / 1000, { maximumFractionDigits: 2 });
-  // Gösterilen değer (kayıt, mod değişimi, dil) değişince taslak yeniden başlar: effect yerine key
-  return <SecondsInput key={shown} {...props} shown={shown} />;
+  return <SecondsInput {...props} shown={shown} />;
 }
 
 function SecondsInput({
@@ -148,6 +230,13 @@ function SecondsInput({
   const t = useT();
   const [draft, setDraft] = useState(shown);
   const [invalid, setInvalid] = useState(false);
+  // Gösterilen değer (kayıt, mod değişimi, dil) değişince taslak yeniden başlar. Alan yeniden kurulmaz (key yok): kayıttan sonra odak kalır
+  const [seen, setSeen] = useState(shown);
+  if (seen !== shown) {
+    setSeen(shown);
+    setDraft(shown);
+    setInvalid(false);
+  }
 
   const commit = () => {
     if (disabled) return;
@@ -180,6 +269,11 @@ function SecondsInput({
               if (e.key === 'Enter') {
                 e.preventDefault();
                 commit();
+              } else if (e.key === 'Escape' && (draft !== shown || invalid)) {
+                // İlk Escape yalnız düzenlemeyi geri alır; pencereyi ikincisi kapatır
+                claimEscape(e);
+                setDraft(shown);
+                setInvalid(false);
               }
             }}
             className={cn(

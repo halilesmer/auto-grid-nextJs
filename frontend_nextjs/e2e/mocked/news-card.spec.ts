@@ -128,7 +128,7 @@ test.describe('NWS-02 Haber kartı', () => {
     await expect(page.getByTestId('news-saved')).toHaveAttribute('data-kind', 'worker');
     await expect.poll(() => worker.userPrefs.admin?.news_filter).toMatchObject({ impacts: ['high', 'low'], days: ['d-1', 'd0', 'd1'] });
     await expect(page.getByTestId('news-saved')).toHaveCount(0, { timeout: 5000 });
-    await page.goto('/vps');
+    await page.goto('/users');
     await expect(page.getByTestId('news-button')).toHaveCount(0);
     await dashboard.open(DEMO_ID);
     await page.getByTestId('news-button').click();
@@ -164,10 +164,10 @@ test.describe('NWS-02 Haber kartı', () => {
     await expect(page.getByRole('tooltip')).toContainText(msg('news.savedLocal.hint'));
   });
 
-  test('/vps ve /users sayfalarında düğme yok', { tag: '@NWS-02' }, async ({ page, dashboard }) => {
+  test('/users sayfasında düğme yok', { tag: '@NWS-02' }, async ({ page, dashboard }) => {
     await dashboard.open(DEMO_ID);
     await expect(page.getByTestId('news-button')).toBeVisible();
-    for (const path of ['/vps', '/users']) {
+    for (const path of ['/users']) {
       await page.goto(path);
       await expect(page.getByTestId('app-nav')).toBeVisible();
       await expect(page.getByTestId('news-button')).toHaveCount(0);

@@ -2,22 +2,27 @@
  * Gespeicherte Einstellungen und gemerkter Stand des Formationsalarms (localStorage, ein Eintrag für alle Konten).
  * Ohne React-Bezug außer `subscribe`/`snapshot`/`serverSnapshot` für `useSyncExternalStore`.
  */
-import { SCAN_FORMATIONS } from './scan';
-import type { AlarmEvent, AlarmMemory, AlarmSettings } from './alarm';
+import type { AlarmMemory } from './alarm';
 import { parseHistory, type HistoryEntry } from './alarmHistory';
+import { ALARM_STORAGE_KEY, DEFAULT_PERSONAL, parsePersonal, personalValue, samePersonal, type AlarmPersonal, type AlarmPrefs } from './alarmPersonal';
+import { alarmLabel, useUserPrefsStore } from '@/store/useUserPrefsStore';
+import { useAlarmPrefsStore } from '@/store/useAlarmPrefsStore';
 
-const STORAGE_KEY = 'grid-robot-formation-alarm';
+const STORAGE_KEY = ALARM_STORAGE_KEY;
 
-export interface AlarmPrefs extends AlarmSettings {
-  /** Browser-Meldung zusätzlich zur Karte im Fenster */
-  system: boolean;
-  sound: boolean;
-}
+export type { AlarmPrefs };
 
+/**
+ * Der Alarm-Stand besteht aus zwei Teilen: den persönlichen Feldern des Benutzers (`active`, `prefs`; im Worker, USR-15)
+ * und den Feldern je Konto (localStorage). `snapshot()` liefert beide zusammen; `save()` verteilt sie wieder.
+ */
 export interface Stored {
-  /** Hauptschalter des Alarms: aus = keine Suche, keine Meldung; alle Auswahlen bleiben. Fehlt in älteren Speicherständen (gilt als an). */
+  /** Hauptschalter des Alarms: aus = keine Suche, keine Meldung; alle Auswahlen bleiben. (Benutzer, Worker) */
   active: boolean;
+  /** Ereignisse, Formationen, Systemmeldung, Ton (Benutzer, Worker) */
   prefs: AlarmPrefs;
+  /** Die persönlichen Felder sind aus dem Worker gelesen: vorher sucht und meldet der Alarm nicht */
+  personalLoaded: boolean;
   /** Schalter je Konto und Symbol: `${konto}|${symbol}` */
   enabled: string[];
   /** Konten, für die alle Favoriten gemeldet werden */
@@ -29,25 +34,20 @@ export interface Stored {
   account: string | null;
 }
 
-export const DEFAULTS: Stored = {
-  active: true,
-  prefs: { events: { valid: true, target: true }, forms: SCAN_FORMATIONS, system: false, sound: false },
-  enabled: [],
-  favoritesEnabled: [],
-  memory: {},
-  history: {},
-  account: null,
-};
+/** Die Felder je Konto (im Browser gespeichert) */
+type LocalPart = Omit<Stored, 'active' | 'prefs' | 'personalLoaded'>;
+
+const LOCAL_DEFAULTS: LocalPart = { enabled: [], favoritesEnabled: [], memory: {}, history: {}, account: null };
+
+export const DEFAULTS: Stored = { ...DEFAULT_PERSONAL, personalLoaded: false, ...LOCAL_DEFAULTS };
 
 const isSeen = (value: unknown): value is { valid: boolean; target: boolean } =>
   typeof value === 'object' && value !== null && typeof (value as { valid?: unknown }).valid === 'boolean' && typeof (value as { target?: unknown }).target === 'boolean';
 
 /** Gespeicherte Daten stammen aus dem Browser und können fehlen oder veraltet sein: alles wird geprüft, Fehlendes nimmt den Standard */
-export function parseStored(raw: string | null): Stored {
-  if (!raw) return DEFAULTS;
+export function parseLocal(raw: string | null): LocalPart {
+  if (!raw) return LOCAL_DEFAULTS;
   const data: Partial<Record<keyof Stored, unknown>> = JSON.parse(raw) ?? {};
-  const prefs = (data.prefs ?? {}) as Partial<Record<keyof AlarmPrefs, unknown>>;
-  const events = (prefs.events ?? {}) as Partial<Record<AlarmEvent, unknown>>;
   const memory: Stored['memory'] = {};
   for (const [scope, entries] of Object.entries((data.memory ?? {}) as Record<string, Record<string, unknown>>)) {
     memory[scope] = Object.fromEntries(Object.entries(entries).filter(([, seen]) => isSeen(seen))) as AlarmMemory;
@@ -58,13 +58,6 @@ export function parseStored(raw: string | null): Stored {
     if (valid.length > 0) history[accountId] = valid;
   }
   return {
-    active: data.active !== false,
-    prefs: {
-      events: { valid: events.valid !== false, target: events.target !== false },
-      forms: Array.isArray(prefs.forms) ? SCAN_FORMATIONS.filter((form) => (prefs.forms as unknown[]).includes(form)) : SCAN_FORMATIONS,
-      system: prefs.system === true,
-      sound: prefs.sound === true,
-    },
     enabled: Array.isArray(data.enabled) ? data.enabled.filter((x): x is string => typeof x === 'string') : [],
     favoritesEnabled: Array.isArray(data.favoritesEnabled) ? data.favoritesEnabled.filter((x): x is string => typeof x === 'string') : [],
     memory,
@@ -73,41 +66,81 @@ export function parseStored(raw: string | null): Stored {
   };
 }
 
-let cache: Stored | null = null;
-const listeners = new Set<() => void>();
+/** Ganzer alter Eintrag (Konto-Felder plus die früheren persönlichen Felder); die Prüfungen laufen ohne Browser darüber */
+export function parseStored(raw: string | null): Stored {
+  const legacy = raw ? (JSON.parse(raw) as { active?: unknown; prefs?: unknown } | null) : null;
+  const personal = parsePersonal({ active: legacy?.active, ...(typeof legacy?.prefs === 'object' && legacy.prefs ? legacy.prefs : {}) });
+  return { ...personal, personalLoaded: false, ...parseLocal(raw) };
+}
 
-export function snapshot(): Stored {
-  if (cache) return cache;
+let local: LocalPart | null = null;
+let merged: Stored | null = null;
+let mergedFrom: { local: LocalPart; personal: AlarmPersonal; loaded: boolean } | null = null;
+const listeners = new Set<() => void>();
+const notify = () => listeners.forEach((listener) => listener());
+
+function readLocal(): LocalPart {
+  if (local) return local;
   try {
-    cache = parseStored(localStorage.getItem(STORAGE_KEY));
+    local = parseLocal(localStorage.getItem(STORAGE_KEY));
   } catch (error) {
     // Speicher gesperrt oder Inhalt kaputt: der Alarm läuft mit Standardwerten im Arbeitsspeicher weiter
     console.warn('formation alarm: stored settings unreadable', error);
-    cache = DEFAULTS;
+    local = LOCAL_DEFAULTS;
   }
-  return cache;
+  return local;
 }
 
+/** Konto-Felder und persönliche Felder zusammen; dieselbe Referenz, solange sich keiner der Teile ändert (useSyncExternalStore) */
+export function snapshot(): Stored {
+  const { personal, loaded } = useAlarmPrefsStore.getState();
+  const part = readLocal();
+  if (merged && mergedFrom && mergedFrom.local === part && mergedFrom.personal === personal && mergedFrom.loaded === loaded) return merged;
+  mergedFrom = { local: part, personal, loaded };
+  merged = { ...part, active: personal.active, prefs: personal.prefs, personalLoaded: loaded };
+  return merged;
+}
+
+/**
+ * Speichert beide Teile: die Konto-Felder im Browser, geänderte persönliche Felder im Worker (USR-15).
+ * Alte persönliche Felder im Browser-Eintrag bleiben bis zur Übernahme stehen (sie sind deren Quelle).
+ */
 export function save(next: Stored) {
-  cache = next;
+  const part: LocalPart = { enabled: next.enabled, favoritesEnabled: next.favoritesEnabled, memory: next.memory, history: next.history, account: next.account };
+  local = part;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    let old: Record<string, unknown> = {};
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) old = JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      // Kaputter Eintrag: er wird überschrieben und heilt sich so selbst
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...old, ...part }));
   } catch (error) {
     console.warn('formation alarm: settings not stored', error);
   }
-  listeners.forEach((listener) => listener());
+  const personal: AlarmPersonal = { active: next.active, prefs: next.prefs };
+  if (!samePersonal(personal, useAlarmPrefsStore.getState().personal)) {
+    void useUserPrefsStore.getState().change('formation_alarm', personalValue(personal), alarmLabel, { silent: true });
+  }
+  notify();
 }
 
 export const subscribe = (listener: () => void) => {
   listeners.add(listener);
-  return () => void listeners.delete(listener);
+  const unsubscribeStore = useAlarmPrefsStore.subscribe(listener);
+  return () => {
+    listeners.delete(listener);
+    unsubscribeStore();
+  };
 };
 /** Ein anderer Tab hat gespeichert: der Arbeitsspeicher wird neu gelesen, damit dieser Tab ihn nicht überschreibt */
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (event) => {
     if (event.key !== STORAGE_KEY) return;
-    cache = null;
-    listeners.forEach((listener) => listener());
+    local = null;
+    notify();
   });
 }
 

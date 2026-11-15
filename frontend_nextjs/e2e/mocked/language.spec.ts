@@ -1,7 +1,7 @@
 /** UI-05 / UI-06 · Sprache der Oberfläche: Umschalter, Persistenz, Zahlenformat, Wörterbücher. */
 import { DEMO_ID, LOCALE_STORAGE_KEY, expect, test } from '../fixtures/test';
 import { fmt, msg } from '../fixtures/i18n';
-import { openHeaderMenu } from '../fixtures/header';
+import { openSettingsWindow, setLanguage } from '../fixtures/header';
 import { de, en, tr } from '../../src/i18n/messages';
 
 const LOCALES = { tr, en, de };
@@ -12,15 +12,16 @@ test.describe('UI Sprache', () => {
     const html = page.locator('html');
     await expect(html).toHaveAttribute('lang', 'tr');
     await expect(page.getByText(msg('dashboard.empty.title'))).toBeVisible();
-    await openHeaderMenu(page);
-    await expect(page.getByTestId('language-tr')).toHaveAttribute('aria-checked', 'true');
+    await openSettingsWindow(page);
+    await expect(page.getByTestId('settings-lang-tr')).toHaveAttribute('aria-pressed', 'true');
+    await page.keyboard.press('Escape');
 
-    await page.getByTestId('language-en').click();
+    await setLanguage(page, 'en');
     await expect(html).toHaveAttribute('lang', 'en');
     await expect(page.getByText(msg('dashboard.empty.title', undefined, 'en'))).toBeVisible();
     await expect(page.getByRole('link', { name: msg('nav.chart', undefined, 'en') })).toBeVisible();
 
-    await page.getByTestId('language-de').click();
+    await setLanguage(page, 'de');
     await expect(html).toHaveAttribute('lang', 'de');
     await expect(page.getByText(msg('dashboard.empty.title', undefined, 'de'))).toBeVisible();
 
@@ -30,22 +31,21 @@ test.describe('UI Sprache', () => {
     await page.reload();
     await expect(html).toHaveAttribute('lang', 'de');
     await expect(page.getByText(msg('dashboard.empty.title', undefined, 'de'))).toBeVisible();
-    await openHeaderMenu(page);
-    await expect(page.getByTestId('language-de')).toHaveAttribute('aria-checked', 'true');
+    await openSettingsWindow(page);
+    await expect(page.getByTestId('settings-lang-de')).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('Sprache gilt auch für Dialoge, Toasts und Unterseiten', { tag: '@UI-05' }, async ({ page, dashboard }) => {
     await dashboard.open(null);
-    await openHeaderMenu(page);
-    await page.getByTestId('language-en').click();
-    await page.keyboard.press('Escape');
+    await setLanguage(page, 'en');
     await dashboard.openAccountMenu('en');
     await page.getByRole('button', { name: msg('account.action.add', undefined, 'en') }).click();
     await expect(page.getByRole('heading', { name: msg('account.dialog.new', undefined, 'en') })).toBeVisible();
     await page.keyboard.press('Escape');
 
     await page.goto('/vps');
-    await expect(page.getByRole('heading', { name: msg('vps.title', undefined, 'en') })).toBeVisible();
+    await expect(page.getByTestId('settings-title')).toHaveText(msg('sdlg.sec.system', undefined, 'en'));
+    await page.keyboard.press('Escape');
     await page.goto('/chart');
     await expect(page.getByRole('heading', { name: msg('nav.chart', undefined, 'en') })).toBeVisible();
   });
@@ -60,8 +60,7 @@ test.describe('UI Sprache', () => {
       await expect(page.getByTestId('zone-price').first()).toHaveText(fmt('de').price(97.25, 3));
       expect(fmt('de').price(97.25, 3)).toBe('97,250');
 
-      await openHeaderMenu(page);
-      await page.getByTestId('language-en').click();
+      await setLanguage(page, 'en');
       await expect(page.getByTestId('zone-price').first()).toHaveText('97.250');
       await expect(page.getByTestId('metric-profit')).toHaveAttribute('data-value', '-$12.50');
     });
@@ -70,17 +69,18 @@ test.describe('UI Sprache', () => {
   test.describe('Mobil (375px)', () => {
     test.use({ viewport: { width: 375, height: 812 } });
 
-    test('Sprachwahl TR · EN · DE im Kopf-Menü, nichts läuft über', { tag: '@UI-05' }, async ({ page, dashboard }) => {
+    test('Sprachwahl TR · EN · DE in den Einstellungen, nichts läuft über', { tag: '@UI-05' }, async ({ page, dashboard }) => {
       await dashboard.open(null);
-      const panel = await openHeaderMenu(page);
-      const switcher = panel.getByTestId('language-switcher');
-      await expect(page.getByTestId('language-tr')).toHaveAttribute('aria-checked', 'true');
-      await page.getByTestId('language-en').click();
+      await openSettingsWindow(page);
+      await page.getByTestId('settings-nav-appearance').click();
+      const switcher = page.getByTestId('settings-lang');
+      await expect(page.getByTestId('settings-lang-tr')).toHaveAttribute('aria-pressed', 'true');
+      await page.getByTestId('settings-lang-en').click();
       await expect(page.locator('html')).toHaveAttribute('lang', 'en');
       // Längste Sprache: Deutsch
-      await page.getByTestId('language-de').click();
+      await page.getByTestId('settings-lang-de').click();
       await expect(page.locator('html')).toHaveAttribute('lang', 'de');
-      await expect(page.getByTestId('language-de')).toHaveAttribute('aria-checked', 'true');
+      await expect(page.getByTestId('settings-lang-de')).toHaveAttribute('aria-pressed', 'true');
       const box = await switcher.boundingBox();
       expect(box!.x).toBeGreaterThanOrEqual(0);
       expect(box!.x + box!.width).toBeLessThanOrEqual(375);

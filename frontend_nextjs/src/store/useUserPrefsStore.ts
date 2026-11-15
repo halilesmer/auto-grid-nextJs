@@ -8,9 +8,12 @@ import { parseChartTf, parseColors, parseDelay, parseHold, parseToastSeconds, to
 import { DEFAULT_ALERTS, normalizeAlerts } from '@/lib/newsAlerts';
 import { DEFAULT_FILTER, normalizeFilter } from '@/lib/news';
 import { isThemePreference, type ThemePreference } from '@/lib/theme';
+import { DEFAULT_PERSONAL, parsePersonal, personalValue, readLegacyPersonal, stripLegacyPersonal } from '@/lib/formation/alarmPersonal';
+import { useAlarmPrefsStore } from './useAlarmPrefsStore';
 import { useChartPrefsStore } from './useChartPrefsStore';
 import { CUSTOM_COLORS_STORAGE_KEY, useCustomColorsStore, withColor } from './useCustomColorsStore';
 import { useLocaleStore } from './useLocaleStore';
+import { METRICS_LEGACY_KEY, readLegacyPinned, useMetricsPrefsStore } from './useMetricsPrefsStore';
 import { registerNewsPersister, useNewsStore } from './useNewsStore';
 import { useThemeStore } from './useThemeStore';
 import { useToastPrefsStore } from './useToastPrefsStore';
@@ -30,8 +33,12 @@ export type PrefKey =
   | 'news_filter'
   | 'news_alerts'
   | 'chart_tf'
-  | 'chart_colors';
+  | 'chart_colors'
+  | 'formation_alarm'
+  | 'metrics_pinned';
 export type PrefStatus = 'saving' | 'saved' | 'failed';
+/** Kişisel tercihlerin worker'dan okunma durumu (USR-13): `ready` olmadan yazma yok. */
+export type PrefLoadState = 'idle' | 'loading' | 'ready' | 'failed' | 'offline';
 /** Toast metni için: ayarın adı ve yeni değerin okunur hâli. */
 export interface PrefLabel {
   name: string;
@@ -44,6 +51,8 @@ const SAVED_TOAST_MS = 3_200;
 
 interface UserPrefsState {
   status: Partial<Record<PrefKey, PrefStatus>>;
+  /** USR-13: ayar penceresi `ready` olmadan kişisel alanları kilitler; `change()` de bu durumda yazmaz. */
+  loadState: PrefLoadState;
   load: () => Promise<void>;
   /** Değeri iyimser uygular, worker'a yazar; hatada eski değere döner. `silent`: başarı toast'ı yok; `quiet`: hata toast'ı da yok. `label` (değişiklikten sonra çağrılır, yeni dilde okunur) toast metnine girer ("Tema: Koyu"). */
   change: (key: PrefKey, value: Record<string, unknown>, label: () => PrefLabel, opts?: { silent?: boolean; quiet?: boolean }) => Promise<void>;
@@ -59,6 +68,12 @@ const confirmed: Partial<Record<PrefKey, Record<string, unknown>>> = {};
 // Aynı anahtara yazmalar sırayla gider; aksi hâlde worker'da eski değer kalabilir
 const queues: Partial<Record<PrefKey, Promise<unknown>>> = {};
 const PUT_TIMEOUT_MS = 15_000;
+/** Okuma düşerse: bu aralıklarla yeniden denenir (ilk deneme + 3 yeniden deneme), sonra satırda hata ve „Tekrar dene“. */
+const LOAD_RETRY_DELAYS_MS = [600, 1_200, 2_400];
+/** Tek değerli tercihler: kullanıcının seçtiği değer varsayılandan türetilmez, yükleme bitmeden de yazılabilir (üst çubuktaki dil ve tema düğmeleri). */
+const WRITABLE_BEFORE_LOAD: readonly PrefKey[] = ['locale', 'theme'];
+let loadRun = 0;
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 // load() bitince: worker'daki anahtarlar (null = okunamadı). Göç bu bilgiye bakar.
 let serverKeys: Set<string> | null = null;
 let markLoaded: () => void = () => undefined;
@@ -93,6 +108,10 @@ function current(key: PrefKey): Record<string, unknown> {
       return { tf: useChartPrefsStore.getState().tf };
     case 'chart_colors':
       return { colors: [...useCustomColorsStore.getState().colors] };
+    case 'formation_alarm':
+      return personalValue(useAlarmPrefsStore.getState().personal);
+    case 'metrics_pinned':
+      return { pinned: useMetricsPrefsStore.getState().pinned };
   }
 }
 
@@ -128,17 +147,25 @@ function apply(key: PrefKey, value: Record<string, unknown>): void {
     case 'chart_colors':
       useCustomColorsStore.setState({ colors: parseColors(value) });
       break;
+    case 'formation_alarm':
+      useAlarmPrefsStore.setState({ personal: parsePersonal(value), loaded: true });
+      break;
+    case 'metrics_pinned':
+      useMetricsPrefsStore.setState({ pinned: value.pinned !== false });
+      break;
   }
 }
 
 /** Worker'da değer yok: varsayılan geçerli olur. Bildirim süresi seçilmediyse eski süreler (toast'ta null) kalır. */
-function resetToDefault(key: 'toast_duration' | 'news_filter' | 'news_alerts' | 'chart_tf' | 'chart_colors'): void {
+function resetToDefault(key: 'toast_duration' | 'news_filter' | 'news_alerts' | 'chart_tf' | 'chart_colors' | 'formation_alarm' | 'metrics_pinned'): void {
   if (key === 'toast_duration') {
     useToastPrefsStore.setState({ seconds: parseToastSeconds(undefined) });
     setUserToastMs(null);
   } else if (key === 'news_filter') apply(key, { ...DEFAULT_FILTER });
   else if (key === 'news_alerts') apply(key, { alerts: DEFAULT_ALERTS.alerts.map((a) => ({ ...a })) });
   else if (key === 'chart_tf') apply(key, {});
+  else if (key === 'formation_alarm') apply(key, personalValue(DEFAULT_PERSONAL));
+  else if (key === 'metrics_pinned') apply(key, { pinned: true });
   else apply(key, { colors: [] });
 }
 
@@ -155,36 +182,83 @@ function setStatus(key: PrefKey, status: PrefStatus | undefined, clearAfterMs?: 
   }
 }
 
+/** Worker'dan okunan tercihleri uygular (kullanıcı bu arada dokunduysa onun değeri kalır). */
+function applyLoaded(prefs: Record<string, unknown>): void {
+  const untouched = (key: PrefKey) => versions[key] === undefined;
+  const loc = prefs.locale as { locale?: unknown } | undefined;
+  if (untouched('locale') && isLocale(loc?.locale)) apply('locale', { locale: loc.locale });
+  const th = prefs.theme as { theme?: unknown } | undefined;
+  if (untouched('theme') && isThemePreference(th?.theme)) apply('theme', { theme: th.theme });
+  if (untouched('tooltip_delay')) apply('tooltip_delay', { ...parseDelay(prefs.tooltip_delay) });
+  if (untouched('tooltip_hold')) apply('tooltip_hold', { ...parseHold(prefs.tooltip_hold) });
+  // Yeni anahtarlar: değer varsa uygulanır; yoksa varsayılana dönülür (önceki kullanıcının değeri kalmasın)
+  for (const key of ['toast_duration', 'news_filter', 'news_alerts', 'chart_tf', 'chart_colors', 'formation_alarm', 'metrics_pinned'] as const) {
+    const stored = prefs[key];
+    // Alarm und Kennzahlen-Schalter sind vor dem Laden nicht schreibbar: der Worker-Wert gilt auch nach Benutzerwechsel oder neuem Laden
+    const serverOwned = key === 'formation_alarm' || key === 'metrics_pinned';
+    if (serverOwned) delete confirmed[key];
+    if (!serverOwned && !untouched(key)) continue;
+    // Kein Wert im Worker: die alten Browser-Werte werden unten übernommen (USR-15), bis dahin gelten sie
+    if (!isRecord(stored) && key === 'formation_alarm' && readLegacyPersonal()) continue;
+    if (!isRecord(stored) && key === 'metrics_pinned' && readLegacyPinned() !== null) continue;
+    if (isRecord(stored)) apply(key, stored);
+    else resetToDefault(key);
+  }
+  accountImportDone = false;
+  serverKeys = new Set(Object.keys(prefs));
+  if (!serverKeys.has('chart_colors')) void migrateLocalColors();
+  if (!serverKeys.has('formation_alarm')) void migrateLocalAlarm();
+  else stripLegacyPersonal(); // der Worker hat den Wert: alte Browser-Felder sind überholt
+  if (!serverKeys.has('metrics_pinned')) void migrateLocalPinned();
+  else removeLegacyPinned();
+}
+
 export const useUserPrefsStore = create<UserPrefsState>()(() => ({
   status: {},
+  loadState: 'idle',
 
   load: async () => {
-    try {
-      const res = await axiosInstance.get<{ prefs?: Record<string, unknown> }>('/me/prefs');
-      const prefs = res.data.prefs ?? {};
-      // Okuma sürerken kullanıcı bir şey değiştirdiyse onun değeri kalır
-      const untouched = (key: PrefKey) => versions[key] === undefined;
-      const loc = prefs.locale as { locale?: unknown } | undefined;
-      if (untouched('locale') && isLocale(loc?.locale)) apply('locale', { locale: loc.locale });
-      const th = prefs.theme as { theme?: unknown } | undefined;
-      if (untouched('theme') && isThemePreference(th?.theme)) apply('theme', { theme: th.theme });
-      if (untouched('tooltip_delay')) apply('tooltip_delay', { ...parseDelay(prefs.tooltip_delay) });
-      if (untouched('tooltip_hold')) apply('tooltip_hold', { ...parseHold(prefs.tooltip_hold) });
-      // Yeni anahtarlar: değer varsa uygulanır; yoksa varsayılana dönülür (önceki kullanıcının değeri kalmasın)
-      for (const key of ['toast_duration', 'news_filter', 'news_alerts', 'chart_tf', 'chart_colors'] as const) {
-        const stored = prefs[key];
-        if (!untouched(key)) continue;
-        if (isRecord(stored)) apply(key, stored);
-        else resetToDefault(key);
+    const run = ++loadRun;
+    useUserPrefsStore.setState({ loadState: 'loading' });
+    let loaded: Record<string, unknown> | null = null;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const res = await axiosInstance.get<{ prefs?: unknown }>('/me/prefs', { timeout: PUT_TIMEOUT_MS });
+        if (run !== loadRun) return; // daha yeni bir okuma başladı (bağlantı ya da kimlik değişti)
+        if (!isRecord(res.data?.prefs)) throw new Error('invalid prefs response');
+        loaded = res.data.prefs;
+        break;
+      } catch (err) {
+        if (run !== loadRun) return;
+        if (err instanceof NotConnectedError) {
+          useUserPrefsStore.setState({ loadState: 'offline' });
+          markLoaded();
+          return;
+        }
+        // Tünel kapalıyken ngrok da 404 döner: bu eski worker değil, hata sayılır (yeniden denenir)
+        const tunnelDown = axios.isAxiosError(err) && !!err.response?.headers?.['ngrok-error-code'];
+        if (axios.isAxiosError(err) && err.response?.status === 404 && !tunnelDown) {
+          // Eski worker (uç yok): değerler yalnız bu oturumda kalır; yazma 404 ile yerelde biter
+          useUserPrefsStore.setState({ loadState: 'ready' });
+          markLoaded();
+          return;
+        }
+        const delay = LOAD_RETRY_DELAYS_MS[attempt];
+        if (delay === undefined) break;
+        await sleep(delay);
+        if (run !== loadRun) return;
       }
-      accountImportDone = false;
-      serverKeys = new Set(Object.keys(prefs));
-      if (!serverKeys.has('chart_colors')) void migrateLocalColors();
-    } catch {
-      // Worker'a ulaşılamadı: önbellekteki değerler geçerli kalır; sayfa yenilenince (ya da bağlantı değişince) yeniden denenir
-    } finally {
-      markLoaded();
     }
+    if (loaded) {
+      // Önce `ready`: değerler uygulanırken başlayan göç (yerel renkler) `change()` ile yazabilsin
+      useUserPrefsStore.setState({ loadState: 'ready' });
+      applyLoaded(loaded);
+      markLoaded();
+      return;
+    }
+    // Denemeler tükendi: önbellekteki değerler görünür kalır, alanlar kilitli; „Tekrar dene“ yeniden okur
+    useUserPrefsStore.setState({ loadState: 'failed' });
+    markLoaded();
   },
 
   importFromAccount: async (accountId) => {
@@ -208,6 +282,12 @@ export const useUserPrefsStore = create<UserPrefsState>()(() => ({
   },
 
   change: async (key, value, label, opts) => {
+    // Okuma bitmeden yazılırsa varsayılan değerden türeyen bir değer worker'daki kayıtlı değerin üstüne yazılırdı (USR-13)
+    const loadState = useUserPrefsStore.getState().loadState;
+    if (loadState !== 'ready' && !WRITABLE_BEFORE_LOAD.includes(key)) {
+      if (!opts?.quiet) toast.error(t('prefs.toast.notloaded.text', { name: label().name }), { title: t('prefs.toast.notloaded'), duration: 8_000 });
+      return;
+    }
     const version = (versions[key] ?? 0) + 1;
     versions[key] = version;
     confirmed[key] ??= current(key);
@@ -237,6 +317,12 @@ export const useUserPrefsStore = create<UserPrefsState>()(() => ({
       toast.error(t('prefs.toast.failed.text', { name: label().name }), {
         title: t('prefs.toast.failed'),
         duration: 8_000,
+        // 1115-A7.4: aynı değeri yeniden dener
+        action: { label: t('sdlg.load.retry'), hint: t('prefs.toast.retry.hint'), onClick: () => {
+            // Aradan yeni bir değişiklik geldiyse eski değeri geri yazma
+            if (versions[key] === version) void useUserPrefsStore.getState().change(key, value, label, opts);
+          },
+        },
       });
     }
   },
@@ -271,6 +357,39 @@ async function migrateLocalColors(): Promise<void> {
     }
   }
 }
+
+/** Persönliche Alarm-Felder aus dem Browser (USR-15): kein Wert im Worker → der alte Browser-Wert wird einmal geschrieben, danach gelöscht. */
+async function migrateLocalAlarm(): Promise<void> {
+  const legacy = readLegacyPersonal();
+  if (!legacy) {
+    useAlarmPrefsStore.setState({ loaded: true });
+    return;
+  }
+  if (versions.formation_alarm !== undefined) return;
+  // Bis der Worker bestätigt, gilt der alte Wert (der Alarm sucht nicht mit Standardwerten)
+  useAlarmPrefsStore.setState({ personal: legacy, loaded: true });
+  await useUserPrefsStore.getState().change('formation_alarm', personalValue(legacy), alarmLabel, { silent: true, quiet: true });
+  if (useUserPrefsStore.getState().status.formation_alarm === 'saved') stripLegacyPersonal();
+}
+
+/** „Kennzahlen angeheftet“ aus dem Browser (USR-15), gleiches Muster. */
+async function migrateLocalPinned(): Promise<void> {
+  const legacy = readLegacyPinned();
+  if (legacy === null || versions.metrics_pinned !== undefined) return;
+  await useUserPrefsStore.getState().change('metrics_pinned', { pinned: legacy }, pinnedLabel, { silent: true, quiet: true });
+  if (useUserPrefsStore.getState().status.metrics_pinned === 'saved') removeLegacyPinned();
+}
+
+function removeLegacyPinned(): void {
+  try {
+    localStorage.removeItem(METRICS_LEGACY_KEY);
+  } catch {
+    /* yok say */
+  }
+}
+
+export const alarmLabel = (): PrefLabel => ({ name: t('formation.alarm.menu'), value: '' });
+const pinnedLabel = (): PrefLabel => ({ name: t('metrics.pin'), value: '' });
 
 const colorsLabel = (): PrefLabel => ({ name: t('sdlg.colors'), value: String(useCustomColorsStore.getState().colors.length) });
 

@@ -57,10 +57,10 @@ test.describe('USR-09 Kişisel tercihler worker’da', () => {
     expect(worker.userPrefs.admin ?? {}).toEqual({});
   });
 
-  test('Üst menüdeki dil seçimi de worker’a yazılır', { tag: '@USR-09' }, async ({ page, worker, dashboard }) => {
+  test('Dil seçimi (ayar penceresi) worker’a yazılır', { tag: '@USR-09' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
-    await page.getByTestId('connection-chip').click();
-    await page.getByTestId('language-de').click();
+    await page.getByTestId('settings-open').click();
+    await page.getByTestId('settings-lang-de').click();
     await expect.poll(() => worker.userPrefs.admin?.locale).toEqual({ locale: 'de' });
   });
 
@@ -142,6 +142,8 @@ test.describe('USR-10 Ayar penceresi', () => {
     await hold.fill('1');
     await hold.press('Enter');
     await expect.poll(() => worker.userPrefs.admin?.tooltip_hold).toEqual({ mode: 'custom', ms: 1000 });
+    // Alan kayıttan sonra odağı korur (USR-13); odak ipucu açık kalmasın diye alandan çıkılır
+    await hold.blur();
     await tryBtn.hover();
     await expect(tip).toBeVisible();
     await expect(tip).toHaveCount(0, { timeout: 3000 });

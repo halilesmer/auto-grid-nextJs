@@ -25,7 +25,7 @@ test.describe('USR-11 Bildirimler', () => {
   test('Bildirim süresi: dört seçenek, worker’a kullanıcı anahtarıyla yazılır, yenilemede seçili kalır', { tag: '@USR-11' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
     await openSettings(page, 'notifications');
-    await expect(page.getByTestId('settings-tabs').getByRole('tab')).toHaveCount(3);
+    await expect(page.getByTestId('settings-tabs').getByRole('tab')).toHaveCount(4);
     await expect(page.getByTestId('settings-toast-10')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByTestId('settings-toast').getByRole('button')).toHaveCount(4);
     await page.getByTestId('settings-toast-20').click();

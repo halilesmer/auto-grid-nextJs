@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { claimEscape } from '@/components/ui/modal';
 import { Tooltip } from '@/components/ui/tooltip';
 import { SwitchToggle } from '@/components/ui/switch';
 import { useT, type MessageKey } from '@/i18n';
@@ -13,10 +14,11 @@ import { useNewsCurrencies } from '@/hooks/useNewsCurrencies';
 import { useNewsStore } from '@/store/useNewsStore';
 import { useUserPrefsStore } from '@/store/useUserPrefsStore';
 import { useToastSeconds } from '@/store/useToastPrefsStore';
+import FormationAlarmTab from './FormationAlarmTab';
 import { ChipToggle, Segmented, SettingsRow } from './parts';
 
-export type NotificationsTab = 'general' | 'alerts' | 'filter';
-export const NOTIFICATION_TABS: NotificationsTab[] = ['general', 'alerts', 'filter'];
+export type NotificationsTab = 'general' | 'alerts' | 'filter' | 'formation';
+export const NOTIFICATION_TABS: NotificationsTab[] = ['general', 'alerts', 'filter', 'formation'];
 
 export default function NotificationsSection({ tab }: { tab: NotificationsTab }) {
   return (
@@ -24,6 +26,7 @@ export default function NotificationsSection({ tab }: { tab: NotificationsTab })
       {tab === 'general' && <GeneralTab />}
       {tab === 'alerts' && <AlertsTab />}
       {tab === 'filter' && <FilterTab />}
+      {tab === 'formation' && <FormationAlarmTab />}
     </div>
   );
 }
@@ -102,6 +105,14 @@ function AlertsTab() {
                     if (e.key === 'Enter') {
                       e.preventDefault();
                       commit(i);
+                    } else if (e.key === 'Escape' && draft !== undefined) {
+                      // İlk Escape yalnız düzenlemeyi geri alır; pencereyi ikincisi kapatır
+                      claimEscape(e);
+                      setDrafts((d) => {
+                        const next = { ...d };
+                        delete next[i];
+                        return next;
+                      });
                     }
                   }}
                   className={cn(

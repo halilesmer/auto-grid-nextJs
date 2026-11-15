@@ -2,7 +2,15 @@
 import type { Page } from '@playwright/test';
 import { DEMO_ID, MT5_PATH, expect, test } from '../fixtures/test';
 import { fmt, msg } from '../fixtures/i18n';
-import { openHeaderMenu } from '../fixtures/header';
+import { openHeaderMenu, openSettingsWindow } from '../fixtures/header';
+
+/** Update-Prüfung: Einstellungen → VPS und System → Nach Updates suchen. */
+async function openUpdateCheck(page: import('@playwright/test').Page) {
+  if (!(await page.getByTestId('settings-dialog').isVisible())) await openSettingsWindow(page);
+  await page.getByTestId('settings-nav-system').click();
+  await page.getByTestId('settings-tab-update').click();
+  await page.getByTestId('settings-sys-check').click();
+}
 import { cardRoot } from '../fixtures/card';
 
 /** Die Karte startet zu, solange eine Formation gezeichnet wird, und unter 1024 px (UI-22): nach dem Scan aufklappen, dann stehen die Live-Werte da */
@@ -73,16 +81,14 @@ test.describe('SYS Verbindung', () => {
 test.describe('UPD System', () => {
   test('Update-Prüfung', { tag: '@UPD-01' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
-    await openHeaderMenu(page);
-    await page.getByRole('button', { name: msg('dashboard.sysinfo.checkUpdates') }).click();
-    const modal = page.getByRole('dialog');
+    await openUpdateCheck(page);
+    const modal = page.getByRole('dialog').last();
     await expect(modal).toContainText(msg('update.upToDate'));
     await expect(modal).toContainText('v0.7.62');
     await modal.getByRole('button', { name: msg('common.close'), exact: true }).last().click();
 
     worker.state.update = { has_update: true, local_ver: 'v0.7.61', remote_ver: 'v0.7.62' };
-    await openHeaderMenu(page);
-    await page.getByRole('button', { name: msg('dashboard.sysinfo.checkUpdates') }).click();
+    await openUpdateCheck(page);
     await expect(modal).toContainText(msg('update.available'));
     await expect(modal).toContainText('v0.7.61v0.7.62');
     await expect(modal.getByRole('button', { name: msg('update.apply') })).toBeVisible();
@@ -91,8 +97,7 @@ test.describe('UPD System', () => {
   test('Update anwenden lädt die Seite neu', { tag: '@UPD-02' }, async ({ page, worker, dashboard }) => {
     worker.state.update = { has_update: true, local_ver: 'v0.7.61', remote_ver: 'v0.7.62' };
     await dashboard.open(DEMO_ID);
-    await openHeaderMenu(page);
-    await page.getByRole('button', { name: msg('dashboard.sysinfo.checkUpdates') }).click();
+    await openUpdateCheck(page);
 
     const reloaded = page.waitForEvent('framenavigated');
     await page.getByRole('button', { name: msg('update.apply') }).click();
@@ -105,8 +110,7 @@ test.describe('UPD System', () => {
     worker.state.update = { has_update: true, local_ver: 'v0.7.61', remote_ver: 'v0.7.62' };
     worker.overrides.set('POST /api/system/update', { status: 500, body: { detail: 'git pull fehlgeschlagen' } });
     await dashboard.open(DEMO_ID);
-    await openHeaderMenu(page);
-    await page.getByRole('button', { name: msg('dashboard.sysinfo.checkUpdates') }).click();
+    await openUpdateCheck(page);
     const message = await dashboard.withDialog(() =>
       page.getByRole('button', { name: msg('update.apply') }).click(),
     );
@@ -117,8 +121,8 @@ test.describe('UPD System', () => {
     worker.setBotRunning(DEMO_ID);
     await dashboard.open(DEMO_ID);
     await openHeaderMenu(page);
-    await page.getByRole('button', { name: msg('dashboard.shutdown') }).click();
-    const modal = page.getByRole('dialog');
+    await page.getByTestId('header-stop-bot').click();
+    const modal = page.getByRole('dialog').last();
     await expect(modal).toContainText(msg('dashboard.shutdown.message', { account: 'E2E Demo', env: msg('dashboard.env.demo') }));
     await modal.getByRole('button', { name: msg('dashboard.shutdown.confirm') }).click();
     await expect.poll(() => worker.callsTo('POST', '/api/stop').length).toBe(1);
