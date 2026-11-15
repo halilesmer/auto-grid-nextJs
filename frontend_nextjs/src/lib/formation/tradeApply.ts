@@ -9,7 +9,7 @@ import type { ContextTimeframe } from './params';
 import type { Candidate, Trade } from './types';
 
 /** Werte, die der Prüfer kennt; der Not-SL und SIG-29 kommen hier dazu */
-export type TradeInput = Pick<Trade, 'entry' | 'stop' | 'tp1' | 'reason'> & Partial<Pick<Trade, 'tp1AtEntry' | 'missed' | 'tp2' | 'tp2AtEntry' | 'tp3' | 'tp1StrongZone' | 'status' | 'earlyReversal'>>;
+export type TradeInput = Pick<Trade, 'entry' | 'stop' | 'tp1' | 'reason'> & Partial<Pick<Trade, 'tp1AtEntry' | 'missed' | 'tp2' | 'tp2AtEntry' | 'tp3' | 'tpBig' | 'tpBigAtEntry' | 'tpBigActivation' | 'tp1StrongZone' | 'status' | 'earlyReversal'>>;
 
 /**
  * @param veto true bei TDF, OBO, CDT, LIB, T618, ENC und KEI (Harmoniken und 2618 sind laut Regelbuch Ausnahme)
@@ -30,6 +30,9 @@ export function withTrade(candidate: Candidate, env: Env, tf: ContextTimeframe, 
     ...(input.tp2 === undefined ? {} : { tp2: input.tp2 }),
     ...(input.tp2AtEntry === undefined ? {} : { tp2AtEntry: input.tp2AtEntry }),
     ...(input.tp3 === undefined ? {} : { tp3: input.tp3 }),
+    ...(input.tpBig === undefined ? {} : { tpBig: input.tpBig }),
+    ...(input.tpBigAtEntry === undefined ? {} : { tpBigAtEntry: input.tpBigAtEntry }),
+    ...(input.tpBigActivation === undefined ? {} : { tpBigActivation: input.tpBigActivation }),
     ...(input.tp1StrongZone === undefined ? {} : { tp1StrongZone: input.tp1StrongZone }),
     ...(input.status === undefined ? {} : { status: input.status }),
     ...(input.earlyReversal === undefined ? {} : { earlyReversal: input.earlyReversal }),
@@ -56,7 +59,8 @@ export function harmonicTrade(
 /**
  * Handel von AB=CD (1114-A4.1): Einstieg an Level 1, nicht am äußersten Docht. Der Stop ist der 1:1-Stop der Ziel-Fib `frozenFrom → Level 1`
  * und bleibt stehen, sobald Level 1 (mit Toleranz) erreicht ist; TP1 folgt der Fib `from → äußerster Docht`.
- * TP2 (0.618) läuft wie TP1; TP3 (0.786) nur bei `fromA` und ohne Anteil (1114-A4.2).
+ * TP2 (0.618) läuft wie TP1; TP3 (0.786) nur bei Divergenz und ohne Anteil (1114-A4.2, A4.3).
+ * Bei harmonischem D (`big`) kommt das große AB=CD-Ziel als dritter Anteil dazu: `d + offset` (offset = A − X), am Einstieg `level1 + offset` (1114-A4.3).
  * `frozenFrom` ist das `from` der Kerze, die Level 1 zuerst erreicht hat; `tp1AtEntry` (Fib `frozenFrom → Level 1`) ist die Grundlage des CRV (1:1).
  */
 export function abcdTrade(o: {
@@ -68,8 +72,10 @@ export function abcdTrade(o: {
   /** Preisstrecke, die der Docht Level 1 verfehlt (0 bei erreichtem Level 1) */
   missed: number;
   targets: { tp1: number; tp2: number; stop: number; divergence: number };
-  /** Ziel-Fib läuft von A (Divergenz oder harmonisches D): dann zeigt der Handel TP3 als Zusatzziel */
-  fromA: boolean;
+  /** Divergenz an D: dann zeigt der Handel TP3 (0.786) als Zusatzziel ohne Anteil */
+  divergence: boolean;
+  /** Harmonisches D mit bekanntem X: `offset` = A − X (Preis), `activation` = A; null sonst */
+  big: { offset: number; activation: number } | null;
   /** Sehr starke Zone der Gegenseite am TP1 (nur Hinweis) */
   strongZone: boolean;
   reachedRule: string;
@@ -85,7 +91,10 @@ export function abcdTrade(o: {
     tp1AtEntry: fibPrice(frozenFrom.price, level1, targets.tp1),
     tp2: fibPrice(from.price, d.price, targets.tp2),
     tp2AtEntry: fibPrice(frozenFrom.price, level1, targets.tp2),
-    ...(o.fromA ? { tp3: fibPrice(from.price, d.price, targets.divergence) } : {}),
+    ...(o.divergence ? { tp3: fibPrice(from.price, d.price, targets.divergence) } : {}),
+    ...(o.big
+      ? { tpBig: d.price + o.big.offset, tpBigAtEntry: level1 + o.big.offset, tpBigActivation: o.big.activation }
+      : {}),
     ...(o.strongZone ? { tp1StrongZone: true } : {}),
     ...(o.missed > 0 ? { missed: o.missed } : {}),
     reason: {},

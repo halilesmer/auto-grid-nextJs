@@ -41,37 +41,48 @@ export function tradeMetrics(trade: Pick<Trade, 'entry' | 'stop' | 'tp1'> & Part
 export interface TradeOutcomes {
   /** Stop: das ganze Risiko */
   stop: number;
-  /** TP1 zur Hälfte, der Rest schließt am Einstieg */
+  /** TP1 zum Anteil, der Rest schließt am Einstieg */
   tp1: number;
-  /** TP1 und TP2, je zur Hälfte */
+  /** TP1 und TP2 zu ihren Anteilen, der Rest schließt am Einstieg (mit großem Ziel) oder ist ganz geschlossen (ohne) */
   tp12: number;
+  /** Nur mit großem AB=CD-Ziel (1114-A4.3): alle drei Ziele, je ein Drittel */
+  tp123?: number;
 }
 
+type OutcomeTrade = Pick<Trade, 'entry' | 'stop' | 'tp1'> & Partial<Pick<Trade, 'tp1AtEntry' | 'tp2' | 'tp2AtEntry' | 'tpBig' | 'tpBigAtEntry'>>;
+
 /**
- * Ergebnis in R (Risiko = 1) der drei Wege (1114-A4.2): Stop −1; TP1 und Rest am Einstieg 0.5 × TP1-Abstand / Risiko;
- * TP1 und TP2 0.5 × (TP1- + TP2-Abstand) / Risiko. Alle Abstände gelten am Einstieg. null ohne TP2 (Harmoniken) oder bei falscher Seite.
+ * Ergebnis in R (Risiko = 1) der Wege (1114-A4.2, A4.3): Stop −1; TP1 und Rest am Einstieg; TP1 und TP2; mit großem Ziel dazu alle drei.
+ * Ohne großes Ziel gilt ½ · ½: TP1 = 0.5 × TP1-Abstand / Risiko, TP1 und TP2 = 0.5 × (TP1- + TP2-Abstand) / Risiko.
+ * Mit großem Ziel gilt ⅓ · ⅓ · ⅓ (TP2: ⅓ × (r1 + r2), alle drei: ⅓ × (r1 + r2 + r3)). Alle Abstände gelten am Einstieg.
+ * null ohne TP2 (Harmoniken) oder bei falscher Seite.
  */
-export function outcomesOf(
-  trade: Pick<Trade, 'entry' | 'stop' | 'tp1'> & Partial<Pick<Trade, 'tp1AtEntry' | 'tp2' | 'tp2AtEntry'>>,
-  side: Side,
-): TradeOutcomes | null {
+export function outcomesOf(trade: OutcomeTrade, side: Side): TradeOutcomes | null {
   const m = tradeMetrics(trade, side);
   const tp2 = trade.tp2AtEntry;
   if (m === null || tp2 === undefined || trade.entry === null) return null;
   const reward2 = side === 'buy' ? tp2 - trade.entry : trade.entry - tp2;
   if (!(reward2 > 0)) return null;
-  return { stop: -1, tp1: (0.5 * m.reward) / m.risk, tp12: (0.5 * (m.reward + reward2)) / m.risk };
+  if (trade.tpBigAtEntry === undefined) return { stop: -1, tp1: (0.5 * m.reward) / m.risk, tp12: (0.5 * (m.reward + reward2)) / m.risk };
+  const reward3 = side === 'buy' ? trade.tpBigAtEntry - trade.entry : trade.entry - trade.tpBigAtEntry;
+  if (!(reward3 > 0)) return null;
+  return {
+    stop: -1,
+    tp1: m.reward / (3 * m.risk),
+    tp12: (m.reward + reward2) / (3 * m.risk),
+    tp123: (m.reward + reward2 + reward3) / (3 * m.risk),
+  };
 }
 
 /**
- * Tatsächliches Ergebnis in R (1115-A21.1): TP1 und TP2 zählen zu den Preisen, die `tradeStatusOf` beim Erreichen festhielt, nicht zu den Werten am Einstieg.
+ * Tatsächliches Ergebnis in R (1115-A21.1): TP1, TP2 und das große Ziel zählen zu den Preisen, die `tradeStatusOf` beim Erreichen festhielt, nicht zu den Werten am Einstieg.
  * Risiko bleibt der Abstand Einstieg → ursprünglicher Stop. Stop −1 (auch bei Schluss-Stop). Ohne Status, offen oder ohne Zählpreis gilt `outcomesOf`;
- * bei TP1 erreicht zeigt der Weg „TP1 und TP2“ den Zählpreis von TP1 und das aktuelle TP2 (`trade.tp2`).
+ * bei TP1 erreicht zeigt der Weg „TP1 und TP2“ den Zählpreis von TP1 und das aktuelle TP2 (`trade.tp2`), der Weg „alle drei“ dazu das aktuelle große Ziel.
  */
 export function realizedOutcomesOf(
-  trade: Pick<Trade, 'entry' | 'stop' | 'tp1'> & Partial<Pick<Trade, 'tp1AtEntry' | 'tp2' | 'tp2AtEntry'>>,
+  trade: OutcomeTrade,
   side: Side,
-  status: { tp1Fill?: number; tp2Fill?: number } | undefined,
+  status: { tp1Fill?: number; tp2Fill?: number; bigFill?: number } | undefined,
 ): TradeOutcomes | null {
   const base = outcomesOf(trade, side);
   const m = tradeMetrics(trade, side);
@@ -79,10 +90,19 @@ export function realizedOutcomesOf(
   const away = (price: number) => (side === 'buy' ? price - trade.entry! : trade.entry! - price);
   const d1 = away(status.tp1Fill);
   const d2 = away(status.tp2Fill ?? trade.tp2 ?? Number.NaN);
+  if (base.tp123 === undefined) {
+    return {
+      stop: -1,
+      tp1: (0.5 * d1) / m.risk,
+      tp12: Number.isFinite(d2) ? (0.5 * (d1 + d2)) / m.risk : base.tp12,
+    };
+  }
+  const d3 = away(status.bigFill ?? trade.tpBig ?? Number.NaN);
   return {
     stop: -1,
-    tp1: (0.5 * d1) / m.risk,
-    tp12: Number.isFinite(d2) ? (0.5 * (d1 + d2)) / m.risk : base.tp12,
+    tp1: d1 / (3 * m.risk),
+    tp12: Number.isFinite(d2) ? (d1 + d2) / (3 * m.risk) : base.tp12,
+    tp123: Number.isFinite(d2) && Number.isFinite(d3) ? (d1 + d2 + d3) / (3 * m.risk) : base.tp123,
   };
 }
 

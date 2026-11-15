@@ -1048,6 +1048,149 @@ for (const side of ['sell', 'buy'] as const) {
   });
 }
 
+// ---- Büyük AB=CD-Ziel bei harmonischem D (1114-A4.3): dritter Anteil, Aktivierung durch Schluss jenseits von A ----
+// Verkauf: C 100 (= A, Aktivierung), Einstieg 115, Stop 120; TP1 109.27, TP2 105.73; großes Ziel = Extrem 115 + Versatz −20 = 95. Kauf gespiegelt (p → 200 − p).
+const bigStatus = (side: 'sell' | 'buy', rows: Sk[]) => {
+  const m = (p: number) => (side === 'sell' ? p : 200 - p);
+  const bars: FormationBar[] = ([[115, 112, 113] as Sk, ...rows]).map(([h, l, c], i) => {
+    const [hh, ll] = side === 'sell' ? [h, l] : [m(l), m(h)];
+    return { time: 1000 + i * 14400, open: m(c), high: hh, low: ll, close: m(c) };
+  });
+  const st = tradeStatusOf({
+    bars,
+    entryIdx: 0,
+    side,
+    entry: m(115),
+    stop: m(120),
+    emergencyStop: null,
+    from: m(100),
+    targets: { tp1: 0.382, tp2: 0.618 },
+    big: { offset: side === 'sell' ? -20 : 20, activation: 100 },
+  });
+  return { st, m };
+};
+const TP1_ROW: Sk = [113, 109, 110];
+const TP2_ROW: Sk = [110, 105, 106];
+
+for (const side of ['sell', 'buy'] as const) {
+  const tag = side === 'sell' ? 'Verkauf' : 'Kauf';
+
+  test(`Büyük hedef Status (${tag}): nach TP2 bleibt der Handel offen, der Rest steht am Einstieg`, { tag: '@FRM-05' }, () => {
+    const { st, m } = bigStatus(side, [TP1_ROW, TP2_ROW]);
+    expect(st).toMatchObject({ kind: 'tp12', stopNow: m(115), stopMovedIdx: 1 });
+    expect(st.endIdx).toBeUndefined();
+    expect(st.tp2Fill).toBeCloseTo(m(105.73), 9);
+    expect(st.bigActive).toBe(false);
+  });
+
+  test(`Büyük hedef Status (${tag}): ohne Aktivierung zählt die Berührung nicht, mit Schluss jenseits von A schon`, { tag: '@FRM-05' }, () => {
+    // Docht erreicht 95, Schluss 101 liegt noch vor A (100): nicht aktiv
+    expect(bigStatus(side, [TP1_ROW, TP2_ROW, [106, 94, 101]]).st.kind).toBe('tp12');
+    // Aktivierung in einer früheren Kerze (Schluss 98 < 100), dann Berührung
+    const act = bigStatus(side, [TP1_ROW, TP2_ROW, [106, 96, 98]]);
+    expect(act.st).toMatchObject({ kind: 'tp12', bigActive: true });
+    const hit = bigStatus(side, [TP1_ROW, TP2_ROW, [106, 96, 98], [100, 94, 96]]);
+    expect(hit.st).toMatchObject({ kind: 'tp123', endIdx: 4 });
+    expect(hit.st.bigFill).toBeCloseTo(hit.m(95), 9);
+    // Aktivierung und Berührung in derselben Kerze zählen (Annahme)
+    expect(bigStatus(side, [TP1_ROW, TP2_ROW, [106, 94, 98]]).st.kind).toBe('tp123');
+  });
+
+  test(`Büyük hedef Status (${tag}): nach TP2 schließt der Rest mit dem Schluss jenseits des Einstiegs`, { tag: '@FRM-05' }, () => {
+    const { st, m } = bigStatus(side, [TP1_ROW, TP2_ROW, [116, 105, 116]]);
+    expect(st).toMatchObject({ kind: 'breakeven', stopNow: m(115), endIdx: 3 });
+    expect(st.tp2Fill).toBeDefined();
+  });
+
+  test(`Büyük hedef Status (${tag}): TP1, TP2 und großes Ziel in einer Kerze, die jenseits von A schließt`, { tag: '@FRM-05' }, () => {
+    expect(bigStatus(side, [[114, 111, 112], [113, 94, 98]]).st).toMatchObject({ kind: 'tp123', endIdx: 2 });
+    // Schließt dieselbe Kerze bei 101 (vor A), zählen TP1 und TP2, das große Ziel nicht
+    expect(bigStatus(side, [[114, 111, 112], [113, 94, 101]]).st.kind).toBe('tp12');
+  });
+
+  test(`Büyük hedef Status (${tag}): Stop gilt vor dem Ziel, TP1 ohne TP2 bleibt TP1`, { tag: '@FRM-05' }, () => {
+    expect(bigStatus(side, [[121, 94, 121]]).st).toMatchObject({ kind: 'stopped', stopBy: 'close' });
+    expect(bigStatus(side, [TP1_ROW]).st.kind).toBe('tp1');
+  });
+}
+
+test('Büyük hedef: Ergebnis in R in Dritteln, vier Wege (Tasarimwerte)', { tag: '@FRM-05' }, () => {
+  // Einstieg 100, Risiko 10, TP1 +10 (1), TP2 +20 (2), großes Ziel +40 (4)
+  const base = { entry: 100, stop: 90, tp1: 110, tp1AtEntry: 110, tp2: 120, tp2AtEntry: 120, tpBig: 140, tpBigAtEntry: 140 };
+  const o = outcomesOf(base, 'buy')!;
+  expect(o.stop).toBe(-1);
+  expect(o.tp1).toBeCloseTo(1 / 3, 9);
+  expect(o.tp12).toBeCloseTo(1, 9);
+  expect(o.tp123).toBeCloseTo(7 / 3, 9);
+  // Verkauf spiegelgleich
+  const sell = { entry: 100, stop: 110, tp1: 90, tp1AtEntry: 90, tp2: 80, tp2AtEntry: 80, tpBig: 60, tpBigAtEntry: 60 };
+  expect(outcomesOf(sell, 'sell')).toEqual(o);
+  // Ohne großes Ziel bleibt es bei Hälften ohne tp123
+  expect(outcomesOf({ ...base, tpBig: undefined, tpBigAtEntry: undefined }, 'buy')).toEqual({ stop: -1, tp1: 0.5, tp12: 1.5 });
+  // Großes Ziel auf der falschen Seite: keine Ergebnisse
+  expect(outcomesOf({ ...base, tpBigAtEntry: 95 }, 'buy')).toBeNull();
+});
+
+test('Büyük hedef: gerçekleşen Ergebnis nutzt die Zählpreise aller drei Ziele', { tag: '@FRM-05' }, () => {
+  const base = { entry: 100, stop: 90, tp1: 112, tp1AtEntry: 110, tp2: 125, tp2AtEntry: 120, tpBig: 150, tpBigAtEntry: 140 };
+  const st = { tp1Fill: 112, tp2Fill: 125, bigFill: 150 };
+  const o = realizedOutcomesOf(base, 'buy', st)!;
+  expect(o.tp1).toBeCloseTo(12 / 10 / 3, 9);
+  expect(o.tp12).toBeCloseTo((12 + 25) / 10 / 3, 9);
+  expect(o.tp123).toBeCloseTo((12 + 25 + 50) / 10 / 3, 9);
+  // Großes Ziel noch offen: das aktuelle `tpBig` zählt
+  expect(realizedOutcomesOf(base, 'buy', { tp1Fill: 112, tp2Fill: 125 })!.tp123).toBeCloseTo((12 + 25 + 50) / 10 / 3, 9);
+});
+
+// Harmonisches D (GARTLEY): X 100, A 130, D 106.41, Level 1 106.40 → großes Ziel = D + (A − X) = 136.41, am Einstieg 136.40
+frm('Büyük hedef: bei harmonischem D (Kauf) liegt das große Ziel bei D + (A − X), ohne 0.786-Ziel; Aktivierung bei A', () => {
+  const c = run({ H4: GARTLEY }, GARTLEY_AT, { sell: false });
+  const t = c.trade!;
+  expect(t.tpBig).toBeCloseTo(106.41 + 30, 6);
+  expect(t.tpBigAtEntry).toBeCloseTo(106.4 + 30, 6);
+  expect(t.tpBigActivation).toBeCloseTo(130, 9);
+  // Entscheidung 3: das 0.786-Ziel gibt es nur bei Divergenz
+  expect(state(c, 'ABCD-19')).not.toBe(M);
+  expect(t.tp3).toBeUndefined();
+  // Einstiegsstand: offen, großes Ziel noch nicht aktiv
+  expect(t.status!.kind).toBe('open');
+  expect(t.status!.bigActive).toBeFalsy();
+  const line = c.drawings.find((d) => d.id === 'Z-ABCD-09')!;
+  expect(line.tool).toBe('hline');
+  expect(line.anchors[0].price).toBeCloseTo(t.tpBig!, 9);
+  const label = c.drawings.find((d) => d.id === 'Z-ABCD-10')!;
+  expect(label).toMatchObject({ tool: 'label', label: 'bigTarget' });
+  expect(label.anchors[0].price).toBeCloseTo(t.tpBig!, 9);
+});
+
+frm('Büyük hedef: ohne harmonisches D fehlt es; Divergenz allein behält 0.786 als Zusatzziel, Harmonik ohne Divergenz hat keins', () => {
+  const plainCase = run({ H4: S_PAST }, ABC).trade!;
+  expect([plainCase.tpBig, plainCase.tpBigAtEntry, plainCase.tpBigActivation]).toEqual([undefined, undefined, undefined]);
+  expect(run({ H4: X_NO_HARMONIC }, X_NO_HARMONIC_AT).trade!.tpBig).toBeUndefined();
+  const rows = DIV_BEAR;
+  const div = checkAbcdCandidate(ctxOf({ H4: rows }), END, {
+    tf: 'H4',
+    a: wick(rows, DIV.a, false),
+    b: wick(rows, DIV.b, true),
+    c: wick(rows, DIV.c, false),
+    d: { time: 62 * H4, price: 143 },
+  });
+  expect(state(div, 'ABCD-19')).toBe(M);
+  expect(div.trade!.tp3).toBeDefined();
+  expect(div.trade!.tpBig).toBeUndefined();
+  const names = run({ H4: S_PAST }, ABC).drawings.map((d) => d.id);
+  expect(names).not.toContain('Z-ABCD-09');
+});
+
+frm('Büyük hedef: ohne erreichtes Level 1 gibt es kein großes Ziel und keine Linie', () => {
+  // Kurs hat Level 1 noch nicht erreicht: Reihe endet kurz nach C
+  const forming = zig([100, 130, 111.46, 124.94], [18, 4, 4], 3);
+  const c = run({ H4: forming }, { a: 20, b: 24, c: 28 }, { sell: false });
+  expect(c.trade!.entry).toBeNull();
+  expect(c.trade!.tpBig).toBeUndefined();
+  expect(c.drawings.map((d) => d.id)).not.toContain('Z-ABCD-09');
+});
+
 // ---- Erken dönüş (1114-A4.5): D, Level 1'den önce (tolerans dahil) bölgede Engulf ile döner ----
 // Satış: A 100, B 130, C 114 → Level 1 144, −0.272 uzatma 138.16, tolerans 1.5 (0.05 × AB). Uç 140.5 (bölge 139–141), Engulf kapanışı 122.
 // Alış: tüm fiyatlar 100'e göre aynalanır (p → 200 − p), bölge tarafları yer değiştirir.

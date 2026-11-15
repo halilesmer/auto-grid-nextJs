@@ -1262,14 +1262,14 @@
     "e2e": {
       "datum": "2026-11-15",
       "status": "passed",
-      "tests": 40
+      "tests": 49
     }
   },
   "FRM-40": {
     "e2e": {
       "datum": "2026-11-15",
       "status": "passed",
-      "tests": 22
+      "tests": 11
     }
   },
   "FRM-41": {
