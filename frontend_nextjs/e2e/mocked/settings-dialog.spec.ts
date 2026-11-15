@@ -198,3 +198,60 @@ test.describe('USR-10 Saniye alanı (1115-A10 F12)', () => {
     await expect.poll(() => worker.userPrefs.admin.tooltip_hold).toEqual({ mode: 'custom', ms: 2000 });
   });
 });
+
+test.describe('USR-09 Tünel kapalı, sekmeler arası eşitleme, “Grafikte aç” isteği (1115-A10 F10, F11, F13)', () => {
+  test('F10: tünel kapalıyken (ngrok 404) yazma sessizce kaybolmaz: değer geri alınır, “Kaydedilemedi” ve “Tekrar dene” çıkar', { tag: '@USR-09' }, async ({ page, worker, dashboard }) => {
+    worker.userPrefs.admin = { theme: { theme: 'dark' } };
+    await dashboard.open(DEMO_ID);
+    await openSettings(page);
+    worker.overrides.set('PUT /api/me/prefs/theme', { status: 404, body: { detail: 'tunnel' }, headers: { 'ngrok-error-code': 'ERR_NGROK_3200' } });
+    await page.getByTestId('settings-theme-light').click();
+    await expect(page.getByTestId('pref-status-theme')).toHaveAttribute('data-status', 'failed');
+    await expect(page.getByText(msg('prefs.toast.failed')).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: msg('sdlg.load.retry') }).first()).toBeVisible();
+    await expect(page.locator('html')).toHaveClass(/dark/);
+  });
+
+  test('F10: worker’ın kendi 404’ü (eski worker) hata sayılmaz: değer bu oturumda kalır', { tag: '@USR-09' }, async ({ page, worker, dashboard }) => {
+    worker.userPrefs.admin = { theme: { theme: 'dark' } };
+    await dashboard.open(DEMO_ID);
+    await openSettings(page);
+    worker.overrides.set('PUT /api/me/prefs/theme', { status: 404, body: { detail: 'Not Found' } });
+    await page.getByTestId('settings-theme-light').click();
+    await expect(page.locator('html')).not.toHaveClass(/dark/);
+    await expect(page.getByTestId('pref-status-theme')).not.toHaveAttribute('data-status', 'failed');
+  });
+
+  test('F11: bir sekmede kaydedilen değer öbür sekmede görünür (BroadcastChannel)', { tag: '@USR-09' }, async ({ page, worker, dashboard }) => {
+    worker.userPrefs.admin = { theme: { theme: 'dark' } };
+    await dashboard.open(DEMO_ID);
+    const other = await page.context().newPage();
+    await worker.install(other);
+    await other.goto(page.url());
+    await expect(other.locator('html')).toHaveClass(/dark/);
+    await expect(page.locator('html')).toHaveClass(/dark/);
+
+    await openSettings(other);
+    await other.getByTestId('settings-theme-light').click();
+    await expect.poll(() => worker.userPrefs.admin.theme).toEqual({ theme: 'light' });
+    await expect(page.locator('html')).not.toHaveClass(/dark/);
+    await other.close();
+  });
+
+  test('F13: “Grafikte aç” isteği zamanında tüketilmezse sonradan grafik açılınca pencere kendiliğinden açılmaz', { tag: '@USR-12' }, async ({ page, dashboard }) => {
+    test.setTimeout(90_000);
+    await dashboard.open(DEMO_ID);
+    await openSettings(page);
+    await page.getByTestId('settings-nav-chart').click();
+    // Gezinme takılır: grafik sayfası isteği 16 sn sonra yanıtlanır
+    await page.route(/\/chart(\?|$)/, async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 16_000));
+      await route.fallback();
+    });
+    await page.getByTestId('settings-indicators-open').click();
+    await expect(page).toHaveURL(/\/chart/, { timeout: 30_000 });
+    await expect(page.getByTestId('chart-page')).toBeVisible({ timeout: 30_000 });
+    await page.waitForTimeout(1500);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+});
