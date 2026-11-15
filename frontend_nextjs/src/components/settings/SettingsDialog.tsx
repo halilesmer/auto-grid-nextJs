@@ -1,6 +1,7 @@
 'use client';
 
-import { ChevronLeft, ChevronRight, ExternalLink, Palette, Bot, Link2, Server, Users, X, type LucideIcon } from 'lucide-react';
+import { useState } from 'react';
+import { Bell, ChartCandlestick, ChevronLeft, ChevronRight, ExternalLink, Palette, Bot, Link2, Server, Users, X, type LucideIcon } from 'lucide-react';
 import { VERSION } from '@/app/version';
 import SystemModals from '@/components/layout/SystemModals';
 import { Modal } from '@/components/ui/modal';
@@ -8,16 +9,23 @@ import { StatusDot } from '@/components/ui/status-dot';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useSystemActions } from '@/hooks/useSystemActions';
 import { LOCALE_NAMES, useLocale, useT, type MessageKey } from '@/i18n';
+import { activeMinutes } from '@/lib/newsAlerts';
 import { effectiveDelayMs } from '@/lib/userPrefs';
 import { cn } from '@/lib/utils';
 import { useIsAdmin } from '@/store/useAuthStore';
+import { useChartPrefsStore } from '@/store/useChartPrefsStore';
 import { useConnectionStore } from '@/store/useConnectionStore';
+import { useCustomColorsStore } from '@/store/useCustomColorsStore';
+import { useNewsCurrencies } from '@/hooks/useNewsCurrencies';
+import { useNewsStore } from '@/store/useNewsStore';
 import { useSettingsDialogStore, type SettingsSection } from '@/store/useSettingsDialogStore';
 import { useThemeStore } from '@/store/useThemeStore';
 import { useTooltipPrefsStore } from '@/store/useTooltipPrefsStore';
 import { useUserPrefsStore } from '@/store/useUserPrefsStore';
 import AppearanceSection from './AppearanceSection';
+import ChartSection from './ChartSection';
 import ConnectionSection from './ConnectionSection';
+import NotificationsSection, { NOTIFICATION_TABS, type NotificationsTab } from './NotificationsSection';
 import LinkSection from './LinkSection';
 import SystemSection from './SystemSection';
 
@@ -35,9 +43,15 @@ interface GroupDef {
   sections: SectionDef[];
 }
 
-// S2 (Bildirimler, Grafik) sonra eklenir: bu pencerede görünmez.
 const GROUPS: GroupDef[] = [
-  { id: 'personal', sections: [{ id: 'appearance', icon: Palette, badge: 'user' }] },
+  {
+    id: 'personal',
+    sections: [
+      { id: 'appearance', icon: Palette, badge: 'user' },
+      { id: 'notifications', icon: Bell, badge: 'user' },
+      { id: 'chart', icon: ChartCandlestick, badge: 'user' },
+    ],
+  },
   { id: 'device', sections: [{ id: 'connection', icon: Link2, badge: 'device' }] },
   { id: 'account', sections: [{ id: 'robot', icon: Bot, badge: 'account', link: true }] },
   {
@@ -63,6 +77,10 @@ function useSummary(): Record<SettingsSection, string | null> {
   const theme = useThemeStore((s) => s.theme);
   const delay = useTooltipPrefsStore((s) => s.delay);
   const status = useConnectionStore((s) => s.status);
+  const alerts = useNewsStore((s) => s.alerts);
+  const { currencies } = useNewsCurrencies();
+  const chartTf = useChartPrefsStore((s) => s.tf);
+  const colorCount = useCustomColorsStore((s) => s.colors.length);
   const delayMs = effectiveDelayMs(delay);
   return {
     appearance: t('sdlg.sum.appearance', {
@@ -70,6 +88,8 @@ function useSummary(): Record<SettingsSection, string | null> {
       theme: t(`common.theme.${theme}`),
       delay: delayMs === 0 ? t('sdlg.sum.delay.instant') : t('sdlg.sum.delay.ms', { ms: delayMs }),
     }),
+    notifications: t('sdlg.sum.notifications', { n: activeMinutes(alerts).length, list: currencies.join(', ') || '–' }),
+    chart: t('sdlg.sum.chart', { tf: chartTf, n: colorCount }),
     connection: t(`connection.status.${status}`),
     robot: t('sdlg.robot.summary'),
     users: null,
@@ -115,12 +135,15 @@ export default function SettingsDialog() {
   const summary = useSummary();
   const system = useSystemActions();
   const prefStatus = useUserPrefsStore((s) => s.status);
+  const [tabState, setTab] = useState<{ section: string; tab: NotificationsTab }>({ section: '', tab: 'general' });
 
   const groups = GROUPS.filter((g) => !g.admin || isAdmin);
   const all = groups.flatMap((g) => g.sections);
   // Masaüstünde ilk bölüm açık gelir; yetkisiz bölüm (admin değil) asla gösterilmez
   const active = all.find((s) => s.id === section) ?? all[0];
 
+  // Sekme bölüm değişince başa döner
+  const tab: NotificationsTab = tabState.section === active.id ? tabState.tab : 'general';
   const foot = footState(Object.values(prefStatus));
 
   return (
@@ -220,10 +243,33 @@ export default function SettingsDialog() {
                   {t(`sdlg.badge.${active.badge}`)}
                 </span>
               </div>
+              {active.id === 'notifications' && (
+                <div role="tablist" aria-label={t('sdlg.tabs.aria')} className="-mb-4 mt-4 flex gap-6 overflow-x-auto md:-mb-5" data-testid="settings-tabs">
+                  {NOTIFICATION_TABS.map((id) => (
+                    <Tooltip key={id} content={t(`sdlg.tab.${id}.hint` as MessageKey)}>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={tab === id}
+                        data-testid={`settings-tab-${id}`}
+                        onClick={() => setTab({ section: active.id, tab: id })}
+                        className={cn(
+                          '-mb-px min-h-11 shrink-0 cursor-pointer whitespace-nowrap border-b-2 pb-3 pt-2 text-[15px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                          tab === id ? 'border-primary font-semibold text-primary' : 'border-transparent text-muted-foreground hover:text-foreground',
+                        )}
+                      >
+                        {t(`sdlg.tab.${id}` as MessageKey)}
+                      </button>
+                    </Tooltip>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-2 md:px-10" data-testid="settings-body">
               {active.id === 'appearance' && <AppearanceSection />}
+              {active.id === 'notifications' && <NotificationsSection tab={tab} />}
+              {active.id === 'chart' && <ChartSection />}
               {active.id === 'connection' && <ConnectionSection />}
               {active.id === 'robot' && <LinkSection href="/" textKey="sdlg.robot.text" openKey="sdlg.robot.open" testId="settings-robot" />}
               {active.id === 'users' && isAdmin && <LinkSection href="/users" textKey="sdlg.users.text" openKey="sdlg.users.open" testId="settings-users" />}

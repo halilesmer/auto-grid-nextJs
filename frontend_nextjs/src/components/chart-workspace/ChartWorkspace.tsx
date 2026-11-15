@@ -15,6 +15,7 @@ import { alarmsAfterRemove, INDICATOR_KINDS, indicatorFormula, isOscillator, isS
 import { useChartWorkspaceStore, emptyChartDocument, type ChartDocument } from '@/store/useChartWorkspaceStore';
 import { useThemeStore } from '@/store';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
+import { useSettingsDialogStore } from '@/store/useSettingsDialogStore';
 import { extendFibHit } from '@/lib/chart-workspace/fibHit';
 import { ReplayDrawingVisibility } from '@/lib/chart-workspace/replayDrawings';
 import { withAlpha } from '@/lib/chartTheme';
@@ -116,6 +117,21 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const [fibEdit, setFibEdit] = useState<Drawing | null>(null), [fibTab, setFibTab] = useState<'style' | 'coords' | 'vis'>('style');
   // 1110-A4.9: Sağ tık menüsü (S7'nin "…" düğmesi aynı bileşeni drawing + konumla açar)
   const [ctxMenu, setCtxMenu] = useState<{ drawing: Drawing; x: number; y: number; manager: DrawingManager } | null>(null), [treeSection, setTreeSection] = useState<'indicators' | 'drawings'>('indicators');
+  // Ayarlar → Grafik → „Grafikte aç“ (USR-12): Göstergeler penceresini açar. Sayfa sonradan açılırsa istek bekler, ilk çizimden sonra işlenir.
+  useEffect(() => {
+    const take = () => {
+      if (!useSettingsDialogStore.getState().indicatorsRequested) return;
+      useSettingsDialogStore.getState().clearIndicatorsRequest();
+      setTreeSection('indicators');
+      setIndicatorsOpen(true);
+    };
+    const timer = setTimeout(take, 0);
+    const unsubscribe = useSettingsDialogStore.subscribe(take);
+    return () => {
+      clearTimeout(timer);
+      unsubscribe();
+    };
+  }, []);
   // 1110-A4.13.5: yüzen çubuk, seçili çizim sürüklenirken gizli
   const [dragging, setDragging] = useState(false);
   const armRef = useRef<(kind: DrawingKind | null) => void>(() => {});

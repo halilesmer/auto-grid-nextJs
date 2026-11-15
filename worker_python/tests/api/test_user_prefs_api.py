@@ -91,3 +91,4 @@ def test_deleting_a_user_removes_the_preference_file(client, multi, worker_dir):
     assert path.exists()
     assert client.delete(f"/api/users/{multi['ids']['anna']}", headers=multi["admin"]).status_code == 200
     assert not path.exists()
+

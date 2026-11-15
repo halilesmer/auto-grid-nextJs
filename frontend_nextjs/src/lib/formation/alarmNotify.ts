@@ -121,7 +121,7 @@ export function announce(accountId: string, notices: AlarmNotice[], options: { s
   const single = batchOf(notices.length, sinceOpening) === 'single';
   const system = prefs.system && notificationPermission() === 'granted';
   for (const [i, line] of lines(accountId, notices, sinceOpening).entries()) {
-    toast[line.kind](line.title, { duration: 10_000, action: line.action ? { ...line.action, onClick: () => navigate(line.url) } : undefined });
+    toast[line.kind](line.title, { duration: 10_000, userDuration: true, action: line.action ? { ...line.action, onClick: () => navigate(line.url) } : undefined });
     if (system) void showSystem(systemTitle(single ? notices[i] : undefined, line), line.body, line.tag, line.url);
   }
   if (prefs.sound) beep();

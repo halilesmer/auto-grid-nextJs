@@ -40,8 +40,8 @@ async function openPanel(page: Page, dashboard: Dash) {
   await expect(page.getByTestId('news-alerts-panel')).toBeVisible();
 }
 
-const seedAlerts = (worker: { uiPrefs: Record<string, Record<string, unknown>> }, a: [boolean, number], b: [boolean, number]) => {
-  worker.uiPrefs[DEMO_ID] = { news_alerts: { alerts: [{ on: a[0], minutes: a[1] }, { on: b[0], minutes: b[1] }] } };
+const seedAlerts = (worker: { userPrefs: Record<string, Record<string, unknown>> }, a: [boolean, number], b: [boolean, number]) => {
+  worker.userPrefs.admin = { news_alerts: { alerts: [{ on: a[0], minutes: a[1] }, { on: b[0], minutes: b[1] }] } };
 };
 
 test.describe('NWS-03 Haber uyarıları', () => {
@@ -58,7 +58,7 @@ test.describe('NWS-03 Haber uyarıları', () => {
     await page.getByTestId('news-alert-switch-1').click();
     await expect(page.getByTestId('news-notify-summary')).toContainText('1 sa · 30 dk');
     await expect(page.getByTestId('news-alerts-permission')).toHaveAttribute('data-state', 'granted');
-    await expect.poll(() => worker.uiPrefs[DEMO_ID]?.news_alerts).toEqual({ alerts: [{ on: true, minutes: 60 }, { on: true, minutes: 30 }] });
+    await expect.poll(() => worker.userPrefs.admin?.news_alerts).toEqual({ alerts: [{ on: true, minutes: 60 }, { on: true, minutes: 30 }] });
   });
 
   test('Dakika alanı: 1–1440 tam sayı; geçersiz değer hata gösterir ve kaydedilmez; 1 dk kabul', { tag: '@NWS-03' }, async ({ page, dashboard, worker }) => {
@@ -69,11 +69,11 @@ test.describe('NWS-03 Haber uyarıları', () => {
       await input.fill(bad);
       await expect(page.getByTestId('news-alert-error-0')).toBeVisible();
     }
-    expect(worker.uiPrefs[DEMO_ID]?.news_alerts).toBeUndefined();
+    expect(worker.userPrefs.admin?.news_alerts).toBeUndefined();
     await input.fill('1');
     await expect(page.getByTestId('news-alert-error-0')).toHaveCount(0);
     await expect(page.getByTestId('news-alert-eq-0')).toContainText('1 dk');
-    await expect.poll(() => (worker.uiPrefs[DEMO_ID]?.news_alerts as { alerts: { minutes: number }[] } | undefined)?.alerts[0].minutes).toBe(1);
+    await expect.poll(() => (worker.userPrefs.admin?.news_alerts as { alerts: { minutes: number }[] } | undefined)?.alerts[0].minutes).toBe(1);
     // Yeniden yükleyince worker değeri gelir
     await dashboard.open(DEMO_ID); // neu laden mit Konto
     await page.getByTestId('news-button').click();
@@ -136,7 +136,7 @@ test.describe('NWS-03 Haber uyarıları', () => {
     await openPanel(page, dashboard);
     await page.getByTestId('news-alert-switch-1').click();
     await expect(page.getByTestId('news-alerts-permission')).toHaveAttribute('data-state', 'denied'); // sahte requestPermission reddeder
-    await expect.poll(() => worker.uiPrefs[DEMO_ID]?.news_alerts).toMatchObject({ alerts: [{ on: false }, { on: true, minutes: 30 }] });
+    await expect.poll(() => worker.userPrefs.admin?.news_alerts).toMatchObject({ alerts: [{ on: false }, { on: true, minutes: 30 }] });
   });
 
   test('Bildirim kartındaki "Haberi göster": kart açılır, haber vurgulanır (gün süzgecine uymasa da), adres temizlenir', { tag: '@NWS-03' }, async ({ page, dashboard, worker }) => {
@@ -159,11 +159,9 @@ test.describe('NWS-03 Haber uyarıları', () => {
     expect(requests[0]).toContain('currencies=USD');
   });
 
-  test('Hesap seçili değil (Dashboard hesap önseçmez): tarayıcıda saklı uyarı yine gelir', { tag: '@NWS-03' }, async ({ page, dashboard }) => {
+  test('Hesap seçili değil (Dashboard hesap önseçmez): kullanıcıya ait uyarı yine gelir', { tag: '@NWS-03' }, async ({ page, dashboard, worker }) => {
     await fakeNotifications(page, 'granted');
-    await page.addInitScript(() => {
-      localStorage.setItem('grid-robot-news-alerts:none', JSON.stringify({ alerts: [{ on: false, minutes: 60 }, { on: true, minutes: 30 }] }));
-    });
+    seedAlerts(worker, [false, 60], [true, 30]);
     await dashboard.open(null);
     // Hesapsız ayar tüm para birimleriyle çalışır: USD (PCE) ve EUR haberleri taranır
     await expect(alertToasts(page).first()).toContainText('Çekirdek PCE');

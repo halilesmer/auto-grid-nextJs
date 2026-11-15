@@ -10,6 +10,7 @@ import { MAX_ALERT_MINUTES, activeMinutes, dueNow, planAlerts, readShown, writeS
 import { announceNews } from '@/lib/newsAlertNotify';
 import { useConnectionStore } from '@/store/useConnectionStore';
 import { useNewsStore } from '@/store/useNewsStore';
+import { useUserPrefsStore } from '@/store/useUserPrefsStore';
 
 const LOCK_NAME = 'grid-news-alerts';
 const REFRESH_MS = 60_000;
@@ -40,6 +41,8 @@ export default function NewsAlertRunner() {
 
   useEffect(() => {
     useNewsStore.getState().loadFilter(selectedAccount);
+    // Filtre ve uyarı kullanıcıya ait (USR-11): kullanıcıda değer yoksa seçili hesabın eski değerleri bir kez alınır
+    if (selectedAccount) void useUserPrefsStore.getState().importFromAccount(selectedAccount);
   }, [selectedAccount]);
 
   const minutesKey = activeMinutes(alerts).join(',');

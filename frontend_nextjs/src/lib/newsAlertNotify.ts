@@ -29,6 +29,6 @@ export function announceNews(planned: PlannedAlert, nowMs: number, navigate: (ur
   const title = [event.currency, event.title].filter(Boolean).join(' · ');
   const body = t('news.alert.body', { t: durationText(left), time: format.clock(event.time) });
   const url = newsUrl(event);
-  toast.warning(body, { title, duration: 10_000, action: { label: t('news.alert.show'), hint: t('news.alert.show.hint'), onClick: () => navigate(url) } });
+  toast.warning(body, { title, duration: 10_000, userDuration: true, action: { label: t('news.alert.show'), hint: t('news.alert.show.hint'), onClick: () => navigate(url) } });
   if (notificationPermission() === 'granted') void showSystem(title, body, planned.key, url);
 }

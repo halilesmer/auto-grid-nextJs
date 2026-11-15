@@ -114,3 +114,17 @@ ui('Write does not change the input', () => {
   buildChartUrl(src, { tf: 'H4' });
   expect(src.toString()).toBe('mode=free&tf=M5');
 });
+
+ui('USR-12: the user default timeframe replaces H4 when the address has no tf; an explicit tf stays', async () => {
+  const { useChartPrefsStore } = await import('../../src/store/useChartPrefsStore');
+  useChartPrefsStore.setState({ tf: 'H1' });
+  try {
+    expect(parseChartUrl(p('')).tf).toBe('H1');
+    expect(parseChartUrl(p('tf=D1')).tf).toBe('D1');
+    expect(buildChartUrl(p('tf=D1'), { tf: 'H1' }).toString()).toBe('');
+    expect(buildChartUrl(p(''), { tf: 'H4' }).toString()).toBe('tf=H4'); // H4 is no default for this user: it must be written
+    expect(buildChartUrl(p('symbol=EURUSD'), { tf: 'M15' }).get('tf')).toBe('M15');
+  } finally {
+    useChartPrefsStore.setState({ tf: 'H4' });
+  }
+});

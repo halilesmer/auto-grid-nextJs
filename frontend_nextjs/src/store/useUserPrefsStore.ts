@@ -1,13 +1,19 @@
 import { create } from 'zustand';
 import axios from 'axios';
 import { axiosInstance, NotConnectedError } from '@/lib/api';
-import { toast } from '@/components/ui/animated-toast';
+import { setUserToastMs, toast } from '@/components/ui/animated-toast';
 import { t } from '@/i18n';
 import { isLocale, LOCALE_NAMES, type Locale } from '@/i18n/config';
-import { parseDelay, parseHold } from '@/lib/userPrefs';
+import { parseChartTf, parseColors, parseDelay, parseHold, parseToastSeconds, toastMs } from '@/lib/userPrefs';
+import { DEFAULT_ALERTS, normalizeAlerts } from '@/lib/newsAlerts';
+import { DEFAULT_FILTER, normalizeFilter } from '@/lib/news';
 import { isThemePreference, type ThemePreference } from '@/lib/theme';
+import { useChartPrefsStore } from './useChartPrefsStore';
+import { CUSTOM_COLORS_STORAGE_KEY, useCustomColorsStore, withColor } from './useCustomColorsStore';
 import { useLocaleStore } from './useLocaleStore';
+import { registerNewsPersister, useNewsStore } from './useNewsStore';
 import { useThemeStore } from './useThemeStore';
+import { useToastPrefsStore } from './useToastPrefsStore';
 import { useTooltipPrefsStore } from './useTooltipPrefsStore';
 
 /**
@@ -15,7 +21,16 @@ import { useTooltipPrefsStore } from './useTooltipPrefsStore';
  * localStorage yalnız önbellektir (açılışta dil/tema/ipucu parlamasın); asıl kaynak worker'dır.
  * Her değişiklik anında kaydedilir: iyimser güncelleme, anahtar başına durum, hatada eski değere dönüş.
  */
-export type PrefKey = 'locale' | 'theme' | 'tooltip_delay' | 'tooltip_hold';
+export type PrefKey =
+  | 'locale'
+  | 'theme'
+  | 'tooltip_delay'
+  | 'tooltip_hold'
+  | 'toast_duration'
+  | 'news_filter'
+  | 'news_alerts'
+  | 'chart_tf'
+  | 'chart_colors';
 export type PrefStatus = 'saving' | 'saved' | 'failed';
 /** Toast metni için: ayarın adı ve yeni değerin okunur hâli. */
 export interface PrefLabel {
@@ -30,8 +45,10 @@ const SAVED_TOAST_MS = 3_200;
 interface UserPrefsState {
   status: Partial<Record<PrefKey, PrefStatus>>;
   load: () => Promise<void>;
-  /** Değeri iyimser uygular, worker'a yazar; hatada eski değere döner. `label` (değişiklikten sonra çağrılır, yeni dilde okunur) toast metnine girer ("Tema: Koyu"). */
-  change: (key: PrefKey, value: Record<string, unknown>, label: () => PrefLabel) => Promise<void>;
+  /** Değeri iyimser uygular, worker'a yazar; hatada eski değere döner. `silent`: başarı toast'ı yok; `quiet`: hata toast'ı da yok. `label` (değişiklikten sonra çağrılır, yeni dilde okunur) toast metnine girer ("Tema: Koyu"). */
+  change: (key: PrefKey, value: Record<string, unknown>, label: () => PrefLabel, opts?: { silent?: boolean; quiet?: boolean }) => Promise<void>;
+  /** Haber filtresi ve uyarısı eskiden hesaba bağlıydı: kullanıcıda değer yoksa seçili hesabın değeri bir kez alınır (USR-11). */
+  importFromAccount: (accountId: string) => Promise<void>;
 }
 
 // Anahtar başına: son değişiklik sırası (eski bir yanıt yeni değeri ezmesin) ve durum zamanlayıcısı
@@ -42,8 +59,16 @@ const confirmed: Partial<Record<PrefKey, Record<string, unknown>>> = {};
 // Aynı anahtara yazmalar sırayla gider; aksi hâlde worker'da eski değer kalabilir
 const queues: Partial<Record<PrefKey, Promise<unknown>>> = {};
 const PUT_TIMEOUT_MS = 15_000;
+// load() bitince: worker'daki anahtarlar (null = okunamadı). Göç bu bilgiye bakar.
+let serverKeys: Set<string> | null = null;
+let markLoaded: () => void = () => undefined;
+const loadedPromise = new Promise<void>((resolve) => {
+  markLoaded = resolve;
+});
+let accountImportDone = false;
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
-/** Bağlantı yok ya da worker bu uca sahip değil (eski sürüm): hata değil, değer yalnız bu tarayıcıda kalır. */
+/** Bağlantı yok ya da worker bu uca sahip değil (eski sürüm): hata değil, değer yalnız bu oturumda kalır (dil, tema ve ipucu süreleri ayrıca önbellekte). */
 function isLocalOnly(err: unknown): boolean {
   return err instanceof NotConnectedError || (axios.isAxiosError(err) && err.response?.status === 404);
 }
@@ -58,8 +83,20 @@ function current(key: PrefKey): Record<string, unknown> {
       return { ...useTooltipPrefsStore.getState().delay };
     case 'tooltip_hold':
       return { ...useTooltipPrefsStore.getState().hold };
+    case 'toast_duration':
+      return { seconds: useToastPrefsStore.getState().seconds };
+    case 'news_filter':
+      return { ...useNewsStore.getState().filter };
+    case 'news_alerts':
+      return { alerts: useNewsStore.getState().alerts.alerts.map((a) => ({ ...a })) };
+    case 'chart_tf':
+      return { tf: useChartPrefsStore.getState().tf };
+    case 'chart_colors':
+      return { colors: [...useCustomColorsStore.getState().colors] };
   }
 }
+
+
 
 function apply(key: PrefKey, value: Record<string, unknown>): void {
   switch (key) {
@@ -75,7 +112,34 @@ function apply(key: PrefKey, value: Record<string, unknown>): void {
     case 'tooltip_hold':
       useTooltipPrefsStore.setState({ hold: parseHold(value) });
       break;
+    case 'toast_duration':
+      useToastPrefsStore.setState({ seconds: parseToastSeconds(value) });
+      setUserToastMs(toastMs(parseToastSeconds(value)));
+      break;
+    case 'news_filter':
+      useNewsStore.setState({ filter: normalizeFilter(value) });
+      break;
+    case 'news_alerts':
+      useNewsStore.setState({ alerts: normalizeAlerts(value) });
+      break;
+    case 'chart_tf':
+      useChartPrefsStore.setState({ tf: parseChartTf(value) });
+      break;
+    case 'chart_colors':
+      useCustomColorsStore.setState({ colors: parseColors(value) });
+      break;
   }
+}
+
+/** Worker'da değer yok: varsayılan geçerli olur. Bildirim süresi seçilmediyse eski süreler (toast'ta null) kalır. */
+function resetToDefault(key: 'toast_duration' | 'news_filter' | 'news_alerts' | 'chart_tf' | 'chart_colors'): void {
+  if (key === 'toast_duration') {
+    useToastPrefsStore.setState({ seconds: parseToastSeconds(undefined) });
+    setUserToastMs(null);
+  } else if (key === 'news_filter') apply(key, { ...DEFAULT_FILTER });
+  else if (key === 'news_alerts') apply(key, { alerts: DEFAULT_ALERTS.alerts.map((a) => ({ ...a })) });
+  else if (key === 'chart_tf') apply(key, {});
+  else apply(key, { colors: [] });
 }
 
 function setStatus(key: PrefKey, status: PrefStatus | undefined, clearAfterMs?: number): void {
@@ -106,12 +170,44 @@ export const useUserPrefsStore = create<UserPrefsState>()(() => ({
       if (untouched('theme') && isThemePreference(th?.theme)) apply('theme', { theme: th.theme });
       if (untouched('tooltip_delay')) apply('tooltip_delay', { ...parseDelay(prefs.tooltip_delay) });
       if (untouched('tooltip_hold')) apply('tooltip_hold', { ...parseHold(prefs.tooltip_hold) });
+      // Yeni anahtarlar: değer varsa uygulanır; yoksa varsayılana dönülür (önceki kullanıcının değeri kalmasın)
+      for (const key of ['toast_duration', 'news_filter', 'news_alerts', 'chart_tf', 'chart_colors'] as const) {
+        const stored = prefs[key];
+        if (!untouched(key)) continue;
+        if (isRecord(stored)) apply(key, stored);
+        else resetToDefault(key);
+      }
+      accountImportDone = false;
+      serverKeys = new Set(Object.keys(prefs));
+      if (!serverKeys.has('chart_colors')) void migrateLocalColors();
     } catch {
       // Worker'a ulaşılamadı: önbellekteki değerler geçerli kalır; sayfa yenilenince (ya da bağlantı değişince) yeniden denenir
+    } finally {
+      markLoaded();
     }
   },
 
-  change: async (key, value, label) => {
+  importFromAccount: async (accountId) => {
+    await loadedPromise;
+    if (accountImportDone || !serverKeys) return;
+    if (['news_filter', 'news_alerts'].every((k) => serverKeys?.has(k))) {
+      accountImportDone = true;
+      return;
+    }
+    try {
+      const res = await axiosInstance.post<{ imported?: string[]; prefs?: Record<string, unknown> }>(`/me/prefs/import-account/${encodeURIComponent(accountId)}`);
+      accountImportDone = true;
+      for (const key of res.data.imported ?? []) {
+        const stored = res.data.prefs?.[key];
+        if ((key === 'news_filter' || key === 'news_alerts') && versions[key] === undefined && isRecord(stored)) apply(key, stored);
+        serverKeys?.add(key);
+      }
+    } catch {
+      // Eski worker (uç yok) ya da ağ hatası: değerler varsayılan kalır; sonraki hesap seçiminde yeniden denenir
+    }
+  },
+
+  change: async (key, value, label, opts) => {
     const version = (versions[key] ?? 0) + 1;
     versions[key] = version;
     confirmed[key] ??= current(key);
@@ -124,7 +220,9 @@ export const useUserPrefsStore = create<UserPrefsState>()(() => ({
       await run;
       if (versions[key] !== version) return; // arkasından yeni bir değişiklik geldi; durumu o gösterir
       confirmed[key] = value;
+      serverKeys?.add(key);
       setStatus(key, 'saved', SAVED_VISIBLE_MS);
+      if (opts?.silent) return;
       const shown = label();
       toast.success(t('prefs.toast.value', { name: shown.name, value: shown.value }), { title: t('prefs.toast.saved'), duration: SAVED_TOAST_MS });
     } catch (err) {
@@ -135,6 +233,7 @@ export const useUserPrefsStore = create<UserPrefsState>()(() => ({
       }
       apply(key, confirmed[key] ?? value);
       setStatus(key, 'failed', FAILED_VISIBLE_MS);
+      if (opts?.quiet) return;
       toast.error(t('prefs.toast.failed.text', { name: label().name }), {
         title: t('prefs.toast.failed'),
         duration: 8_000,
@@ -150,3 +249,42 @@ export const changeLocale = (locale: Locale) =>
 /** Tema seçimi. */
 export const changeTheme = (theme: ThemePreference) =>
   useUserPrefsStore.getState().change('theme', { theme }, () => ({ name: t('common.theme'), value: t(`common.theme.${theme}`) }));
+
+/** Eski cihaz önbelleğindeki kayıtlı renkler (USR-12): kullanıcıda değer yoksa bir kez worker'a yazılır, sonra yerel anahtar silinir. */
+async function migrateLocalColors(): Promise<void> {
+  let colors: string[] = [];
+  try {
+    const raw = localStorage.getItem(CUSTOM_COLORS_STORAGE_KEY);
+    const parsed = raw ? (JSON.parse(raw) as { state?: unknown }) : null;
+    colors = parseColors(parsed?.state);
+  } catch {
+    return;
+  }
+  if (!colors.length || versions.chart_colors !== undefined) return;
+  await useUserPrefsStore.getState().change('chart_colors', { colors }, colorsLabel, { silent: true, quiet: true });
+  // Yalnız worker kabul ettiyse yerel kopya silinir; yoksa sonraki açılışta yeniden denenir
+  if (useUserPrefsStore.getState().status.chart_colors === 'saved') {
+    try {
+      localStorage.removeItem(CUSTOM_COLORS_STORAGE_KEY);
+    } catch {
+      /* yok say */
+    }
+  }
+}
+
+const colorsLabel = (): PrefLabel => ({ name: t('sdlg.colors'), value: String(useCustomColorsStore.getState().colors.length) });
+
+/** Renk seçicide „+“ ile eklenen renk: kullanıcı tercihine yazılır (toast yok; satırdaki rozet yeter). */
+export const addCustomColor = (color: string) => {
+  const colors = withColor(useCustomColorsStore.getState().colors, color);
+  return useUserPrefsStore.getState().change('chart_colors', { colors }, colorsLabel, { silent: true });
+};
+
+export const clearCustomColors = () => useUserPrefsStore.getState().change('chart_colors', { colors: [] }, colorsLabel);
+
+// Haber kartı ve uyarı ayarı aynı depodan yazar; başarı rozeti için sonucu bildirir
+registerNewsPersister(async (key, value) => {
+  await useUserPrefsStore.getState().change(key, value, () => ({ name: t(key === 'news_filter' ? 'sdlg.news.filter' : 'sdlg.news.alerts'), value: '' }), { silent: true });
+  const st = useUserPrefsStore.getState().status[key];
+  return st === 'saved' || st === 'saving';
+});

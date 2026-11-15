@@ -26,6 +26,14 @@ export interface ToastItemData {
 type ToastInput = Omit<ToastItemData, 'id' | 'type' | 'duration'> & {
   type?: ToastType;
   duration?: number;
+  /** Kullanıcının bildirim süresi (Ayarlar → Bildirimler) bu bildirimde `duration`ı geçer. Hata bildirimleri hiçbir zaman etkilenmez. */
+  userDuration?: boolean;
+};
+
+/** Kullanıcının bildirim süresi (ms, 0 = kapatılana kadar); null = hiç seçilmedi, varsayılan süreler geçerli (USR-11). */
+let userToastMs: number | null = null;
+export const setUserToastMs = (ms: number | null) => {
+  userToastMs = ms;
 };
 
 interface ToastStore {
@@ -40,7 +48,7 @@ let counter = 0;
 
 const useToastStore = create<ToastStore>((set) => ({
   toasts: [],
-  add: (toast) => {
+  add: ({ userDuration, ...toast }) => {
     const id = `t${Date.now().toString(36)}${(counter++).toString(36)}`;
     const item: ToastItemData = {
       type: 'default',
@@ -49,6 +57,7 @@ const useToastStore = create<ToastStore>((set) => ({
       ...toast,
       id,
     };
+    if (userToastMs !== null && item.type !== 'error' && (userDuration || toast.duration === undefined)) item.duration = userToastMs;
     set((s) => ({ toasts: [...s.toasts, item].slice(-MAX_TOASTS) }));
     return id;
   },

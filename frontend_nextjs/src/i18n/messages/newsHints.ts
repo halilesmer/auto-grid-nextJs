@@ -4,8 +4,8 @@ export default defineArea(
   {
     "news.button.hint": "Yaklaşan önemli ekonomik haberleri açar. Sıradaki habere kalan süreyi gösterir; 30 dk içinde haber varsa uyarı rengine döner. Veri eskiyse ya da VPS bağlı değilse soluktur.",
     "news.source.hint": "Haberlerin geldiği kaynak: MT5 ekonomik takvimi.",
-    "news.saved.hint": "Filtre bu hesap için worker'da saklandı; telefon ve Mac aynı filtreyi görür. Tarayıcıda da bir yedek kopya durur.",
-    "news.savedLocal.hint": "Yalnız bu tarayıcıda: worker'a yazılamadı (bağlantı ya da worker hatası). Filtre bu tarayıcıda kalır; diğer cihazlarda görünmez.",
+    "news.saved.hint": "Filtre sana ait olarak worker'da saklandı; telefon ve Mac aynı filtreyi görür.",
+    "news.savedLocal.hint": "Kaydedilemedi: worker'a yazılamadı (bağlantı ya da worker hatası). Filtre eski değerine döndü.",
     "news.imp.high.hint": "Yüksek önemli haberleri gösterir ya da gizler.",
     "news.imp.moderate.hint": "Orta önemli haberleri gösterir ya da gizler.",
     "news.imp.low.hint": "Düşük önemli haberleri gösterir ya da gizler.",
@@ -35,8 +35,8 @@ export default defineArea(
   {
     "news.button.hint": "Opens the upcoming key economic news. Shows the time to the next news; turns to the warning colour when news is due within 30 min. Dimmed when the data is old or the VPS is not connected.",
     "news.source.hint": "Where the news comes from: the MT5 economic calendar.",
-    "news.saved.hint": "The filter is saved for this account on the worker, so phone and Mac show the same filter. A backup copy stays in this browser.",
-    "news.savedLocal.hint": "Only in this browser: the worker could not save it (connection or worker error). The filter stays in this browser and does not show on other devices.",
+    "news.saved.hint": "The filter is saved as yours on the worker, so phone and Mac show the same filter.",
+    "news.savedLocal.hint": "Not saved: the worker could not save it (connection or worker error). The filter went back to its old value.",
     "news.imp.high.hint": "Shows or hides high-impact news.",
     "news.imp.moderate.hint": "Shows or hides medium-impact news.",
     "news.imp.low.hint": "Shows or hides low-impact news.",
@@ -66,8 +66,8 @@ export default defineArea(
   {
     "news.button.hint": "Öffnet die anstehenden wichtigen Wirtschaftsnachrichten. Zeigt die Zeit bis zur nächsten Nachricht; wird bei einer Nachricht in den nächsten 30 Min. zur Warnfarbe. Blass, wenn die Daten alt sind oder der VPS nicht verbunden ist.",
     "news.source.hint": "Woher die Nachrichten stammen: der MT5-Wirtschaftskalender.",
-    "news.saved.hint": "Der Filter ist für dieses Konto im Worker gespeichert, Handy und Mac zeigen denselben Filter. Eine Sicherungskopie bleibt im Browser.",
-    "news.savedLocal.hint": "Nur in diesem Browser: Der Worker konnte nicht speichern (Verbindungs- oder Worker-Fehler). Der Filter bleibt in diesem Browser und erscheint nicht auf anderen Geräten.",
+    "news.saved.hint": "Der Filter ist als dein Filter im Worker gespeichert, Handy und Mac zeigen denselben Filter.",
+    "news.savedLocal.hint": "Nicht gespeichert: Der Worker konnte nicht speichern (Verbindungs- oder Worker-Fehler). Der Filter steht wieder auf dem alten Wert.",
     "news.imp.high.hint": "Zeigt oder verbirgt Nachrichten mit hoher Wichtigkeit.",
     "news.imp.moderate.hint": "Zeigt oder verbirgt Nachrichten mit mittlerer Wichtigkeit.",
     "news.imp.low.hint": "Zeigt oder verbirgt Nachrichten mit niedriger Wichtigkeit.",
