@@ -296,6 +296,60 @@ test.describe('FRM-39 Handelsblock AB=CD (Erken dönüş, 1114-A4.5)', () => {
   });
 });
 
+test.describe('FRM-39 Handelsblock AB=CD (Yeniden giriş, 1114-A4.4)', () => {
+  // crb-form-h4-01: Kauf-AB=CD, TP1 und TP2 erreicht, danach berührt der Kurs die Engulf-Zone am D erneut
+  test('Nach zwei Zielen: Yeniden-giriş-Abschnitt mit Einstieg, Stop, Ziel und eigenem Verhältnis; das Ergebnis des ersten Handels bleibt', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'crb-form-h4-01', 1763496000, 'ABCD');
+    const block = page.getByTestId('trade-block');
+    await expect(block.getByTestId('trade-status')).toHaveAttribute('data-status', 'tp12');
+    await expect(block.getByTestId('trade-outcomes')).toBeVisible();
+    const re = block.getByTestId('trade-reentry');
+    await expect(re).toBeVisible();
+    await expect(re).toContainText(msg('formation.trade.reentry.title'));
+    await expect(re).toContainText(msg('formation.trade.reentry.sub'));
+    await expect(re.getByTestId('trade-reentry-entry')).not.toHaveText(/^\s*—\s*$/);
+    await expect(re).toContainText(msg('formation.trade.reentry.entry.buy'));
+    await expect(re.getByTestId('trade-reentry-stop')).not.toHaveText(/^\s*—\s*$/);
+    await expect(re).toContainText(msg('formation.trade.reentry.stop.buy'));
+    await expect(re.getByTestId('trade-reentry-target')).toBeVisible();
+    await expect(re).toContainText(msg('formation.trade.reentry.note.buy'));
+    await expect(re).toContainText(msg('formation.trade.reentry.footer'));
+    await expect(re.getByTestId('trade-reentry-crv')).toBeVisible();
+    // Keine Aufteilung und keine Ergebnisfelder im Abschnitt; keine Warnzeile
+    await expect(re.locator('[data-testid^="trade-outcome-"]')).toHaveCount(0);
+    await expect(block.getByTestId('trade-reentry-warning')).toHaveCount(0);
+    // Kein Kürzel und keine Regelkennung im Text des Abschnitts
+    await expect(re).not.toContainText(/ABCD-\d|HDL-\d|SIG-\d|TP\d/);
+  });
+
+  // gar-buy-h4-01: nur TP1 erreicht (Rest am Einstieg), der Kurs kehrt in die Engulf-Zone am D zurück
+  test('Nur TP1 erreicht und Kurs zurück in der Zone: keine Werte, eine Warnzeile', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'gar-buy-h4-01', 1763064000, 'ABCD');
+    const block = page.getByTestId('trade-block');
+    await expect(block.getByTestId('trade-reentry')).toHaveCount(0);
+    await expect(block.getByTestId('trade-reentry-warning')).toContainText(msg('formation.trade.reentry.warning'));
+    await expect(block.getByTestId('trade-outcomes')).toBeVisible();
+  });
+
+  test('Ohne Rückkehr in die Zone: weder Abschnitt noch Warnzeile', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'abcd-buy-h4-02', 1752624000, 'ABCD');
+    const block = page.getByTestId('trade-block');
+    await expect(block.getByTestId('trade-reentry')).toHaveCount(0);
+    await expect(block.getByTestId('trade-reentry-warning')).toHaveCount(0);
+  });
+
+  test('375 px: Abschnitt und Warnzeile laufen nicht über', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await openPage(page, worker, 'crb-form-h4-01', 1763496000, 'ABCD');
+    const block = page.getByTestId('trade-block');
+    await expect(block.getByTestId('trade-reentry')).toBeVisible();
+    expect(await block.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+    await block.getByTestId('trade-reentry').scrollIntoViewIfNeeded();
+    await block.getByTestId('trade-reentry').screenshot({ path: test.info().outputPath('reentry-375.png') });
+  });
+});
+
 test.describe('FRM-40 Veto', () => {
   test('Erfülltes Veto: Streifen im Block, Zeile in der Dışlama-Gruppe, Abzeichen am Kandidaten; das Urteil bleibt gültig', { tag: '@FRM-40' }, async ({ page, worker }) => {
     await openPage(page, worker, 't618-buy-h4-01', 1767643200, 'OBO');

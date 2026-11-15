@@ -32,6 +32,8 @@ export interface TradeStatus {
   tp1Fill?: number;
   /** Preis, zu dem TP2 gezählt wurde; fehlt, solange TP2 nicht erreicht ist */
   tp2Fill?: number;
+  /** Index der Kerze, in der TP2 gezählt wurde (1114-A4.4: Wiedereinstieg zählt erst danach) */
+  tp2Idx?: number;
   /** Preis, zu dem das große Ziel gezählt wurde (nur `tp123`) */
   bigFill?: number;
   /** Nur mit großem Ziel: eine Kerze hat jenseits von A geschlossen, das Ziel ist aktiv */
@@ -68,6 +70,7 @@ export function tradeStatusOf(o: {
   let stopMovedIdx: number | undefined;
   let tp1Fill: number | undefined;
   let tp2Fill: number | undefined;
+  let tp2Idx: number | undefined;
   let bigFill: number | undefined;
   let bigActive = false;
   const status = (extra: Partial<TradeStatus> = {}): TradeStatus => ({
@@ -76,6 +79,7 @@ export function tradeStatusOf(o: {
     ...(stopMovedIdx === undefined ? {} : { stopMovedIdx }),
     ...(tp1Fill === undefined ? {} : { tp1Fill }),
     ...(tp2Fill === undefined ? {} : { tp2Fill }),
+    ...(tp2Idx === undefined ? {} : { tp2Idx }),
     ...(bigFill === undefined ? {} : { bigFill }),
     ...(o.big ? { bigActive } : {}),
     ...extra,
@@ -108,6 +112,7 @@ export function tradeStatusOf(o: {
       if (!justTp1 && beyond(b.close, entry)) return status({ kind: 'breakeven', endIdx: k });
       if (kind === 'tp1' && !newExtreme && touchesTarget(b, tp2)) {
         tp2Fill = tp2;
+        tp2Idx = k;
         kind = 'tp12';
         // Ohne großes Ziel beendet TP2 den Handel
         if (!o.big) return status({ kind: 'tp12', endIdx: k });

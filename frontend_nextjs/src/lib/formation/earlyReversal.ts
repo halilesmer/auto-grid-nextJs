@@ -16,7 +16,18 @@ import { outward, type Rect, type ZoneSide } from './frz';
 import { ABCD_PARAMS } from './params';
 import { touches } from './reasons';
 import { engulfAt, zoneSideOf, type EngulfZone } from './sig';
-import type { FormationBar } from './types';
+import type { FormationBar, Side } from './types';
+
+/**
+ * Nahe Kante der Gegenzone, die vom Einstieg aus in Handelsrichtung am nächsten liegt (Gewinn > 0); null ohne solche Zone.
+ * Gemeinsam für Erken dönüş (Ziel 1, Ziel 2) und den Wiedereinstieg (1114-A4.4).
+ */
+export function nearestEdgeFrom(rects: readonly Rect[], entry: number, side: Side): number | null {
+  const sell = side === 'sell';
+  const gain = (price: number) => (sell ? entry - price : price - entry);
+  const edges = rects.map((r) => (sell ? r.top : r.bottom)).filter((p) => gain(p) > 0);
+  return edges.length === 0 ? null : edges.reduce((a, b) => (gain(a) <= gain(b) ? a : b));
+}
 
 /** Fraktalzone (auch gedrehte) zur Anzeige; mehr braucht die Rechnung nicht */
 export interface EarlyZone {
@@ -83,10 +94,7 @@ export function earlyReversalOf(o: {
       const stop = far(zone);
       if (!(out(stop) > out(entry))) continue;
       const opposing = o.zones.filter((z) => z.side === zoneSideOf(sell ? 'buy' : 'sell'));
-      const nearestFrom = (rects: Rect[]): number | null => {
-        const edges = rects.map((r) => (sell ? r.top : r.bottom)).filter((p) => gain(entry, p) > 0);
-        return edges.length === 0 ? null : edges.reduce((a, b) => (gain(entry, a) <= gain(entry, b) ? a : b));
-      };
+      const nearestFrom = (rects: Rect[]): number | null => nearestEdgeFrom(rects, entry, side);
       const target1 = nearestFrom(opposing.map((z) => z.rect));
       // Ziel 2 liegt hinter Ziel 1; dieselbe Zone zweimal zu zeigen hilft nicht
       const beyond1 = (r: Rect) => target1 !== null && gain(entry, sell ? r.top : r.bottom) > gain(entry, target1);
