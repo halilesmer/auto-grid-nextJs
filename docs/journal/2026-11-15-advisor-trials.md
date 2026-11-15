@@ -3,7 +3,7 @@ date: 2026-11-15
 author: Claude
 type: decision
 status: done
-pr: [543, 556, 557, 564]
+pr: [543, 556, 557, 564, 566]
 features: [ZON-08, UI-17, UI-30, SYS-16]
 areas: [docs, tests]
 ---
@@ -27,7 +27,7 @@ The model table in `CLAUDE.md` does not change. Confidence: medium. The trials s
 | Trial | Task | Advisor calls | Result |
 |---|---|---|---|
 | 1 | Implementation with a clear brief: atomic write of the UI state (ZON-08, PR 543) | 0 | Merged. The session did not ask the advisor. |
-| 2 | Blind replay of PR 524 (UI-17, dock) | 2 | The draft is covered by PR 524. It also showed a real product defect (row padding in the dock fit) that PR 557 confirmed and repaired. One number of the session (560 px against 2.6 px) could not be measured again. |
+| 2 | Blind replay of PR 524 (UI-17, dock) | 2 | The draft was not merged; it was not compared line by line with PR 524. It showed a real product defect (row padding in the dock fit) that PR 557 confirmed and repaired. One number of the session (560 px against 2.6 px) could not be measured again. |
 | 3 | Blind replay of PR 537 (UI-30, price scale) | 2 | Test cause found, same as PR 537 (a formation line takes the drag; it depends on the clock). Product defect found at the same place (Fit), but with a different mechanism that the session did not prove, and with a heavier repair (a retry loop of up to 60 frames) than the 2-line repair of PR 537. Blind rules: 0 hits. |
 
 Notes on trial 3:
@@ -36,7 +36,7 @@ Notes on trial 3:
 - One idea of the draft went to `main`: the free drag point (`freeY`), PR 564. See `2026-11-15-e2e-ui26-ui30-flake-diagnosis.md`.
 
 ## What the trials show
-- With a clear brief, Sonnet does not call the advisor. The setting costs nothing there and gives nothing.
+- With a clear brief, Sonnet does not call the advisor. The setting gives nothing there. Its cost without a call was not measured.
 - In debugging with an unclear cause, Sonnet calls the advisor by itself (2 calls in each trial). The calls were useful: one led to a real defect, one stopped a wrong patch.
 - No trial compares the same task with and without the advisor. Thus the gain against Sonnet alone is not known.
 
