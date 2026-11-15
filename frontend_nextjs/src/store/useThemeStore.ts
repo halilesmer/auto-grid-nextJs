@@ -20,7 +20,9 @@ interface ThemeState {
   refreshResolvedTheme: () => void;
 }
 
-// Tema cihaza özel bir tercih; resetAllStores() ile sıfırlanmaz, backend'e gönderilmez.
+// Tema kullanıcıya ait bir tercih (USR-09): asıl kaynak worker'dır, burası yerel önbellek ve anlık değerdir.
+// `setTheme` yalnız yerel yazar; kullanıcı seçimi `changeTheme` ile (useUserPrefsStore) worker'a da gider.
+// resetAllStores() ile sıfırlanmaz.
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set, get) => ({

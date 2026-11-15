@@ -17,6 +17,8 @@ import {
 import { Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useT } from '@/i18n';
+import { effectiveDelayMs, effectiveHoldMs } from '@/lib/userPrefs';
+import { useTooltipPrefsStore } from '@/store/useTooltipPrefsStore';
 
 /**
  * Hinweis-Bausteine (Regel: hooks/RULES.md §5): jede Einstellung, jedes Feld, jeder Button
@@ -30,7 +32,6 @@ import { useT } from '@/i18n';
  */
 export type HintContent = string | ReactElement;
 
-const OPEN_DELAY_MS = 300;
 const GAP = 8; // Abstand Anker ↔ Tooltip
 const EDGE = 8; // Mindestabstand zum Viewport-Rand
 
@@ -49,6 +50,9 @@ export function Tooltip({ content, side = 'top', touchToggle = false, className,
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pointerTypeRef = useRef('mouse');
   const pointerInsideRef = useRef(false);
+  // Kişisel tercihler (USR-09): açılma gecikmesi ve görünme süresi
+  const delayMs = useTooltipPrefsStore((st) => effectiveDelayMs(st.delay));
+  const holdMs = useTooltipPrefsStore((st) => effectiveHoldMs(st.hold));
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -60,6 +64,13 @@ export function Tooltip({ content, side = 'top', touchToggle = false, className,
   }, [clearTimer]);
 
   useEffect(() => clearTimer, [clearTimer]);
+
+  // Görünme süresi dolunca kendiliğinden kapanır (fare üstünde kalsa da); null = fare ayrılana kadar
+  useEffect(() => {
+    if (!open || holdMs === null) return;
+    const timer = setTimeout(() => setOpen(false), holdMs);
+    return () => clearTimeout(timer);
+  }, [open, holdMs]);
 
   // Position: nach dem Einblenden messen, vor dem Paint setzen (kein Flackern)
   useLayoutEffect(() => {
@@ -123,7 +134,8 @@ export function Tooltip({ content, side = 'top', touchToggle = false, className,
     if (pointerInsideRef.current) return;
     pointerInsideRef.current = true;
     clearTimer();
-    timerRef.current = setTimeout(() => setOpen(true), OPEN_DELAY_MS);
+    if (delayMs <= 0) setOpen(true);
+    else timerRef.current = setTimeout(() => setOpen(true), delayMs);
   };
 
   const child = isValidElement<{ 'aria-describedby'?: string }>(children) ? children : null;

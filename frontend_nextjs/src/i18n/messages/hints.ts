@@ -2,6 +2,7 @@ import { defineArea } from './define';
 import newsHints from './newsHints';
 import workspaceHints from './workspaceHints';
 import toolsHints from './toolsHints';
+import settingsHints from './settingsHints';
 
 // Erklärende Hinweise (Tooltips / (i)-Icons) zu jeder Einstellung, jedem Feld und jedem Button.
 // Regel (hooks/RULES.md §5): Schlüssel `<label-key>.hint`; Text sagt wozu, Einheit/Wirkung und bei
@@ -1984,5 +1985,5 @@ const existingHints = defineArea(
   },
 );
 
-const hints = { tr: { ...existingHints.tr, ...workspaceHints.tr, ...newsHints.tr, ...toolsHints.tr }, en: { ...existingHints.en, ...workspaceHints.en, ...newsHints.en, ...toolsHints.en }, de: { ...existingHints.de, ...workspaceHints.de, ...newsHints.de, ...toolsHints.de } };
+const hints = { tr: { ...existingHints.tr, ...workspaceHints.tr, ...newsHints.tr, ...toolsHints.tr, ...settingsHints.tr }, en: { ...existingHints.en, ...workspaceHints.en, ...newsHints.en, ...toolsHints.en, ...settingsHints.en }, de: { ...existingHints.de, ...workspaceHints.de, ...newsHints.de, ...toolsHints.de, ...settingsHints.de } };
 export default hints;

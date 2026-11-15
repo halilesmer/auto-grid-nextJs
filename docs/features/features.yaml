@@ -388,6 +388,26 @@ kategorien:
           - Kontoliste, Navigation, Einstellungsmenü im Dashboard und die Seiten /users und /vps ansehen.
         erwartet: Nur die eigenen Konten erscheinen; „VPS“ und „Benutzer“ fehlen in der Navigation, ihre Seiten zeigen den Administrator-Hinweis; die Update-Prüfung fehlt im Menü.
 
+      - id: USR-09
+        titel: Persönliche Einstellungen gehören dem Benutzer (Worker)
+        beschreibung: "Plan 1114-A4 S1. GET /api/me/prefs und PUT /api/me/prefs/{key} speichern je Anfragendem eine Datei data/user_prefs_<id>.json (Admin: admin, Benutzer: die eigene ID aus dem Schlüssel), je Schlüssel ein JSON-Objekt (Schlüssel [a-z0-9_-]{1,40}, höchstens 8 KB je Wert, 40 Schlüssel). Jede Rolle darf; ein Benutzer sieht nie die Datei eines anderen. Das Frontend (useUserPrefsStore) lädt sie, sobald Verbindung und /auth/me bereit sind, schreibt jede Änderung sofort (optimistisch, Zustand saving/saved/failed je Schlüssel, bei Fehler zurück auf den alten Wert mit Fehler-Toast). Sprache (locale), Design (theme), Hinweis-Verzögerung (tooltip_delay) und Anzeigedauer (tooltip_hold) laufen darüber; localStorage ist nur Zwischenspeicher gegen Aufblitzen."
+        code: [worker_python/src/api/user_prefs.py, worker_python/src/utils/paths.py, worker_python/tests/api/test_user_prefs_api.py, frontend_nextjs/src/store/useUserPrefsStore.ts, frontend_nextjs/src/store/useTooltipPrefsStore.ts, frontend_nextjs/src/lib/userPrefs.ts, frontend_nextjs/src/components/layout/UserPrefsSync.tsx, frontend_nextjs/src/store/useLocaleStore.ts, frontend_nextjs/src/store/useThemeStore.ts, frontend_nextjs/src/components/layout/LanguageSwitcher.tsx, frontend_nextjs/src/components/layout/ThemeToggle.tsx, worker_python/src/api/users.py, frontend_nextjs/e2e/fixtures/mock-worker.ts, frontend_nextjs/e2e/mocked/settings-dialog.spec.ts]
+        tiers: [api, e2e, manuell]
+        pruefung:
+          - Mit dem Admin-Schlüssel und mit einem Benutzerschlüssel je ein Design wählen (Einstellungen → Darstellung); auf dem VPS liegen data/user_prefs_admin.json und data/user_prefs_<id>.json getrennt.
+          - Auf einem zweiten Gerät mit demselben Schlüssel verbinden; Sprache, Design und Hinweiszeiten sind dieselben.
+        erwartet: Die Tests @USR-09 bestehen. Die Werte folgen dem Benutzer auf jedes Gerät, ein Benutzer sieht nie die Werte eines anderen, und ein Schreibfehler stellt den alten Wert wieder her.
+
+      - id: USR-10
+        titel: Einstellungsfenster (Darstellung, Verbindung, Robot, Benutzer, System)
+        beschreibung: "Plan 1114-A4 S1. Der Zahnrad-Knopf in der Kopfzeile öffnet ein Fenster mit gruppiertem Menü links (PERSÖNLICH: Darstellung; DIESES GERÄT: Verbindung; KONTO: Robot und Zone als Link zum Dashboard; ADMIN: Benutzer als Link zu /users, System und Update) und dem Bereich rechts mit Titel, Beschreibung und Abzeichen, wo gespeichert wird. Benutzer und System sehen nur Admins. Darstellung: Sprache, Design, Hinweis-Verzögerung („Sofort“ | „Eigene“ + Sekundenfeld 0,1–10 s; bei „Sofort“ zeigt das Feld 0 und ist aus; Komma und Punkt gehen; Enter oder Verlassen speichert; ungültig stellt den alten Wert wieder her) und Anzeigedauer („Bis Zeiger geht“ | „Eigene“, 1–60 s; nach Ablauf schließt der Hinweis auch bei ruhendem Zeiger). Der Probe-Knopf zeigt beide Werte an einem echten Hinweis. Jede Änderung speichert sofort; die Zeile zeigt „Speichert…“, dann ✓ „Gespeichert“ (verschwindet) oder ✕ „Nicht gespeichert“; dazu ein Toast; unten steht eine dauernde Statuszeile. Auf dem Telefon (Vollbild, 375 px) erscheint erst die Bereichsliste mit dem aktuellen Wert als Zusammenfassung; Antippen öffnet den Bereich, „‹ Einstellungen“ geht zurück. Benachrichtigungen und Chart folgen in S2. Verbindung bleibt in diesem Browser (useConnectionStore); „Verbindung ändern…“ öffnet den bekannten Dialog."
+        code: [frontend_nextjs/src/components/settings/SettingsDialog.tsx, frontend_nextjs/src/components/settings/AppearanceSection.tsx, frontend_nextjs/src/components/settings/ConnectionSection.tsx, frontend_nextjs/src/components/settings/LinkSection.tsx, frontend_nextjs/src/components/settings/SystemSection.tsx, frontend_nextjs/src/components/settings/parts.tsx, frontend_nextjs/src/components/settings/SettingsButton.tsx, frontend_nextjs/src/components/ui/tooltip.tsx, frontend_nextjs/src/store/useSettingsDialogStore.ts, frontend_nextjs/src/components/layout/SystemModals.tsx, frontend_nextjs/src/components/layout/HeaderMenu.tsx, frontend_nextjs/src/components/ui/modal.tsx, frontend_nextjs/src/i18n/messages/settingsDialog.ts, frontend_nextjs/src/i18n/messages/settingsHints.ts, frontend_nextjs/e2e/mocked/settings-dialog.spec.ts]
+        tiers: [e2e, manuell]
+        pruefung:
+          - Im Browser (Desktop und Handy, hell und dunkel) das Zahnrad öffnen und alle Bereiche durchgehen; als Benutzer fehlen Benutzer und System.
+          - Hinweis-Verzögerung auf „Sofort“ und Anzeigedauer auf 3 s stellen, im Dashboard über Knöpfe fahren.
+        erwartet: Die Tests @USR-10 bestehen. Das Fenster sieht wie der freigegebene Entwurf aus, speichert sofort, und bei 375 px gibt es keinen waagerechten Überlauf.
+
   # ---------------------------------------------------------------------------
   - id: SET
     titel: Allgemeine Einstellungen

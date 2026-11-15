@@ -47,6 +47,7 @@ Worker CORS uses `ALLOWED_ORIGINS` (comma-separated, default `*`).
 - `data/state_<accountId>.json` – runtime state; MT5 is the source of truth and `state_manager.py` rebuilds this file from MT5 on startup
 - `data/fractal_state_<accountId>.json` – fractal zones: handled (filled / manually deleted) fractals per zone and side, so they aren't traded again after a restart
 - `data/turns/<accountId>/turns_YYYYMMDD.csv.gz` – bot turn telemetry (ENG-35): start, length and kind of each loop turn, gzip members appended by a background thread, 30 days kept; read by `GET /api/bot/{id}/turns`
+- `data/user_prefs_<userId>.json` – personal preferences of a user (`admin` or `u_…`): language, theme, hint delay and display time (USR-09, `src/api/user_prefs.py`, `GET /api/me/prefs`, `PUT /api/me/prefs/{key}`); the frontend writes them through `useUserPrefsStore.change()`, `localStorage` is only a cache
 - `logs/` – per-account logs and PID files
 All of these are gitignored and may contain credentials.
 

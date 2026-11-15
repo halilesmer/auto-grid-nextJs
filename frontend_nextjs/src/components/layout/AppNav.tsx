@@ -12,6 +12,7 @@ import { DropdownMenu, DropdownMenuGroup, useDropdownClose } from '@/components/
 import { useAuthStore, type Me } from '@/store/useAuthStore';
 import NewsButton from '@/components/news/NewsButton';
 import HeaderMenu from './HeaderMenu';
+import SettingsButton from '@/components/settings/SettingsButton';
 import ToolsNav from './ToolsNav';
 
 const LINKS: {
@@ -112,6 +113,7 @@ export default function AppNav() {
 
         <div className="ml-auto flex min-w-0 items-center gap-2 lg:ml-0">
           <NewsButton />
+          <SettingsButton />
           <HeaderMenu />
           <DropdownMenu
             label={t('nav.menu')}

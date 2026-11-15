@@ -70,8 +70,8 @@ test.describe('UI Sprache', () => {
   test.describe('Mobil (375px)', () => {
     test.use({ viewport: { width: 375, height: 812 } });
 
-    test('Sprachwahl TR · EN · DE im Kopf-Menü, nichts läuft über', { tag: '@UI-05' }, async ({ page }) => {
-      await page.goto('/');
+    test('Sprachwahl TR · EN · DE im Kopf-Menü, nichts läuft über', { tag: '@UI-05' }, async ({ page, dashboard }) => {
+      await dashboard.open(null);
       const panel = await openHeaderMenu(page);
       const switcher = panel.getByTestId('language-switcher');
       await expect(page.getByTestId('language-tr')).toHaveAttribute('aria-checked', 'true');

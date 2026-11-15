@@ -20,9 +20,11 @@ interface ModalProps {
   chrome?: boolean;
   /** Erişilebilir ad, wenn kein Titel (chrome=false) da ist. */
   label?: string;
+  /** Telefonda (sm altı) tam ekran: kenar boşluğu, yuvarlak köşe ve kenarlık yok. */
+  mobileFull?: boolean;
 }
 
-export function Modal({ open, onClose, title, icon, children, className, dismissible = true, chrome = true, label }: ModalProps) {
+export function Modal({ open, onClose, title, icon, children, className, dismissible = true, chrome = true, label, mobileFull = false }: ModalProps) {
   const t = useT();
   // Anker bleibt an der Einbaustelle, um den Portal-Container zu bestimmen (erst im Browser vorhanden)
   const [anchor, setAnchor] = useState<HTMLSpanElement | null>(null);
@@ -48,7 +50,7 @@ export function Modal({ open, onClose, title, icon, children, className, dismiss
         createPortal(
         <AnimatePresence>
           {open && (
-            <div className={cn('fixed inset-0 flex items-center justify-center p-4', inFullscreen ? 'z-[100]' : 'z-[60]')}>
+            <div className={cn('fixed inset-0 flex items-center justify-center', mobileFull ? 'sm:p-4' : 'p-4', inFullscreen ? 'z-[100]' : 'z-[60]')}>
               <motion.div
                 className="absolute inset-0 bg-overlay"
                 data-testid="modal-backdrop"
@@ -67,6 +69,7 @@ export function Modal({ open, onClose, title, icon, children, className, dismiss
                 transition={{ type: 'spring', bounce: 0.1, duration: 0.3 }}
                 className={cn(
                   'relative w-full max-w-md rounded-xl border border-border bg-popover p-6 text-popover-foreground shadow-2xl shadow-black/15 dark:shadow-black/60',
+                  mobileFull && 'max-sm:h-dvh max-sm:max-w-none max-sm:rounded-none max-sm:border-0',
                   className,
                 )}
               >
