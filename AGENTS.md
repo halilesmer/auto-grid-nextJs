@@ -84,4 +84,4 @@ Default phases:
 
 ## Communication
 
-The owner writes German or Turkish. Answer in the language of the message. Follow `docs/agent-rules/communication-style.md`: result first, one decision per reply, name assumptions.
+The owner writes German or Turkish. Answer in the language of the message. Follow `docs/agent-rules/communication-style.md`: result first, name assumptions, do not widen the scope.

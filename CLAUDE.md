@@ -1,58 +1,45 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code in this repository. Each rule has one home; this file holds what every session needs and points to the rest.
 
 ## Project
 
 Grid Robot: an algorithmic grid-trading bot for MetaTrader 5. Monorepo with two packages:
 
 - `frontend_nextjs/` – Next.js 16 (App Router), React 19, TypeScript, Tailwind v4, Zustand, lightweight-charts
-- `worker_python/` – FastAPI worker that talks to MT5 (the `MetaTrader5` package is Windows-only; the worker is meant to run on a Windows host/VPS, often exposed via ngrok)
+- `worker_python/` – FastAPI worker that talks to MT5 (the `MetaTrader5` package is Windows-only; the worker runs on a Windows VPS, exposed via ngrok)
 
-`docs/proje_dosya_krokisi.md` (Turkish) is the maintained architecture map — read it first before larger changes. Parts are stale (e.g. it mentions `grid_position_sync.py`, which no longer exists), so verify against the code.
+## Where the rules are
 
-`frontend_nextjs/AGENTS.md` (loaded via `frontend_nextjs/CLAUDE.md`) applies to all frontend work: this Next.js version has breaking changes — consult `frontend_nextjs/node_modules/next/dist/docs/` before writing Next.js code.
+| Read | When |
+|---|---|
+| `.claude/rules/worker.md` | Before worker work: VPS setup, API key and roles, routes, process model, persistence. Loads by itself for `worker_python/**`. |
+| `.claude/rules/frontend.md` | Before frontend work: worker connection, pages, state, i18n, tooltips, design first. Loads by itself for `frontend_nextjs/**`. |
+| `.claude/rules/tests.md` | Before you write or change tests: tiers, tags, mock worker, live tests. |
+| `hooks/RULES.md` | Push and merge (§1), compatibility (§2), live test protocol (§3), catalog and precheck (§4), tooltips (§5), new rules (§6), journal (§7), debugging (§8), reviews (§9–10). |
+| `docs/proje_dosya_krokisi.md` | Architecture map (Turkish). Read it before larger changes; parts are stale, verify against the code. |
+| `docs/journal/` | Before you change an area: `grep -l ENG-21 docs/journal/20*.md`. |
+| `docs/agent-rules/` | Subagents, Codex scan, weekly limit, coordinator, approval from the phone (`ajan-kullanimi.md`); code rules. |
+| `docs/claude-code-setup.md` | LSP plugins and Pyright on a new machine. |
 
 ## Dev setup
 
-Development happens on a MacBook, split across two machines:
-
-- **Mac (local):** the frontend only. Run `npm run dev:frontend` and test at http://localhost:3000. `frontend_nextjs/.env.local` points `NEXT_PUBLIC_API_URL` at the worker's ngrok URL.
-- **Windows VPS:** the worker only, started with `worker_python/start.bat` (uvicorn crash watchdog via `run_uvicorn_watchdog.bat`, ngrok crash watchdog via `run_ngrok_watchdog.bat`). See `docs/windows_start_guide.md`. A fresh VPS is set up with one command in an admin PowerShell, `irm .../ops/windows/bootstrap.ps1 | iex` (installs Git/Python 3.11/the VC++ redistributable if missing, clones the repo, sets up the venv + `requirements.txt`, generates `WORKER_API_KEY`, configures ngrok, then calls `setup_vps.ps1` and starts the worker, ending with a connection link for the web UI, `ops/windows/connect-link.ps1`); repo clone/venv/pip/ngrok run in their own scheduled task with `RunLevel Limited` (`bootstrap-user.ps1`), never elevated. After that (or the one-time `worker_python/ops/windows/setup_vps.ps1` on its own, admin: `-PublicKey` optional — auto-login, scheduled tasks `AutoGrid-Start`/`AutoGrid-Update` with RunLevel Limited, and with `-PublicKey` also OpenSSH key-only), the VPS can also be controlled from the Mac via the page `/vps`: the Next.js route `src/app/api/vps/[action]/route.ts` runs `ops/windows/vps.ps1` over SSH (`src/lib/server/vpsSsh.ts`, server-only env `VPS_SSH_HOST`/`VPS_SSH_KEY`/`VPS_REPO_PATH`, localhost only). Under the watchdog the worker auto-updates from `origin/main` (`src/utils/auto_updater.py`, `AUTO_UPDATE_MINUTES`, default 5) and resumes bots that were running before a restart (`data/watched_bots.json`). Self-healing without remote access: the scheduled task `AutoGrid-Tunnel` (`ops/windows/tunnel_watchdog.ps1`, every 5 min, VPS-10) checks that the public ngrok URL answers `/api/system/platform`, restarts ngrok (or worker + ngrok via `AutoGrid-Start`) and reboots the VPS after 3 failures in a row (at most once an hour, 3 times a day); it runs elevated only for the reboot and never runs git or starts worker/ngrok itself. Rights rule: never run `git` on the VPS as administrator (files would become admin-owned and pulls fail); `vps.ps1` therefore never calls git over SSH, updates go through the worker or the limited `AutoGrid-Update` task.
-- **Vercel:** the frontend is also deployed publicly through the Vercel GitHub integration (project `auto-grid-next-js`, root directory `frontend_nextjs`). Every PR branch gets a preview deployment (the `vercel[bot]` comment on the PR); there's no `vercel.json` in the repo, so the settings live in the Vercel dashboard. Everything in `NEXT_PUBLIC_*` ends up in the public JS bundle there, so never set secrets such as `NEXT_PUBLIC_WORKER_API_KEY` in Vercel. The worker address and API key are no longer build-time env vars: each visitor enters them once in the browser (the "VPS verbinden"/"Connect VPS" dialog, `src/store/useConnectionStore.ts`), stored in that browser's `localStorage` only and sent straight from the browser to the worker — Vercel's server never sees them. `NEXT_PUBLIC_API_URL`/`NEXT_PUBLIC_WORKER_API_KEY` in `.env.local` are just the seed value used locally when nothing is stored yet (SYS-07 in `docs/features/features.yaml`).
-
-The worker can't run on the Mac (MT5 is Windows-only), so don't start it locally: `npm run dev` and `npm run dev:backend` aren't meant for this setup. Worker changes can only be checked statically here; they get tested once they're pulled onto the VPS and the worker is restarted.
+- **Mac (local):** the frontend only. Run `npm run dev:frontend` and test at http://localhost:3000. `localhost:3000` acts on the live worker on the VPS.
+- **Windows VPS:** the worker only. It cannot run on the Mac (MT5 is Windows-only), so do not start it locally: `npm run dev` and `npm run dev:backend` are not for this setup. Check worker changes statically and with the unit/api tests; they are live after the VPS pulled them (auto-update from `origin/main`, default every 5 min).
+- **Vercel:** the frontend is deployed publicly; each PR branch gets a preview. Everything in `NEXT_PUBLIC_*` is in the public JS bundle, so never set a secret there.
+- Never run `git` on the VPS as administrator.
 
 ## Commands
 
-Frontend (run inside `frontend_nextjs/`):
+Frontend (inside `frontend_nextjs/`):
 
 ```bash
-npm run dev            # next dev + Python worker concurrently (needs worker_python/.venv; Windows only)
 npm run dev:frontend   # Next.js only, http://localhost:3000
-npm run dev:backend    # worker only (worker_python/.venv/bin/python main.py)
 npm run build
 npm run lint
 ```
 
-Worker (run inside `worker_python/`):
-
-```bash
-pip install -r requirements.txt
-python main.py         # uvicorn on 0.0.0.0:8000; set ENV=development for auto-reload
-```
-
-Worker connection: the address and API key are runtime state, not a build-time env var. `src/store/useConnectionStore.ts` holds them (Zustand `persist`, `localStorage` key `grid-robot-connection`); the "VPS verbinden"/"Connect VPS" dialog (`src/components/connection/ConnectionDialog.tsx`) writes them after a successful test against `GET /api/system/platform`, and a connection link (`#connect=…`, `src/lib/connectionCode.ts`) can prefill both. `frontend_nextjs/.env.local`'s `NEXT_PUBLIC_API_URL`/`NEXT_PUBLIC_WORKER_API_KEY` are only the seed value used the first time nothing is stored yet (local dev and the mocked e2e build); there is no hard-coded fallback address anymore. `NEXT_PUBLIC_WS_URL` is unused; the WebSocket URL is derived from the stored address in `toWsUrl()` (`src/lib/connectionCode.ts`, used by `useWebSocketManager.ts`). Worker CORS uses `ALLOWED_ORIGINS` (comma-separated, default `*`).
-
-API key: the worker reads `WORKER_API_KEY` (set on the VPS with `setx`, see `docs/windows_start_guide.md`). When it's set, every `/api/*` request must send the header `X-API-Key` (otherwise 401) and `/ws/stream` must pass `?api_key=…` (browsers can't set WebSocket headers); the check lives in `worker_python/src/api/auth.py`, the middleware in `main.py`, the WS check in `ws_server.py`. When it's unset the worker stays open as before and logs a warning at startup. The frontend reads the key from the connection store: use `axiosInstance` (attaches it via an interceptor) or `getWorkerHeaders()` from `src/lib/api.ts` for every worker call (never bare `axios`/`fetch` without them), and `toWsUrl()` appends it for the WebSocket.
-
-Multi-user (USR-01…08, `docs/mehrbenutzer.md`, German): `WORKER_API_KEY` is the **admin** key and sees every account; the admin creates users on the page `/users` (`GET/POST /api/users`, `POST /api/users/{id}/key`, `DELETE /api/users/{id}`), each with a personal key (only its sha256 lives in the gitignored `configs/users.json`, shown once on creation). The worker maps every `X-API-Key`/`?api_key=` to a role in `src/api/auth.py` (`authenticate()` → `Principal`, set on `request.state.principal` by the middleware in `main.py`) and enforces ownership in `src/api/access.py` (`account_access` dependency on every account-scoped route: a user only reaches accounts whose `owner` is their user id, everything else is 404; admin unchanged). Accounts carry `owner` (set by the worker on create; only the admin changes it; legacy accounts without owner belong to the admin). `GET /api/auth/me` tells the frontend the role (`useAuthStore`, `useIsAdmin()`); admin-only UI: `/vps`, `/users`, the update menu (`AdminOnly`, `AppNav`). A new account-scoped route must get `dependencies=[Depends(account_access)]`, a new admin-only route `Depends(require_admin)`. Without `WORKER_API_KEY` and without users the worker stays open (everyone admin); with users but no `WORKER_API_KEY` a request without key gets 401.
-
-MT5 passwords never leave the worker: account responses go through `_public_account()` (`src/api/helpers.py`), which drops `password` and adds `has_password`. On `PUT /api/accounts/{id}` an empty or missing password keeps the stored one, so the edit form starts with an empty password field.
-
-## Tests
-
-Feature catalog `docs/features/features.yaml` (features in test order) → generated checklist `docs/features/FEATURES.md`. Every test carries its feature ID; in Claude Code the `/feature-test` skill (`.claude/skills/feature-test/SKILL.md`) runs the tests and reports. A new or changed feature needs a catalog entry and a tagged test (`hooks/RULES.md` §4).
+Tests (feature catalog `docs/features/features.yaml` → generated `docs/features/FEATURES.md`; skill `/feature-test`):
 
 ```bash
 scripts/features/run.sh              # unit + api + e2e, then regenerate FEATURES.md
@@ -60,109 +47,56 @@ scripts/features/run.sh ZON          # one category (or one feature: ENG-05)
 scripts/features/run.sh unit ENG-05  # one tier + filter
 scripts/features/run.sh live         # against the VPS worker, DEMO account, read-only
 scripts/features/run.sh next | show ID | sign ID bestanden "Notiz"
+scripts/features/precheck.sh         # before the first push of a PR: the CI steps in CI order
 ```
 
-- **unit / api** (`worker_python/tests/`, pytest; needs `pip install -r requirements-dev.txt` in `worker_python/.venv`): the engine runs against `tests/fakes/fake_mt5.py`, an in-memory broker, so no MT5 is needed; API tests use FastAPI's `TestClient` with all paths redirected to a tmp dir. Tag with `@pytest.mark.feature("ENG-05")`; known bugs are `xfail(strict=True)`.
-- **e2e** (`frontend_nextjs/e2e/mocked/`, Playwright, `npm run test:e2e`): a production build in `.next-e2e` (`NEXT_DIST_DIR`, so it runs next to `npm run dev:frontend`) against a mocked worker (`e2e/fixtures/mock-worker.ts`, mirrors `worker_python/src/api/*`; fails on missing `X-API-Key` or unknown endpoints). Tag with `{ tag: '@ZON-05' }`. Stable selectors are `data-testid`/aria attributes (`zone-card`, `metric-*`, `bot-status`, `log-output` …).
-- **live** (`frontend_nextjs/e2e/live/`, `npm run test:live`): uses `.env.local` and the account from `hooks/test-account.local.md`; skips unless it's DEMO. Read-only by default; trading tests need `E2E_LIVE_DEMO=1` (and `E2E_LIVE_BOT_RESTART=1` for stop/start) and only run when the user explicitly asks (`hooks/RULES.md` §3).
-- **CI** (`.github/workflows/tests.yml`) runs the catalog check, worker tests, and frontend lint + tsc + e2e on every PR and push to `main`.
-- **Before the first push of a PR** run `scripts/features/precheck.sh`: the same steps as CI (catalog, pytest, lint, tsc, all mocked e2e) in CI order; it fails when Playwright ran zero tests (`hooks/RULES.md` §4.8–4.11). The mocked e2e port is per checkout (3300–3999 from the checkout path, 3100 in CI, `E2E_PORT` wins, no reuse of a running server without `E2E_REUSE=1`; SYS-10), so parallel worktrees do not share a test server. Heavy runs wait for a machine-wide lock (`scripts/features/heavy_lock.sh`, SYS-11) and run 3 local Playwright workers (`E2E_WORKERS` changes it).
+- A new or changed feature needs a catalog entry and a tagged test (`hooks/RULES.md` §4).
+- Heavy runs (`precheck.sh`, full e2e, `next build`) operate one at a time on the Mac; the scripts take the lock themselves. Run them in the background.
+- CI (`.github/workflows/tests.yml`) runs the catalog check, worker tests, and frontend lint + tsc + e2e on every PR and push to `main`.
 
-## Versioning
+## Hard rules
 
-The GitHub Action `.github/workflows/version-bump.yml` bumps the patch version on every push to `main` (including PR merges): it rewrites `VERSION` and `frontend_nextjs/src/app/version.ts` and pushes a `chore: auto bump version to vX.Y.Z` commit to `main`. Don't edit these two files by hand, and pull `main` after a merge before pushing again. The worker's update check (`src/utils/self_updater.py`) compares the local `VERSION` with `origin/main`. This replaces the former local `.git/hooks/pre-push` hook; don't reinstall it, or versions get bumped twice.
-
-## Architecture
-
-### Frontend ↔ Worker
-- REST under `/api/*` (FastAPI routers in `worker_python/src/api/`, one module per domain: accounts, bot_control, settings, symbols, logs, market, system, ui_state, ui_prefs, news; shared Pydantic models in `models.py`, error handling in `errors.py`). `market` serves the planned Analyse page (chart/statistics/backtest; rules in `docs/analyse-regeln.md`); `ui_prefs` stores small per-account UI preferences (`GET /api/ui-prefs/{id}`, `PUT /api/ui-prefs/{id}/{key}`, `data/ui_prefs_<id>.json`, NWS-02: the news filter); `news` serves the dashboard news card (NWS-01, plan 1107-A16): `GET /api/news/events?from&to&impact&currencies` reads `autogrid_calendar_<lang>.json`, which the MQL5 service `ops/mt5/AutoGridCalendar.mq5` rewrites every minute, one terminal per language (`src/utils/econ_calendar.py`: UTC times, titles merged into `titles`, `lang` query, `forecast_direction`, `stale` after 5 min; every role, not account-bound). so far the read-only admin `GET /api/market/{id}/time-check` (ANA-13), `GET /api/market/{id}/clock` (broker clock offset for the calendar, ANA-10), and the SQLite market database `data/market.sqlite` (`src/utils/market_db.py` + `market_sync.py`): `GET /api/market/{id}/rates` / `coverage` fetch only missing candle ranges from MT5 (coverage states complete/gap_confirmed/unavailable, ANA-04) and `GET /api/history/{id}/deals` archives all deals, with the zone registry written on every settings save (ANA-07). The page itself is `/chart` (menu „Chart“; U3a of the plan „Ein Chart im System“): one chart without modes (plan 1107-A21, UI-22): URL model `src/lib/chart/chartUrl.ts` (`parseChartUrl`/`buildChartUrl`, `src/hooks/useChartParams.ts`; `mode=` of old links is ignored and dropped on every write), `tf` defaults to H4, range to "All", formations only on D1/H4/H1/M15. `/formasyon?…` redirects to `/chart?…` (`next.config.ts`). Statistics are the page `/stats` (menu „Statistik“, UI-23; same address model and shared state in `src/hooks/useChartContext.ts`); old `/chart?…&tab=stats` links redirect there. `useAnalysisParams` serves only `/backtest`. State in the URL, time model in `src/lib/serverTime.ts`. Data queries from the API process (symbol list, Analyse) connect with `data_query=True`: no `mt5.login()` when the terminal is already logged into that account and server, and no account switch on a terminal where another account's bot is running (error instead), so a running bot's session stays untouched.
-- WebSocket at `/ws/stream` (`src/api/ws_server.py`, mounted under `/ws` in `main.py`) pushes live metrics, logs, and status. Each connection gets the metrics of the account in `?account_id=` (the one selected in the browser; without it, the first account in `accounts.json`): from the API process's MT5 only if that terminal is logged into this account, otherwise from the bot process's metrics file. On the client, `src/store/useWebSocketManager.ts` owns the connection (reconnects when the selected account changes) and routes messages into the stores.
-- Frontend HTTP calls go through `axiosInstance` in `src/lib/api.ts` (it sends the `ngrok-skip-browser-warning` header). Zone-specific calls live in `src/services/zoneApi.ts`.
-
-### Frontend state
-Zustand domain stores in `src/store/` (`useAccountStore`, `useSettingsStore`, `useSystemStore`, `useBotRuntimeStore`, `useLogsStore`) are the single source of truth. Hooks that fetch shared data must also write the result into the global store, not just into local state; otherwise dropdowns go stale and you get 409 errors (see `AGENTS.md` for the pattern). After a mutation, refetch to refresh the store. Components read from the stores. `useMT5Scanner` is deliberately local-only. Account selection goes through `selectAccount()` (`src/store/utils/selectAccount.ts`, used by the dashboard and the Analyse page): switching clears the old account's settings and runtime at once. Settings are loaded with `useAccountSettings(accountId)` (`src/hooks/`), which records `useSettingsStore.loadedAccount`; show zones only when `loadedAccount` equals the selected account.
-
-### Worker process model
-- The FastAPI process doesn't trade. `src/utils/bot_manager.py` starts one **detached subprocess per MT5 account** (`python -u src/core/bot_runner.py <account_id> <engine_name>`) and tracks it via PID files in `logs/`. Starting or stopping a bot means managing that process.
-- MT5 reads that can take long (candle and tick pieces of `market_sync`) run in reader subprocesses (2 for long fetches, 1 for the newest chunk of a warm chart) (`src/utils/mt5_reader.py`, `python -m src.utils.mt5_reader`, localhost connection with a random key, 1110-A2): a `MetaTrader5` call keeps the GIL while the terminal loads history (82 s measured), so the API process must not make it itself. The API process waits at most the request budget; a job over 300 s kills the reader. Without `MetaTrader5` (Mac, tests) the jobs run in-process (`MT5_READER=inline|process` forces a mode). A new MT5 read that can download history goes through `mt5_reader.run()`.
-- `src/utils/bot_watchdog.py` (started in `main.py`'s startup handler) restarts a bot that crashed or hangs (no metrics write for 10 min). It watches only bots started with `/start` (plus bots still running when the worker boots) until `/stop`. The watch list lives in memory, so bots that died during a worker/VPS restart are not revived. It gives up after 5 restarts in 30 min. `/start`, `/stop` and the watchdog share a per-account `account_lock`.
-- Trading loop: `bot_runner` → `loop` → `grid_orchestrator`, which coordinates `grid_zone_selector`/`grid_zone_state`, the `grid_execution/` package (level math, placement, validation), `grid_order_manager` → `grid_orders` (the only MT5 order/position CRUD gateway, magic-number based; every zone has a fixed `magic` the worker assigns on save in `src/utils/zone_magic.py`, ENG-27, so the engine maps orders/positions to zones via `zone_index_by_magic`, never via list position; when a zone is deleted the running bot re-keys its index-keyed state on the next settings reload, `grid_zone_state.rekey_zone_state`), `grid_remote` (mobile control via MT5 signals), and `grid_metrics` (telemetry).
-- `auto_grid_engine.py` is the legacy monolithic engine, kept for backward compatibility. Put new logic in the modular files.
-- MT5 connection/errors: `src/utils/mt5_connection.py`, `mt5_helpers.py` (retry/timeout), `mt5_errors.py` (error-code parsing, zombie-process cleanup, LIVE/DEMO safety check).
-
-### Persistence (all paths from `src/utils/paths.py`, relative to `worker_python/`)
-- `configs/settings_<accountId>_<Engine_Name>.json` – per-account settings and zones; `configs/accounts.json` – account list
-- `data/state_<accountId>.json` – runtime state; MT5 is the source of truth and `state_manager.py` rebuilds this file from MT5 on startup
-- `data/fractal_state_<accountId>.json` – fractal zones: handled (filled / manually deleted) fractals per zone and side, so they aren't traded again after a restart
-- `data/turns/<accountId>/turns_YYYYMMDD.csv.gz` – bot turn telemetry (ENG-35): start, length and kind of each loop turn, gzip members appended by a background thread, 30 days kept; read by `GET /api/bot/{id}/turns`
-- `logs/` – per-account logs and PID files
-All of these are gitignored and may contain credentials.
-
-## Hooks & Kurallar
-
-- `hooks/` klasörü: git `pre-commit`/`pre-push` + Claude Code hook'ları (`.claude/settings.json`). Klonladıktan sonra bir kez: `bash hooks/install.sh`. Detay: `hooks/README.md`.
-- Kurallar (GitHub'a yükleme, uyumluluk, test protokolü): `hooks/RULES.md`. Hook hata verirse `--no-verify` ile geçme, hatayı düzelt.
-- **"Test et" denince:** önce `hooks/test-account.local.md` dosyasını oku (gitignore'lu demo hesap; şifre içermez), worker'da kayıtlı o hesabı seç, mevcut datayı kullan. Şifre forma yazılmaz. Protokol: `hooks/RULES.md` §3.
-- **Branch-Aufräumen:** ein Branch, der über einen gemergten PR (oder direkt) in `main` aufgegangen ist, wird gelöscht (lokal + remote) — nicht als offene Nachfrage stehen lassen. Vor dem Löschen mit `git merge-base --is-ancestor <branch> main` verifizieren, dass er wirklich gemergt ist. Nicht gemergte Branches nur melden, nicht löschen.
-- **Merge ohne Rückfrage:** jeder fertige PR wird ohne Frage an Halil mit `gh pr merge <n> --auto --squash --delete-branch` gemergt, nie mit `--admin`. GitHub prüft die Merge-Bereitschaft selbst, die Sitzung prüft beim PR-Öffnen, dass der CI-Monitor der App an ist, und wartet nicht auf „weiter“. Stopp-Bedingungen und Ablauf: `hooks/RULES.md` §1.8.
-
-## Conventions
-
-- **UI ↔ backend sync is mandatory** (from `.agents/rules/token-saver.md`): a new or changed setting/parameter in the worker (engine, config JSON, Pydantic model) is not done until the matching UI field (zone components in `src/components/zone/`, `SettingsForm`, stores, types) reads and writes it correctly.
-- **UI strings go through i18n** (`frontend_nextjs/src/i18n`, languages tr/en/de, default `tr`): never hard-code user-visible text. Add the key to the matching area file in `src/i18n/messages/` with all three languages side by side (tsc fails on a missing key), then use `useT()` in components or `t()` outside React (toasts in hooks, stores, `apiError`); use `useFormat()` for numbers/times. Values sent to the worker (e.g. the `clear_*`/`exit_condition` strings in zones) and worker messages (`detail`, log lines) are not translated. In e2e tests take texts from `msg('key')` (`e2e/fixtures/i18n.ts`) instead of literals.
-- **Every setting, field and button needs a tooltip** (`hooks/RULES.md` §5): `hint` is a required prop of `InputField`, `Switch`, `Button`, tab items and `ConfirmModal` (tsc fails without it); fields get an (i) icon, buttons a hover/focus tooltip, all via `src/components/ui/tooltip.tsx`. The text is an i18n key `<label-key>.hint` in `src/i18n/messages/hints.ts` (tr/en/de) and says what the control does, its unit/effect and, if it is disabled, why. A plain `<button>`/`<input>` outside `Tooltip`/`InputField` fails the e2e coverage test `UI-07`; no native `title=` for explanations.
-- **Design first:** for design or frontend changes (new or changed visible UI), Claude first proposes a design as an Artifact and finishes it together with Halil. Code changes start only after he approves the design.
-- Code comments, logs, and docs are mostly in Turkish. Match the language of the file you're editing. Exceptions: the project journal and new rules are in English, to ASD-STE100 (`hooks/RULES.md` §6.5).
-- **Library docs:** for questions or code involving Next.js, React, Tailwind, Zustand, lightweight-charts or FastAPI, look up current docs with the Context7 MCP (`.mcp.json`) first. For Next.js also check `frontend_nextjs/node_modules/next/dist/docs/` (see `frontend_nextjs/AGENTS.md`).
-- **Project journal** (`docs/journal/`, `hooks/RULES.md` §7): before you change an area, grep the journal for its feature IDs and file names (`grep -l ENG-21 docs/journal/20*.md`) to see earlier causes and lessons. Write an entry for each change that adds knowledge (fix, defect, diagnosis, decision, plan) with the template in `docs/journal/README.md`. The repo is public: no account numbers, server names, IPs. Claude's memory is private to one Mac; durable knowledge and approved plans go into the journal.
-- **Debugging, reviews, safety:** `hooks/RULES.md` §8 (root cause first, failing test first, evidence before "done") and §9 (review checklist, `/security-review` for auth/access/VPS changes, `localhost:3000` acts on the live worker, external AI reviews).
-- **Code intelligence (LSP):** the Claude Code plugins `typescript-lsp` and `pyright-lsp` (official marketplace) show diagnostics after each edit and give go-to-definition and find-references. Setup on a new machine: `npm i -g typescript-language-server typescript@5 pyright@1.1.414`, then in the desktop app **+ → Plugins → Add plugin** (user scope). Pyright needs `worker_python/.venv` with `requirements-dev.txt` (in a worktree: a symlink to the main checkout's venv). Python uses the root `pyrightconfig.json`: worker only, platform Windows, a `MetaTrader5` stub in `worker_python/typings/`, the noisy `Optional`/argument rules off. The baseline (pyright 1.1.414) has 35 known errors (dynamic legacy module in `bot_runner.py`, the `log` callable signature, test fakes). Fix new diagnostics in the lines you changed; do not fix old ones in an unrelated change.
+- **Versioning:** do not edit `VERSION` or `frontend_nextjs/src/app/version.ts`. A GitHub Action bumps them on every push to `main`. Pull `main` after a merge before you push again. Do not reinstall the old local `pre-push` version hook.
+- **Secrets:** the repository is public. No account numbers, server names, IPs, passwords or keys in code, logs, commits or the journal. MT5 passwords never leave the worker.
+- **UI ↔ backend sync:** a new or changed worker setting (engine, config JSON, Pydantic model) is not done until the matching UI field reads and writes it (`hooks/RULES.md` §2.1).
+- **UI text and tooltips:** every user-visible text goes through i18n (tr/en/de); every setting, field and button has a `hint` (`hooks/RULES.md` §5, `.claude/rules/frontend.md`).
+- **Design first:** for new or changed visible UI, Claude first proposes a design as an Artifact and finishes it with Halil. Code starts after he approves the design.
+- **Hooks:** after a clone, run `bash hooks/install.sh` once. When a hook fails, repair the cause; do not use `--no-verify`.
+- **"Test et":** read `hooks/test-account.local.md` first, select that DEMO account in the worker, use the existing data. Do not type a password into a form (`hooks/RULES.md` §3).
+- **Merge without a question:** each finished PR is merged with `gh pr merge <n> --auto --squash --delete-branch`, never `--admin`. Stop conditions and procedure: `hooks/RULES.md` §1.8.
+- **Branch cleanup:** delete a merged branch (local and remote) after you verified the merge. With squash merges, compare the trees, not the ancestry. Report branches that are not merged; do not delete them.
+- **Evidence:** root cause first, failing test first, no "done" without the command and its result from this session (`hooks/RULES.md` §8). Run `/security-review` for auth, access and VPS changes (§9).
+- **Journal:** write an entry in `docs/journal/` for each change that adds knowledge (fix, defect, diagnosis, decision, plan). Claude's memory is private to one Mac; durable knowledge and approved plans go into the journal.
+- **Rule files** (`CLAUDE.md`, `.claude/`, `hooks/`, `docs/agent-rules/`) change only when Halil asks (`hooks/RULES.md` §6).
+- **Language:** code comments, logs and docs are mostly Turkish; match the file. The journal and new rules are English (ASD-STE100).
+- **Library docs:** for Next.js, React, Tailwind, Zustand, lightweight-charts or FastAPI, look up current docs with the Context7 MCP first.
+- **Legacy:** `auto_grid_engine.py` is the old monolithic engine. Put new logic in the modular files.
+- **LSP:** fix new diagnostics in the lines you changed; do not fix the 35 known Pyright errors in an unrelated change.
 
 ## Model usage
 
-Claude Code does not change to a cheaper model by itself. Claude does it at phase boundaries (see below). Use these levers:
+The goal is the best result with the fewest tokens: the lowest model and `/effort` level that is sufficient for the phase.
 
-| Work | Who does it | Model |
-|---|---|---|
-| Plan, architecture, difficult debugging | main session in plan mode | Opus (`opusplan` selects it automatically) |
-| Implementation after an approved plan | main session | Sonnet (`opusplan` changes to it automatically) |
-| Routine task (small fix, text, configuration) | main session | Sonnet. On Opus, Claude recommends the change at the start of the task. |
-| Broad search across many files, when only the result is necessary | subagent `explorer` (`.claude/agents/explorer.md`) | Haiku |
-| Review before commit or PR | subagent `reviewer` (`.claude/agents/reviewer.md`) | Sonnet |
-| Small change, or work that needs this conversation | main session | — |
-
-Claude chooses model and `/effort` level itself. The goal is the best result with the fewest tokens: use the lowest model and level that is sufficient for the phase. Before a task with more than one phase, Claude shows this table, one row per phase. Defaults are below. `Reason` names the risk or the routine work of this task in one sentence. At the start of a phase, Claude writes one line that says which model and level the phase needs. The first reply of every session and of every new task starts with this line before any other work. If the session runs on Opus and the phase is not planning, the line is a warning: `**Dikkat:** Opus çalışıyor, bu aşamaya Sonnet/medium yeter — lütfen uygulamadan değiştir.` Claude reads its own model from the system prompt. The session tools `set_session_model` and `set_session_effort` change only other sessions and refuse the own session (checked 2026-10-17). For the own session, the user selects the model and level in the app. It does not change them during a running phase. It raises a level (for example to `xhigh`) only with a reason. For a one-phase task, one line is enough.
-
-| Phase | Model | Level (`/effort`) | Reason |
+| Phase | Model | Level | Reason |
 |---|---|---|---|
-| Plan (plan mode) | Opus | high | Design errors are expensive. Use for architecture, security, hard debugging. |
-| Implementation after approved plan | Sonnet | medium | Routine work that follows existing patterns: routes, UI, i18n, tooltips, tests. |
-| Review before PR (`reviewer`, `/security-review`) | Sonnet | medium | Checklist work. Use `/security-review` for auth, access, VPS changes. |
+| Plan, architecture, security, hard debugging | Opus | high | Design errors are expensive. |
+| Implementation after an approved plan; routine task | Sonnet | medium | Work that follows existing patterns: routes, UI, i18n, tooltips, tests. |
+| Review before PR (`reviewer`, `/security-review`) | Sonnet | medium | Checklist work. |
+| Broad search, when only the result is necessary | subagent `explorer` | Haiku | Keeps file dumps out of the main session. |
 
-- Delegate only if the subagent saves more than it costs. A subagent starts without context: the main session writes the brief and examines the result.
-- Give the subagent all decisions that it needs (privacy, language, rules). It cannot ask the user.
-- The `reviewer` cannot run `git diff`. Give it the diff or the changed files with line ranges, and the purpose.
-- Examine each subagent result before you use it. A subagent report is not evidence (`hooks/RULES.md` §8.4).
-- Do not change the model during a running phase. Change it only at a phase boundary.
-- On Sonnet: for architecture decisions and difficult debugging, change to Opus or a higher `/effort` for the plan phase. Do not guess.
+- The first reply of each session and of each new task starts with one line: the phase and the model and level it needs. Before a task with more than one phase, Claude shows the table with one row per phase.
+- Claude reads its own model from the system prompt and cannot change it. If the session runs on a more expensive model than the phase needs, the line is a warning: `**Dikkat:** <model> çalışıyor, bu aşamaya <model>/<level> yeter — lütfen uygulamadan değiştir.`
+- Change model and level only at a phase boundary. Raise a level only with a reason.
+- Subagents: delegate only if the subagent saves more than it costs. It starts without context, so the brief holds each decision it needs (privacy, language, rules). The `reviewer` cannot run `git diff`: give it the diff or the changed files with line ranges, the purpose and the done criterion. A subagent report is not evidence; examine it before you use it.
+- Sessions for plan phases (`start_session`): always set `model` and `effort` from the table (same family or cheaper; `effort` not higher than the parent). A phase that needs a different model starts as `fresh`; fork and cloud sessions do not accept `model` and `effort`. When one child session runs more than one phase, it writes `PHASENWECHSEL → N` at the start of its recap and waits for „Modell umgestellt“ before a more expensive phase; the parent changes it with `set_session_model` and `set_session_effort` and stays open until the last switch.
+- If Claude cannot set the plan model (scheduled task, fork, cloud session, limit error), it tells the user at once.
 
-Sessions for plan phases (`start_session`):
-
-- Always set `model` and `effort` from the phase table. Without them, the new session inherits the model and level of the parent session.
-- `model` must be the same family or a cheaper model. `effort` must not be higher than the level of the parent session.
-- A phase that needs a different model starts as `fresh`. Fork and cloud sessions do not accept `model` and `effort`.
-- When one session runs more than one phase, the parent session changes it at each phase boundary with `set_session_model` and `set_session_effort`. The changes apply from the next turn of the child session.
-  - The child session writes `PHASENWECHSEL → N` at the start of its recap. Do not change this signal.
-  - Before a phase on a more expensive model, the child session waits for the message „Modell umgestellt“ from the parent session.
-- The parent session stays open until the last phase switch is done.
-- A scheduled task (`create_scheduled_task`) has no `model` parameter. If Claude cannot set the plan model (scheduled task, fork, cloud session, limit error), it tells the user at once.
 ## Session discipline
 
-Every tool call re-reads the whole session history, so cost grows with session length and with the number of sessions that run at once (measured on the transcripts, 2026-11-04, by start date: the largest session started on 2026-10-06 had 183 model calls and read 55 M cached tokens; the largest started on 2026-10-21 had 130 and read 37 M).
+Every tool call reads the whole session history again, so cost grows with session length and with the number of parallel sessions.
 
 - A step is one planned item that ends in a merged PR or a written result. When a step is finished, Claude does not start the next step in the same session. It writes the state into the journal or the pending list, starts the next step with `start_session` (`initiation: "user_asked"`, `fresh`, brief with files and done criterion), and ends its turn. Auto-fix events and review fixes for the PR of this session stay in this session.
-- Approval from the phone: if the app refuses `start_session` after an approval that the user typed in this turn, follow `docs/agent-rules/ajan-kullanimi.md` §10. An idle linked session or this session then does the step.
-- At most 5 sessions that write files run at the same time. Before `start_session`, Claude calls `list_sessions` and counts the rows with `isRunning: true` that write. If there are 5, Claude does not start the session; it puts the step in the pending list and says so in one line. Sessions that change the same files, branch or PR do not run in parallel (see `~/.claude/koordinator/ANLEITUNG.md`, „Parallele Untersitzungen“).
-- Read-only sessions (search, review) share the checkout and do not count towards the limit.
-- Heavy test runs (`precheck.sh`, full e2e, `next build`) operate one at a time on the Mac with the lock `scripts/features/heavy_lock.sh`, not with the session limit (`hooks/RULES.md` §4.12–4.14).
-- Write session titles, briefs, recaps and replies in Turkish. Do not translate the signal tokens (`PHASENWECHSEL → N`, `ERGEBNIS:`, `PR:`, „Modell umgestellt“).
+- If the app refuses `start_session` after an approval that the user typed in this turn, follow `docs/agent-rules/ajan-kullanimi.md` §10.
+- At most 5 sessions that write files run at the same time. Before `start_session`, count the writing rows with `isRunning: true` in `list_sessions`. At 5, put the step in the pending list and say so in one line. Sessions that change the same files, branch or PR do not run in parallel.
+- Read-only sessions (search, review) share the checkout and do not count.
+- Session titles, briefs, recaps and replies are Turkish. Do not translate the signal tokens (`PHASENWECHSEL → N`, `ERGEBNIS:`, `PR:`, „Modell umgestellt“).
