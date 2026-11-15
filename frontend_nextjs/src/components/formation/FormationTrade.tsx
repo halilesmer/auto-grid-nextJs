@@ -71,12 +71,14 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
           active: true,
           dim: false,
           label: t('formation.trade.outcome.sofar'),
+          actual: true,
         };
       if (key === 'tp12')
         return {
           active: false,
           dim: false,
           label: t('formation.trade.outcome.ifTp2'),
+          actual: true,
         };
       return { active: false, dim: true, label: base, actual: false };
     }

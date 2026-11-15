@@ -156,6 +156,22 @@ test.describe('FRM-39 Handelsblock AB=CD (TP2, Ergebnisse in R)', () => {
     await expect(block.getByTestId('trade-outcome-tp1')).toContainText('+0,50');
   });
 
+  test('Status TP1 alındı: „bisher“ zeigt das tatsächliche TP1, „TP2 gelirse“ das tatsächliche TP1 plus das aktuelle TP2', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'abcd-double-h4-01', 1763452800, 'ABCD');
+    const block = page.getByTestId('trade-block');
+    await expect(block.getByTestId('trade-status')).toHaveAttribute('data-status', 'tp1');
+    await expect(block.getByTestId('trade-outcome-tp1')).toHaveAttribute('data-active', 'true');
+    await expect(block.getByTestId('trade-outcome-tp1')).toContainText(msg('formation.trade.outcome.sofar'));
+    await expect(block.getByTestId('trade-outcome-tp12')).toContainText(msg('formation.trade.outcome.ifTp2'));
+    // Gleiche Werte wie am Einstieg (+0,50 / +1,31) wären das Fehlerbild: das mitlaufende Ziel liegt bei Erreichen anders als am Einstieg
+    await expect(block.getByTestId('trade-outcome-tp1')).not.toContainText('+0,50');
+    await expect(block.getByTestId('trade-outcome-tp12')).not.toContainText('+1,31');
+    // Von Hand: Werte aus dem Zählpreis von TP1 und dem aktuellen TP2
+    await expect(block.getByTestId('trade-outcome-tp1')).toContainText('+0,43');
+    await expect(block.getByTestId('trade-outcome-tp12')).toContainText('+1,19');
+    await expect(block.getByTestId('trade-outcome-stop')).toContainText('-1,00');
+  });
+
   test('Status açık: kein Treffer, Stop bleibt, kein Ergebnis-Kasten hervorgehoben', { tag: '@FRM-39' }, async ({ page, worker }) => {
     await openPage(page, worker, 'abcd-buy-h4-02', 1752624000 - 30 * 14400, 'ABCD');
     const block = page.getByTestId('trade-block');
