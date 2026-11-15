@@ -80,6 +80,14 @@ export interface Trade {
   tp1AtEntry?: number;
   /** AB=CD: Strecke (Preis), um die der Docht Level 1 verfehlt hat, wenn D nur innerhalb der Toleranz erreicht ist */
   missed?: number;
+  /** AB=CD (1114-A4.2): TP2 = 0.618 der Ziel-Fib, läuft wie `tp1` mit dem äußersten Docht; die Hälfte der Position schließt hier */
+  tp2?: number;
+  /** AB=CD: TP2 am Einstieg (Fib ab `from` zu Level 1), Grundlage der Ergebnisse in R */
+  tp2AtEntry?: number;
+  /** AB=CD: TP3 (0.786 der Ziel-Fib), nur bei Divergenz oder harmonischem D (Fib ab A); Zusatzziel ohne Anteil */
+  tp3?: number;
+  /** AB=CD: TP1 liegt in einer sehr starken Zone der Gegenseite (nur Hinweis, die Rechnung bleibt) */
+  tp1StrongZone?: boolean;
   /** SIG-29 (CRV bis TP1 über 1, sonst Umkehrkerze der tieferen ZE): ☑ bei CRV > 1; Wert = CRV; die Anzeige zeigt die Zeile nur bei CRV ≤ 1 */
   sig29?: Check;
 }

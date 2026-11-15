@@ -41,7 +41,7 @@ test.describe('FRM-39 Handelsblock', () => {
     await expect(block).toContainText(msg('formation.trade.title'));
     await expect(block).toContainText(msg('formation.trade.disclaimer'));
     await expect(block).toHaveAttribute('data-side', 'buy');
-    for (const field of ['entry', 'stop', 'tp1', 'distance', 'crv']) {
+    for (const field of ['entry', 'stop', 'tp1', 'crv']) {
       await expect(block.getByTestId(`trade-${field}`)).not.toHaveText(/^\s*—\s*$/);
     }
     await expect(block.getByTestId('trade-stop-emergency')).toBeVisible();
@@ -94,10 +94,58 @@ test.describe('FRM-39 Handelsblock', () => {
     });
   }
 
-  test('Abstand: Pips bei 3 Nachkommastellen (Mock-Symbol), Beschriftung nennt die Einheit', { tag: '@FRM-39' }, async ({ page, worker }) => {
+  test('Abstand zum Einstieg: Pips unter Stop und TP1 (3 Nachkommastellen im Mock-Symbol), kein eigenes Feld „Abstand“', { tag: '@FRM-39' }, async ({ page, worker }) => {
     await openPage(page, worker, 'tdf-flag-h4-02', 1770782400, 'LIB');
-    await expect(page.getByTestId('trade-distance')).toHaveText(/^−[\d.,]+ \/ \+[\d.,]+$/);
-    await expect(page.getByTestId('trade-block')).toContainText(msg('formation.trade.distance.pips'));
+    await expect(page.getByTestId('trade-stop-distance')).toHaveText(/^−[\d.,]+ pip$/);
+    await expect(page.getByTestId('trade-tp1-distance')).toHaveText(/^\+[\d.,]+ pip$/);
+    await expect(page.getByTestId('trade-distance')).toHaveCount(0);
+  });
+
+  test('Sichtbarer Text des Blocks nennt keine Regelkennung und kein „CRV“', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 't618-buy-h4-01', 1767643200, 'OBO');
+    // Die SIG-29-Zeile ist eine Prüfzeile der Liste mit ihrer Kennung und ihrem Regeltext; alles andere im Block nicht
+    const text = await page.getByTestId('trade-block').evaluate((el) => {
+      const copy = el.cloneNode(true) as HTMLElement;
+      copy.querySelector('[data-testid="trade-sig29"]')?.remove();
+      return copy.innerText ?? copy.textContent ?? '';
+    });
+    expect(text).not.toMatch(/HDL-\d|ABCD-\d|CRV|SIG-\d/);
+  });
+
+  test('ABCD im Aufbau: der Grund nennt keine Regelkennung', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'gar-buy-h4-01', 1761192000, 'ABCD');
+    await expect(page.getByTestId('trade-entry-reason')).not.toContainText(/[A-Z]{2,4}-\d/);
+  });
+});
+
+test.describe('FRM-39 Handelsblock AB=CD (TP2, Ergebnisse in R)', () => {
+  test('AB=CD zeigt TP2 mit Anteil und Abstand, drei Ergebnisse in R; ohne Divergenz kein TP3', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'abcd-buy-h4-02', 1752624000, 'ABCD');
+    const block = page.getByTestId('trade-block');
+    await expect(block.getByTestId('trade-tp2')).not.toHaveText(/^\s*—\s*$/);
+    await expect(block.getByTestId('trade-tp2-distance')).toHaveText(/^\+[\d.,]+ pip$/);
+    await expect(block.getByTestId('trade-tp3')).toHaveCount(0);
+    await expect(block.getByTestId('trade-outcomes')).toContainText(msg('formation.trade.outcome.title'));
+    // Verkauf an Level 1 mit 1:1-Stop: TP1 = 0,5 R; TP1 und TP2 = 0,5 × (0,382 + 0,618) / 0,382 R
+    await expect(block.getByTestId('trade-outcome-stop')).toContainText('-1,00');
+    await expect(block.getByTestId('trade-outcome-tp1')).toContainText('+0,50');
+    await expect(block.getByTestId('trade-outcome-tp12')).toContainText('+1,31');
+  });
+
+  test('Harmonik und andere Formationen: keine TP2-Zelle, kein Ergebnisfeld', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'tdf-flag-h4-02', 1770782400, 'LIB');
+    const block = page.getByTestId('trade-block');
+    await expect(block.getByTestId('trade-tp2')).toHaveCount(0);
+    await expect(block.getByTestId('trade-outcomes')).toHaveCount(0);
+  });
+
+  test('375 px: der AB=CD-Block läuft nicht über', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await openPage(page, worker, 'abcd-buy-h4-02', 1752624000, 'ABCD');
+    const block = page.getByTestId('trade-block');
+    await expect(block.getByTestId('trade-outcomes')).toBeVisible();
+    expect(await block.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   });
 });
 
@@ -108,7 +156,7 @@ test.describe('FRM-40 Veto', () => {
     await expect(page.getByTestId('candidate-item').first().getByTestId('veto-badge')).toBeVisible();
     const block = page.getByTestId('trade-block');
     await expect(block).toHaveAttribute('data-veto', 'true');
-    await expect(block.getByTestId('trade-veto')).toContainText('SIG-15');
+    await expect(block.getByTestId('trade-veto')).toContainText(msg('formation.trade.veto.title'));
     const row = page.getByTestId('formation-checklist').getByTestId('veto-row');
     await expect(row).toHaveAttribute('data-rule-id', 'SIG-15');
     await expect(row).toHaveAttribute('data-state', 'excluded');

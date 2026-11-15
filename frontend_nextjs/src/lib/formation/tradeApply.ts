@@ -9,7 +9,7 @@ import type { ContextTimeframe } from './params';
 import type { Candidate, Trade } from './types';
 
 /** Werte, die der Prüfer kennt; der Not-SL und SIG-29 kommen hier dazu */
-export type TradeInput = Pick<Trade, 'entry' | 'stop' | 'tp1' | 'reason'> & Partial<Pick<Trade, 'tp1AtEntry' | 'missed'>>;
+export type TradeInput = Pick<Trade, 'entry' | 'stop' | 'tp1' | 'reason'> & Partial<Pick<Trade, 'tp1AtEntry' | 'missed' | 'tp2' | 'tp2AtEntry' | 'tp3' | 'tp1StrongZone'>>;
 
 /**
  * @param veto true bei TDF, OBO, CDT, LIB, T618, ENC und KEI (Harmoniken und 2618 sind laut Regelbuch Ausnahme)
@@ -27,6 +27,10 @@ export function withTrade(candidate: Candidate, env: Env, tf: ContextTimeframe, 
     reason: input.reason,
     ...(input.tp1AtEntry === undefined ? {} : { tp1AtEntry: input.tp1AtEntry }),
     ...(input.missed === undefined ? {} : { missed: input.missed }),
+    ...(input.tp2 === undefined ? {} : { tp2: input.tp2 }),
+    ...(input.tp2AtEntry === undefined ? {} : { tp2AtEntry: input.tp2AtEntry }),
+    ...(input.tp3 === undefined ? {} : { tp3: input.tp3 }),
+    ...(input.tp1StrongZone === undefined ? {} : { tp1StrongZone: input.tp1StrongZone }),
     sig29: sigs.sig29,
   };
   return { ...candidate, checks: veto ? [...candidate.checks, sigs.veto] : candidate.checks, trade };
@@ -50,6 +54,7 @@ export function harmonicTrade(
 /**
  * Handel von AB=CD (1114-A4.1): Einstieg an Level 1, nicht am äußersten Docht. Der Stop ist der 1:1-Stop der Ziel-Fib `frozenFrom → Level 1`
  * und bleibt stehen, sobald Level 1 (mit Toleranz) erreicht ist; TP1 folgt der Fib `from → äußerster Docht`.
+ * TP2 (0.618) läuft wie TP1; TP3 (0.786) nur bei `fromA` und ohne Anteil (1114-A4.2).
  * `frozenFrom` ist das `from` der Kerze, die Level 1 zuerst erreicht hat; `tp1AtEntry` (Fib `frozenFrom → Level 1`) ist die Grundlage des CRV (1:1).
  */
 export function abcdTrade(o: {
@@ -60,7 +65,11 @@ export function abcdTrade(o: {
   reached: boolean;
   /** Preisstrecke, die der Docht Level 1 verfehlt (0 bei erreichtem Level 1) */
   missed: number;
-  targets: { tp1: number; stop: number };
+  targets: { tp1: number; tp2: number; stop: number; divergence: number };
+  /** Ziel-Fib läuft von A (Divergenz oder harmonisches D): dann zeigt der Handel TP3 als Zusatzziel */
+  fromA: boolean;
+  /** Sehr starke Zone der Gegenseite am TP1 (nur Hinweis) */
+  strongZone: boolean;
   reachedRule: string;
 }): TradeInput {
   const { from, frozenFrom, d, level1, targets } = o;
@@ -72,6 +81,10 @@ export function abcdTrade(o: {
     stop: fibPrice(frozenFrom.price, level1, -targets.stop),
     tp1: fibPrice(from.price, d.price, targets.tp1),
     tp1AtEntry: fibPrice(frozenFrom.price, level1, targets.tp1),
+    tp2: fibPrice(from.price, d.price, targets.tp2),
+    tp2AtEntry: fibPrice(frozenFrom.price, level1, targets.tp2),
+    ...(o.fromA ? { tp3: fibPrice(from.price, d.price, targets.divergence) } : {}),
+    ...(o.strongZone ? { tp1StrongZone: true } : {}),
     ...(o.missed > 0 ? { missed: o.missed } : {}),
     reason: {},
   };
