@@ -6,7 +6,7 @@
  */
 import { otherSide, outward, wickEnd, type ZoneSide } from './frz';
 import { ABCD_PARAMS } from './params';
-import type { Pivot, TrendModel } from './trd';
+import { legDir, type Pivot, type TrendModel } from './trd';
 import { tradeSideOf } from './sig';
 import type { FormationBar, Side } from './types';
 
@@ -122,6 +122,23 @@ export function innerLevels(trend: TrendModel, s: AbcdShape): number[] {
 /** Abstand eines Preises zum Rechteck (0 = darin) */
 export const gapToRect = (rect: { top: number; bottom: number }, price: number): number =>
   Math.max(rect.bottom - price, price - rect.top, 0);
+
+/**
+ * ABCD-26: der Trendzug wechselt nach C gegen das D-Bein (Verkaufs-Formation: abwärts, Kauf-Formation: aufwärts), bevor D
+ * erreicht ist, und die Bezugszone des Wechsels liegt an C oder jenseits davon: der Kurs hat C gebrochen. `entryIdx` ist
+ * die Kerze, die Level 1 (mit Toleranz) zuerst erreicht (Einstieg, HDL-14), null solange D nicht erreicht ist. Ein Wechsel
+ * ab dieser Kerze ist der Weg zum Ziel und zählt nicht, auch wenn der äußerste Docht später noch weiterläuft.
+ */
+export function trendBreaksC(trend: TrendModel, s: AbcdShape, entryIdx: number | null): boolean {
+  const against = legDir(s.cs);
+  return trend.changes.some(
+    (ch) =>
+      ch.k > s.c.idx &&
+      (entryIdx === null || ch.k < entryIdx) &&
+      ch.to === against &&
+      outward(s.cs, ch.refPrice) >= outward(s.cs, s.c.price),
+  );
+}
 
 /** ABCD-25: in dieser Zeiteinheit gilt AB=CD nicht */
 export const timeframeExcluded = (tf: string): boolean => ABCD_PARAMS.excludedTimeframes.includes(tf);

@@ -66,6 +66,8 @@ export const FIXTURE_TRENDS: Record<string, Partial<TrendSettings>> = {
   'enc-buy-h4-01': { rule: 'filter', minSize: 1, changeCloses: 2, ewoFast: 13, ewoSlow: 21, ewoRetreat: 0.6 },
   'enc-bad-h4-01': { rule: 'filter', atrPeriod: 28, minSize: 1.75, changeCloses: 1, ewoFast: 8, ewoSlow: 50, ewoRetreat: 0.6 },
   'fib-counter-d1-01': { rule: 'filter', minSize: 0.5, changeCloses: 2, ewoFast: 8, ewoSlow: 50, ewoRetreat: 0.7 },
+  // ABCD-26 (2026-11-14): Chart-Standard EWO + Fibo 382 mit 2,5 ATR und einem Schluss, wie im Chart des Falls
+  'abcd-breakc-h4-01': { rule: 'welle382', minSize: 2.5, changeCloses: 1 },
 };
 
 /**

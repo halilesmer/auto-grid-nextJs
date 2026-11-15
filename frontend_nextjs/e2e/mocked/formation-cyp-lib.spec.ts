@@ -248,7 +248,8 @@ test.describe('CYP: Abgrenzung, Urteil und Zeichnungen', () => {
   frm('Abgrenzung Cypher ↔ ABCD: das D der Cypher ist kein AB=CD-D', () => {
     const abcd = analyzeAbcd(ctxOf({ H4: BASE }), END).find((a) => a.tf === 'H4')!.candidate;
     expect(abcd.checks.find((k) => k.id === 'ABCD-08')!.state).toBe(N);
-    expect(abcd.verdict).toBe('forming');
+    // ABCD A 100, B 130, C 115 verfehlt Level 1 (145) mit D 139; danach fällt der Kurs unter C und der Trendzug dreht: ABCD-26
+    expect([abcd.verdict, abcd.invalidBy]).toEqual(['invalid', ['ABCD-26']]);
     expect(run({ H4: BASE, D1: D1_UP }).verdict).toBe('valid');
   });
 
