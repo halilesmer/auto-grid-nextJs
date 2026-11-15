@@ -8,6 +8,7 @@ import { openHeaderMenu, openSettingsWindow } from '../fixtures/header';
 async function openUpdateCheck(page: import('@playwright/test').Page) {
   if (!(await page.getByTestId('settings-dialog').isVisible())) await openSettingsWindow(page);
   await page.getByTestId('settings-nav-system').click();
+  await page.getByTestId('settings-tab-update').click();
   await page.getByTestId('settings-sys-check').click();
 }
 import { cardRoot } from '../fixtures/card';
