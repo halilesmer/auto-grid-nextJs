@@ -1,0 +1,97 @@
+/**
+ * Erken dönüş (1114-A4.5): AB=CD, bei der D das Level 1 nicht erreicht, aber vorher in einer Zone der Handelsseite mit einer
+ * Engulf-Kerze in Handelsrichtung dreht. Reine Rechnung ohne Abhängigkeiten von der Anzeige; das Urteil bleibt „im Aufbau“,
+ * die Prüfliste, der Alarm und die Favoriten ändern sich nicht. Nur der Handelsblock zeigt einen eigenen Zustand.
+ *
+ * Bedingung (Verkauf, Kauf gespiegelt):
+ * - D hat die Ausdehnung −0.272 (ABCD-06) erreicht, aber Level 1 nicht (auch nicht mit der Toleranz von ABCD-08).
+ * - Im Band zwischen −0.272 und Level 1 liegt eine Fraktalzone oder Engulf-Zone der Handelsseite, und die Kerze des D berührt sie.
+ * - Bei oder nach dem D schließt eine Engulf-Kerze in Handelsrichtung (`engulfAt`, wie ABCD-20), deren Kerzen die Zone berühren.
+ *
+ * Werte: Einstieg = Schluss der Engulf-Kerze; Stop = ferne Kante der Zone (gilt mit dem Kerzenschluss);
+ * Ziel 1 = nächste Zone der Gegenseite in Handelsrichtung ab dem Einstieg (nahe Kante); Ziel 2 = Zone am Punkt C (nahe Kante).
+ */
+import { extensionPrice, type AbcdShape } from './abcd';
+import { outward, type Rect, type ZoneSide } from './frz';
+import { ABCD_PARAMS } from './params';
+import { touches } from './reasons';
+import { engulfAt, zoneSideOf, type EngulfZone } from './sig';
+import type { FormationBar } from './types';
+
+/** Fraktalzone (auch gedrehte) zur Anzeige; mehr braucht die Rechnung nicht */
+export interface EarlyZone {
+  side: ZoneSide;
+  rect: Rect;
+}
+
+export interface EarlyReversal {
+  /** Index der Engulf-Kerze (Einstieg) */
+  idx: number;
+  entry: number;
+  /** Ferne Kante der Zone, in der das D wendet */
+  stop: number;
+  /** Nahe Kante der nächsten Gegenzone in Handelsrichtung; null ohne Zone */
+  target1: number | null;
+  /** Nahe Kante der Zone am Punkt C, hinter Ziel 1; null ohne solche Zone */
+  target2: number | null;
+  /** Preisstrecke vom äußersten Docht bis Level 1 */
+  gap: number;
+}
+
+export function earlyReversalOf(o: {
+  bars: readonly FormationBar[];
+  wide: readonly (boolean | null)[];
+  s: AbcdShape;
+  /** D gilt als erreicht (Level 1 mit Toleranz): dann gilt der normale Einstieg */
+  reached: boolean;
+  zones: readonly EarlyZone[];
+  engulfZones: readonly EngulfZone[];
+}): EarlyReversal | null {
+  const { bars, s } = o;
+  const { d, es, side } = s;
+  if (o.reached || !d || s.len === 0) return null;
+  const out = (p: number) => outward(es, p);
+  const ext = extensionPrice(s, ABCD_PARAMS.minExtension);
+  // Band −0.272 … Level 1 und Ausdehnung des D
+  if (!(out(ext) < out(s.level1)) || out(d.price) < out(ext)) return null;
+  const lo = Math.min(ext, s.level1);
+  const hi = Math.max(ext, s.level1);
+  const tipBar = bars[d.idx];
+
+  const sell = side === 'sell';
+  const far = (r: Rect) => (sell ? r.top : r.bottom);
+  const gain = (entry: number, price: number) => (sell ? entry - price : price - entry);
+
+  // Zonen der Handelsseite im Band, die das D berührt; engste ferne Kante zuerst
+  const own: Rect[] = [
+    ...o.zones.filter((z) => z.side === zoneSideOf(side)).map((z) => z.rect),
+    ...o.engulfZones.filter((z) => z.holds && z.side === side && z.idx < d.idx).map((z) => z.rect),
+  ]
+    .filter((r) => r.bottom <= hi && r.top >= lo && touches(r, tipBar))
+    .sort((p, q) => out(far(p)) - out(far(q)));
+
+  for (const zone of own) {
+    for (let k = Math.max(d.idx, 1); k < bars.length; k++) {
+      const e = engulfAt(bars, o.wide, k, side);
+      if (!e) continue;
+      // Wie ABCD-20: eine nicht volumenstarke Kerze verwirft den Engulf; unbekannte Stärke zählt nicht
+      if ([e.prevWide, ...(e.count === 2 ? [e.engulfWide] : [])].some((w) => w !== true)) continue;
+      if (!bars.slice(e.prevIdx, e.idx + 1).some((b) => touches(zone, b))) continue;
+      const entry = bars[k].close;
+      const stop = far(zone);
+      if (!(out(stop) > out(entry))) continue;
+      const opposing = o.zones.filter((z) => z.side === zoneSideOf(sell ? 'buy' : 'sell'));
+      const nearestFrom = (rects: Rect[]): number | null => {
+        const edges = rects.map((r) => (sell ? r.top : r.bottom)).filter((p) => gain(entry, p) > 0);
+        return edges.length === 0 ? null : edges.reduce((a, b) => (gain(entry, a) <= gain(entry, b) ? a : b));
+      };
+      const target1 = nearestFrom(opposing.map((z) => z.rect));
+      const atC = nearestFrom(opposing.filter((z) => touches(z.rect, bars[s.c.idx])).map((z) => z.rect));
+      // Ziel 2 liegt hinter Ziel 1; dieselbe Zone zweimal zu zeigen hilft nicht
+      const target2 = target1 !== null && atC !== null && gain(entry, atC) > gain(entry, target1) ? atC : null;
+      const gap = Math.max(0, out(s.level1) - out(d.price));
+      return { idx: k, entry, stop, target1, target2, gap };
+    }
+  }
+  return null;
+}

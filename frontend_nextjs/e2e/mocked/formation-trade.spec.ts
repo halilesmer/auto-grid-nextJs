@@ -206,6 +206,54 @@ test.describe('FRM-39 Handelsblock AB=CD (TP2, Ergebnisse in R)', () => {
   });
 });
 
+test.describe('FRM-39 Handelsblock AB=CD (Erken dönüş, 1114-A4.5)', () => {
+  // crb-form-h4-01: Kauf-AB=CD, D (100,219) dreht in einer Stütze vor Level 1 mit einer Engulf-Kerze; Ziel 1 aus einer Gegenzone, an C keine Zone
+  test('Kauf: Status Erken dönüş, Hinweiskasten, Einstieg/Stop/Ziel 1, kein Ziel 2, keine Ergebnisse', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'crb-form-h4-01', 1763164800, 'ABCD');
+    const block = page.getByTestId('trade-block');
+    await expect(block.getByTestId('trade-status')).toHaveAttribute('data-status', 'early');
+    await expect(block.getByTestId('trade-status')).toContainText(msg('formation.trade.early'));
+    await expect(block.getByTestId('trade-early-note')).toContainText(msg('formation.trade.early.note'));
+    await expect(block.getByTestId('trade-entry')).not.toHaveText(/^\s*—\s*$/);
+    await expect(block.getByTestId('trade-entry-reason')).toHaveText(msg('formation.trade.early.entry'));
+    await expect(block.getByTestId('trade-stop')).not.toHaveText(/^\s*—\s*$/);
+    await expect(block.getByTestId('trade-stop-zone')).toContainText(msg('formation.trade.early.stop.below'));
+    await expect(block.getByTestId('trade-tp1')).not.toHaveText(/^\s*—\s*$/);
+    await expect(block.getByTestId('trade-tp1-note')).toContainText(msg('formation.trade.early.target1.sub'));
+    await expect(block.getByTestId('trade-tp2')).toHaveCount(0);
+    await expect(block.getByTestId('trade-tp3')).toHaveCount(0);
+    await expect(block.getByTestId('trade-outcomes')).toHaveCount(0);
+    await expect(block.getByTestId('trade-early-footer')).toContainText(msg('formation.trade.early.footer'));
+    await expect(block).toContainText(msg('formation.trade.early.crv'));
+    // Hüküm bleibt „im Aufbau“
+    await expect(page.getByTestId('candidate-item').first()).toBeVisible();
+  });
+
+  // kei-sell-h4-01: Verkauf; in Handelsrichtung liegt keine Zone: Ziel 1 „—“ mit Grund, kein Verhältnis
+  test('Verkauf ohne Gegenzone: Ziel 1 „—“ mit Grund, Verhältnis nicht messbar', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'kei-sell-h4-01', 1763668800, 'ABCD');
+    const block = page.getByTestId('trade-block');
+    await expect(block).toHaveAttribute('data-side', 'sell');
+    await expect(block.getByTestId('trade-status')).toHaveAttribute('data-status', 'early');
+    await expect(block.getByTestId('trade-stop-zone')).toContainText(msg('formation.trade.early.stop.above'));
+    await expect(block.getByTestId('trade-tp1')).toHaveText('—');
+    await expect(block.getByTestId('trade-tp1-reason')).toHaveText(msg('formation.trade.reason.noZone'));
+    await expect(block.getByTestId('trade-crv')).toHaveText('—');
+    await expect(block.getByTestId('trade-tp2')).toHaveCount(0);
+    await expect(block.getByTestId('trade-outcomes')).toHaveCount(0);
+  });
+
+  test('375 px: der Erken-dönüş-Block läuft nicht über', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await openPage(page, worker, 'crb-form-h4-01', 1763164800, 'ABCD');
+    const block = page.getByTestId('trade-block');
+    await expect(block.getByTestId('trade-early-note')).toBeVisible();
+    expect(await block.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+    await block.screenshot({ path: test.info().outputPath('early-reversal-375.png') });
+  });
+});
+
 test.describe('FRM-40 Veto', () => {
   test('Erfülltes Veto: Streifen im Block, Zeile in der Dışlama-Gruppe, Abzeichen am Kandidaten; das Urteil bleibt gültig', { tag: '@FRM-40' }, async ({ page, worker }) => {
     await openPage(page, worker, 't618-buy-h4-01', 1767643200, 'OBO');

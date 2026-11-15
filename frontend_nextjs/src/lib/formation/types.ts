@@ -91,6 +91,12 @@ export interface Trade {
   tp1StrongZone?: boolean;
   /** AB=CD (1114-A4.2 b): Stand des Handels nach dem Einstieg (offen, TP1, TP1 und TP2, Stop, Rest am Einstieg); nur wenn der Einstieg erreicht ist */
   status?: TradeStatus;
+  /**
+   * AB=CD (1114-A4.5): Erken dönüş. D erreicht Level 1 nicht, dreht aber vorher in einer Zone mit einer Engulf-Kerze.
+   * Dann gelten Einstieg (Engulf-Schluss), Stop (ferne Zonenkante) und `tp1` (nächste Gegenzone); Ziel 2 und der Abstand zu Level 1 stehen hier.
+   * `tp2`, `tp3`, `status` und die Ergebnisse in R fehlen.
+   */
+  earlyReversal?: { target2: number | null; gap: number };
   /** SIG-29 (CRV bis TP1 über 1, sonst Umkehrkerze der tieferen ZE): ☑ bei CRV > 1; Wert = CRV; die Anzeige zeigt die Zeile nur bei CRV ≤ 1 */
   sig29?: Check;
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowDown, ArrowUp, Check, Clock, Minus, TriangleAlert, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, Clock, Info, Minus, TriangleAlert, Undo2, X } from 'lucide-react';
 import { StateIcon, checkRowState } from '@/components/formation/FormationChecklist';
 import { InfoHint, Tooltip } from '@/components/ui/tooltip';
 import { useFormat, useLocale, useT } from '@/i18n';
@@ -38,12 +38,16 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
   const reasonText = (id: string | undefined) => {
     if (!id) return null;
     if (id === 'noRule') return t('formation.trade.reason.noRule');
+    if (id === 'noZone') return t('formation.trade.reason.noZone');
     return t('formation.trade.reason.rule');
   };
-  const entrySub =
+  // Erken dönüş (1114-A4.5): Einstieg am Engulf-Schluss, Ziele aus Zonen, kein Stand und keine Ergebnisse
+  const early = trade.earlyReversal;
+  const missedSub =
     trade.missed === undefined
       ? reasonText(trade.reason.entry)
       : t(pipSize === null ? 'formation.trade.missed.price' : 'formation.trade.missed.pips', { n: pipSize === null ? fmt(trade.missed) : dist(trade.missed) });
+  const entrySub = early ? t('formation.trade.early.entry') : missedSub;
   const sig29 = trade.sig29 && metrics !== null && metrics.crv <= 1 + EPS ? trade.sig29 : null;
   const hdl02 = metrics !== null && metrics.crv < 1 - EPS;
   const outcomes = outcomesOf(trade, candidate.side);
@@ -129,19 +133,22 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
       share?: boolean;
       wide?: boolean;
       state?: 'taken' | 'waiting' | 'missed';
+      hint?: string;
+      note?: string;
     } = {},
   ) => (
     <div className={cn('flex min-w-0 flex-col gap-px', o.wide && 'col-span-2')}>
       <span className="flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
         {label}
         {o.share && <span className="rounded border border-border px-1 text-[10px] font-semibold leading-4">½</span>}
-        <InfoHint hint={t(`formation.trade.${field}.hint`)} />
+        <InfoHint hint={t((o.hint ?? `formation.trade.${field}.hint`) as 'formation.trade.tp1.hint')} />
       </span>
       <span data-testid={`trade-${field}`} className={cn('text-[13px] font-medium tabular-nums', value === null ? 'text-muted-foreground' : 'text-success')}>
         {value === null ? dash : `${o.state === 'taken' ? '✓ ' : ''}${fmt(value)}`}
       </span>
       <span data-testid={`trade-${field}-reason`} className="text-[10.5px] tabular-nums text-muted-foreground">
         {value === null ? reasonText(trade.reason.tp1) : <span data-testid={`trade-${field}-distance`}>{away(value, '+')}</span>}
+        {value !== null && o.note && <span data-testid={`trade-${field}-note`}>{` · ${o.note}`}</span>}
         {value !== null && o.state && <span data-testid={`trade-${field}-state`}>{` · ${t(`formation.trade.target.${o.state}`)}`}</span>}
       </span>
     </div>
@@ -173,6 +180,19 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
             <b>{t('formation.trade.veto.title')}</b> — {t(`formation.trade.veto.${candidate.side}`)}
           </span>
           <InfoHint hint={t('formation.trade.veto.hint')} className="text-danger" />
+        </div>
+      )}
+      {early && (
+        <div data-testid="trade-status" data-status="early" className="flex flex-wrap items-center gap-1.5 border-b border-info/35 bg-info/10 px-2.5 py-2">
+          <Undo2 size={13} strokeWidth={2.5} aria-hidden="true" className="shrink-0 text-info" />
+          <span className="min-w-0 flex-1">
+            <span className="text-xs font-semibold text-info">{t('formation.trade.early')}</span>
+            <span className="text-[11.5px] text-muted-foreground">
+              {' · '}
+              {t('formation.trade.early.sub', { n: t(pipSize === null ? 'formation.trade.away.price' : 'formation.trade.away.pips', { n: dist(early.gap) }) })}
+            </span>
+          </span>
+          <InfoHint hint={t('formation.trade.early.hint')} />
         </div>
       )}
       {status && (
@@ -236,6 +256,7 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
             {trade.stop !== null && !moved && (
               <span className="text-[10.5px] tabular-nums text-muted-foreground">
                 <span data-testid="trade-stop-distance">{away(trade.stop, '−')}</span>
+                {early && <span data-testid="trade-stop-zone">{` · ${t(buy ? 'formation.trade.early.stop.below' : 'formation.trade.early.stop.above')}`}</span>}
                 {trade.emergencyStop !== null && (
                   <>
                     {' · '}
@@ -249,10 +270,16 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
               </span>
             )}
           </div>
-          {target('tp1', t('formation.trade.tp1'), trade.tp1, {
+          {target('tp1', early ? t('formation.trade.early.target1') : t('formation.trade.tp1'), trade.tp1, {
             share: trade.tp2 !== undefined,
             state: stateOf('tp1'),
+            ...(early ? { hint: 'formation.trade.early.target1.hint', note: t('formation.trade.early.target1.sub') } : {}),
           })}
+          {early?.target2 != null &&
+            target('tp2', t('formation.trade.early.target2'), early.target2, {
+              hint: 'formation.trade.early.target2.hint',
+              note: t(buy ? 'formation.trade.early.target2.high' : 'formation.trade.early.target2.low'),
+            })}
           {trade.tp2 !== undefined &&
             target('tp2', t('formation.trade.tp2'), trade.tp2, {
               share: true,
@@ -260,9 +287,18 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
             })}
           {trade.tp3 !== undefined && target('tp3', t('formation.trade.tp3'), trade.tp3, { wide: true })}
         </div>
+        {early && (
+          <div
+            data-testid="trade-early-note"
+            className="mx-2.5 mb-2 flex items-start gap-1.5 rounded-lg border border-info/35 bg-info/10 px-2 py-1.5 text-[11.5px]"
+          >
+            <Info size={13} aria-hidden="true" className="mt-px shrink-0 text-info" />
+            <span className="flex-1">{t('formation.trade.early.note')}</span>
+          </div>
+        )}
         <div className="flex items-center gap-2.5 border-t border-border px-2.5 py-2">
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
-            {t('formation.trade.crv')}
+            {t(early ? 'formation.trade.early.crv' : 'formation.trade.crv')}
             <InfoHint hint={t('formation.trade.crv.hint')} />
           </span>
           <span data-testid="trade-crv" className={cn('text-[15px] font-semibold tabular-nums', !metrics && 'text-muted-foreground', hdl02 && 'text-warning')}>
@@ -284,6 +320,11 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
           </div>
         )}
       </div>
+      {early && (
+        <div data-testid="trade-early-footer" className="border-t border-border px-2.5 py-2 text-[10.5px] text-muted-foreground">
+          {t('formation.trade.early.footer')}
+        </div>
+      )}
       {outcomes && (
         <div data-testid="trade-outcomes" className="flex flex-col gap-1.5 border-t border-border px-2.5 py-2">
           <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
