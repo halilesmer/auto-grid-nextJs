@@ -3,6 +3,7 @@
 import { motion } from 'motion/react';
 import { Monitor, Moon, Sun } from 'lucide-react';
 import { useThemeStore } from '@/store';
+import { changeTheme } from '@/store/useUserPrefsStore';
 import type { ThemePreference } from '@/lib/theme';
 import { cn } from '@/lib/utils';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -18,7 +19,6 @@ const OPTIONS: { value: ThemePreference; labelKey: MessageKey; hintKey: MessageK
 export default function ThemeToggle() {
   const t = useT();
   const theme = useThemeStore((s) => s.theme);
-  const setTheme = useThemeStore((s) => s.setTheme);
 
   return (
     <div
@@ -36,7 +36,7 @@ export default function ThemeToggle() {
               role="radio"
               aria-checked={active}
               aria-label={label}
-              onClick={() => setTheme(value)}
+              onClick={() => void changeTheme(value)}
               className={cn(
                 'relative flex h-8 w-full min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-md px-1.5 text-xs transition-colors',
                 active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',

@@ -51,12 +51,12 @@ test.describe('UI-01 Kopfzeile', () => {
 });
 
 test.describe('UI-01 Kopf-Menü', () => {
-  test('Einstellungen öffnen über ein kompaktes Zahnrad bei jeder Breite', { tag: ['@UI-01', '@SYS-09'] }, async ({ page, dashboard }) => {
+  test('Verbindungsmenü öffnen über ein kompaktes Symbol bei jeder Breite', { tag: ['@UI-01', '@SYS-09'] }, async ({ page, dashboard }) => {
     await dashboard.open(DEMO_ID);
     const trigger = headerMenuTrigger(page);
     for (const { width, size } of [{ width: 375, size: 28 }, { width: 1024, size: 32 }, { width: 1440, size: 32 }]) {
       await page.setViewportSize({ width, height: 900 });
-      await expect(trigger.locator('svg.lucide-settings')).toBeVisible();
+      await expect(trigger.locator('svg.lucide-plug')).toBeVisible();
       await expect(trigger).toHaveText('');
       await expect(trigger).toHaveCSS('width', `${size}px`);
       await expect(trigger).toHaveCSS('height', `${size}px`);
