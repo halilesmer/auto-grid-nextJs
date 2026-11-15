@@ -178,3 +178,23 @@ test.describe('USR-10 Ayar penceresi', () => {
     });
   });
 });
+
+test.describe('USR-10 Saniye alanı (1115-A10 F12)', () => {
+  test('değişmeden alandan çıkmak kayıt yapmaz; yuvarlanan değer yeniden yazılmaz', { tag: '@USR-10' }, async ({ page, worker, dashboard }) => {
+    worker.userPrefs.admin = { tooltip_hold: { mode: 'custom', ms: 333 } };
+    await dashboard.open(DEMO_ID);
+    await openSettings(page);
+    const input = page.getByTestId('settings-hold-input');
+    await expect(input).toHaveValue(/0[.,]33/);
+    await input.focus();
+    await input.blur();
+    await page.waitForTimeout(500);
+    expect(worker.callsTo('PUT', '/api/me/prefs/tooltip_hold')).toHaveLength(0);
+    expect(worker.userPrefs.admin.tooltip_hold).toEqual({ mode: 'custom', ms: 333 });
+
+    // Değişen metin kaydedilir
+    await input.fill('2');
+    await input.press('Enter');
+    await expect.poll(() => worker.userPrefs.admin.tooltip_hold).toEqual({ mode: 'custom', ms: 2000 });
+  });
+});

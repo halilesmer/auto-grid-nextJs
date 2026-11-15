@@ -34,10 +34,13 @@ export function useSystemActions() {
       if (selectedAccount) {
         await axiosInstance.post(`/stop?account_id=${selectedAccount}`);
       }
-    } catch {
-      // best-effort stop
+      toast.success(t('dashboard.shutdown.done'), { title: t('header.stopBot') });
+    } catch (err: unknown) {
+      const reason = await getApiErrorMessage(err, t('dashboard.shutdown.failed'));
+      toast.error(reason, { title: t('dashboard.shutdown.failed') });
+    } finally {
+      setShuttingDown(false);
     }
-    window.close();
   }, [selectedAccount]);
 
   const handleCheckUpdates = useCallback(async () => {
@@ -58,7 +61,7 @@ export function useSystemActions() {
       });
     } catch (err: unknown) {
       setUpdateResult(null);
-      // Worker nicht erreichbar: Neustart/Update geht dann nur noch per SSH über die VPS-Seite
+      // Worker nicht erreichbar: Neustart/Update geht dann nur noch per SSH in den Einstellungen unter „VPS und System“
       const reason = await getApiErrorMessage(err, t('update.checkFailed'));
       toast.error(t('update.checkFailed.hint', { reason }), {
         title: t('update.title'),

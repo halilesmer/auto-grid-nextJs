@@ -5,9 +5,8 @@ import ConfirmModal from '@/components/ConfirmModal';
 import { Button } from '@/components/ui/button';
 import { ACTION_TITLE_KEYS } from '@/components/vps/useVps';
 import { useT, type MessageKey } from '@/i18n';
-import { useAccountStore } from '@/store/useAccountStore';
 import { SettingsRow } from '../parts';
-import { SshBadge, SshLockNote, type SystemCtx } from './shared';
+import { SshBadge, SshLockNote, useBotsLine, type SystemCtx } from './shared';
 
 type Which = 'worker' | 'restart-ngrok' | 'reboot';
 
@@ -19,32 +18,17 @@ const CONFIRM: Record<Which, { message: MessageKey; info?: MessageKey; variant: 
 
 export default function RestartTab({ ctx }: { ctx: SystemCtx }) {
   const t = useT();
-  const { vps, worker, sshLocked } = ctx;
-  const accounts = useAccountStore((s) => s.accounts);
+  const { vps, worker, sshLocked, sshPending } = ctx;
   const [confirm, setConfirm] = useState<Which | null>(null);
   const cfg = confirm ? CONFIRM[confirm] : null;
   // Worker cevap vermiyorsa ve SSH açıksa aynı düğme worker'ı SSH ile yeniden başlatır (ölü worker'ı kurtarma yolu)
-  const workerDown = !worker.status && Boolean(worker.error);
-  const workerViaSsh = workerDown && !sshLocked;
+  const workerDown = Boolean(worker.error);
+  const workerViaSsh = workerDown && !sshLocked && !sshPending;
   const busyElse = vps.busy !== null || worker.restarting;
+  // İlk SSH cevabı gelene kadar SSH düğmeleri kapalıdır (F7)
+  const sshOff = sshLocked || sshPending;
 
-  /** Onay penceresinde çalışan botlar ve LIVE/DEMO bilgisi (hesap listesi varsa). */
-  const botsLine = () => {
-    const bots = vps.status?.bots;
-    if (bots) {
-      if (bots.length === 0) return t('sdlg.sys.confirm.noBots');
-      const list = bots
-        .map((b) => {
-          const a = accounts.find((x) => String(x.id) === b.account || String(x.login) === b.account);
-          if (!a) return b.account;
-          return `${b.account} (${a.env_type === 'LIVE' ? t('dashboard.env.live') : t('dashboard.env.demo')})`;
-        })
-        .join(', ');
-      return t('sdlg.sys.confirm.bots', { accounts: list });
-    }
-    const n = worker.status?.bots_running;
-    return n == null ? undefined : t('sdlg.sys.confirm.botsCount', { count: n });
-  };
+  const botsLine = useBotsLine(ctx);
 
   const confirmMessage = () => {
     if (!cfg) return '';
@@ -63,6 +47,7 @@ export default function RestartTab({ ctx }: { ctx: SystemCtx }) {
   const info = cfg ? [cfg.info ? t(cfg.info) : null, botsLine()].filter(Boolean).join(' ') : '';
   const workerHint = () => {
     if (workerDown && sshLocked) return t('sdlg.sys.rs.worker.down.hint');
+    if (workerDown && sshPending) return t('sdlg.sys.ssh.loading');
     if (workerViaSsh) return t('vps.action.restart.hint');
     if (worker.status?.supervised === false) return t('vps.online.unsupervised');
     return busyElse ? t('vps.busy.hint') : t('vps.online.restart.hint');
@@ -72,6 +57,7 @@ export default function RestartTab({ ctx }: { ctx: SystemCtx }) {
   /** SSH düğmesinin ipucu: kilit > başka işlem sürüyor > normal. */
   const sshHint = (normal: MessageKey) => {
     if (sshLocked) return lockHint;
+    if (sshPending) return t('sdlg.sys.ssh.loading');
     return busyElse ? t('vps.busy.hint') : t(normal);
   };
 
@@ -81,7 +67,7 @@ export default function RestartTab({ ctx }: { ctx: SystemCtx }) {
         <Button
           variant="warning"
           loading={worker.restarting || vps.busy === 'restart'}
-          disabled={busyElse || (worker.status?.supervised === false && !workerViaSsh) || (workerDown && sshLocked)}
+          disabled={busyElse || (worker.status?.supervised === false && !workerViaSsh) || (workerDown && sshOff)}
           hint={workerHint()}
           data-testid="sys-restart-worker"
           onClick={() => setConfirm('worker')}
@@ -104,7 +90,7 @@ export default function RestartTab({ ctx }: { ctx: SystemCtx }) {
         <Button
           variant="warning"
           loading={vps.busy === 'restart-ngrok'}
-          disabled={sshLocked || busyElse}
+          disabled={sshOff || busyElse}
           hint={sshHint('vps.action.restartNgrok.hint')}
           data-testid="sys-restart-ngrok"
           onClick={() => setConfirm('restart-ngrok')}
@@ -125,7 +111,7 @@ export default function RestartTab({ ctx }: { ctx: SystemCtx }) {
           <Button
             variant="danger"
             loading={vps.busy === 'reboot'}
-            disabled={sshLocked || busyElse}
+            disabled={sshOff || busyElse}
             hint={sshHint('vps.action.reboot.hint')}
             data-testid="sys-restart-reboot"
             onClick={() => setConfirm('reboot')}

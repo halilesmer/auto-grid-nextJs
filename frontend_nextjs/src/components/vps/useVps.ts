@@ -22,7 +22,7 @@ const POLL_MS = 15_000;
 const FAST_POLL_MS = 4_000;
 const FAST_POLL_DURATION_MS = 90_000;
 
-type PostAction = Extract<VpsAction, 'restart' | 'fix-elevated' | 'restart-ngrok' | 'reboot'>;
+type PostAction = Extract<VpsAction, 'update' | 'restart' | 'fix-elevated' | 'restart-ngrok' | 'reboot'>;
 
 async function callVps<T>(path: string, method: 'GET' | 'POST' = 'GET'): Promise<{ status: number; data: T }> {
   const res = await fetch(`/api/vps/${path}`, { method, cache: 'no-store' });
@@ -209,6 +209,7 @@ export function useVps({ pollLogs = true }: { pollLogs?: boolean } = {}) {
 }
 
 export const ACTION_TITLE_KEYS: Record<PostAction, MessageKey> = {
+  update: 'vps.action.update',
   restart: 'vps.action.restart',
   'fix-elevated': 'vps.action.fixElevated',
   'restart-ngrok': 'vps.action.restartNgrok',

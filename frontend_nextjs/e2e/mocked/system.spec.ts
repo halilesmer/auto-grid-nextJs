@@ -129,3 +129,34 @@ test.describe('UPD System', () => {
     expect(worker.callsTo('POST', '/api/stop')[0].query.get('account_id')).toBe(DEMO_ID);
   });
 });
+
+test.describe('UPD Bot stoppen: Fehler und Wiederholung (1115-A10 F1)', () => {
+  const stopFlow = async (page: Page) => {
+    await openHeaderMenu(page);
+    await page.getByTestId('header-stop-bot').click();
+    const modal = page.getByRole('dialog').last();
+    await modal.getByRole('button', { name: msg('dashboard.shutdown.confirm') }).click();
+  };
+
+  test('Fehler beim Stoppen: Fehler-Toast mit Grund, Fenster bleibt nicht im Ladezustand, Seite wird nicht geschlossen', { tag: '@UPD-03' }, async ({ page, worker, dashboard }) => {
+    await page.addInitScript(() => {
+      (window as unknown as { __closed: number }).__closed = 0;
+      window.close = () => {
+        (window as unknown as { __closed: number }).__closed += 1;
+      };
+    });
+    worker.setBotRunning(DEMO_ID);
+    await dashboard.open(DEMO_ID);
+    worker.overrides.set('POST /api/stop', { status: 500, body: { detail: 'stop kaputt' } });
+    await stopFlow(page);
+    await expect(page.getByText('stop kaputt')).toBeVisible();
+    await expect(page.getByText(msg('dashboard.shutdown.failed')).first()).toBeVisible();
+    expect(await page.evaluate(() => (window as unknown as { __closed: number }).__closed)).toBe(0);
+
+    // Zweiter Versuch: das Fenster ist nicht in „loading“ hängen geblieben
+    worker.overrides.delete('POST /api/stop');
+    await stopFlow(page);
+    await expect.poll(() => worker.callsTo('POST', '/api/stop').length).toBe(2);
+    await expect(page.getByText(msg('dashboard.shutdown.done')).first()).toBeVisible();
+  });
+});

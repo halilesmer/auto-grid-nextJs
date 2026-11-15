@@ -1,11 +1,11 @@
 'use client';
 
-import Link from 'next/link';
 import { ArrowRight, CheckCircle2, DownloadCloud, Loader2, RefreshCw, Server } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useT } from '@/i18n';
+import { useSettingsDialogStore } from '@/store/useSettingsDialogStore';
 
 interface UpdateResult {
   hasUpdate: boolean;
@@ -77,16 +77,21 @@ export default function UpdateModal({
       }
     >
       {updateResult && <UpdateStatus result={updateResult} onApplyUpdate={onApplyUpdate} />}
-      {/* Update/Neustart auch ohne erreichbaren Worker: per SSH über die VPS-Seite (nur lokal) */}
+      {/* Update/Neustart auch ohne erreichbaren Worker: per SSH in den Einstellungen unter „VPS und System“ (nur lokal) */}
       <Tooltip content={t('update.vpsLink.hint')} className="mt-4 flex w-full">
-        <Link
-          href="/vps"
-          onClick={onClose}
+        <button
+          type="button"
+          data-testid="update-vps-link"
+          onClick={() => {
+            onClose();
+            // Ayarlarda „VPS ve sistem“ bölümü: SSH ile güncelleme ve loglar orada
+            useSettingsDialogStore.getState().show('system');
+          }}
           className="flex w-full items-center justify-center gap-2 text-xs text-muted-foreground transition hover:text-foreground"
         >
           <Server size={12} />
           {t('update.vpsLink')}
-        </Link>
+        </button>
       </Tooltip>
       <Button variant="ghost" wrapperClassName="mt-2 w-full" onClick={onClose} hint={t('common.close.hint')}>
         {t('common.close')}

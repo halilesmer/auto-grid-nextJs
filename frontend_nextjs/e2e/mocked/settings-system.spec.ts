@@ -536,3 +536,154 @@ test.describe('Auto-Update-Zustand', () => {
     await expect(row(page)).toContainText(msg('vps.autoUpdate.state.pullFailed'));
   });
 });
+
+// ---------------------------------------------------------------------------------------------------------------
+// 1115-A10: Logikfehler der Einstellungsfenster-PRs (F2–F7)
+// ---------------------------------------------------------------------------------------------------------------
+test.describe('VPS und System: Korrekturen (1115-A10)', () => {
+  test('F2: Worker bricht bei offenem Fenster weg: „nicht erreichbar“ und SSH-Weg zum Neustart', { tag: ['@VPS-01', '@VPS-02'] }, async ({ page, worker }) => {
+    const mock = await mockVps(page);
+    await openSystem(page);
+    await expect(page.getByTestId('sys-worker-state')).toContainText(msg('sdlg.sys.worker.running'));
+    worker.offline = true;
+    await page.getByTestId('sys-refresh').click();
+    await expect(page.getByTestId('sys-worker-state')).toHaveAttribute('data-tone', 'danger');
+    await expect(page.getByTestId('sys-worker-state')).toContainText(msg('sdlg.sys.worker.down'));
+    await expect(page.getByTestId('sys-row-bots')).not.toContainText(msg('sdlg.sys.bots.value', { running: 1, stopped: 0 }).split(' ')[0]);
+
+    await page.getByTestId('settings-tab-restart').click();
+    await page.getByTestId('sys-restart-worker').click();
+    await page.getByRole('dialog').last().getByRole('button', { name: msg('vps.action.restart') }).click();
+    await expect.poll(() => mock.calls).toContain('POST restart');
+  });
+
+  test('F3: SSH-Update im Update-Tab mit Bestätigung; außerhalb von localhost gesperrt', { tag: '@VPS-02' }, async ({ page, worker }) => {
+    void worker;
+    const mock = await mockVps(page);
+    await openSystem(page, 'update');
+    const button = page.getByTestId('sys-update-ssh');
+    await expect(page.getByTestId('sys-row-update-ssh').getByTestId('sys-ssh-badge')).toBeVisible();
+    await expect(button).toBeEnabled();
+    await button.click();
+    const dialog = page.getByRole('dialog').last();
+    await expect(dialog).toContainText('12345678');
+    await dialog.getByRole('button', { name: msg('vps.action.update') }).click();
+    await expect.poll(() => mock.calls).toContain('POST update');
+  });
+
+  test('F3: SSH-Update ist ohne localhost gesperrt und nennt den Grund', { tag: '@VPS-04' }, async ({ page, worker }) => {
+    void worker;
+    await localOnly(page);
+    await openSystem(page, 'update');
+    await expect(page.getByTestId('sys-update-ssh')).toBeDisabled();
+    await expect(page.getByTestId('sys-ssh-note').first()).toBeVisible();
+  });
+
+  test('F3: der Link im Update-Fenster öffnet „VPS und System“ in den Einstellungen', { tag: '@VPS-11' }, async ({ page, worker }) => {
+    void worker;
+    await mockVps(page);
+    await openSystem(page, 'update');
+    await page.getByTestId('settings-sys-check').click();
+    const link = page.getByTestId('update-vps-link');
+    await expect(link).toBeVisible();
+    await expect(link).not.toHaveAttribute('href', /.+/);
+    await link.click();
+    await expect(page.getByTestId('settings-pane')).toHaveAttribute('data-section', 'system');
+    await expect(page).toHaveURL(/\/$/);
+  });
+
+  test('F4: Update- und Tunnel-Log über SSH; Hinweis, wenn die Neustart-Schleife fehlt', { tag: '@VPS-03' }, async ({ page, worker }) => {
+    void worker;
+    const mock = await mockVps(page, { status: { ...STATUS, ngrok_watchdog: false } });
+    await openSystem(page, 'logs');
+    for (const log of ['update', 'tunnel'] as const) {
+      await page.getByTestId(`sys-log-source-${log}`).click();
+      await expect(page.getByTestId('sys-log-output')).toContainText(`[${log}] Zeile 1`);
+      expect(mock.calls).toContain(`GET logs?log=${log}&lines=300`);
+    }
+    await page.getByTestId('sys-log-source-ngrok').click();
+    await expect(page.getByTestId('sys-log-missing')).toContainText(msg('vps.log.hint.ngrok').slice(0, 25));
+    await page.getByTestId('sys-log-source-update').click();
+    await expect(page.getByTestId('sys-log-missing')).toHaveCount(0);
+  });
+
+  test('F4: Update- und Tunnel-Log sind ohne localhost gesperrt', { tag: '@VPS-04' }, async ({ page, worker }) => {
+    void worker;
+    await localOnly(page);
+    await openSystem(page, 'logs');
+    await page.getByTestId('sys-log-source-tunnel').click();
+    await expect(page.getByTestId('sys-log-output')).toContainText(msg('sdlg.sys.ssh.locked'));
+  });
+
+  test('F5: Version, Rechner, MT5, Tunnel-Warnung und Neustart-Schleifen im SSH-Block', { tag: '@VPS-01' }, async ({ page, worker }) => {
+    void worker;
+    const mock = await mockVps(page, {
+      status: {
+        ...STATUS,
+        git: { branch: 'feature-x', commit: 'abc12345', updated_at: '2026-09-30T08:15:00.000Z' },
+        ngrok_watchdog: false,
+        tasks: { start: { exists: true }, update: { exists: true }, tunnel: { exists: true } },
+        tunnel_watchdog: { failures: 2, check_age_minutes: 1, last_check: '2026-09-30T08:00:00Z', last_ok: null, last_result: 'tunnel-down', last_action: 'wait', reboots: [] },
+      },
+    });
+    void mock;
+    await openSystem(page);
+    const version = page.getByTestId('sys-vpsver-state');
+    await expect(version).toContainText('feature-x');
+    await expect(version).toContainText('abc12345');
+    await expect(version).toHaveAttribute('data-tone', 'warning');
+    await expect(page.getByTestId('sys-host-state')).toContainText('VPS-01');
+    await expect(page.getByTestId('sys-host-state')).toContainText(msg('vps.uptime.hours', { h: 2, m: 5 }));
+    await expect(page.getByTestId('sys-mt5-state')).toContainText('1');
+    await expect(page.getByTestId('sys-ngrok-state')).toHaveAttribute('data-tone', 'warning');
+    await expect(page.getByTestId('sys-loops-state')).toHaveAttribute('data-tone', 'warning');
+    await expect(page.getByTestId('sys-loops-state')).toContainText(msg('vps.tile.loop.missing'));
+  });
+
+  test('F5: Branch main ist grün', { tag: '@VPS-01' }, async ({ page, worker }) => {
+    void worker;
+    await mockVps(page);
+    await openSystem(page);
+    await expect(page.getByTestId('sys-vpsver-state')).toHaveAttribute('data-tone', 'success');
+    await expect(page.getByTestId('sys-loops-state')).toHaveAttribute('data-tone', 'success');
+  });
+
+  test('F6: Worker-Log nicht lesbar: Fehler statt „leer“; alte Zeilen sind als alt gekennzeichnet', { tag: '@VPS-03' }, async ({ page, worker }) => {
+    void worker;
+    await mockVps(page);
+    worker.overrides.set('GET /api/system/worker/log', { status: 500, body: { detail: 'log kaputt' } });
+    await openSystem(page, 'logs');
+    await expect(page.getByTestId('sys-log-error')).toContainText('log kaputt');
+    await expect(page.getByTestId('sys-log-output')).not.toContainText(msg('vps.log.empty'));
+
+    worker.overrides.delete('GET /api/system/worker/log');
+    await page.getByTestId('sys-log-refresh').click();
+    await expect(page.getByTestId('sys-log-output')).toContainText('Application startup complete.');
+    await expect(page.getByTestId('sys-log-error')).toHaveCount(0);
+
+    worker.overrides.set('GET /api/system/worker/log', { status: 500, body: { detail: 'wieder kaputt' } });
+    await page.getByTestId('sys-log-refresh').click();
+    await expect(page.getByTestId('sys-log-error')).toContainText('wieder kaputt');
+    await expect(page.getByTestId('sys-log-output')).toContainText('Application startup complete.');
+    await expect(page.getByTestId('sys-log-stale')).toBeVisible();
+  });
+
+  test('F7: SSH-Knöpfe bleiben bis zur ersten SSH-Antwort gesperrt', { tag: '@VPS-04' }, async ({ page, worker }) => {
+    void worker;
+    await mockVps(page);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route('**/api/vps/status', async (route) => {
+      await gate;
+      await route.fallback();
+    });
+    await openSystem(page, 'restart');
+    await expect(page.getByTestId('sys-restart-ngrok')).toBeDisabled();
+    await expect(page.getByTestId('sys-restart-reboot')).toBeDisabled();
+    release();
+    await expect(page.getByTestId('sys-restart-ngrok')).toBeEnabled();
+    await expect(page.getByTestId('sys-restart-reboot')).toBeEnabled();
+  });
+});

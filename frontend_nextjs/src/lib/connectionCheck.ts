@@ -18,6 +18,13 @@ export async function runConnectionCheck(): Promise<void> {
   const { baseUrl, apiKey, hydrated } = store;
   if (!hydrated || !baseUrl || store.probing) return;
   store.setProbing(true);
+  // Kilidi yalnız bu koşu bırakır ve bir kez: erken bırakılan kilit, sonradan başlayan koşunun kilidiyle karışmaz
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true;
+    useConnectionStore.getState().setProbing(false);
+  };
   let stale = false;
   try {
     const result = await probeWorker(baseUrl, apiKey);
@@ -30,17 +37,19 @@ export async function runConnectionCheck(): Promise<void> {
     const before = now.status;
     const status = statusFromProbe(result);
     now.recordCheck(status, result.ok ? undefined : { reason: result.reason, ngrokCode: result.ngrokCode });
-    // Rol yüklenirken (zaman aşımsız istek) yoklama kilitlenmesin
-    useConnectionStore.getState().setProbing(false);
     if (!result.ok) return;
+    // Kişisel tercihler: bağlantı arızadan döndüyse ya da okuma kalıcı düşmüşse yeniden okunur. `load()` durumu hemen `loading` yapar,
+    // alanlar okuma bitene kadar kilitli kalır; rol yüklemesinden ÖNCE başlar (o istek uzun sürebilir).
+    const prefs = useUserPrefsStore.getState();
+    const recovered = FAULTY.includes(before);
+    if (recovered || prefs.loadState === 'failed' || prefs.loadState === 'offline') void prefs.load();
+    // Rol yüklenirken (zaman aşımsız istek) yoklama kilitlenmesin
+    release();
     // Rolle (Admin/Benutzer) hängt am Schlüssel: einmal laden, sobald der Worker antwortet.
     if (!useAuthStore.getState().me) await loadMe();
-    if (FAULTY.includes(before)) {
-      toast.success(t('conn.recovered.text'), { title: t('conn.recovered'), duration: 5_000 });
-      void useUserPrefsStore.getState().load();
-    }
+    if (recovered) toast.success(t('conn.recovered.text'), { title: t('conn.recovered'), duration: 5_000 });
   } finally {
-    useConnectionStore.getState().setProbing(false);
+    release();
     if (stale) void runConnectionCheck();
   }
 }

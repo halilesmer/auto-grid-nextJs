@@ -206,3 +206,46 @@ test.describe('USR-14 Bağlantı durumları', () => {
   });
 });
 
+
+test.describe('USR-14 Yoklama kilidi ve tercih kurtarma (1115-A10)', () => {
+  test('F8: önceki koşunun bitişi sonraki koşunun kilidini açmaz (aynı anda tek yoklama)', { tag: '@USR-14' }, async ({ page, worker }) => {
+    void worker;
+    let inflight = 0;
+    let maxInflight = 0;
+    let probes = 0;
+    let meDone = false;
+    await page.route('**/api/system/platform', async (route) => {
+      const mine = ++probes;
+      inflight += 1;
+      maxInflight = Math.max(maxInflight, inflight);
+      // İlk yoklama hızlı; sonrakiler uzun sürer
+      if (mine > 1) await new Promise((resolve) => setTimeout(resolve, 3500));
+      inflight -= 1;
+      await route.fallback();
+    });
+    await page.route('**/api/auth/me', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      meDone = true;
+      await route.fallback();
+    });
+    await page.goto('/');
+    await expect(chip(page)).toHaveAttribute('data-status', 'connected');
+    await recheck(page); // B başlar (A rol yüklerken kilit bırakılmıştı)
+    await expect.poll(() => meDone, { timeout: 10_000 }).toBe(true); // A biter
+    await recheck(page); // C: B hâlâ sürüyorsa başlamamalı
+    await page.waitForTimeout(400);
+    expect(maxInflight).toBeLessThanOrEqual(1);
+  });
+
+  test('F9: tercih okuması kalıcı düştüyse sonraki başarılı yoklama yeniden okur; “bağlantı geri geldi” bildirimi çıkmaz', { tag: '@USR-14' }, async ({ page, worker, dashboard }) => {
+    worker.userPrefsGetFailures = 99;
+    await dashboard.open(DEMO_ID);
+    await openSettings(page);
+    await expect(page.getByTestId('pref-load-theme')).toHaveAttribute('data-state', 'failed', { timeout: 15_000 });
+    worker.userPrefsGetFailures = 0;
+    await recheck(page);
+    await expect(page.getByTestId('pref-load-theme')).toHaveCount(0, { timeout: 10_000 });
+    await expect(page.getByTestId('settings-theme-dark')).toBeEnabled();
+    await expect(page.getByText(msg('conn.recovered'))).toHaveCount(0);
+  });
+});

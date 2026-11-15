@@ -18,7 +18,7 @@ export { SYSTEM_TABS, type SystemTab } from './system/shared';
 export default function SystemSection({ tab, system }: { tab: SystemTab; system: ReturnType<typeof useSystemActions> }) {
   const vps = useVps({ pollLogs: false });
   const worker = useWorkerSystem();
-  const ctx: SystemCtx = { vps, worker, system, sshLocked: vps.localOnly || Boolean(vps.disabled) };
+  const ctx: SystemCtx = { vps, worker, system, sshLocked: vps.localOnly || Boolean(vps.disabled), sshPending: vps.loading };
   return (
     <div data-testid="settings-system">
       {tab === 'status' && <StatusTab ctx={ctx} />}
