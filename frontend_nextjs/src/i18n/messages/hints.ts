@@ -666,6 +666,11 @@ const existingHints = defineArea(
     "spread.bootstrap.hint": "Bekle: en az 60 örneğe kadar girişler durur, bekleyen emirler silinir. Elle: referans hemen kullanılır, öğrenme bitince medyana geçilir.",
     "spread.initial_spread.hint": "İlk öğrenme sırasında kullanılan pozitif normal Ask−Bid fiyat farkı. Öğrenmeye yüksek spread saatinde başlarsanız güvenilir bir referans girin.",
     "spread.status.hint": "Kaydedilmiş korumanın canlı durumu. Veri 60 sn’den eskiyse gösterilmez. Spread koruması manuel durdurmayı kaldırmaz.",
+    "formation.ask.yes.hint": "Formasyonları arka planda arar; grafik kullanılabilir kalır. Bitince bildirim gelir.",
+    "formation.ask.no.hint": "Bu sembolde arama yapılmaz. Başlıktaki “Formasyon ara” ile sonradan başlatılır.",
+    "formation.ask.search.hint": "Bu sembolde formasyon taramasını başlatır.",
+    "formation.ask.show.hint": "Formasyon kartını açar.",
+    "formation.ask.retry.hint": "Taramayı yeniden başlatır.",
   },
   {
     "backtest.presets.title.hint": "Load, rename, delete or apply your own presets to a zone.",
@@ -1324,6 +1329,11 @@ const existingHints = defineArea(
     "spread.bootstrap.hint": "Wait: entries stop and pending orders are cancelled until 60 samples. Manual: use the entered reference until learning supplies a median.",
     "spread.initial_spread.hint": "Positive normal Ask−Bid difference used during initial learning. Enter a reliable reference when starting during high spread hours.",
     "spread.status.hint": "Live status of saved protection. Data older than 60 seconds is hidden. Spread recovery never overrides a manual pause.",
+    "formation.ask.yes.hint": "Searches formations in the background; the chart stays usable. A notice appears when it is done.",
+    "formation.ask.no.hint": "No search runs for this symbol. Start it later with “Search formations” in the header.",
+    "formation.ask.search.hint": "Starts the formation search for this symbol.",
+    "formation.ask.show.hint": "Opens the formation card.",
+    "formation.ask.retry.hint": "Starts the search again.",
   },
   {
     "backtest.presets.title.hint": "Eigene Presets laden, umbenennen, löschen oder in eine Zone übernehmen.",
@@ -1982,6 +1992,11 @@ const existingHints = defineArea(
     "spread.bootstrap.hint": "Warten: bis 60 Messwerte keine Einstiege, Pending Orders werden gelöscht. Manuell: Startwert verwenden, danach den gelernten Median.",
     "spread.initial_spread.hint": "Positiver normaler Ask−Bid-Abstand für die erste Lernphase. Bei Lernstart mit hohem Spread einen verlässlichen Startwert eingeben.",
     "spread.status.hint": "Aktueller Zustand des gespeicherten Schutzes. Daten älter als 60 Sekunden werden ausgeblendet. Eine manuelle Pause bleibt bestehen.",
+    "formation.ask.yes.hint": "Sucht die Formationen im Hintergrund; der Chart bleibt bedienbar. Bei Ende kommt eine Meldung.",
+    "formation.ask.no.hint": "Für dieses Symbol wird nicht gesucht. Später mit „Formationen suchen“ in der Kopfzeile starten.",
+    "formation.ask.search.hint": "Startet die Formationssuche für dieses Symbol.",
+    "formation.ask.show.hint": "Öffnet die Formationskarte.",
+    "formation.ask.retry.hint": "Startet die Suche erneut.",
   },
 );
 
