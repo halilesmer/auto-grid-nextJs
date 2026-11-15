@@ -3,7 +3,7 @@ date: 2026-11-15
 author: Claude
 type: decision
 status: open
-pr: []
+pr: [544]
 features: []
 areas: [rules]
 ---
