@@ -1988,6 +1988,11 @@ test.describe('FRM-23 Werkzeugleiste des Charts liegt obenauf', () => {
       test(`Indikatoren und Trend sind nicht verdeckt und überlappen die Kopfleiste nicht (${width}×${height} px${favorites ? ', Favoriten offen' : ''}${closed ? ', Seitenleiste zu' : ''})`, { tag: ['@FRM-23', '@ANA-21'] }, async ({ page, worker }) => {
         if (closed) await storeSidebar(page, { open: false, tab: 'conditions' });
         await openPage(page, worker, `${URL}&form=GAR`);
+        // The toast "search finished" (FRM-48, 1114-A1.6) lies over the bottom edge below sm for 8 s by design; this test checks the header, so close it first
+        const dismiss = page.getByRole('button', { name: msg('ui.dismiss', {}, 'de'), exact: true });
+        await expect(dismiss).toBeVisible();
+        await dismiss.click();
+        await expect(dismiss).toHaveCount(0);
         if (favorites) {
           await showCardTab(page, 'favorites');
           await expect(page.getByTestId('favorites-panel')).toBeVisible();

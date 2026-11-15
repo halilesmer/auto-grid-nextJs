@@ -26,9 +26,8 @@ interface AskInput {
 export function useFormationAsk({ key, favoritesReady, favorite, chartReady: chartHere }: AskInput) {
   // Latch per symbol: the first candles are enough. A later reload of the chart (other timeframe, range) must not stop the search and start it again
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
-  useEffect(() => {
-    if (chartHere && key) setLoadedKey(key);
-  }, [chartHere, key]);
+  // State adjustment during render (React docs: "storing information from previous renders"), no effect
+  if (chartHere && key && loadedKey !== key) setLoadedKey(key);
   const chartReady = key !== null && loadedKey === key;
   const [answer, setAnswer] = useState<{ key: string; value: 'yes' | 'no' } | null>(null);
   const answered = answer && answer.key === key ? answer.value : null;
