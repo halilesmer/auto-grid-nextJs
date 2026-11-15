@@ -62,7 +62,7 @@ test.describe('USR-16 Grafik tercihleri: Kodlama', () => {
   });
 
   test('Boyut, worker’ın saydığı gibi hesaplanır (Python ayırıcıları)', { tag: '@USR-16' }, () => {
-    expect(prefBytes({ a: [1, 2], b: 'x,y:' })).toBe(JSON.stringify({ a: [1, 2], b: 'x,y:' }).length + 3);
+    expect(prefBytes({ a: [1, 2], b: 'x,y:' })).toBe(JSON.stringify({ a: [1, 2], b: 'x,y:' }).length + 4);
   });
 
   test('Eski kayıtta görünüm sembol belgelerindeydi: en sık geçen varsayılan dışı görünüm alınır', { tag: '@USR-16' }, () => {
@@ -208,6 +208,11 @@ test.describe('USR-16 Ayarlar: Grafik sayfasındaki tercihler', () => {
     await expect(page.getByTestId('settings-chartprefs-list').getByRole('listitem')).toHaveCount(6);
     await expect(page.getByTestId('settings-chartprefs-list')).toContainText(msg('sdlg.chartprefs.i5'));
     await expect(page.getByTestId('settings-chartprefs-note')).toHaveText(msg('sdlg.chartprefs.note'));
+    // Ekran görüntüsü yalnız pencere: arkadaki hesap seçici görünmesin
+    for (const scheme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.getByTestId('settings-dialog').screenshot({ path: test.info().outputPath(`settings-chartprefs-1280-${scheme}.png`) });
+    }
     await page.getByTestId('settings-appearance-open').click();
     await expect(page).toHaveURL(/\/chart/);
     await expect(page.getByTestId('chart-workspace-settings')).toBeVisible({ timeout: 15_000 });
@@ -223,7 +228,10 @@ test.describe('USR-16 Ayarlar: Grafik sayfasındaki tercihler', () => {
       const overflow = await page.evaluate(() => { const el = document.querySelector('[data-testid="settings-pane"]') as HTMLElement; return el.scrollWidth - el.clientWidth; });
       expect(overflow).toBeLessThanOrEqual(0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
-      await page.screenshot({ path: test.info().outputPath('settings-chartprefs-375.png') });
+      for (const scheme of ['light', 'dark'] as const) {
+        await page.emulateMedia({ colorScheme: scheme });
+        await page.getByTestId('settings-dialog').screenshot({ path: test.info().outputPath(`settings-chartprefs-375-${scheme}.png`) });
+      }
     });
   });
 });

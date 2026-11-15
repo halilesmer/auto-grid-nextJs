@@ -52,8 +52,8 @@ async function setMenuMode(page: Page, mode: string) {
   await dialog.getByLabel(msg('cw.lineMenu'), { exact: true }).selectOption(mode);
   await dialog.getByRole('button', { name: msg('cw.apply'), exact: true }).click();
   await expect(dialog).toHaveCount(0);
-  // Das Dokument wird verzögert geschrieben: erst warten, bis die Einstellung im Speicher steht
-  await expect.poll(() => page.evaluate(([key, value]) => JSON.stringify(Object.values(JSON.parse(localStorage.getItem(key) || '{}').documents ?? {})).includes(`"lineMenu":"${value}"`), [STORE_KEY, mode])).toBe(true);
+  // S7.1: the look is one user value (root of the cache), no longer in the symbol document. It is written with a delay: wait until it is stored
+  await expect.poll(() => page.evaluate(([key, value]) => JSON.parse(localStorage.getItem(key) || '{}').appearance?.lineMenu === value, [STORE_KEY, mode])).toBe(true);
   // Neu laden: der Einstellungsdialog lässt das Fadenkreuz nicht mehr auf der Linie (die Suche findet sie sonst nicht wieder)
   await page.reload();
   await expect(page.getByTestId('oscillator-controls')).toBeVisible();

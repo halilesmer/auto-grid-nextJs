@@ -1161,7 +1161,7 @@
     "e2e": {
       "datum": "2026-11-15",
       "status": "passed",
-      "tests": 23
+      "tests": 3
     }
   },
   "FRM-25": {
@@ -1791,7 +1791,7 @@
     "e2e": {
       "datum": "2026-11-15",
       "status": "passed",
-      "tests": 4
+      "tests": 58
     }
   },
   "UI-09": {
@@ -1854,7 +1854,7 @@
     "e2e": {
       "datum": "2026-11-15",
       "status": "passed",
-      "tests": 58
+      "tests": 108
     }
   },
   "UI-18": {
@@ -2138,8 +2138,8 @@
   "USR-16": {
     "e2e": {
       "datum": "2026-11-15",
-      "status": "failed",
-      "tests": 10
+      "status": "passed",
+      "tests": 11
     }
   },
   "VPS-01": {
