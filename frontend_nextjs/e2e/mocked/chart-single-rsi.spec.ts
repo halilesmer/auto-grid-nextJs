@@ -46,7 +46,7 @@ test('UI-18: Mülleimer und Menüpunkt schalten nur die Ebene aus, der Schalter 
 });
 
 test('UI-18: ein gespeichertes Dokument der Version 1 wandert auf den neuen RSI, Nutzer-RSIs bleiben', { tag: '@UI-18' }, async ({ page, worker }) => {
-  void worker;
+  worker.userPrefs.admin = { chart_osc_scope: { mode: 'product' } }; // USR-17: this test checks the per-product records
   await page.goto(FREE);
   await expect(rows(page)).toHaveCount(1);
   await page.getByRole('button', { name: msg('cw.layers'), exact: true }).click();

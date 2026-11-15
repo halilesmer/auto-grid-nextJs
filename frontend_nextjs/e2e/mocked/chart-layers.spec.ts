@@ -49,7 +49,7 @@ for (const [name, url] of [['frei', FREE], ['Setup', SETUP]] as const) {
 for (const [name, url] of [['frei', FREE], ['Setup', SETUP]] as const) {
   test.describe(`UI-11 ${name}: Ein Bereich pro Ebene`, () => {
     test('Eine ausgeschaltete Ebene belegt keinen Platz; beim Einschalten kommt ihr Bereich ganz nach unten', { tag: '@UI-11' }, async ({ page, worker }) => {
-      void worker;
+      worker.userPrefs.admin = { chart_osc_scope: { mode: 'product' } }; // USR-17: the pane order is a per-product record in this mode
       await page.goto(url);
       const chart = page.getByTestId('analysis-chart');
       await expect(chart).toHaveAttribute('data-system-panes', '2');

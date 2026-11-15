@@ -23,6 +23,7 @@ import type { Appearance, Section } from '@/lib/chart-workspace/settings';
 import { OPEN_SETTINGS_EVENT } from '@/lib/chart-workspace/settingsRequest';
 import { useShallow } from 'zustand/react/shallow';
 import { applyAppearance, appearanceColors, enableVerticalPan, IndicatorRenderer, resetPriceScale, type ChartBinding, type SystemPaneInput, type SystemPaneModel, type SystemSeriesRefs } from './runtime';
+import { composeStandard, isStandardKind, sameStandard, splitStandard, standardOf } from '@/lib/chart-workspace/oscStandard';
 import { isSystemPane, orderPanes, presentPanes, SYSTEM_PANE_IDS, type SystemPaneId } from '@/lib/chart-workspace/paneOrder';
 import { applySystemLayer } from './systemLayers';
 import { Choice, ColorField, fieldClass, Numeric, SettingsDialog, Toggle } from './SettingsDialog';
@@ -167,7 +168,11 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     if (!context.systemRsi) rsi.id = 'initial-RSI';
     return { ...emptyChartDocument(), indicators: [rsi, ...others] };
   }, [context.systemRsi]);
-  const stored = state.documents[context.key] ?? defaults;
+  const rawStored = state.documents[context.key] ?? defaults;
+  // USR-17: in the standard mode (default) the RSI/EWO part, the pane order and the pane heights come from the user's standard; the product's own records stay untouched and are ignored
+  const standardOn = state.oscScope === 'standard' && !!context.systemRsi;
+  const standardFallback = useMemo(() => defaults.indicators.filter(isStandardKind), [defaults]);
+  const stored = useMemo(() => standardOn ? composeStandard(rawStored, state.oscStandard, standardFallback) : rawStored, [standardOn, rawStored, state.oscStandard, standardFallback]);
   // A saved document without the system RSI (older version) gets it at the start; it cannot be deleted, only switched off as a layer
   const ownDocument = useMemo(() => context.systemRsi && !stored.indicators.some(isSystemRsi) ? { ...stored, indicators: [systemRsiIndicator(), ...stored.indicators] } : stored, [context.systemRsi, stored]);
   const appearance = useChartWorkspaceStore(useShallow(s => s.preview ?? s.appearance));
@@ -234,15 +239,21 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   }, [overlayLayout, toolbarCard]);
   useEffect(() => { live.current = { drawingBars, until, timeframeSec }; documentRef.current = doc; });
   const saveDocument = useCallback((next: ChartDocument) => {
-    documentRef.current = next;
     const store = useChartWorkspaceStore.getState();
-    if (drawingKey === context.key) store.setDocument(context.key, next);
+    let product = next;
+    if (standardOn) {
+      const split = splitStandard(next, store.documents[context.key] ?? defaults);
+      if (!sameStandard(split.std, standardOf(documentRef.current))) store.setOscStandard(split.std);
+      product = split.product;
+    }
+    documentRef.current = next;
+    if (drawingKey === context.key) store.setDocument(context.key, product);
     else {
       const own = store.documents[context.key] ?? defaults;
-      if (own.indicators !== next.indicators || own.overlays !== next.overlays || own.paneOrder !== next.paneOrder || own.systemPanes !== next.systemPanes || own.paneHeights !== next.paneHeights) store.setDocument(context.key, { ...own, indicators: next.indicators, overlays: next.overlays, paneOrder: next.paneOrder, systemPanes: next.systemPanes, paneHeights: next.paneHeights });
+      if (own.indicators !== product.indicators || own.overlays !== product.overlays || own.paneOrder !== product.paneOrder || own.systemPanes !== product.systemPanes || own.paneHeights !== product.paneHeights) store.setDocument(context.key, { ...own, indicators: product.indicators, overlays: product.overlays, paneOrder: product.paneOrder, systemPanes: product.systemPanes, paneHeights: product.paneHeights });
       store.setDocument(drawingKey, { ...emptyChartDocument(), drawings: next.drawings, images: next.images });
     }
-  }, [context.key, drawingKey, defaults]);
+  }, [context.key, drawingKey, defaults, standardOn]);
   // The user drags a pane separator: the chart changes the pane heights itself and sends no event. After each pointer release
   // the heights are read again; a change goes into the product's document, so the panes keep it after a reload (UI-24).
   useEffect(() => {

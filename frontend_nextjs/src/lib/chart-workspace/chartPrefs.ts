@@ -19,6 +19,8 @@ export const CHART_PREF_KEYS = [
   'analysis_layers',
   'analysis_trend',
   'formation_style',
+  'chart_osc_scope',
+  'chart_osc_standard',
 ] as const;
 export type ChartPrefKey = (typeof CHART_PREF_KEYS)[number];
 export const isChartPrefKey = (key: string): key is ChartPrefKey => (CHART_PREF_KEYS as readonly string[]).includes(key);

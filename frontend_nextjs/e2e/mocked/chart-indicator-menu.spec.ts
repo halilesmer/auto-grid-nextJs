@@ -61,7 +61,7 @@ async function setMenuMode(page: Page, mode: string) {
 }
 
 test('Rechtsklick auf die RSI-Linie öffnet das Menü; Farbe, Dicke und Typ wirken im Chart und bleiben nach dem Neuladen', { tag: '@ANA-24' }, async ({ page, worker }) => {
-  void worker;
+  worker.userPrefs.admin = { ...worker.userPrefs.admin, chart_osc_scope: { mode: 'product' } }; // USR-17: this test checks per-product records
   await openChart(page);
   await expect.poll(() => seriesOf(page, 'RSI')).toMatchObject({ lineStyle: 0, lineWidth: 1 });
   await rightClickRsi(page);
@@ -211,7 +211,7 @@ test('Einstellung „Linienmenü“: nur Doppelklick, nur Rechtsklick, aus', { t
 });
 
 test('Altes Dokument ohne lineStyle zeichnet die Linie durchgezogen', { tag: '@ANA-24' }, async ({ page, worker }) => {
-  void worker;
+  worker.userPrefs.admin = { ...worker.userPrefs.admin, chart_osc_scope: { mode: 'product' } }; // USR-17: this test checks per-product records
   await openChart(page);
   await expect.poll(() => seriesOf(page, 'RSI')).toMatchObject({ lineStyle: 0 });
   await page.addInitScript(([key]) => {

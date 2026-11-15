@@ -1,5 +1,6 @@
 'use client';
 
+import { systemRsiOf } from '@/lib/chart-workspace/oscStandard';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PanelRight, ScanSearch } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
@@ -47,7 +48,7 @@ import { useFormat, useLocale, useT, type MessageKey } from '@/i18n';
 import { barEnd, calendarFromDaily, isCalendarTimeframe, liveCalendarBar, periodStart } from '@/lib/analysis/calendarBars';
 import { buildChartData, CHART_TIMEFRAME_SEC, CHART_TIMEFRAMES, dataTimeframeOf, type Bar, type ChartTimeframe } from '@/lib/analysis/candles';
 import { hasFormations } from '@/lib/chart/chartUrl';
-import { isSystemRsi, matchesFormationRsi } from '@/lib/chart-workspace/indicators';
+import { matchesFormationRsi } from '@/lib/chart-workspace/indicators';
 import { chartWorkspaceKey, legacyDocumentsForMerge, legacyLinkFor, legacyWorkspaceKeys, mergeLegacyDocuments } from '@/lib/chart-workspace/legacyKeys';
 import { resolveAsOf } from '@/lib/formation/asOf';
 import { drawingPriceRange, drawsZigzag } from '@/lib/formation/drawingLayout';
@@ -259,7 +260,7 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
   const overlays = useChartOverlays(contextKey, { formations: true, rsi: true });
   // The formation rules read RSI(7) on close of the chart timeframe: with other settings the RSI pane shows other numbers, so its drawings are hidden
   const rsiMatches = useChartWorkspaceStore((s) => {
-    const config = s.documents[contextKey]?.indicators.find(isSystemRsi);
+    const config = systemRsiOf(s, contextKey);
     return !config || matchesFormationRsi(config, tfSec, RSI_PARAMS.period);
   });
   const others = useMemo(() => (hit ? scan.hits.filter((h) => h.tf === hit.tf) : []), [scan.hits, hit]);

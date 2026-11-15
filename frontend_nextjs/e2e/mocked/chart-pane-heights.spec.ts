@@ -30,7 +30,7 @@ async function dragSeparator(page: Page, index: number, dy: number) {
 }
 
 test('Gezogene Oszillator-Höhe bleibt je Produkt nach dem Neuladen', { tag: '@UI-24' }, async ({ page, worker }) => {
-  void worker;
+  worker.userPrefs.admin = { chart_osc_scope: { mode: 'product' } }; // USR-17: this test checks the per-product records
   await page.setViewportSize({ width: 1280, height: 1000 });
   await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=last7`);
   await expect.poll(async () => (await paneHeights(page)).length).toBeGreaterThan(1);
@@ -46,4 +46,23 @@ test('Gezogene Oszillator-Höhe bleibt je Produkt nach dem Neuladen', { tag: '@U
   await page.goto(`/chart?account=${LIVE_ID}&symbol=USOUSD&tf=H1&range=last7`);
   await expect.poll(async () => (await paneHeights(page)).length).toBeGreaterThan(1);
   await expect.poll(async () => Math.abs((await paneHeights(page))[1] - before[1])).toBeLessThan(4);
+});
+
+test('Gezogene Oszillator-Höhe gilt im Standard-Modus in jedem Produkt (USR-17)', { tag: ['@UI-24', '@USR-17'] }, async ({ page, worker }) => {
+  void worker;
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=last7`);
+  await expect.poll(async () => (await paneHeights(page)).length).toBeGreaterThan(1);
+  const before = await paneHeights(page);
+  // Price pane taller, first oscillator pane smaller
+  await dragSeparator(page, 1, 60);
+  await expect.poll(async () => (await paneHeights(page))[1]).toBeLessThan(before[1] - 30);
+  const dragged = await paneHeights(page);
+  await page.reload();
+  await expect.poll(async () => (await paneHeights(page)).length).toBe(dragged.length);
+  await expect.poll(async () => Math.abs((await paneHeights(page))[1] - dragged[1])).toBeLessThan(4);
+  // Standard mode: another product shows the same heights
+  await page.goto(`/chart?account=${LIVE_ID}&symbol=USOUSD&tf=H1&range=last7`);
+  await expect.poll(async () => (await paneHeights(page)).length).toBeGreaterThan(1);
+  await expect.poll(async () => Math.abs((await paneHeights(page))[1] - dragged[1])).toBeLessThan(4);
 });

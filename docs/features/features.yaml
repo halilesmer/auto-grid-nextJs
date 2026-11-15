@@ -480,6 +480,17 @@ kategorien:
           - "Bei 375 px Einstellungen > Grafik ansehen, hell und dunkel: kein waagerechter Überlauf."
         erwartet: Die Tests @USR-16 bestehen. Die Stil-Einstellungen folgen dem Benutzer auf jedes Gerät, die Chart-Daten bleiben auf dem Gerät.
 
+      - id: USR-17
+        titel: Oszillatoren — überall derselbe Standard oder je Produkt
+        beschreibung: "Plan 1114-A3. Einstellungen > Grafik hat die Zeile „Osilatörler“ mit der Wahl „Her yerde aynı standart“ (Voreinstellung) oder „Ürün başına ayrı“. Im Standard-Modus gelten für RSI und EWO in jedem Produkt dieselben Werte: Parameter, Farbe und Linienstil, Sichtbarkeit (Auge), Einklappen, Bereichshöhe und Bereichsreihenfolge. Modus und Standardwerte gehören dem Benutzer und liegen im Worker unter zwei user_prefs-Schlüsseln (chart_osc_scope, chart_osc_standard; Wert unter 8 KB). Die Einträge der Produkte werden nicht gelöscht, im Standard-Modus nur ignoriert; im Modus „Ürün başına ayrı“ gelten sie wieder. Andere Indikatoren, Zeichnungen und die RSI-Ebene bleiben je Produkt im Dokument auf dem Gerät. Das Indikatoren-Fenster (RSI-Einstellungen) bleibt unverändert."
+        code: [frontend_nextjs/src/lib/chart-workspace/oscStandard.ts, frontend_nextjs/src/store/useChartWorkspaceStore.ts, frontend_nextjs/src/store/chartPrefsBridge.ts, frontend_nextjs/src/lib/chart-workspace/chartPrefs.ts, frontend_nextjs/src/components/chart-workspace/ChartWorkspace.tsx, frontend_nextjs/src/components/settings/ChartSection.tsx, frontend_nextjs/e2e/mocked/settings-osc-scope.spec.ts]
+        tiers: [e2e, manuell]
+        pruefung:
+          - "Am Mac im Standard-Modus bei einem Symbol den RSI-Bereich höher ziehen, dann am Handy ein anderes Symbol öffnen: gleiche Höhe und gleiche Werte."
+          - "Auf „Ürün başına ayrı“ umschalten: jedes Produkt zeigt wieder seine eigenen Werte; zurück auf Standard: die Standardwerte gelten wieder."
+          - "Bei 375 px Einstellungen > Grafik ansehen, hell und dunkel: kein waagerechter Überlauf."
+        erwartet: Die Tests @USR-17 bestehen. Im Standard-Modus sehen RSI und EWO in jedem Produkt gleich aus; die Produkt-Einträge gehen nicht verloren.
+
   # ---------------------------------------------------------------------------
   - id: SET
     titel: Allgemeine Einstellungen
