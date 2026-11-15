@@ -1,11 +1,11 @@
 # Agent rules
 
-Copy of the owner's global rules for coding agents. The source folder `~/.claude/rules/` was removed on 2026-11-03; a snapshot is in `~/.claude/backups/rules-2026-11-03/`. This copy is now the live version. Other agents (Codex) read it through the root `AGENTS.md`.
+The owner's general working rules for coding agents. They started as a copy of `~/.claude/rules/` (snapshot of 2026-11-03 in `~/.claude/backups/rules-2026-11-03/`) and are edited here since then. Claude Code reads `~/.claude/CLAUDE.md` and `~/.claude/rules/` in each session; those files win where they differ from this folder. Other agents (Codex) read this folder through the root `AGENTS.md`.
 
 | File | Topic | Applies to |
 |---|---|---|
 | `calisma-disiplini.md` | Evidence, no weakened checks, surgical changes, secrets | all work |
-| `communication-style.md` | Reply structure, focus line, backlog, decision log | all replies |
+| `communication-style.md` | Priority of the request, scope, shared terms, result first | all replies |
 | `ajan-kullanimi.md` | Subagents: cost estimate first, max. 5 agents; Codex: final read-only bug hunt only | multi-agent work, final check |
 | `dogruluk.md` | Types, error handling | code files |
 | `mimari.md` | Dependency direction, boundary checks | code files |
@@ -15,4 +15,4 @@ Copy of the owner's global rules for coding agents. The source folder `~/.claude
 
 Project rules (`CLAUDE.md`, `hooks/RULES.md`) take precedence where they are more specific.
 
-Edit this copy directly; there is no source to refresh it from. No hook checks this copy.
+Edit these files directly. No hook checks them.

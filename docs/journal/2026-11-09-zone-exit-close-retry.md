@@ -33,4 +33,6 @@ The retry is keyed by zone magic and does not depend on the price. The user sele
 ## Open points
 - The pending retry is in memory only. A bot restart drops it (a restart also deletes the ui_state file, so the zone starts again).
 - Not tested on the VPS. A real refusal is hard to cause on DEMO.
-- Found in the same search, not fixed: `POST /api/ui-state` writes the ui_state file without an atomic replace while the bot writes the same file; `process_partial_fills_and_tpsl` matches "processed" levels by side and price only, not by zone magic.
+- Found in the same search: `POST /api/ui-state` wrote the ui_state file without an atomic replace while the bot writes the same file. Fixed 2026-11-14: the route now writes through `atomic_write_json` (`src/utils/atomic_json.py`): temporary file `<file>.<random>.api.tmp` (not the bot's `<file>.tmp`), then `os.replace`, with 5 short retries on `PermissionError` (Windows). On failure the old file stays, the temporary file is removed, and the route returns 500 as before. Tests: ZON-08 in `tests/api/test_settings_state_api.py`.
+- Still open: the read-modify-write race. The API and the bot can each read the file, change it and replace it at the same time; one update is lost. Not solved by an atomic write.
+- Still open, not fixed: `process_partial_fills_and_tpsl` matches "processed" levels by side and price only, not by zone magic.

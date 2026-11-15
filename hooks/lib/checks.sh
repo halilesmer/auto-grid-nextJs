@@ -181,7 +181,7 @@ check_compat_warnings() {
 
   if [ -n "$backend_changed" ] && [ -z "$frontend_changed" ]; then
     warn "UI↔backend: worker'da model/ayar/çekirdek değişti ama frontend (types/store/components/services/hooks) değişmedi."
-    warn "  Yeni/değişen ayar arayüze yansıtılmadan tamam sayılmaz (.agents/rules/token-saver.md)."
+    warn "  Yeni/değişen ayar arayüze yansıtılmadan tamam sayılmaz (hooks/RULES.md §2.1)."
   fi
   if echo "$files" | grep -q '^worker_python/src/core/auto_grid_engine\.py$'; then
     warn "auto_grid_engine.py legacy: yeni mantığı modüler dosyalara (grid_*.py) ekleyin."
