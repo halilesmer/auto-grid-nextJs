@@ -886,6 +886,7 @@ test('Handel: Warnung bei sehr starker Zone am TP1 (Gegenseite, Preis in der Zon
 type Sk = [high: number, low: number, close: number];
 const statusFor = (side: 'sell' | 'buy', rows: Sk[], over: { emergency?: number | null; entryBar?: Sk } = {}) => {
   const m = (p: number) => (side === 'sell' ? p : 200 - p);
+  const emergency = over.emergency === undefined ? 125 : over.emergency;
   const bars: FormationBar[] = ([over.entryBar ?? ([115, 112, 113] as Sk), ...rows]).map(([h, l, c], i) => {
     const [hh, ll] = side === 'sell' ? [h, l] : [m(l), m(h)];
     return { time: 1000 + i * 14400, open: m(c), high: hh, low: ll, close: m(c) };
@@ -898,7 +899,7 @@ const statusFor = (side: 'sell' | 'buy', rows: Sk[], over: { emergency?: number 
       side,
       entry: m(115),
       stop: m(120),
-      emergencyStop: over.emergency === undefined ? m(125) : over.emergency === null ? null : m(over.emergency),
+      emergencyStop: emergency === null ? null : m(emergency),
       from: m(100),
       targets: { tp1: 0.382, tp2: 0.618 },
     }),
