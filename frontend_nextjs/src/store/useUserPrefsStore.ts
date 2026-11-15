@@ -530,3 +530,6 @@ registerNewsPersister(async (key, value) => {
   const st = useUserPrefsStore.getState().status[key];
   return st === 'saved' || st === 'saving';
 });
+
+// Dinleme sekme açılır açılmaz başlar: hiç yazma yapmayan sekme de başka sekmenin değişikliğini duyar (F11)
+if (typeof window !== 'undefined') prefsChannel();
