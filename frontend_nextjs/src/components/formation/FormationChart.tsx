@@ -1,5 +1,6 @@
 'use client';
 
+import { systemRsiOf } from '@/lib/chart-workspace/oscStandard';
 import { useMemo } from 'react';
 import { TIMEFRAME_SEC, type Bar } from '@/lib/analysis/candles';
 import { useT } from '@/i18n';
@@ -12,7 +13,7 @@ import type { ChartPicture } from '@/lib/formation/shotImage';
 import type { OverlayLine } from '@/components/analysis/chart/ChartCore';
 import { ChartView } from '@/components/chart-page/ChartView';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
-import { isSystemRsi, matchesFormationRsi } from '@/lib/chart-workspace/indicators';
+import { matchesFormationRsi } from '@/lib/chart-workspace/indicators';
 import { RSI_PARAMS } from '@/lib/formation/params';
 import { useConnectionStore } from '@/store/useConnectionStore';
 import { FormationDrawingsToggle } from '@/components/chart-workspace/FormationDrawingsToggle';
@@ -59,7 +60,7 @@ export function FormationChart({ accountId, hit, context, scanAt, running, asOf,
   const overlays = useChartOverlays(contextKey, { formations: true, rsi: true });
   // The formation rules read RSI(7) on close of the chart timeframe: with other settings the RSI pane shows other numbers, so its drawings are hidden
   const rsiMatches = useChartWorkspaceStore(s => {
-    const config = s.documents[contextKey]?.indicators.find(isSystemRsi);
+    const config = systemRsiOf(s, contextKey);
     return !config || matchesFormationRsi(config, TIMEFRAME_SEC[hit.tf], RSI_PARAMS.period);
   });
   const view = useMemo(() => context.view(hit.tf, scanAt), [context, hit.tf, scanAt]);

@@ -113,7 +113,7 @@ test('Magnet merkt Stärke; globale Sperre schützt Bearbeitung und Löschen', {
 });
 
 test('Sichtbarkeit und Indikatorlöschung wirken nur auf die eigenen Indikatoren', { tag: '@ANA-17' }, async ({ page, worker }) => {
-  void worker;
+  worker.userPrefs.admin = { ...worker.userPrefs.admin, chart_osc_scope: { mode: 'product' } }; // USR-17: this test checks per-product records
   await page.goto(URL);
   await expect(page.getByTestId('workspace-indicator-values')).toContainText('EWO');
   await page.getByRole('button', { name: msg('cw.rail.visibility'), exact: true }).click();

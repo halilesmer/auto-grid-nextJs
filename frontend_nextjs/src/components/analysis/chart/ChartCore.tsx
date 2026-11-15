@@ -1,5 +1,6 @@
 'use client';
 
+import { systemRsiOf } from '@/lib/chart-workspace/oscStandard';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import {
@@ -27,7 +28,6 @@ import { useThemeStore } from '@/store';
 import { ChartWorkspace, type WorkspaceContext } from '@/components/chart-workspace/ChartWorkspace';
 import { type ChartBinding, MIN_BAR_SPACING_PX, createChartBinding, appearanceColors, rememberChartView, restoreChartView, type SystemSeriesRef, type SystemSeriesRefs } from '@/components/chart-workspace/runtime';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
-import { isSystemRsi } from '@/lib/chart-workspace/indicators';
 import { clipSegments, type TrendSegment } from '@/lib/formation/trdPath';
 import { canvasColor, dashArrayOf } from '@/lib/formation/lineStyle';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
@@ -415,7 +415,7 @@ export function ChartCore({
   // The RSI is an indicator now: drawn = layer on and the eye open
   const rsiDrawn = useChartWorkspaceStore(s => {
     const doc = workspaceKey ? s.documents[workspaceKey] : undefined;
-    return (doc?.overlays.rsi ?? true) && (doc?.indicators.find(isSystemRsi)?.visible ?? true);
+    return (doc?.overlays.rsi ?? true) && (systemRsiOf(s, workspaceKey || undefined)?.visible ?? true);
   });
   useEffect(() => {
     if (hasRsi) containerRef.current?.setAttribute('data-rsi-visible', String(rsiDrawn));

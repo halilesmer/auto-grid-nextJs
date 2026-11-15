@@ -6,6 +6,7 @@ import {
   decodeAppearance, decodeDrawingDefaults, decodeFibTemplates, decodeSimpleTemplates, decodeTemplates,
   encodeAppearance, encodeDrawingDefaults, encodeFibTemplates, encodeSimpleTemplates, encodeTemplates, type ChartPrefKey,
 } from '@/lib/chart-workspace/chartPrefs';
+import { encodeOscStandard, parseOscScope, parseOscStandard } from '@/lib/chart-workspace/oscStandard';
 import { DEFAULT_TREND_SETTINGS } from '@/lib/formation/params';
 import { DEFAULT_FORMATION_STYLE } from '@/lib/formation/lineStyle';
 import { layersOf, useAnalysisPrefsStore } from './useAnalysisPrefsStore';
@@ -33,6 +34,8 @@ export function currentChartPref(key: ChartPrefKey): Record<string, unknown> {
     case 'analysis_layers': return layersOf(an());
     case 'analysis_trend': return { trend: an().trend };
     case 'formation_style': return { style: an().formationStyle };
+    case 'chart_osc_scope': return { mode: s.oscScope };
+    case 'chart_osc_standard': return encodeOscStandard(s.oscStandard);
   }
 }
 
@@ -58,6 +61,8 @@ export function applyChartPref(key: ChartPrefKey, value: Record<string, unknown>
     case 'analysis_layers': an().applyPrefs({ layers: value as never }); break;
     case 'analysis_trend': an().applyPrefs({ trend: value.trend }); break;
     case 'formation_style': an().applyPrefs({ formationStyle: value.style }); break;
+    case 'chart_osc_scope': ws().applyPrefs({ oscScope: parseOscScope(value) }); break;
+    case 'chart_osc_standard': ws().applyPrefs({ oscStandard: parseOscStandard(value) }); break;
   }
 }
 
@@ -75,6 +80,8 @@ export function defaultChartPref(key: ChartPrefKey): Record<string, unknown> {
     case 'analysis_layers': return { showTrend: false, showZoneLines: true, showZoneCard: true, showLevels: true, showTrades: true, showOrders: true, showPauses: true, showHistory: true, showFractals: true, showGaps: true };
     case 'analysis_trend': return { trend: DEFAULT_TREND_SETTINGS };
     case 'formation_style': return { style: DEFAULT_FORMATION_STYLE };
+    case 'chart_osc_scope': return { mode: 'standard' };
+    case 'chart_osc_standard': return {};
   }
 }
 

@@ -101,7 +101,7 @@ test('Vorlagenmenü speichert eine Vorlage, setzt zurück und lädt sie wieder',
 });
 
 test('Zurückgesetzte Darstellung und Ansicht bleiben je Symbol gespeichert', { tag: '@ANA-19' }, async ({ page, worker }) => {
-  void worker;
+  worker.userPrefs.admin = { ...worker.userPrefs.admin, chart_osc_scope: { mode: 'product' } }; // USR-17: this test checks per-product records
   const url = (symbol: string) => `/chart?account=${DEMO_ID}&symbol=${symbol}&tf=H1&range=last7`;
   // S7.1: the look is one user preference for every symbol (local cache at the root); zoom stays in the symbol document
   const look = () => page.evaluate(() => JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').appearance?.background);
@@ -488,6 +488,7 @@ const paneHeights = (page: Page) => page.getByTestId('chart-workspace').locator(
 const rsiValue = async (page: Page) => { await page.mouse.move(0, 0); return Number((await page.locator('[data-indicator-value="RSI"]').innerText()).replace(/^.*\)\s*/, '').replace(',', '.')); };
 
 test('Bereiche lassen sich verschieben, einklappen, vergrößern und entfernen; nur das Vergrößern ist vorübergehend', { tag: ['@ANA-20', '@UI-07'] }, async ({ page, worker }) => {
+  worker.userPrefs.admin = { ...worker.userPrefs.admin, chart_osc_scope: { mode: 'product' } }; // USR-17: this test checks per-product records
   test.slow();
   void worker;
   await page.setViewportSize({ width: 375, height: 812 });
@@ -523,6 +524,7 @@ test('Bereiche lassen sich verschieben, einklappen, vergrößern und entfernen; 
 });
 
 test('Indikatormenü: Sichtbarkeit, Zeitrahmen, Skala, Bereichswechsel, Kopie, Formel und Favorit', { tag: ['@ANA-20', '@UI-07'] }, async ({ page, worker }) => {
+  worker.userPrefs.admin = { ...worker.userPrefs.admin, chart_osc_scope: { mode: 'product' } }; // USR-17: this test checks per-product records
   test.slow();
   void worker;
   await page.setViewportSize({ width: 1280, height: 1000 });
@@ -615,6 +617,7 @@ test('Indikatormenü: Sichtbarkeit, Zeitrahmen, Skala, Bereichswechsel, Kopie, F
 });
 
 test('Alarm: ein Zeitrahmenwechsel ist kein Übertritt, ein Live-Kurs löst ihn einmal aus', { tag: ['@ANA-20', '@UI-07'] }, async ({ page, worker }) => {
+  worker.userPrefs.admin = { ...worker.userPrefs.admin, chart_osc_scope: { mode: 'product' } }; // USR-17: this test checks per-product records
   test.slow();
   const latestH1 = Math.floor((Date.now() / 1000 + worker.state.brokerOffset) / 3600) * 3600;
   const latestH4 = Math.floor((Date.now() / 1000 + worker.state.brokerOffset) / 14400) * 14400;
@@ -664,6 +667,7 @@ test('Alarm: ein Zeitrahmenwechsel ist kein Übertritt, ein Live-Kurs löst ihn 
 });
 
 test('Bereichseinstellungen und Alarme bleiben im Chart-Kontext; alte Dokumente laden unverändert', { tag: ['@ANA-20', '@UI-07'] }, async ({ page, worker }) => {
+  worker.userPrefs.admin = { ...worker.userPrefs.admin, chart_osc_scope: { mode: 'product' } }; // USR-17: this test checks per-product records
   test.slow();
   void worker;
   const { controls, context } = await openOscillatorChart(page);
