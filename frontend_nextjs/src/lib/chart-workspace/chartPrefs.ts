@@ -25,7 +25,16 @@ export const isChartPrefKey = (key: string): key is ChartPrefKey => (CHART_PREF_
 
 /** Worker'ın değer başına sınırı (worker_python/src/api/user_prefs.py MAX_VALUE_BYTES). */
 export const MAX_PREF_BYTES = 8 * 1024;
-export const prefBytes = (value: unknown): number => new TextEncoder().encode(JSON.stringify(value)).length;
+/** Worker'ın saydığı boyut: Python `json.dumps(ensure_ascii=False)` her `,` ve `:` sonrasına bir boşluk koyar (kompakt JSON'dan biraz büyük). */
+export function prefBytes(value: unknown): number {
+  const text = JSON.stringify(value);
+  let extra = 0, inString = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inString) { if (c === '\\') i++; else if (c === '"') inString = false; } else if (c === '"') inString = true; else if (c === ',' || c === ':') extra++;
+  }
+  return new TextEncoder().encode(text).length + extra;
+}
 
 /** Bu cihazın önbelleğini son eşitleyen kullanıcı: başka kullanıcının önbelleği yeni kullanıcıya sızmasın. */
 export const CHART_PREFS_OWNER_KEY = 'grid-robot-chart-prefs-owner';

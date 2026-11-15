@@ -123,8 +123,8 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
       const requests = useSettingsDialogStore.getState();
       if (requests.appearanceRequested) {
         requests.clearAppearanceRequest();
-        setSettingsSection('symbol');
-        setSettingsOpen(true);
+        // Über denselben Weg wie das Linienmenü: openSettings sichert die Vorschau (Abbrechen stellt wieder her)
+        window.dispatchEvent(new CustomEvent(OPEN_SETTINGS_EVENT, { detail: 'symbol' }));
       }
       if (!requests.indicatorsRequested) return;
       requests.clearIndicatorsRequest();
@@ -323,7 +323,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     // Restore image bytes before drawing; no remote image URLs are accepted.
     for (const [name, url] of Object.entries(stored.images)) void decodeImage(url).then(img => { if (!disposed) { cacheImage(name, img); m.redraw(); } }).catch(() => { if (!disposed) setError('cw.imageError'); });
     current.current = m.exportJSON(); replay.current.sync(m, live.current.until); undo.current = []; redo.current = [];
-    const off = [m.on('selection', ids => { setSelected([...ids]); if (ids[0]) setActiveObject(ids[0]); }), m.on('tool', setTool), m.on('visibility', visible => { const store = useChartWorkspaceStore.getState(); const a = store.appearance; if (a.hideDrawings !== visible) saveAppearance({ ...a, hideDrawings: visible }); }), m.on('gestureEnd', checkpoint), m.on('remove', () => queueMicrotask(() => { if (manager.current === m) checkpoint(); })), m.on('textEdit', drawing => { if (!useChartWorkspaceStore.getState().toolbar[context.key]?.locked) setEditor({ drawing, text: drawing.text ?? '' }); }), m.on('tableEdit', (drawing, cell) => { if (!useChartWorkspaceStore.getState().toolbar[context.key]?.locked) setEditor({ drawing, cell, text: drawing.style.tableCells?.[cell[0]]?.[cell[1]] ?? '' }); })];
+    const off = [m.on('selection', ids => { setSelected([...ids]); if (ids[0]) setActiveObject(ids[0]); }), m.on('tool', setTool), m.on('visibility', visible => { const store = useChartWorkspaceStore.getState(); const a = store.appearance; if (!store.preview && a.hideDrawings !== visible) saveAppearance({ ...a, hideDrawings: visible }); }), m.on('gestureEnd', checkpoint), m.on('remove', () => queueMicrotask(() => { if (manager.current === m) checkpoint(); })), m.on('textEdit', drawing => { if (!useChartWorkspaceStore.getState().toolbar[context.key]?.locked) setEditor({ drawing, text: drawing.text ?? '' }); }), m.on('tableEdit', (drawing, cell) => { if (!useChartWorkspaceStore.getState().toolbar[context.key]?.locked) setEditor({ drawing, cell, text: drawing.style.tableCells?.[cell[0]]?.[cell[1]] ?? '' }); })];
     const deactivate = (e: PointerEvent) => { if (!root.current?.contains(e.target as Node)) { m.setTool(null); m.select([]); } };
     const focusOut = (e: FocusEvent) => { if (e.relatedTarget && !root.current?.contains(e.relatedTarget as Node)) { m.setTool(null); m.select([]); } };
     const inputFocus = (e: FocusEvent) => { if ((e.target as HTMLElement).closest('input, textarea, select, [contenteditable]')) { m.setTool(null); m.select([]); } };

@@ -131,9 +131,11 @@ export const useAnalysisPrefsStore = create<AnalysisPrefsState>()(
           set({ previewBackup: null, styleBackup: null });
           // Önizleme yerelde kalmıştı: onayda tek yazım (kabul edilmezse eski değere döner)
           const layers = layersOf(state), live = { ...state.formationStyle };
+          const layersChanged = (Object.keys(DEFAULTS_KEYS) as (keyof AnalysisPrefs)[]).some(k => backup[k] !== state[k]);
+          const styleChanged = !!style && JSON.stringify(style) !== JSON.stringify(live);
           set({ ...backup, ...(style ? { formationStyle: style } : {}) });
-          writeChartPref('analysis_layers', layers, () => set(layers));
-          writeChartPref('formation_style', { style: live }, () => set({ formationStyle: live }));
+          if (layersChanged) writeChartPref('analysis_layers', layers, () => set(layers));
+          if (styleChanged) writeChartPref('formation_style', { style: live }, () => set({ formationStyle: live }));
         } else set({ ...backup, previewBackup: null, styleBackup: null, ...(style ? { formationStyle: style } : {}) });
       },
       setPref: (key, value) => {

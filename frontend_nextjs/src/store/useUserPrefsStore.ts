@@ -316,8 +316,8 @@ export const useUserPrefsStore = create<UserPrefsState>()(() => ({
     queues[key] = run;
     try {
       await run;
+      confirmed[key] = value; // worker bu değeri kabul etti: sonraki hata buna döner
       if (versions[key] !== version) return; // arkasından yeni bir değişiklik geldi; durumu o gösterir
-      confirmed[key] = value;
       serverKeys?.add(key);
       setStatus(key, 'saved', SAVED_VISIBLE_MS);
       if (opts?.silent) return;
@@ -348,7 +348,25 @@ export const useUserPrefsStore = create<UserPrefsState>()(() => ({
 
 const chartLabel = (): PrefLabel => ({ name: t('sdlg.chartprefs'), value: '' });
 // Grafik sayfasındaki depolar değerlerini buradan yazdırır (iyimser, hatada geri alınır, okuma bitmeden reddedilir)
-registerChartPrefWriter((key, value) => void useUserPrefsStore.getState().change(key, value, chartLabel, { silent: true }));
+// Sürekli girdi (renk seçici, kaydırıcı) art arda değer üretir: bir yazma sürerken yalnız en son değer bekler (en çok iki istek)
+const chartInflight = new Set<PrefKey>();
+const chartPending: Partial<Record<PrefKey, Record<string, unknown>>> = {};
+registerChartPrefWriter((key, value) => {
+  if (chartInflight.has(key)) {
+    chartPending[key] = value;
+    if (useUserPrefsStore.getState().loadState === 'ready') apply(key, value);
+    return;
+  }
+  chartInflight.add(key);
+  const run = async (next: Record<string, unknown>): Promise<void> => {
+    await useUserPrefsStore.getState().change(key, next, chartLabel, { silent: true });
+    const waiting = chartPending[key];
+    delete chartPending[key];
+    if (waiting) await run(waiting);
+    else chartInflight.delete(key);
+  };
+  void run(value);
+});
 
 const isOwnerRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 

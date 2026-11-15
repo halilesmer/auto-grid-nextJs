@@ -61,6 +61,10 @@ test.describe('USR-16 Grafik tercihleri: Kodlama', () => {
     expect(decodeFib(encodeFib(presetFibStyle()))).toEqual(presetFibStyle());
   });
 
+  test('Boyut, worker’ın saydığı gibi hesaplanır (Python ayırıcıları)', { tag: '@USR-16' }, () => {
+    expect(prefBytes({ a: [1, 2], b: 'x,y:' })).toBe(JSON.stringify({ a: [1, 2], b: 'x,y:' }).length + 3);
+  });
+
   test('Eski kayıtta görünüm sembol belgelerindeydi: en sık geçen varsayılan dışı görünüm alınır', { tag: '@USR-16' }, () => {
     const doc = (background: string) => ({ appearance: { background } });
     const raw = { appearance: { background: '#000001' }, documents: { a: doc('#111111'), b: doc('#222222'), c: doc('#222222'), d: doc('') } };
