@@ -206,7 +206,7 @@ test.describe('UI Oberfläche', () => {
     await expect(nav).toContainText(version);
   });
 
-  test('Theme hell / dunkel / System bleibt erhalten', { tag: '@UI-02' }, async ({ page }) => {
+  test('Theme hell / dunkel / System bleibt erhalten', { tag: '@UI-02' }, async ({ page, dashboard }) => {
     // Theme-Klasse vor dem ersten Rendern festhalten (kein helles Aufblitzen im Dunkelmodus)
     await page.addInitScript(() => {
       document.addEventListener('DOMContentLoaded', () => {
@@ -218,7 +218,7 @@ test.describe('UI Oberfläche', () => {
     const darkAtLoad = () => page.evaluate(() => (window as unknown as { __darkAtLoad: boolean }).__darkAtLoad);
     const theme = page.getByRole('radiogroup', { name: msg('common.theme') });
 
-    await page.goto('/');
+    await dashboard.open(null);
     await expect(html).toHaveClass(/\bdark\b/); // Standard: dunkel
     await openHeaderMenu(page);
     await theme.getByRole('radio', { name: msg('common.theme.light') }).click();
@@ -259,8 +259,8 @@ test.describe('UI Oberfläche', () => {
       expect(logo!.height).toBeLessThan(24);
     });
 
-    test('Theme-Wahl im Kopf-Menü liegt im Fenster und bleibt erhalten', { tag: '@UI-02' }, async ({ page }) => {
-      await page.goto('/');
+    test('Theme-Wahl im Kopf-Menü liegt im Fenster und bleibt erhalten', { tag: '@UI-02' }, async ({ page, dashboard }) => {
+      await dashboard.open(null);
       const html = page.locator('html');
       const theme = (await openHeaderMenu(page)).getByRole('radiogroup', { name: msg('common.theme') });
       await expect(theme.getByRole('radio', { name: msg('common.theme.dark') })).toHaveAttribute('aria-checked', 'true');
