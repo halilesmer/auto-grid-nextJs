@@ -25,6 +25,7 @@ import {
 } from './abcd';
 import { levelPrice, legLength, type FibLeg } from './fib';
 import { ABCD_PARAMS, BAT_PARAMS, CONTEXT_TIMEFRAMES, FRZ_PARAMS, GAR_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
+import { fibPrice, strongZoneAt } from './trade';
 import { abcdTrade, withTrade } from './tradeApply';
 import { abcdIsCdt } from './cdt';
 import { evaluate as evaluateBat } from './batChecks';
@@ -301,7 +302,21 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: n
   // Gleitkomma-Rauschen (Docht genau auf Level 1) zählt nicht als verfehlt
   const gap = d ? Math.max(0, outward(es, s.level1) - outward(es, d.price)) : 0;
   const missed = gap > 1e-9 * s.len ? gap : 0;
-  const input = abcdTrade({ from, frozenFrom, d: d ?? null, level1: s.level1, reached, missed, targets: ABCD_PARAMS.targets, reachedRule: 'ABCD-08' });
+  // A4.2.8: sehr starke Zone der Gegenseite am TP1 des Einstiegs (nur Hinweis)
+  const tp1Entry = frozenFrom ? fibPrice(frozenFrom.price, s.level1, ABCD_PARAMS.targets.tp1) : null;
+  const strongZone = tp1Entry !== null && strongZoneAt([...env.frz.zones, ...env.frz.reversed], tp1Entry, side);
+  const input = abcdTrade({
+    from,
+    frozenFrom,
+    d: d ?? null,
+    level1: s.level1,
+    reached,
+    missed,
+    targets: ABCD_PARAMS.targets,
+    fromA: from === s.a,
+    strongZone,
+    reachedRule: 'ABCD-08',
+  });
   const drawings = drawingsOf(env, s, reached, divState === 'met', harmonic === 'met', secondLevels.find(isNear), input.stop, freezeIdx);
   const withDrawings = checks.map((c) => ({
     ...c,

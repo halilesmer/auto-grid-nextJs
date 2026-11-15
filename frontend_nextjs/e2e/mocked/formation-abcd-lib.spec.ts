@@ -8,6 +8,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { timeframeExcluded } from '../../src/lib/formation/abcd';
+import { outcomesOf, strongZoneAt } from '../../src/lib/formation/trade';
 import {
   ABCD_CHECK_IDS,
   analyzeAbcd,
@@ -808,4 +809,72 @@ test('Handel: mit Divergenz an der Kerze, die Level 1 erreicht, ist der Stop-Ank
   // Stop = −0.382 der Fib A → Level 1 (Einstieg); Notation Start = 1, Ende = 0
   expect(c.trade!.entry).toBeCloseTo(level1, 9);
   expect(c.trade!.stop).toBeCloseTo(level1 - 0.382 * (a - level1), 9);
+});
+
+// ---- Handel: TP2, TP3 und Ergebnis in R (1114-A4.2 Schritt a) -------------------------------------------------
+
+test('Handel: TP2 = 0.618 der Ziel-Fib und läuft mit dem Docht; tp2AtEntry gilt am Einstieg; ohne Divergenz kein TP3', { tag: '@FRM-05' }, () => {
+  const near = run({ H4: S_PAST }, ABC).trade!;
+  const far = run({ H4: S_PAST_FAR }, ABC).trade!;
+  expect(near.tp2).toBeCloseTo(150 - 0.618 * 36, 9);
+  expect(far.tp2).toBeCloseTo(160 - 0.618 * 46, 9);
+  // Am Einstieg: 0.618 der Fib C → Level 1 (114 → 144)
+  for (const t of [near, far]) {
+    expect(t.tp2AtEntry).toBeCloseTo(144 - 0.618 * 30, 9);
+    expect(t.tp3).toBeUndefined();
+  }
+});
+
+test('Handel: Spiegelfall (Kauf) hat spiegelgleiche TP2-Abstände', { tag: '@FRM-05' }, () => {
+  const t = run({ H4: mirror(S_PAST) }, ABC, { sell: false }).trade!;
+  const sellT = run({ H4: S_PAST }, ABC).trade!;
+  expect(t.tp2AtEntry! - t.entry!).toBeCloseTo(sellT.entry! - sellT.tp2AtEntry!, 9);
+});
+
+test('Handel: mit Divergenz zeigt der Handel TP3 (0.786 der Fib A → D) als Zusatzziel', { tag: '@FRM-05' }, () => {
+  const rows = DIV_BEAR;
+  const c = checkAbcdCandidate(ctxOf({ H4: rows }), END, {
+    tf: 'H4',
+    a: wick(rows, DIV.a, false),
+    b: wick(rows, DIV.b, true),
+    c: wick(rows, DIV.c, false),
+    d: { time: 62 * H4, price: 143 },
+  });
+  const t = c.trade!;
+  expect(state(c, 'ABCD-19')).toBe(M);
+  const a = c.points.A.price;
+  const d = c.points.D.price;
+  // Fib A → D, Notation Start = 1, Ende = 0
+  expect(t.tp3).toBeCloseTo(d + 0.786 * (a - d), 9);
+  expect(t.tp1).toBeCloseTo(d + 0.382 * (a - d), 9);
+  expect(t.tp2).toBeCloseTo(d + 0.618 * (a - d), 9);
+});
+
+test('Handel: Ergebnis in R aus den Werten am Einstieg (Verkauf)', { tag: '@FRM-05' }, () => {
+  // Einstieg 144, Stop 155.46 (Risiko 11.46), TP1 132.54 (11.46), TP2 125.46 (18.54)
+  const t = run({ H4: S_PAST }, ABC).trade!;
+  const o = outcomesOf(t, 'sell')!;
+  expect(o.stop).toBe(-1);
+  expect(o.tp1).toBeCloseTo((0.5 * 11.46) / 11.46, 9);
+  expect(o.tp12).toBeCloseTo((0.5 * (11.46 + 18.54)) / 11.46, 9);
+});
+
+test('Handel: Ergebnis in R bei Kauf gleich Verkauf, ohne TP2 oder mit falscher Seite null', { tag: '@FRM-05' }, () => {
+  const base = { entry: 100, stop: 90, tp1: 110, tp1AtEntry: 110, tp2: 120, tp2AtEntry: 120 };
+  expect(outcomesOf(base, 'buy')).toEqual({ stop: -1, tp1: 0.5, tp12: 1.5 });
+  const sell = { entry: 100, stop: 110, tp1: 90, tp1AtEntry: 90, tp2: 80, tp2AtEntry: 80 };
+  expect(outcomesOf(sell, 'sell')).toEqual({ stop: -1, tp1: 0.5, tp12: 1.5 });
+  expect(outcomesOf({ ...base, tp2: undefined, tp2AtEntry: undefined }, 'buy')).toBeNull();
+  expect(outcomesOf({ ...base, tp2AtEntry: 95 }, 'buy')).toBeNull();
+  expect(outcomesOf({ ...base, stop: null }, 'buy')).toBeNull();
+});
+
+test('Handel: Warnung bei sehr starker Zone am TP1 (Gegenseite, Preis in der Zone)', { tag: '@FRM-05' }, () => {
+  const zone = (side: 'support' | 'resistance', strength: 0 | 1 | 2, bottom: number, top: number) => ({ side, strength, rect: { bottom, top } });
+  // Verkauf: TP1 liegt unten, die Stütze zählt
+  expect(strongZoneAt([zone('support', 2, 131, 133)], 132.54, 'sell')).toBe(true);
+  expect(strongZoneAt([zone('support', 1, 131, 133)], 132.54, 'sell')).toBe(false);
+  expect(strongZoneAt([zone('resistance', 2, 131, 133)], 132.54, 'sell')).toBe(false);
+  expect(strongZoneAt([zone('support', 2, 120, 125)], 132.54, 'sell')).toBe(false);
+  expect(strongZoneAt([zone('resistance', 2, 131, 133)], 132.54, 'buy')).toBe(true);
 });
