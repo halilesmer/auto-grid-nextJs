@@ -91,7 +91,7 @@ function setStatus(key: PrefKey, status: PrefStatus | undefined, clearAfterMs?: 
   }
 }
 
-export const useUserPrefsStore = create<UserPrefsState>()((set) => ({
+export const useUserPrefsStore = create<UserPrefsState>()(() => ({
   status: {},
 
   load: async () => {
