@@ -44,9 +44,11 @@ const GLYPH: Record<RowState, ReactNode> = {
 export function StateIcon({ state }: { state: RowState }) {
   const t = useT();
   return (
-    <span role="img" aria-label={t(`formation.state.${state}` as MessageKey)} className={cn('grid h-5 w-5 place-items-center rounded-md border-[1.5px]', ICON_STYLE[state])}>
-      {GLYPH[state]}
-    </span>
+    <Tooltip content={t(`formation.state.${state}.hint` as MessageKey)} role="presentation">
+      <span role="img" aria-label={t(`formation.state.${state}` as MessageKey)} className={cn('grid h-5 w-5 cursor-help place-items-center rounded-md border-[1.5px]', ICON_STYLE[state])}>
+        {GLYPH[state]}
+      </span>
+    </Tooltip>
   );
 }
 
