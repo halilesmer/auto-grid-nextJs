@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { timeframeExcluded } from '../../src/lib/formation/abcd';
 import { outcomesOf, strongZoneAt } from '../../src/lib/formation/trade';
+import { tradeStatusOf } from '../../src/lib/formation/tradeStatus';
 import {
   ABCD_CHECK_IDS,
   analyzeAbcd,
@@ -877,4 +878,112 @@ test('Handel: Warnung bei sehr starker Zone am TP1 (Gegenseite, Preis in der Zon
   expect(strongZoneAt([zone('resistance', 2, 131, 133)], 132.54, 'sell')).toBe(false);
   expect(strongZoneAt([zone('support', 2, 120, 125)], 132.54, 'sell')).toBe(false);
   expect(strongZoneAt([zone('resistance', 2, 131, 133)], 132.54, 'buy')).toBe(true);
+});
+
+// ---- Durum nach dem Einstieg (1114-A4.2 Schritt b): Kerzen ab der Einfrierkerze ablaufen ----
+// Verkauf: C 100, Einstieg 115 (Einfrierkerze, Docht 115), Stop 120, Not-SL 125; TP1 109.27 / TP2 105.73 (0.382 / 0.618 von C zum äußersten Docht).
+// Kauf: alle Preise an 100 gespiegelt (p → 200 − p).
+type Sk = [high: number, low: number, close: number];
+const statusFor = (side: 'sell' | 'buy', rows: Sk[], over: { emergency?: number | null; entryBar?: Sk } = {}) => {
+  const m = (p: number) => (side === 'sell' ? p : 200 - p);
+  const bars: FormationBar[] = ([over.entryBar ?? ([115, 112, 113] as Sk), ...rows]).map(([h, l, c], i) => {
+    const [hh, ll] = side === 'sell' ? [h, l] : [m(l), m(h)];
+    return { time: 1000 + i * 14400, open: m(c), high: hh, low: ll, close: m(c) };
+  });
+  return {
+    m,
+    status: tradeStatusOf({
+      bars,
+      entryIdx: 0,
+      side,
+      entry: m(115),
+      stop: m(120),
+      emergencyStop: over.emergency === undefined ? m(125) : over.emergency === null ? null : m(over.emergency),
+      from: m(100),
+      targets: { tp1: 0.382, tp2: 0.618 },
+    }),
+  };
+};
+
+for (const side of ['sell', 'buy'] as const) {
+  const tag = side === 'sell' ? 'Verkauf' : 'Kauf';
+  test(`Status (${tag}): ohne Kerzen nach dem Einstieg und ohne Treffer bleibt der Handel offen`, { tag: '@FRM-05' }, () => {
+    const a = statusFor(side, []);
+    expect(a.status.kind).toBe('open');
+    expect(a.status.stopNow).toBe(a.m(120));
+    expect(a.status.stopMovedIdx).toBeUndefined();
+    expect(statusFor(side, [[114, 111, 112]]).status.kind).toBe('open');
+  });
+
+  test(`Status (${tag}): TP1 erreicht, der Stop rückt auf den Einstieg`, { tag: '@FRM-05' }, () => {
+    const { status, m } = statusFor(side, [[113, 109, 110]]);
+    expect(status).toMatchObject({ kind: 'tp1', stopNow: m(115), stopMovedIdx: 1 });
+  });
+
+  test(`Status (${tag}): TP1 und TP2 erreicht`, { tag: '@FRM-05' }, () => {
+    const { status, m } = statusFor(side, [[113, 109, 110], [110, 105, 106]]);
+    expect(status).toMatchObject({ kind: 'tp12', stopNow: m(115), endIdx: 2 });
+  });
+
+  test(`Status (${tag}): TP1 und TP2 in einer Kerze zählen beide`, { tag: '@FRM-05' }, () => {
+    expect(statusFor(side, [[113, 105, 106]]).status.kind).toBe('tp12');
+  });
+
+  test(`Status (${tag}): Stop gilt mit dem Schluss der Kerze, ein Docht darüber allein löst ihn nicht aus`, { tag: '@FRM-05' }, () => {
+    expect(statusFor(side, [[121, 112, 118]]).status.kind).toBe('open');
+    expect(statusFor(side, [[121, 112, 121]]).status).toMatchObject({ kind: 'stopped', stopBy: 'close', endIdx: 1 });
+  });
+
+  test(`Status (${tag}): Not-SL gilt schon bei Docht-Berührung`, { tag: '@FRM-05' }, () => {
+    expect(statusFor(side, [[125, 112, 118]]).status).toMatchObject({ kind: 'stopped', stopBy: 'wick' });
+    expect(statusFor(side, [[124.9, 112, 118]]).status.kind).toBe('open');
+    // ohne ATR gibt es keinen Not-SL
+    expect(statusFor(side, [[130, 112, 118]], { emergency: null }).status.kind).toBe('open');
+  });
+
+  test(`Status (${tag}): nach TP1 schließt der Rest mit dem Schluss über dem Einstieg (Start auf null)`, { tag: '@FRM-05' }, () => {
+    const { status, m } = statusFor(side, [[113, 109, 110], [116, 111, 116]]);
+    expect(status).toMatchObject({ kind: 'breakeven', stopNow: m(115), stopMovedIdx: 1, endIdx: 2 });
+    // Docht über dem Einstieg, Schluss darunter: noch offen
+    expect(statusFor(side, [[113, 109, 110], [116, 111, 114]]).status.kind).toBe('tp1');
+  });
+
+  test(`Status (${tag}): nach TP1 beendet ein Docht am Not-SL nichts, erst der Schluss über dem Einstieg`, { tag: '@FRM-05' }, () => {
+    expect(statusFor(side, [[113, 109, 110], [126, 111, 114]]).status.kind).toBe('tp1');
+  });
+
+  test(`Status (${tag}): TP1-Kerze mit Schluss jenseits des Einstiegs (Extrem über dem Einstieg) lässt den Rest am Einstieg enden`, { tag: '@FRM-05' }, () => {
+    // Einstiegskerze mit Docht 117: TP1 = 110.506; die Folgekerze erreicht ihn und schließt bei 116 > 115
+    const { status, m } = statusFor(side, [[116.5, 110, 116]], { entryBar: [117, 112, 113] });
+    expect(status).toMatchObject({ kind: 'breakeven', stopNow: m(115), stopMovedIdx: 1, endIdx: 1 });
+  });
+
+  test(`Status (${tag}): Stop und Ziel in derselben Kerze zählen als Stop`, { tag: '@FRM-05' }, () => {
+    const { status, m } = statusFor(side, [[121, 109, 121]]);
+    expect(status).toMatchObject({ kind: 'stopped', stopNow: m(120) });
+    expect(statusFor(side, [[126, 109, 112]]).status.kind).toBe('stopped');
+  });
+
+  test(`Status (${tag}): neues Extrem und TP1-Berührung in einer Kerze zählt TP1 nicht; die nächste Kerze nutzt das neue Extrem`, { tag: '@FRM-05' }, () => {
+    expect(statusFor(side, [[117, 109, 112]]).status.kind).toBe('open');
+    // Extrem 117: TP1 = 110.506, TP2 = 106.494
+    expect(statusFor(side, [[117, 109, 112], [113, 110.6, 111]]).status.kind).toBe('open');
+    expect(statusFor(side, [[117, 109, 112], [113, 110.5, 111]]).status.kind).toBe('tp1');
+  });
+}
+
+// ---- Handel: Stand nach dem Einstieg, Stop-Linie rückt auf den Einstieg (1114-A4.2 b) ----
+test('Handel: nach TP1 steht die Stop-Linie (Z-ABCD-07/08) auf dem Einstieg, davor auf dem Schluss-Stop', { tag: '@FRM-05' }, () => {
+  const open = run({ H4: S_PAST }, ABC);
+  expect(open.trade!.status!.kind).toBe('open');
+  expect(open.drawings.find((d) => d.id === 'Z-ABCD-07')!.anchors[0].price).toBeCloseTo(155.46, 9);
+  // Nach dem Einstieg fällt der Kurs bis 134: TP1 (150 − 0.382 × 36 = 136.25) ist erreicht
+  const c = run({ H4: zig([100, 130, 114, 150, 134], 8, 0) }, ABC);
+  const st = c.trade!.status!;
+  expect(st.kind).toBe('tp1');
+  expect(st.stopNow).toBeCloseTo(144, 9);
+  expect(c.trade!.stop).toBeCloseTo(155.46, 9);
+  const line = c.drawings.find((d) => d.id === 'Z-ABCD-07')!;
+  expect(line.anchors[0].price).toBeCloseTo(144, 9);
+  expect(c.drawings.find((d) => d.id === 'Z-ABCD-08')!.anchors[0].price).toBeCloseTo(144, 9);
 });

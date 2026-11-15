@@ -132,6 +132,36 @@ test.describe('FRM-39 Handelsblock AB=CD (TP2, Ergebnisse in R)', () => {
     await expect(block.getByTestId('trade-outcome-tp12')).toContainText('+1,31');
   });
 
+  test('Status TP1 und TP2 alındı: Stop auf dem Einstieg, beide Ziele erreicht, Ergebnis-Kasten hervorgehoben', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'abcd-buy-h4-02', 1752624000, 'ABCD');
+    const block = page.getByTestId('trade-block');
+    await expect(block.getByTestId('trade-status')).toHaveAttribute('data-status', 'tp12');
+    await expect(block.getByTestId('trade-status')).toContainText(msg('formation.trade.status.tp12'));
+    await expect(block.getByTestId('trade-stop')).toHaveText(await block.getByTestId('trade-entry').innerText());
+    await expect(block.getByTestId('trade-stop-moved')).toContainText(msg('formation.trade.stop.moved'));
+    await expect(block.getByTestId('trade-stop-emergency')).toHaveCount(0);
+    await expect(block.getByTestId('trade-tp1-state')).toContainText(msg('formation.trade.target.taken'));
+    await expect(block.getByTestId('trade-tp2-state')).toContainText(msg('formation.trade.target.taken'));
+    await expect(block.getByTestId('trade-outcome-tp12')).toHaveAttribute('data-active', 'true');
+    await expect(block.getByTestId('trade-outcome-stop')).toHaveAttribute('data-active', 'false');
+  });
+
+  test('Status açık: kein Treffer, Stop bleibt, kein Ergebnis-Kasten hervorgehoben', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'abcd-buy-h4-02', 1752624000 - 30 * 14400, 'ABCD');
+    const block = page.getByTestId('trade-block');
+    await expect(block.getByTestId('trade-status')).toHaveAttribute('data-status', 'open');
+    await expect(block.getByTestId('trade-status')).toContainText(msg('formation.trade.status.open'));
+    await expect(block.getByTestId('trade-stop-moved')).toHaveCount(0);
+    await expect(block.getByTestId('trade-stop-emergency')).toHaveCount(1);
+    await expect(block.getByTestId('trade-tp1-state')).toHaveCount(0);
+    for (const k of ['stop', 'tp1', 'tp12']) await expect(block.getByTestId(`trade-outcome-${k}`)).toHaveAttribute('data-active', 'false');
+  });
+
+  test('Status: Harmonik und andere Formationen haben keine Statuszeile', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'tdf-flag-h4-02', 1770782400, 'LIB');
+    await expect(page.getByTestId('trade-block').getByTestId('trade-status')).toHaveCount(0);
+  });
+
   test('Harmonik und andere Formationen: keine TP2-Zelle, kein Ergebnisfeld', { tag: '@FRM-39' }, async ({ page, worker }) => {
     await openPage(page, worker, 'tdf-flag-h4-02', 1770782400, 'LIB');
     const block = page.getByTestId('trade-block');
@@ -144,6 +174,7 @@ test.describe('FRM-39 Handelsblock AB=CD (TP2, Ergebnisse in R)', () => {
     await openPage(page, worker, 'abcd-buy-h4-02', 1752624000, 'ABCD');
     const block = page.getByTestId('trade-block');
     await expect(block.getByTestId('trade-outcomes')).toBeVisible();
+    await expect(block.getByTestId('trade-status')).toBeVisible();
     expect(await block.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   });
