@@ -1,5 +1,5 @@
 /**
- * AB=CD (ABCD): Prüfung je Bedingungs-ID und Zeichnungen Z-ABCD-01 bis Z-ABCD-06.
+ * AB=CD (ABCD): Prüfung je Bedingungs-ID und Zeichnungen Z-ABCD-01 bis Z-ABCD-08.
  * `analyzeAbcd` sucht je geladener Zeiteinheit die letzten Punkte A, B, C aus den Wendepunkten und misst D;
  * `checkAbcdCandidate` prüft eigene Punkte, auch wenn sie keine Formation ergeben (Zeichnung und ☐ gibt es trotzdem).
  *
@@ -24,7 +24,7 @@ import {
 } from './abcd';
 import { levelPrice, legLength, type FibLeg } from './fib';
 import { ABCD_PARAMS, BAT_PARAMS, CONTEXT_TIMEFRAMES, FRZ_PARAMS, GAR_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
-import { harmonicTrade, withTrade } from './tradeApply';
+import { abcdTrade, withTrade } from './tradeApply';
 import { abcdIsCdt } from './cdt';
 import { evaluate as evaluateBat } from './batChecks';
 import { evaluate as evaluateGar } from './garChecks';
@@ -275,7 +275,30 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: n
   add('ABCD-24', abcdIsCdt(env, tf, es, s.b, s.d));
   add('ABCD-25', flag(timeframeExcluded(tf)));
 
-  const drawings = drawingsOf(env, s, reached, divState === 'met', harmonic === 'met', secondLevels.find(isNear));
+  // Ziel-Fib wie Z-ABCD-05: ab A bei Divergenz oder Harmonik, sonst ab C
+  const from = divState === 'met' || harmonic === 'met' ? s.a : s.c;
+  // Stop eingefroren (HDL-14): `from` der Kerze, die Level 1 (mit Toleranz) zuerst erreicht; Divergenz und Harmonik gelten an dieser Kerze
+  let frozenFrom: AbcdPoint | null = null;
+  let freezeIdx = d ? d.idx : last;
+  if (reached && d) {
+    // Gleiche Rechnung wie `shortfall` (Anteil von AB), damit Schleife und `reached` an der Toleranzgrenze nicht auseinanderlaufen
+    const missAt = (k: number) => Math.max(0, outward(es, s.level1) - outward(es, wickEnd(bars[k], es))) / s.len;
+    let k = s.c.idx + 1;
+    while (k <= last && missAt(k) > ABCD_PARAMS.tolerance) k++;
+    // Ein eigenes D, dessen Preis nicht auf einem Docht liegt, kann keine Kerze treffen: dann gilt die Kerze des D
+    if (k > last) k = d.idx;
+    freezeIdx = k;
+    const dk: AbcdPoint = { idx: k, price: wickEnd(bars[k], es) };
+    const divK = divergenceOf(trend, es, s.b.idx, k);
+    const divHolds = !!divK && divK.a.wave !== null && divK.b.wave !== null && divK.tie;
+    const harmonicK = !divHolds && near !== null && harmonicD(env, p, dk, pip, [Math.min(...zonePrices), Math.max(...zonePrices)]) === 'met';
+    frozenFrom = divHolds || harmonicK ? s.a : s.c;
+  }
+  // Gleitkomma-Rauschen (Docht genau auf Level 1) zählt nicht als verfehlt
+  const gap = d ? Math.max(0, outward(es, s.level1) - outward(es, d.price)) : 0;
+  const missed = gap > 1e-9 * s.len ? gap : 0;
+  const input = abcdTrade({ from, frozenFrom, d: d ?? null, level1: s.level1, reached, missed, targets: ABCD_PARAMS.targets, reachedRule: 'ABCD-08' });
+  const drawings = drawingsOf(env, s, reached, divState === 'met', harmonic === 'met', secondLevels.find(isNear), input.stop, freezeIdx);
   const withDrawings = checks.map((c) => ({
     ...c,
     drawings: [...new Set(drawings.filter((x) => x.rules.includes(c.id)).map((x) => x.id))],
@@ -302,12 +325,10 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: n
   };
   if (d) points.D = { time: bars[d.idx].time, price: d.price };
   const candidate: Candidate = { code: 'ABCD', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
-  // Ziel-Fib wie Z-ABCD-05: ab A bei Divergenz oder Harmonik, sonst ab C
-  const from = divState === 'met' || harmonic === 'met' ? s.a : s.c;
-  return withTrade(candidate, env, tf, harmonicTrade(from, d ?? null, reached, ABCD_PARAMS.targets, 'ABCD-08'), false);
+  return withTrade(candidate, env, tf, input, false);
 }
 
-function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolean, harmonic: boolean, second: number | undefined): Drawing[] {
+function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolean, harmonic: boolean, second: number | undefined, stop: number | null, freezeIdx: number): Drawing[] {
   const bars = env.views.get(env.tf)!.bars;
   const at = (idx: number, price: number): Anchor => ({ time: bars[idx].time, price });
   const lastTime = bars[bars.length - 1].time;
@@ -339,8 +360,13 @@ function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolea
   ];
   if (s.d && reached) {
     const from = divergence || harmonic ? s.a : s.c;
-    const levels = [ABCD_PARAMS.targets.tp1, ABCD_PARAMS.targets.tp2, ...(divergence ? [ABCD_PARAMS.targets.divergence] : []), -ABCD_PARAMS.targets.stop];
+    const levels = [ABCD_PARAMS.targets.tp1, ABCD_PARAMS.targets.tp2, ...(divergence ? [ABCD_PARAMS.targets.divergence] : [])];
     out.push({ id: 'Z-ABCD-05', tool: 'fib', anchors: [at(from.idx, from.price), at(s.d.idx, s.d.price)], levels, rules: TRADE_RULES, side });
+    // Der Stop ist eingefroren und steht als eigene Linie (nicht mehr als Level der mitlaufenden Ziel-Fib)
+    if (stop !== null) {
+      out.push({ id: 'Z-ABCD-07', tool: 'hline', anchors: [at(freezeIdx, stop)], rules: TRADE_RULES, side });
+      out.push({ id: 'Z-ABCD-08', tool: 'label', anchors: [{ time: lastTime, price: stop }], label: 'stop', rules: TRADE_RULES, side });
+    }
   }
   return out;
 }

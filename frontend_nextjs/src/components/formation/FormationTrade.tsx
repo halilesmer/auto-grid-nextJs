@@ -34,6 +34,10 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
     if (id === 'noRule') return t('formation.trade.reason.noRule');
     return t('formation.trade.reason.rule', { id });
   };
+  const entrySub =
+    trade.missed === undefined
+      ? reasonText(trade.reason.entry)
+      : t(pipSize === null ? 'formation.trade.missed.price' : 'formation.trade.missed.pips', { n: pipSize === null ? fmt(trade.missed) : dist(trade.missed) });
   const sig29 = trade.sig29 && metrics !== null && metrics.crv <= 1 + EPS ? trade.sig29 : null;
   const hdl02 = metrics !== null && metrics.crv < 1 - EPS;
   const crvText = metrics ? number(metrics.crv, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : dash;
@@ -87,7 +91,7 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
       )}
       <div className={cn(veto && 'opacity-70')} data-testid="trade-values">
         <div className="grid grid-cols-2 gap-x-3 gap-y-2 px-2.5 py-2.5">
-          {cell('entry', t('formation.trade.entry'), trade.entry, '', reasonText(trade.reason.entry))}
+          {cell('entry', t('formation.trade.entry'), trade.entry, '', entrySub)}
           <div className="flex min-w-0 flex-col gap-px">
             <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
               {t('formation.trade.stop')}

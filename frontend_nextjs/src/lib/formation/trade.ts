@@ -26,8 +26,10 @@ export interface TradeMetrics {
  * Risiko, Gewinn und CRV bis TP1 in Richtung der Seite; null, wenn ein Wert fehlt oder Stop oder Ziel nicht auf ihrer Seite des Einstiegs liegen
  * (`!(x > 0)` fängt auch NaN ab).
  */
-export function tradeMetrics(trade: Pick<Trade, 'entry' | 'stop' | 'tp1'>, side: Side): TradeMetrics | null {
-  const { entry, stop, tp1 } = trade;
+export function tradeMetrics(trade: Pick<Trade, 'entry' | 'stop' | 'tp1'> & Partial<Pick<Trade, 'tp1AtEntry'>>, side: Side): TradeMetrics | null {
+  // AB=CD: das Verhältnis gilt am Einstieg (TP1 am Einstieg), nicht am mitlaufenden TP1
+  const { entry, stop } = trade;
+  const tp1 = trade.tp1AtEntry ?? trade.tp1;
   if (entry === null || stop === null || tp1 === null) return null;
   const risk = side === 'buy' ? entry - stop : stop - entry;
   const reward = side === 'buy' ? tp1 - entry : entry - tp1;

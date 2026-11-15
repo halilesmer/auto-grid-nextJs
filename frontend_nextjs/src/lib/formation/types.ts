@@ -76,6 +76,10 @@ export interface Trade {
   emergencyStop: number | null;
   tp1: number | null;
   reason: { entry?: string; stop?: string; tp1?: string };
+  /** AB=CD: TP1 am Einstieg (Fib ab `from` zu Level 1), Grundlage für CRV und SIG-29; `tp1` läuft mit dem äußersten Docht weiter */
+  tp1AtEntry?: number;
+  /** AB=CD: Strecke (Preis), um die der Docht Level 1 verfehlt hat, wenn D nur innerhalb der Toleranz erreicht ist */
+  missed?: number;
   /** SIG-29 (CRV bis TP1 über 1, sonst Umkehrkerze der tieferen ZE): ☑ bei CRV > 1; Wert = CRV; die Anzeige zeigt die Zeile nur bei CRV ≤ 1 */
   sig29?: Check;
 }
