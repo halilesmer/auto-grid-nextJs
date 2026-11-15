@@ -63,6 +63,29 @@ export function outcomesOf(
   return { stop: -1, tp1: (0.5 * m.reward) / m.risk, tp12: (0.5 * (m.reward + reward2)) / m.risk };
 }
 
+/**
+ * Tatsächliches Ergebnis in R (1115-A21.1): TP1 und TP2 zählen zu den Preisen, die `tradeStatusOf` beim Erreichen festhielt, nicht zu den Werten am Einstieg.
+ * Risiko bleibt der Abstand Einstieg → ursprünglicher Stop. Stop −1 (auch bei Schluss-Stop). Ohne Status, offen oder ohne Zählpreis gilt `outcomesOf`;
+ * bei TP1 erreicht zeigt der Weg „TP1 und TP2“ den Zählpreis von TP1 und das aktuelle TP2 (`trade.tp2`).
+ */
+export function realizedOutcomesOf(
+  trade: Pick<Trade, 'entry' | 'stop' | 'tp1'> & Partial<Pick<Trade, 'tp1AtEntry' | 'tp2' | 'tp2AtEntry'>>,
+  side: Side,
+  status: { tp1Fill?: number; tp2Fill?: number } | undefined,
+): TradeOutcomes | null {
+  const base = outcomesOf(trade, side);
+  const m = tradeMetrics(trade, side);
+  if (base === null || m === null || trade.entry === null || status?.tp1Fill === undefined) return base;
+  const away = (price: number) => (side === 'buy' ? price - trade.entry! : trade.entry! - price);
+  const d1 = away(status.tp1Fill);
+  const d2 = away(status.tp2Fill ?? trade.tp2 ?? Number.NaN);
+  return {
+    stop: -1,
+    tp1: (0.5 * d1) / m.risk,
+    tp12: Number.isFinite(d2) ? (0.5 * (d1 + d2)) / m.risk : base.tp12,
+  };
+}
+
 /** Hinweis A4.2.8: eine sehr starke Zone der Gegenseite (Verkauf: Stütze) enthält den Preis; `rect` mit `top` und `bottom` */
 export function strongZoneAt(
   zones: { side: 'support' | 'resistance'; strength: 0 | 1 | 2; rect: { top: number; bottom: number } }[],

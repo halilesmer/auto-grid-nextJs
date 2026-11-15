@@ -8,7 +8,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { timeframeExcluded } from '../../src/lib/formation/abcd';
-import { outcomesOf, strongZoneAt } from '../../src/lib/formation/trade';
+import { outcomesOf, realizedOutcomesOf, strongZoneAt } from '../../src/lib/formation/trade';
 import { tradeStatusOf } from '../../src/lib/formation/tradeStatus';
 import {
   ABCD_CHECK_IDS,
@@ -988,3 +988,59 @@ test('Handel: nach TP1 steht die Stop-Linie (Z-ABCD-07/08) auf dem Einstieg, dav
   expect(line.anchors[0].price).toBeCloseTo(144, 9);
   expect(c.drawings.find((d) => d.id === 'Z-ABCD-08')!.anchors[0].price).toBeCloseTo(144, 9);
 });
+
+// ---- Gerçekleşen sonuç: TP1/TP2 den Zählpreisen, nicht den Werten am Einstieg (1115-A21.1) ----
+// Verkauf: C 114, Einstieg 144, Stop 155.46, Extrem 150 → TP1 = 150 − 0.382 × 36 = 136.248, TP2 = 127.752; am Einstieg TP1 132.54, TP2 125.46
+for (const side of ['sell', 'buy'] as const) {
+  const tag = side === 'sell' ? 'Verkauf' : 'Kauf';
+  const m = (p: number) => (side === 'sell' ? p : 200 - p);
+  const trade = {
+    entry: m(144),
+    stop: m(155.46),
+    tp1: m(136.248),
+    tp1AtEntry: m(132.54),
+    tp2: m(127.752),
+    tp2AtEntry: m(125.46),
+  };
+  const run2 = (rows: Sk[]) => {
+    const bars: FormationBar[] = ([[150, 140, 144], ...rows] as Sk[]).map(([h, l, c], i) => {
+      const [hh, ll] = side === 'sell' ? [m(h), m(l)] : [m(l), m(h)];
+      return { time: 1000 + i * 14400, open: m(c), high: hh, low: ll, close: m(c) };
+    });
+    return tradeStatusOf({ bars, entryIdx: 0, side, entry: m(144), stop: m(155.46), emergencyStop: null, from: m(114), targets: { tp1: 0.382, tp2: 0.618 } });
+  };
+  const r = (v: number) => expect.closeTo(v, 4);
+
+  test(`Gerçekleşen sonuç (${tag}): offen = Werte am Einstieg`, { tag: '@FRM-05' }, () => {
+    const st = run2([[148, 140, 144]]);
+    expect(st.kind).toBe('open');
+    expect(realizedOutcomesOf(trade, side, st)).toEqual(outcomesOf(trade, side));
+  });
+
+  test(`Gerçekleşen sonuç (${tag}): TP1 bei Extrem 150 zählt 136.248 → +0.34 R, TP2 offen nutzt das aktuelle TP2`, { tag: '@FRM-05' }, () => {
+    const st = run2([[148, 136, 138]]);
+    expect(st).toMatchObject({ kind: 'tp1' });
+    expect(st.tp1Fill).toBeCloseTo(m(136.248), 9);
+    const o = realizedOutcomesOf(trade, side, st)!;
+    expect(o.stop).toBe(-1);
+    expect(o.tp1).toEqual(r(0.3382));
+    // 0.5 × (7.752 + 16.248) / 11.46
+    expect(o.tp12).toEqual(r(1.0471));
+  });
+
+  test(`Gerçekleşen sonuç (${tag}): TP1 und TP2 zählen beide Zählpreise`, { tag: '@FRM-05' }, () => {
+    const st = run2([[148, 136, 138], [140, 127, 130]]);
+    expect(st.kind).toBe('tp12');
+    expect(st.tp2Fill).toBeCloseTo(m(127.752), 9);
+    expect(realizedOutcomesOf(trade, side, st)!.tp12).toEqual(r(1.0471));
+  });
+
+  test(`Gerçekleşen sonuç (${tag}): Rest am Einstieg und Stop`, { tag: '@FRM-05' }, () => {
+    const be = run2([[148, 136, 138], [146, 138, 146]]);
+    expect(be.kind).toBe('breakeven');
+    expect(realizedOutcomesOf(trade, side, be)!.tp1).toEqual(r(0.3382));
+    const stopped = run2([[156, 140, 156]]);
+    expect(stopped.kind).toBe('stopped');
+    expect(realizedOutcomesOf(trade, side, stopped)!.stop).toBe(-1);
+  });
+}

@@ -120,7 +120,7 @@ test.describe('FRM-39 Handelsblock', () => {
 
 test.describe('FRM-39 Handelsblock AB=CD (TP2, Ergebnisse in R)', () => {
   test('AB=CD zeigt TP2 mit Anteil und Abstand, drei Ergebnisse in R; ohne Divergenz kein TP3', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    await openPage(page, worker, 'abcd-buy-h4-02', 1752624000, 'ABCD');
+    await openPage(page, worker, 'abcd-buy-h4-02', 1752624000 - 30 * 14400, 'ABCD');
     const block = page.getByTestId('trade-block');
     await expect(block.getByTestId('trade-tp2')).not.toHaveText(/^\s*—\s*$/);
     await expect(block.getByTestId('trade-tp2-distance')).toHaveText(/^\+[\d.,]+ pip$/);
@@ -144,6 +144,16 @@ test.describe('FRM-39 Handelsblock AB=CD (TP2, Ergebnisse in R)', () => {
     await expect(block.getByTestId('trade-tp2-state')).toContainText(msg('formation.trade.target.taken'));
     await expect(block.getByTestId('trade-outcome-tp12')).toHaveAttribute('data-active', 'true');
     await expect(block.getByTestId('trade-outcome-stop')).toHaveAttribute('data-active', 'false');
+  });
+
+  test('Status TP1 und TP2 alındı: der hervorgehobene Kasten zeigt das tatsächliche Ergebnis, die blassen bleiben beim Einstiegswert', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'abcd-buy-h4-02', 1752624000, 'ABCD');
+    const block = page.getByTestId('trade-block');
+    await expect(block.getByTestId('trade-outcome-tp12')).toHaveAttribute('data-active', 'true');
+    // Das mitlaufende Ziel lag beim Erreichen näher am Einstieg als am Einstieg selbst: 1,08 statt 1,31
+    await expect(block.getByTestId('trade-outcome-tp12')).toContainText('+1,08');
+    await expect(block.getByTestId('trade-outcome-stop')).toContainText('-1,00');
+    await expect(block.getByTestId('trade-outcome-tp1')).toContainText('+0,50');
   });
 
   test('Status açık: kein Treffer, Stop bleibt, kein Ergebnis-Kasten hervorgehoben', { tag: '@FRM-39' }, async ({ page, worker }) => {

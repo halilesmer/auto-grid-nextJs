@@ -6,7 +6,7 @@ import { InfoHint, Tooltip } from '@/components/ui/tooltip';
 import { useFormat, useLocale, useT } from '@/i18n';
 import { ruleText } from '@/lib/formation/ruleTexts';
 import type { ScanHit } from '@/lib/formation/scan';
-import { CRV_EPS as EPS, outcomesOf, pipSizeOf, tradeMetrics } from '@/lib/formation/trade';
+import { CRV_EPS as EPS, outcomesOf, pipSizeOf, realizedOutcomesOf, tradeMetrics } from '@/lib/formation/trade';
 import { cn } from '@/lib/utils';
 
 /**
@@ -48,6 +48,8 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
   const hdl02 = metrics !== null && metrics.crv < 1 - EPS;
   const outcomes = outcomesOf(trade, candidate.side);
   const status = trade.status;
+  // Tatsächliche Werte (1115-A21.1): nur für den hervorgehobenen Kasten und „TP2 kommt“; blasse Kästen bleiben beim Einstiegswert
+  const realized = realizedOutcomesOf(trade, candidate.side, status);
   const stopped = status?.kind === 'stopped';
   const tp1Taken = status !== undefined && ['tp1', 'tp12', 'breakeven'].includes(status.kind);
   const tp2Taken = status?.kind === 'tp12';
@@ -62,7 +64,7 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
   // Ergebnis-Kasten des Stands `tp1` hebt „bisher“ hervor und nennt TP2 als offen
   const outcomeView = (key: 'stop' | 'tp1' | 'tp12') => {
     const base = t(`formation.trade.outcome.${key}`);
-    if (!status || status.kind === 'open') return { active: false, dim: false, label: base };
+    if (!status || status.kind === 'open') return { active: false, dim: false, label: base, actual: false };
     if (status.kind === 'tp1') {
       if (key === 'tp1')
         return {
@@ -76,10 +78,10 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
           dim: false,
           label: t('formation.trade.outcome.ifTp2'),
         };
-      return { active: false, dim: true, label: base };
+      return { active: false, dim: true, label: base, actual: false };
     }
     const hitKey = { stopped: 'stop', breakeven: 'tp1', tp12: 'tp12' }[status.kind];
-    return { active: key === hitKey, dim: key !== hitKey, label: base };
+    return { active: key === hitKey, dim: key !== hitKey, label: base, actual: key === hitKey };
   };
   const rText = (v: number) =>
     number(v, {
@@ -295,7 +297,8 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
               ] as const
             ).map(([key, v, tone]) => {
               // Tatsächliches Ergebnis: der Kasten wird hervorgehoben, die übrigen blass und durchgestrichen (nicht nur Farbe)
-              const { active, dim, label } = outcomeView(key);
+              const { active, dim, label, actual } = outcomeView(key);
+              const shown = actual && realized ? realized[key] : v;
               return (
                 <div
                   key={key}
@@ -310,7 +313,7 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
                   )}
                 >
                   <span className="text-[10.5px] leading-tight text-muted-foreground">{label}</span>
-                  <span className={cn('text-[13px] font-medium tabular-nums', tone, dim && 'line-through')}>{rText(v)}</span>
+                  <span className={cn('text-[13px] font-medium tabular-nums', tone, dim && 'line-through')}>{rText(shown)}</span>
                 </div>
               );
             })}

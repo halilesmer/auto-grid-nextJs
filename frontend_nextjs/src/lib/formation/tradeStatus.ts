@@ -25,6 +25,10 @@ export interface TradeStatus {
   stopBy?: 'close' | 'wick';
   /** Index der Kerze, in der der Handel endete (Stop, Rest am Einstieg oder TP2) */
   endIdx?: number;
+  /** Preis, zu dem TP1 gezählt wurde (das mitlaufende TP1 der Kerze, in der es erreicht wurde); fehlt, solange TP1 nicht erreicht ist */
+  tp1Fill?: number;
+  /** Preis, zu dem TP2 gezählt wurde; fehlt, solange TP2 nicht erreicht ist */
+  tp2Fill?: number;
 }
 
 export function tradeStatusOf(o: {
@@ -53,7 +57,16 @@ export function tradeStatusOf(o: {
   let kind: TradeStatusKind = 'open';
   let stopNow = stop;
   let stopMovedIdx: number | undefined;
-  const status = (extra: Partial<TradeStatus> = {}): TradeStatus => ({ kind, stopNow, ...(stopMovedIdx === undefined ? {} : { stopMovedIdx }), ...extra });
+  let tp1Fill: number | undefined;
+  let tp2Fill: number | undefined;
+  const status = (extra: Partial<TradeStatus> = {}): TradeStatus => ({
+    kind,
+    stopNow,
+    ...(stopMovedIdx === undefined ? {} : { stopMovedIdx }),
+    ...(tp1Fill === undefined ? {} : { tp1Fill }),
+    ...(tp2Fill === undefined ? {} : { tp2Fill }),
+    ...extra,
+  });
 
   for (let k = o.entryIdx + 1; k < bars.length; k++) {
     const b = bars[k];
@@ -67,15 +80,22 @@ export function tradeStatusOf(o: {
       }
       if (!newExtreme && touchesTarget(b, tp1)) {
         kind = 'tp1';
+        tp1Fill = tp1;
         stopNow = entry;
         stopMovedIdx = k;
         // Dieselbe Kerze: schließt sie jenseits des Einstiegs, ist der Rest am Einstieg ausgestoppt; sonst zählt TP2, falls berührt
         if (beyond(b.close, entry)) return status({ kind: 'breakeven', endIdx: k });
-        if (touchesTarget(b, tp2)) return status({ kind: 'tp12', endIdx: k });
+        if (touchesTarget(b, tp2)) {
+          tp2Fill = tp2;
+          return status({ kind: 'tp12', endIdx: k });
+        }
       }
     } else {
       if (beyond(b.close, entry)) return status({ kind: 'breakeven', endIdx: k });
-      if (!newExtreme && touchesTarget(b, tp2)) return status({ kind: 'tp12', endIdx: k });
+      if (!newExtreme && touchesTarget(b, tp2)) {
+        tp2Fill = tp2;
+        return status({ kind: 'tp12', endIdx: k });
+      }
     }
     if (newExtreme) ext = against(b);
   }

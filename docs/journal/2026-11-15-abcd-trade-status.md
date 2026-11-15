@@ -22,6 +22,9 @@ Plan 1114-A4.2 step b. Walk the candles after the entry candle and show the stat
 | `components/formation/FormationTrade.tsx` | Status row under the header, stop cell "Stop (breakeven)" with the old stop struck out, ✓ on hit targets, active result box, faded boxes with a line through the value. |
 | `i18n/messages/formation.ts`, `hints.ts` | New texts in tr, en, de; one hint for the status row. |
 
+## Actual result (1115-A21.1)
+`tradeStatusOf` also returns `tp1Fill` and `tp2Fill`: the price at which TP1 and TP2 counted (the moving target of the candle that hit it). `realizedOutcomesOf` (`trade.ts`) calculates the result in R from them: TP1 and rest at the entry 0.5 × TP1 distance / risk; TP1 and TP2 0.5 × (TP1 + TP2 distance) / risk; stop −1 (also for a close stop, assumption). While the state is open all three boxes keep the values at the entry. When the state is known, only the highlighted box shows the actual value; the faded boxes keep the entry values. In state "TP1 hit" the box "if TP2 hits" uses the actual TP1 and the current TP2. Example (sell): entry 144, stop 155.46, extreme 150: TP1 counts at 136.248, the result is +0.34 R, not +0.50.
+
 ## Rules (as approved)
 - The stop works on a candle close; the emergency stop works on a wick touch.
 - Each candle uses the targets from the extreme up to the previous candle.
