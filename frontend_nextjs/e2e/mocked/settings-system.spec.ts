@@ -11,10 +11,16 @@ import { msg } from '../fixtures/i18n';
 type SystemTab = 'status' | 'update' | 'restart' | 'logs';
 
 /** Einstellungsfenster öffnen, Abschnitt „VPS und System“ wählen, dann den Tab. */
-async function openSystem(page: Page, tab: SystemTab = 'status') {
-  await page.goto('/');
-  await page.getByTestId('settings-open').click();
-  await page.getByTestId('settings-nav-system').click();
+async function openSystem(page: Page, tab: SystemTab = 'status', via: 'menu' | 'vps' = 'menu') {
+  if (via === 'vps') {
+    // Rolle unbekannt (Worker aus): nur der Weg über /vps öffnet den Abschnitt
+    await page.goto('/vps');
+    await expect(page.getByTestId('settings-pane')).toHaveAttribute('data-section', 'system');
+  } else {
+    await page.goto('/');
+    await page.getByTestId('settings-open').click();
+    await page.getByTestId('settings-nav-system').click();
+  }
   if (tab !== 'status') await page.getByTestId(`settings-tab-${tab}`).click();
 }
 
@@ -172,7 +178,7 @@ test.describe('VPS und System: Aktionen', () => {
   test('Antwortet der Worker nicht, startet derselbe Knopf ihn per SSH neu', { tag: '@VPS-02' }, async ({ page, worker }) => {
     worker.offline = true;
     const mock = await mockVps(page);
-    await openSystem(page, 'restart');
+    await openSystem(page, 'restart', 'vps');
     await expect(page.getByTestId('sys-restart-worker')).toBeEnabled();
     await page.getByTestId('sys-restart-worker').click();
     await page.getByRole('dialog').last().getByRole('button', { name: msg('vps.action.restart') }).click();
@@ -435,7 +441,7 @@ test.describe('Auto-Update-Zustand', () => {
 
     worker.overrides.delete('GET /api/system/worker/status');
     worker.offline = true;
-    await openSystem(page, 'update');
+    await openSystem(page, 'update', 'vps');
     await expect(row(page)).toHaveAttribute('data-state', 'unknown');
   });
 

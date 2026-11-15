@@ -126,6 +126,11 @@ export function useVps({ pollLogs = true }: { pollLogs?: boolean } = {}) {
     [loadLogs],
   );
 
+  // Kararlı kimlik: ayar penceresindeki log sekmesi bunu effect bağımlılığı olarak kullanır
+  const setLogPolling = useCallback((on: boolean) => {
+    logPolling.current = on;
+  }, []);
+
   const selectLog = useCallback(
     (which: VpsLog) => {
       logNameRef.current = which;
@@ -201,9 +206,7 @@ export function useVps({ pollLogs = true }: { pollLogs?: boolean } = {}) {
     refreshStatus,
     refreshLogs: () => refreshLogs(logName),
     selectLog,
-    setLogPolling: (on: boolean) => {
-      logPolling.current = on;
-    },
+    setLogPolling,
     runAction,
   };
 }
