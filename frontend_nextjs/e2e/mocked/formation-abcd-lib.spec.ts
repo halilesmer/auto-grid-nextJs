@@ -10,6 +10,9 @@ import { expect, test } from '@playwright/test';
 import { timeframeExcluded } from '../../src/lib/formation/abcd';
 import { outcomesOf, realizedOutcomesOf, strongZoneAt } from '../../src/lib/formation/trade';
 import { tradeStatusOf } from '../../src/lib/formation/tradeStatus';
+import { earlyReversalOf, type EarlyZone } from '../../src/lib/formation/earlyReversal';
+import { dReached, shapeOf } from '../../src/lib/formation/abcd';
+import type { EngulfZone } from '../../src/lib/formation/sig';
 import {
   ABCD_CHECK_IDS,
   analyzeAbcd,
@@ -1042,5 +1045,156 @@ for (const side of ['sell', 'buy'] as const) {
     const stopped = run2([[156, 140, 156]]);
     expect(stopped.kind).toBe('stopped');
     expect(realizedOutcomesOf(trade, side, stopped)!.stop).toBe(-1);
+  });
+}
+
+// ---- Erken dönüş (1114-A4.5): D, Level 1'den önce (tolerans dahil) bölgede Engulf ile döner ----
+// Satış: A 100, B 130, C 114 → Level 1 144, −0.272 uzatma 138.16, tolerans 1.5 (0.05 × AB). Uç 140.5 (bölge 139–141), Engulf kapanışı 122.
+// Alış: tüm fiyatlar 100'e göre aynalanır (p → 200 − p), bölge tarafları yer değiştirir.
+interface ErCase {
+  tip: number;
+  bandZone: { bottom: number; top: number } | null;
+  engulf: 'bear' | 'bull' | 'none';
+  targetZones: { bottom: number; top: number }[];
+  cZone: { bottom: number; top: number } | null;
+  engulfZones?: boolean;
+  /** Die Fraktalzone im Band entsteht erst am D */
+  zoneByD?: boolean;
+  /** Volumenstärke der umschlossenen Kerze (bei einer Engulf-Kerze zählt nur sie) */
+  engulfWide?: boolean | null;
+}
+const ER_BASE: ErCase = { tip: 140.5, bandZone: { bottom: 139, top: 141 }, engulf: 'bear', targetZones: [{ bottom: 117, top: 118 }], cZone: { bottom: 113.5, top: 115 } };
+
+function erRun(side: 'sell' | 'buy', over: Partial<ErCase> = {}) {
+  const c = { ...ER_BASE, ...over };
+  const m = (p: number) => (side === 'sell' ? p : 200 - p);
+  const engulfRow: Record<ErCase['engulf'], Row> = {
+    bear: [Math.min(139.5, c.tip - 0.2), Math.min(139.8, c.tip - 0.1), 121, 122],
+    bull: [130, 141, 129, 140],
+    none: [139, 139.2, 137, 138],
+  };
+  const rowsSell: Row[] = [
+    [101, 102, 100, 101], // A
+    [128, 130, 127, 129], // B
+    [116, 116, 114, 115], // C
+    [120, 125, 119, 124],
+    [124, c.tip, 123, Math.min(139, c.tip - 0.5)], // Uç (D)
+    engulfRow[c.engulf],
+  ];
+  const rows = rowsSell.map(([o, h, l, cl]): Row => (side === 'sell' ? [o, h, l, cl] : [m(o), m(l), m(h), m(cl)]));
+  const bars = barsOf(rows, H4);
+  const wide = bars.map(() => true as boolean | null);
+  if (c.engulfWide !== undefined) wide[4] = c.engulfWide;
+  const s = shapeOf(bars, { a: { idx: 0, price: m(100) }, b: { idx: 1, price: m(130) }, c: { idx: 2, price: m(114) } });
+  const rect = (r: { bottom: number; top: number }) => (side === 'sell' ? r : { bottom: m(r.top), top: m(r.bottom) });
+  const own = side === 'sell' ? 'resistance' : 'support';
+  const opp = side === 'sell' ? 'support' : 'resistance';
+  const zones: EarlyZone[] = [];
+  if (c.bandZone && !c.engulfZones) zones.push({ side: own, rect: rect(c.bandZone), fractalTimes: [bars[c.zoneByD ? 4 : 0].time] });
+  for (const z of c.targetZones) zones.push({ side: opp, rect: rect(z) });
+  if (c.cZone) zones.push({ side: opp, rect: rect(c.cZone) });
+  const engulf: EngulfZone[] = c.engulfZones && c.bandZone ? [{ side, idx: 3, rect: rect(c.bandZone), big: true, holds: true }] : [];
+  return { m, er: earlyReversalOf({ bars, wide, s, reached: dReached(s), zones, engulfZones: engulf }) };
+}
+
+for (const side of ['sell', 'buy'] as const) {
+  const tag = side === 'sell' ? 'Satış' : 'Alış';
+  const near = (a: number | null | undefined, b: number) => expect(a).toBeCloseTo(b, 9);
+
+  frm(`Erken dönüş (${tag}): koşul tam → Engulf kapanışında giriş, bölgenin uzak kenarında stop, iki hedef`, () => {
+    const { m, er } = erRun(side);
+    expect(er).not.toBeNull();
+    near(er!.entry, m(122));
+    near(er!.stop, m(141));
+    near(er!.target1, m(118));
+    near(er!.target2, m(115));
+    near(er!.gap, 3.5);
+    expect(er!.idx).toBe(5);
+  });
+  frm(`Erken dönüş (${tag}): −0,272 uzatmasına ulaşılmadıysa yok`, () => {
+    // Bölge uca değer (137–139), yalnız uzatma geçilmedi
+    expect(erRun(side, { tip: 137.5, bandZone: { bottom: 137, top: 139 } }).er).toBeNull();
+  });
+  frm(`Erken dönüş (${tag}): bantta bölge yoksa yok`, () => {
+    expect(erRun(side, { bandZone: { bottom: 131, top: 133 } }).er).toBeNull();
+    expect(erRun(side, { bandZone: null }).er).toBeNull();
+  });
+  frm(`Erken dönüş (${tag}): uç bölgeye değmediyse yok`, () => {
+    expect(erRun(side, { bandZone: { bottom: 141.5, top: 142.4 } }).er).toBeNull();
+  });
+  frm(`Erken dönüş (${tag}): Engulf yoksa ya da ters yöndeyse yok`, () => {
+    expect(erRun(side, { engulf: 'none' }).er).toBeNull();
+    expect(erRun(side, { engulf: 'bull' }).er).toBeNull();
+  });
+  frm(`Erken dönüş (${tag}): seviye 1'e (toleransla) ulaşıldıysa yok, normal giriş`, () => {
+    expect(erRun(side, { tip: 143 }).er).toBeNull();
+    expect(erRun(side, { tip: 142.5 }).er).toBeNull();
+  });
+  frm(`Erken dönüş (${tag}): C'de bölge yoksa hedef 2 yok`, () => {
+    const { m, er } = erRun(side, { cZone: null });
+    near(er!.target1, m(118));
+    expect(er!.target2).toBeNull();
+  });
+  frm(`Erken dönüş (${tag}): işlem yönünde hiç bölge yoksa hedef 1 ve hedef 2 yok`, () => {
+    const { er } = erRun(side, { targetZones: [], cZone: null });
+    expect(er).not.toBeNull();
+    expect(er!.target1).toBeNull();
+    expect(er!.target2).toBeNull();
+  });
+  frm(`Erken dönüş (${tag}): hedef 1 girişe en yakın karşı bölgenin yakın kenarı; girişin ters tarafındaki bölge sayılmaz`, () => {
+    const { m, er } = erRun(side, { targetZones: [{ bottom: 117, top: 118 }, { bottom: 119, top: 120 }, { bottom: 127, top: 129 }] });
+    near(er!.target1, m(120));
+  });
+  frm(`Erken dönüş (${tag}): bölgeyi D'nin kendisi oluşturduysa yok (döngüsel kanıt)`, () => {
+    expect(erRun(side, { zoneByD: true }).er).toBeNull();
+  });
+  frm(`Erken dönüş (${tag}): hacimsiz ya da hacmi bilinmeyen Engulf sayılmaz`, () => {
+    expect(erRun(side, { engulfWide: false }).er).toBeNull();
+    expect(erRun(side, { engulfWide: null }).er).toBeNull();
+  });
+  frm(`Erken dönüş (${tag}): Engulf bölgesi de bantta bölge sayılır`, () => {
+    const { m, er } = erRun(side, { engulfZones: true });
+    near(er!.stop, m(141));
+  });
+}
+
+// ---- Erken dönüş auf echten Kerzen: Fraktalzone im Band, Engulf bei der D-Kerze ----
+/** Widerstand 140 (Index 2), A 100, B 130, C 114 → Level 1 144; Stütze bei 120 und 114; D 140,5 berührt die Zone, danach Engulf (Schluss 134) */
+const ER_ROWS: Row[] = (() => {
+  const rows = zig([140, 100, 130, 114, 126, 120, 140.5], [8, 8, 8, 8, 8, 24], 0);
+  rows[rows.length - 1] = [136, 140.5, 135.8, 139];
+  rows.push([139, 139.2, 133.9, 134]);
+  return rows;
+})();
+const ER_ABC = { a: 10, b: 18, c: 26 };
+
+for (const side of ['sell', 'buy'] as const) {
+  const tag = side === 'sell' ? 'Satış' : 'Alış';
+  const m = (p: number) => (side === 'sell' ? p : 200 - p);
+  const rows = side === 'sell' ? ER_ROWS : mirror(ER_ROWS);
+
+  frm(`Erken dönüş (${tag}, gerçek mumlar): hüküm oluşuyor kalır, giriş/stop/hedefler dolu, Fibo hedefi ve durum yok`, () => {
+    const c = run({ H4: rows }, ER_ABC, { sell: side === 'sell' });
+    expect(c.verdict).toBe('forming');
+    expect(c.invalidBy ?? []).toEqual([]);
+    const t = c.trade!;
+    expect(t.entry).toBeCloseTo(m(134), 9);
+    expect(t.stop).toBeCloseTo(m(140), 9);
+    expect(t.tp1).toBeCloseTo(m(130), 9);
+    expect(t.earlyReversal!.target2).toBeCloseTo(m(114.95), 9);
+    expect(t.earlyReversal!.gap).toBeCloseTo(3.5, 9);
+    expect(t.emergencyStop).not.toBeNull();
+    expect([t.tp2, t.tp3, t.status, t.tp2AtEntry, t.tp1AtEntry]).toEqual([undefined, undefined, undefined, undefined, undefined]);
+    expect(c.drawings.map((d) => d.id)).toEqual(['Z-ABCD-01', 'Z-ABCD-02', 'Z-ABCD-03', 'Z-ABCD-04', 'Z-ABCD-06', 'Z-ABCD-07', 'Z-ABCD-08']);
+    expect(c.drawings.find((d) => d.id === 'Z-ABCD-07')!.anchors[0].price).toBeCloseTo(m(140), 9);
+    // Prüfliste unverändert: ABCD-08 bleibt ☐ (im Aufbau)
+    expect(state(c, 'ABCD-08')).toBe(N);
+  });
+
+  frm(`Erken dönüş (${tag}, gerçek mumlar): erreicht der Kurs später Level 1, kehrt der Block zum normalen Einstieg zurück`, () => {
+    const later: Row[] = [...rows, side === 'sell' ? [134, 144.2, 133.8, 144] : [66, 66.2, 55.8, 56]];
+    const c = run({ H4: later }, ER_ABC, { sell: side === 'sell' });
+    expect(c.trade!.earlyReversal).toBeUndefined();
+    expect(c.trade!.entry).toBeCloseTo(m(144), 9);
   });
 }

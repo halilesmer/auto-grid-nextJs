@@ -34,6 +34,7 @@ import { evaluate as evaluateBat } from './batChecks';
 import { evaluate as evaluateGar } from './garChecks';
 import { buildEnv, dirSide, envFor, neighborTf, type Env } from './reasons';
 import { reversalAt } from './reversal';
+import { earlyReversalOf, type EarlyReversal } from './earlyReversal';
 import { exemptFor, settle } from './settle';
 import { levelXA, ordered, pipOf, shapeOfX } from './xabcd';
 import { divergenceOf, engulfZones, rsiExtreme, zoneSideOf } from './sig';
@@ -301,12 +302,33 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: n
   }
   // ABCD-26 nach der Einstiegskerze: ein Bruch von C ab dem Einstieg ist der Weg zum Ziel
   add('ABCD-26', flag(trendBreaksC(trend, s, reached && d ? freezeIdx : null)));
+  const stateOf = (id: string) => checks.find((c) => c.id === id)!.state;
+  // ABCD-03 und ABCD-08 warten auf den Endpunkt (im Aufbau); ABCD-07 (streng) ist durch die Toleranz von ABCD-08 ersetzt.
+  // Die übrigen Pflichten zählen nur, solange kein Endpunkt wartet.
+  const waiting = stateOf('ABCD-03') === 'unmet' || stateOf('ABCD-08') === 'unmet';
+  const causesInvalid = (c: Check) =>
+    (['ABCD-21', 'ABCD-22', 'ABCD-23', 'ABCD-24', 'ABCD-25', 'ABCD-26'].includes(c.id) && c.state === 'met') ||
+    (['ABCD-01', 'ABCD-02', 'ABCD-04', 'ABCD-05', 'ABCD-06'].includes(c.id) && c.state === 'unmet') ||
+    (!waiting && c.kind === 'required' && c.state === 'unmet' && c.id !== 'ABCD-07');
+  const invalidBy = checks.filter(causesInvalid).map((c) => c.id);
   // Gleitkomma-Rauschen (Docht genau auf Level 1) zählt nicht als verfehlt
   const gap = d ? Math.max(0, outward(es, s.level1) - outward(es, d.price)) : 0;
   const missed = gap > 1e-9 * s.len ? gap : 0;
   // A4.2.8: sehr starke Zone der Gegenseite am TP1 des Einstiegs (nur Hinweis)
   const tp1Entry = frozenFrom ? fibPrice(frozenFrom.price, s.level1, ABCD_PARAMS.targets.tp1) : null;
   const strongZone = tp1Entry !== null && strongZoneAt([...env.frz.zones, ...env.frz.reversed], tp1Entry, side);
+  // 1114-A4.5: Erken dönüş. Das Urteil bleibt „im Aufbau“; ein ungültiger Kandidat bekommt ihn nicht
+  const early =
+    invalidBy.length === 0 && !reached && d
+      ? earlyReversalOf({
+          bars,
+          wide: view.wide,
+          s,
+          reached,
+          zones: [...env.frz.zones, ...env.frz.reversed],
+          engulfZones: engulfZones(bars, view.wide),
+        })
+      : null;
   const input = abcdTrade({
     from,
     frozenFrom,
@@ -319,10 +341,18 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: n
     strongZone,
     reachedRule: 'ABCD-08',
   });
+  if (early) {
+    // Kein Fibo-Ziel, kein Anteil, kein Stand nach dem Einstieg (A4.5.3)
+    input.entry = early.entry;
+    input.stop = early.stop;
+    input.tp1 = early.target1;
+    input.reason = early.target1 === null ? { tp1: 'noZone' } : {};
+    input.earlyReversal = { target2: early.target2, gap: early.gap };
+  }
   // 1114-A4.2 b: Stand nach dem Einstieg; der Not-SL ist derselbe wie im Handelsblock (Schluss-Stop ± ATR(14))
   const atrNow = bars.length > 0 ? (view.atr[last] ?? null) : null;
   const status =
-    reached && d && input.entry !== null && input.stop !== null
+    !early && reached && d && input.entry !== null && input.stop !== null
       ? tradeStatusOf({
           bars,
           entryIdx: freezeIdx,
@@ -335,21 +365,12 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: n
         })
       : null;
   if (status) input.status = status;
-  const drawings = drawingsOf(env, s, reached, divState === 'met', harmonic === 'met', secondLevels.find(isNear), input.stop, freezeIdx, status);
+  const drawings = drawingsOf(env, s, reached, divState === 'met', harmonic === 'met', secondLevels.find(isNear), input.stop, freezeIdx, status, early);
   const withDrawings = checks.map((c) => ({
     ...c,
     drawings: [...new Set(drawings.filter((x) => x.rules.includes(c.id)).map((x) => x.id))],
   }));
 
-  const stateOf = (id: string) => checks.find((c) => c.id === id)!.state;
-  // ABCD-03 und ABCD-08 warten auf den Endpunkt (im Aufbau); ABCD-07 (streng) ist durch die Toleranz von ABCD-08 ersetzt.
-  // Die übrigen Pflichten zählen nur, solange kein Endpunkt wartet.
-  const waiting = stateOf('ABCD-03') === 'unmet' || stateOf('ABCD-08') === 'unmet';
-  const causesInvalid = (c: Check) =>
-    (['ABCD-21', 'ABCD-22', 'ABCD-23', 'ABCD-24', 'ABCD-25', 'ABCD-26'].includes(c.id) && c.state === 'met') ||
-    (['ABCD-01', 'ABCD-02', 'ABCD-04', 'ABCD-05', 'ABCD-06'].includes(c.id) && c.state === 'unmet') ||
-    (!waiting && c.kind === 'required' && c.state === 'unmet' && c.id !== 'ABCD-07');
-  const invalidBy = checks.filter(causesInvalid).map((c) => c.id);
   let verdict: Verdict = 'valid';
   if (invalidBy.length > 0) verdict = 'invalid';
   else if (waiting) verdict = 'forming';
@@ -365,7 +386,7 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: n
   return withTrade(candidate, env, tf, input, false);
 }
 
-function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolean, harmonic: boolean, second: number | undefined, stop: number | null, freezeIdx: number, status: TradeStatus | null): Drawing[] {
+function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolean, harmonic: boolean, second: number | undefined, stop: number | null, freezeIdx: number, status: TradeStatus | null, early: EarlyReversal | null): Drawing[] {
   const bars = env.views.get(env.tf)!.bars;
   const at = (idx: number, price: number): Anchor => ({ time: bars[idx].time, price });
   const lastTime = bars[bars.length - 1].time;
@@ -407,6 +428,11 @@ function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolea
       out.push({ id: 'Z-ABCD-07', tool: 'hline', anchors: [at(moved ?? freezeIdx, shown)], rules: TRADE_RULES, side });
       out.push({ id: 'Z-ABCD-08', tool: 'label', anchors: [{ time: lastTime, price: shown }], label: 'stop', rules: TRADE_RULES, side });
     }
+  }
+  // Erken dönüş: der Stop (ferne Zonenkante) steht auf Z-ABCD-07/08 ab der Engulf-Kerze
+  if (early && !reached) {
+    out.push({ id: 'Z-ABCD-07', tool: 'hline', anchors: [at(early.idx, early.stop)], rules: TRADE_RULES, side });
+    out.push({ id: 'Z-ABCD-08', tool: 'label', anchors: [{ time: lastTime, price: early.stop }], label: 'stop', rules: TRADE_RULES, side });
   }
   return out;
 }
