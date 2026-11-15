@@ -45,7 +45,8 @@ test.describe('UI Sprache', () => {
     await page.keyboard.press('Escape');
 
     await page.goto('/vps');
-    await expect(page.getByRole('heading', { name: msg('vps.title', undefined, 'en') })).toBeVisible();
+    await expect(page.getByTestId('settings-title')).toHaveText(msg('sdlg.sec.system', undefined, 'en'));
+    await page.keyboard.press('Escape');
     await page.goto('/chart');
     await expect(page.getByRole('heading', { name: msg('nav.chart', undefined, 'en') })).toBeVisible();
   });

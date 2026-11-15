@@ -190,7 +190,7 @@ test.describe('UI-07 Hinweise: Abdeckung', () => {
     expect(await unhinted(page)).toEqual([]);
   });
 
-  test('VPS-Seite', { tag: '@UI-07' }, async ({ page, worker }) => {
+  test('Ayarlar: VPS ve sistem', { tag: '@UI-07' }, async ({ page, worker }) => {
     void worker;
     await page.route('**/api/vps/**', async (route) => {
       const action = new URL(route.request().url()).pathname.replace('/api/vps/', '');
@@ -220,11 +220,16 @@ test.describe('UI-07 Hinweise: Abdeckung', () => {
       if (action === 'logs') return route.fulfill({ json: { ok: true, log: 'worker', lines: ['Zeile 1'] } });
       return route.fulfill({ json: { ok: true, message: 'ok' } });
     });
-    await page.goto('/vps');
-    await expect(page.getByTestId('vps-tile-worker')).toBeVisible();
+    await page.goto('/');
+    await page.getByTestId('settings-open').click();
+    await page.getByTestId('settings-nav-system').click();
+    await expect(page.getByTestId('sys-ngrok-state')).toBeVisible();
     await expect(page.getByTestId('vps-elevated')).toBeVisible();
-
     expect(await unhinted(page)).toEqual([]);
+    for (const tab of ['update', 'restart', 'logs']) {
+      await page.getByTestId(`settings-tab-${tab}`).click();
+      expect(await unhinted(page)).toEqual([]);
+    }
   });
 
   test('Backtest-Seite mit Ergebnis: jedes Bedienelement erklärt sich', { tag: '@UI-07' }, async ({ page, worker }) => {

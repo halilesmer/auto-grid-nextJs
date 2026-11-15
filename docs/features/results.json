@@ -2125,14 +2125,14 @@
     "e2e": {
       "datum": "2026-11-15",
       "status": "passed",
-      "tests": 3
+      "tests": 4
     }
   },
   "VPS-02": {
     "e2e": {
       "datum": "2026-11-15",
       "status": "passed",
-      "tests": 1
+      "tests": 2
     },
     "unit": {
       "datum": "2026-11-15",
@@ -2207,6 +2207,13 @@
       "datum": "2026-11-15",
       "status": "passed",
       "tests": 3
+    }
+  },
+  "VPS-11": {
+    "e2e": {
+      "datum": "2026-11-15",
+      "status": "passed",
+      "tests": 1
     }
   },
   "ZON-01": {
