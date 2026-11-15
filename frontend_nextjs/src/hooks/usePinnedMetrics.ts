@@ -1,37 +1,15 @@
 import { useCallback, useSyncExternalStore } from 'react';
+import { t } from '@/i18n';
+import { useMetricsPrefsStore } from '@/store/useMetricsPrefsStore';
+import { useUserPrefsStore } from '@/store/useUserPrefsStore';
 
-const KEY = 'grid-robot-metrics-pinned';
-const listeners = new Set<() => void>();
-// Wert im Speicher, falls localStorage gesperrt ist: die Wahl gilt dann bis zum Neuladen
-let memory: boolean | null = null;
+const get = () => useMetricsPrefsStore.getState().pinned;
 
-// Standard: angeheftet. Jeder Zugriff in try/catch (privates Fenster, gesperrter Speicher): dann gilt der Standard.
-function read(): boolean {
-  try {
-    return localStorage.getItem(KEY) !== 'false';
-  } catch {
-    return memory ?? true;
-  }
-}
-
-function subscribe(cb: () => void) {
-  listeners.add(cb);
-  return () => {
-    listeners.delete(cb);
-  };
-}
-
-/** Kennzahlen unter der Steuerleiste anheften (V2); die Wahl bleibt im localStorage dieses Browsers. */
+/** Kennzahlen unter der Steuerleiste anheften (V2); die Wahl gehört dem Benutzer und liegt im Worker (`metrics_pinned`, USR-15). */
 export function usePinnedMetrics() {
-  const pinned = useSyncExternalStore(subscribe, read, () => true);
+  const pinned = useSyncExternalStore(useMetricsPrefsStore.subscribe, get, () => true);
   const setPinned = useCallback((next: boolean) => {
-    memory = next;
-    try {
-      localStorage.setItem(KEY, String(next));
-    } catch {
-      // Gesperrter Speicher: `memory` trägt die Wahl bis zum Neuladen
-    }
-    listeners.forEach((l) => l());
+    void useUserPrefsStore.getState().change('metrics_pinned', { pinned: next }, () => ({ name: t(next ? 'metrics.pin' : 'metrics.unpin'), value: '' }), { silent: true });
   }, []);
   return [pinned, setPinned] as const;
 }

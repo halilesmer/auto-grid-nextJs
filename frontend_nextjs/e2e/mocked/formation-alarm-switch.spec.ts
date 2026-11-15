@@ -89,6 +89,8 @@ test.describe('FRM-43 Hauptschalter und Trend-Zeile', () => {
     await expect(page.getByText(gartley)).toHaveCount(0);
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('grid-robot-formation-alarm') ?? '{}'));
     expect(saved.history?.[DEMO_ID] ?? []).toEqual([]);
-    expect(saved.active).toBe(false);
+    // Der Hauptschalter gehört dem Benutzer und liegt im Worker (USR-15)
+    expect(saved.active).toBeUndefined();
+    await expect.poll(() => (worker.userPrefs.admin?.formation_alarm as { active?: boolean } | undefined)?.active).toBe(false);
   });
 });

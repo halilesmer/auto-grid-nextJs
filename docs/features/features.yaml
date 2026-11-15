@@ -459,6 +459,16 @@ kategorien:
           - "Bei 375 px Banner und Bereich Verbindung ansehen, hell und dunkel: kein waagerechter Überlauf, Status nie nur durch Farbe."
         erwartet: Die Tests @USR-14 bestehen. Ohne Verbindung lässt sich kein persönlicher Wert ändern, der Grund steht im Banner, und das Kopf-Menü enthält nur noch die vier Einträge.
 
+      - id: USR-15
+        titel: Formationsalarm und Kennzahlen-Schalter gehören dem Benutzer
+        beschreibung: "Plan 1115-A9.2/A9.3 (S6). Die persönlichen Felder des Formationsalarms (Hauptschalter, Ereignisse, Formationen, Systemmeldung, Ton) liegen im Worker unter dem user_prefs-Schlüssel formation_alarm; „Kennzahlen angeheftet“ unter metrics_pinned. Die Felder je Konto (Schalter je Symbol, Favoriten, gemerkter Stand, Verlauf) bleiben im localStorage. Einmalige Übernahme: fehlt der Schlüssel im Worker, wird der alte Browser-Wert geschrieben und danach gelöscht (bei formation_alarm nur active und prefs; die Konto-Felder bleiben); ein vorhandener Worker-Wert gilt immer. Bis der Wert aus dem Worker da ist, sucht und meldet der Alarm nicht. Einstellungen > Benachrichtigungen hat den Tab „Formasyon alarmı“ (Hauptschalter, Ereignisse, 11 Formationen, Kanäle, „Im Chart öffnen“, Hinweis); das Alarm-Menü im Chart liest und schreibt denselben Speicher. Die Sperren aus USR-13 und USR-14 gelten auch hier."
+        code: [frontend_nextjs/src/lib/formation/alarmPersonal.ts, frontend_nextjs/src/lib/formation/alarmStore.ts, frontend_nextjs/src/store/useAlarmPrefsStore.ts, frontend_nextjs/src/store/useMetricsPrefsStore.ts, frontend_nextjs/src/store/useUserPrefsStore.ts, frontend_nextjs/src/hooks/usePinnedMetrics.ts, frontend_nextjs/src/components/settings/FormationAlarmTab.tsx, frontend_nextjs/src/components/settings/NotificationsSection.tsx, frontend_nextjs/src/components/formation/FormationScanRunner.tsx, frontend_nextjs/e2e/mocked/settings-formation-alarm.spec.ts]
+        tiers: [e2e, manuell]
+        pruefung:
+          - "Am Mac die Alarm-Auswahl ändern, dann am Handy Einstellungen > Benachrichtigungen > Formasyon alarmı öffnen: derselbe Stand."
+          - "Bei 375 px den Tab ansehen, hell und dunkel: kein waagerechter Überlauf."
+        erwartet: Die Tests @USR-15 bestehen. Die persönlichen Alarm-Felder und der Kennzahlen-Schalter folgen dem Benutzer, Einstellungen und Chart-Menü zeigen denselben Wert.
+
   # ---------------------------------------------------------------------------
   - id: SET
     titel: Allgemeine Einstellungen

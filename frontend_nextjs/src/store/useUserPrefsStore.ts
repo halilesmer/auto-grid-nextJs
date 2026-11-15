@@ -8,9 +8,12 @@ import { parseChartTf, parseColors, parseDelay, parseHold, parseToastSeconds, to
 import { DEFAULT_ALERTS, normalizeAlerts } from '@/lib/newsAlerts';
 import { DEFAULT_FILTER, normalizeFilter } from '@/lib/news';
 import { isThemePreference, type ThemePreference } from '@/lib/theme';
+import { DEFAULT_PERSONAL, parsePersonal, personalValue, readLegacyPersonal, stripLegacyPersonal } from '@/lib/formation/alarmPersonal';
+import { useAlarmPrefsStore } from './useAlarmPrefsStore';
 import { useChartPrefsStore } from './useChartPrefsStore';
 import { CUSTOM_COLORS_STORAGE_KEY, useCustomColorsStore, withColor } from './useCustomColorsStore';
 import { useLocaleStore } from './useLocaleStore';
+import { METRICS_LEGACY_KEY, readLegacyPinned, useMetricsPrefsStore } from './useMetricsPrefsStore';
 import { registerNewsPersister, useNewsStore } from './useNewsStore';
 import { useThemeStore } from './useThemeStore';
 import { useToastPrefsStore } from './useToastPrefsStore';
@@ -30,7 +33,9 @@ export type PrefKey =
   | 'news_filter'
   | 'news_alerts'
   | 'chart_tf'
-  | 'chart_colors';
+  | 'chart_colors'
+  | 'formation_alarm'
+  | 'metrics_pinned';
 export type PrefStatus = 'saving' | 'saved' | 'failed';
 /** Kişisel tercihlerin worker'dan okunma durumu (USR-13): `ready` olmadan yazma yok. */
 export type PrefLoadState = 'idle' | 'loading' | 'ready' | 'failed' | 'offline';
@@ -103,6 +108,10 @@ function current(key: PrefKey): Record<string, unknown> {
       return { tf: useChartPrefsStore.getState().tf };
     case 'chart_colors':
       return { colors: [...useCustomColorsStore.getState().colors] };
+    case 'formation_alarm':
+      return personalValue(useAlarmPrefsStore.getState().personal);
+    case 'metrics_pinned':
+      return { pinned: useMetricsPrefsStore.getState().pinned };
   }
 }
 
@@ -138,17 +147,25 @@ function apply(key: PrefKey, value: Record<string, unknown>): void {
     case 'chart_colors':
       useCustomColorsStore.setState({ colors: parseColors(value) });
       break;
+    case 'formation_alarm':
+      useAlarmPrefsStore.setState({ personal: parsePersonal(value), loaded: true });
+      break;
+    case 'metrics_pinned':
+      useMetricsPrefsStore.setState({ pinned: value.pinned !== false });
+      break;
   }
 }
 
 /** Worker'da değer yok: varsayılan geçerli olur. Bildirim süresi seçilmediyse eski süreler (toast'ta null) kalır. */
-function resetToDefault(key: 'toast_duration' | 'news_filter' | 'news_alerts' | 'chart_tf' | 'chart_colors'): void {
+function resetToDefault(key: 'toast_duration' | 'news_filter' | 'news_alerts' | 'chart_tf' | 'chart_colors' | 'formation_alarm' | 'metrics_pinned'): void {
   if (key === 'toast_duration') {
     useToastPrefsStore.setState({ seconds: parseToastSeconds(undefined) });
     setUserToastMs(null);
   } else if (key === 'news_filter') apply(key, { ...DEFAULT_FILTER });
   else if (key === 'news_alerts') apply(key, { alerts: DEFAULT_ALERTS.alerts.map((a) => ({ ...a })) });
   else if (key === 'chart_tf') apply(key, {});
+  else if (key === 'formation_alarm') apply(key, personalValue(DEFAULT_PERSONAL));
+  else if (key === 'metrics_pinned') apply(key, { pinned: true });
   else apply(key, { colors: [] });
 }
 
@@ -175,15 +192,25 @@ function applyLoaded(prefs: Record<string, unknown>): void {
   if (untouched('tooltip_delay')) apply('tooltip_delay', { ...parseDelay(prefs.tooltip_delay) });
   if (untouched('tooltip_hold')) apply('tooltip_hold', { ...parseHold(prefs.tooltip_hold) });
   // Yeni anahtarlar: değer varsa uygulanır; yoksa varsayılana dönülür (önceki kullanıcının değeri kalmasın)
-  for (const key of ['toast_duration', 'news_filter', 'news_alerts', 'chart_tf', 'chart_colors'] as const) {
+  for (const key of ['toast_duration', 'news_filter', 'news_alerts', 'chart_tf', 'chart_colors', 'formation_alarm', 'metrics_pinned'] as const) {
     const stored = prefs[key];
-    if (!untouched(key)) continue;
+    // Alarm und Kennzahlen-Schalter sind vor dem Laden nicht schreibbar: der Worker-Wert gilt auch nach Benutzerwechsel oder neuem Laden
+    const serverOwned = key === 'formation_alarm' || key === 'metrics_pinned';
+    if (serverOwned) delete confirmed[key];
+    if (!serverOwned && !untouched(key)) continue;
+    // Kein Wert im Worker: die alten Browser-Werte werden unten übernommen (USR-15), bis dahin gelten sie
+    if (!isRecord(stored) && key === 'formation_alarm' && readLegacyPersonal()) continue;
+    if (!isRecord(stored) && key === 'metrics_pinned' && readLegacyPinned() !== null) continue;
     if (isRecord(stored)) apply(key, stored);
     else resetToDefault(key);
   }
   accountImportDone = false;
   serverKeys = new Set(Object.keys(prefs));
   if (!serverKeys.has('chart_colors')) void migrateLocalColors();
+  if (!serverKeys.has('formation_alarm')) void migrateLocalAlarm();
+  else stripLegacyPersonal(); // der Worker hat den Wert: alte Browser-Felder sind überholt
+  if (!serverKeys.has('metrics_pinned')) void migrateLocalPinned();
+  else removeLegacyPinned();
 }
 
 export const useUserPrefsStore = create<UserPrefsState>()(() => ({
@@ -330,6 +357,39 @@ async function migrateLocalColors(): Promise<void> {
     }
   }
 }
+
+/** Persönliche Alarm-Felder aus dem Browser (USR-15): kein Wert im Worker → der alte Browser-Wert wird einmal geschrieben, danach gelöscht. */
+async function migrateLocalAlarm(): Promise<void> {
+  const legacy = readLegacyPersonal();
+  if (!legacy) {
+    useAlarmPrefsStore.setState({ loaded: true });
+    return;
+  }
+  if (versions.formation_alarm !== undefined) return;
+  // Bis der Worker bestätigt, gilt der alte Wert (der Alarm sucht nicht mit Standardwerten)
+  useAlarmPrefsStore.setState({ personal: legacy, loaded: true });
+  await useUserPrefsStore.getState().change('formation_alarm', personalValue(legacy), alarmLabel, { silent: true, quiet: true });
+  if (useUserPrefsStore.getState().status.formation_alarm === 'saved') stripLegacyPersonal();
+}
+
+/** „Kennzahlen angeheftet“ aus dem Browser (USR-15), gleiches Muster. */
+async function migrateLocalPinned(): Promise<void> {
+  const legacy = readLegacyPinned();
+  if (legacy === null || versions.metrics_pinned !== undefined) return;
+  await useUserPrefsStore.getState().change('metrics_pinned', { pinned: legacy }, pinnedLabel, { silent: true, quiet: true });
+  if (useUserPrefsStore.getState().status.metrics_pinned === 'saved') removeLegacyPinned();
+}
+
+function removeLegacyPinned(): void {
+  try {
+    localStorage.removeItem(METRICS_LEGACY_KEY);
+  } catch {
+    /* yok say */
+  }
+}
+
+export const alarmLabel = (): PrefLabel => ({ name: t('formation.alarm.menu'), value: '' });
+const pinnedLabel = (): PrefLabel => ({ name: t('metrics.pin'), value: '' });
 
 const colorsLabel = (): PrefLabel => ({ name: t('sdlg.colors'), value: String(useCustomColorsStore.getState().colors.length) });
 
