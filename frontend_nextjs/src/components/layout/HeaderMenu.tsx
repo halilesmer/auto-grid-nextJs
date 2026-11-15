@@ -1,20 +1,16 @@
 'use client';
 
-import type { ReactNode } from 'react';
-import { Globe, LayoutDashboard, Monitor, Plug, Power, RefreshCw, Server } from 'lucide-react';
+import { Plug, Power, Settings } from 'lucide-react';
 import { DropdownMenu, DropdownMenuGroup, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { StatusDot } from '@/components/ui/status-dot';
 import { useSystemActions } from '@/hooks/useSystemActions';
-import { useT, type MessageKey } from '@/i18n';
+import { useT } from '@/i18n';
 import { hostOf } from '@/lib/connectionCode';
-import { DEV_PANEL_URL, isLocalHostname } from '@/lib/devPanel';
+import { cn } from '@/lib/utils';
 import { useAccountStore } from '@/store/useAccountStore';
-import { useIsAdmin } from '@/store/useAuthStore';
-import { useConnectionDialogStore } from '@/store/useConnectionDialogStore';
 import { useConnectionStore, type ConnectionStatus } from '@/store/useConnectionStore';
-import LanguageSwitcher from './LanguageSwitcher';
+import { useSettingsDialogStore } from '@/store/useSettingsDialogStore';
 import SystemModals from './SystemModals';
-import ThemeToggle from './ThemeToggle';
 
 const TONES: Record<ConnectionStatus, 'success' | 'danger' | 'warning' | 'neutral'> = {
   unconfigured: 'neutral',
@@ -25,66 +21,25 @@ const TONES: Record<ConnectionStatus, 'success' | 'danger' | 'warning' | 'neutra
   insecure: 'danger',
 };
 
-const SYSINFO: { icon: typeof Monitor; labelKey: MessageKey; value: () => string }[] = [
-  { icon: Monitor, labelKey: 'dashboard.sysinfo.host', value: () => window.location.hostname },
-  { icon: Server, labelKey: 'dashboard.sysinfo.port', value: () => window.location.port || '3000' },
-  { icon: Globe, labelKey: 'dashboard.sysinfo.url', value: () => window.location.origin },
-];
-
-/** Adresse dieser Seite; eigene Komponente, damit `window` erst beim Öffnen des Panels gelesen wird (kein SSR). */
-function SystemInfo() {
-  const t = useT();
-  return (
-    <div className="space-y-1.5 pb-1">
-      {SYSINFO.map(({ icon: Icon, labelKey, value }) => (
-        <div key={labelKey} className="flex items-start gap-2.5 text-sm">
-          <Icon size={14} className="mt-0.5 shrink-0 text-muted-foreground" />
-          <span className="w-10 shrink-0 text-muted-foreground">{t(labelKey)}</span>
-          <span className="min-w-0 break-all font-mono text-xs leading-5 text-foreground">{value()}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/** Öffnet das Geliştirme-Panel (localhost:3030) in neuem Tab; nur auf dem eigenen localhost sichtbar (SYS-15). Eigene Komponente: `window` wird erst beim Öffnen des Menüs gelesen (kein SSR). */
-function DevPanelItem() {
-  const t = useT();
-  if (!isLocalHostname(window.location.hostname)) return null;
-  return (
-    <DropdownMenuItem
-      icon={<LayoutDashboard size={14} />}
-      hint={t('dashboard.sysinfo.devPanel.hint')}
-      onSelect={() => window.open(DEV_PANEL_URL, '_blank', 'noopener,noreferrer')}
-      data-testid="dev-panel-open"
-    >
-      {t('dashboard.sysinfo.devPanel')}
-    </DropdownMenuItem>
-  );
-}
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <DropdownMenuGroup className="space-y-1.5 px-3 py-2.5">
-      <p className="text-xs font-medium text-muted-foreground">{title}</p>
-      {children}
-    </DropdownMenuGroup>
-  );
-}
+// Fiş düğmesinin köşe noktası (1115-A7.5): bağlıyken yok; kontrol ederken gri, anahtar reddedilince sarı, öteki hatalarda kırmızı
+const BADGE_COLOR: Partial<Record<ConnectionStatus, string>> = {
+  checking: 'bg-muted-foreground',
+  unauthorized: 'bg-warning',
+  unreachable: 'bg-danger',
+  insecure: 'bg-danger',
+};
 
 /**
- * Kopf-Menü rechts in der Kopfzeile: Verbindung, Sprache, Design und System. Der Zahnrad-Auslöser nennt den
- * Verbindungsstatus im zugänglichen Namen und Tooltip; Host und Status stehen im Panel. Das Panel
- * liegt als Overlay über dem Inhalt. Update- und Herunterfahren-Dialog hängen hier, damit sie auf jeder
- * Seite funktionieren.
+ * Fiş menüsü (1115-A9.5): bağlantı durumu, Bağlantı ayarları, Ayarlar ve seçili hesabın botunu durdurma. Dil, tema,
+ * sürüm ve güncelleme ayar penceresindedir. Durdurma onay penceresi burada asılı durur, her sayfada çalışsın diye.
  */
 export default function HeaderMenu() {
   const t = useT();
-  const isAdmin = useIsAdmin();
   const hydrated = useConnectionStore((s) => s.hydrated);
   const baseUrl = useConnectionStore((s) => s.baseUrl);
   const status = useConnectionStore((s) => s.status);
-  const showConnectionDialog = useConnectionDialogStore((s) => s.show);
+  const showSettings = useSettingsDialogStore((s) => s.show);
+  const lastSection = useSettingsDialogStore((s) => s.lastSection);
   const system = useSystemActions();
   const activeAccount = useAccountStore((s) => s.activeAccount);
 
@@ -92,6 +47,7 @@ export default function HeaderMenu() {
   const shown: ConnectionStatus = hydrated ? status : 'checking';
   const statusText = t(`connection.status.${shown}`);
   const host = baseUrl ? hostOf(baseUrl) : '';
+  const badge = BADGE_COLOR[shown];
 
   return (
     <>
@@ -105,60 +61,59 @@ export default function HeaderMenu() {
           'data-testid': 'connection-chip',
           'data-status': shown,
         }}
-        icon={<Plug size={16} />}
+        icon={
+          <span className="relative inline-flex">
+            <Plug size={16} />
+            {badge && (
+              <span
+                aria-hidden="true"
+                data-testid="connection-chip-dot"
+                className={cn('absolute -right-1.5 -top-1.5 size-2 rounded-full ring-2 ring-background', badge)}
+              />
+            )}
+          </span>
+        }
       >
         <div data-testid="header-menu-panel">
-          <Section title={t('header.menu.connection')}>
-            <div data-testid="header-menu-connection" className="flex min-w-0 items-center gap-2 text-sm">
+          <DropdownMenuGroup className="space-y-1">
+            <div data-testid="header-menu-connection" className="flex min-w-0 items-center gap-2.5 rounded-lg bg-accent/60 px-2.5 py-2 text-sm">
               <StatusDot tone={TONES[shown]} pulse={shown === 'checking'} />
-              <span className="min-w-0 truncate font-mono text-xs text-foreground">{host || t('connection.chip.connect')}</span>
-              <span className="shrink-0 text-xs text-muted-foreground">· {statusText}</span>
+              <span className="flex min-w-0 flex-col">
+                <span className="font-medium">{statusText}</span>
+                <span className="truncate font-mono text-[11px] text-muted-foreground">{host || t('connection.chip.connect')}</span>
+              </span>
             </div>
             <DropdownMenuItem
               icon={<Plug size={14} />}
               hint={t('header.connection.change.hint')}
-              onSelect={() => showConnectionDialog()}
+              onSelect={() => showSettings('connection')}
               data-testid="connection-change"
             >
               {t('header.connection.change')}
             </DropdownMenuItem>
-          </Section>
+            <DropdownMenuItem
+              icon={<Settings size={14} />}
+              hint={t('header.settings.hint')}
+              onSelect={() => showSettings(lastSection)}
+              data-testid="header-settings"
+            >
+              {t('sdlg.open')}
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
 
-          <Section title={t('common.language')}>
-            <LanguageSwitcher />
-          </Section>
-
-          <Section title={t('common.theme')}>
-            <ThemeToggle />
-          </Section>
-
-          <Section title={t('header.menu.system')}>
-            <SystemInfo />
-            <DevPanelItem />
-            {/* Worker-Update (git pull + Neustart) ist Admin-Sache: der Worker antwortet Benutzern mit 403 */}
-            {isAdmin && (
-              <DropdownMenuItem
-                icon={<RefreshCw size={14} />}
-                hint={t('dashboard.sysinfo.checkUpdates.hint')}
-                onSelect={() => {
-                  system.setUpdateOpen(true);
-                  system.handleCheckUpdates();
-                }}
-              >
-                {t('dashboard.sysinfo.checkUpdates')}
-              </DropdownMenuItem>
-            )}
-            {/* Herunterfahren stoppt nur den Bot des gewählten Kontos (useSystemActions); ohne Konto gibt es nichts zu stoppen */}
+          <DropdownMenuGroup>
+            {/* Durdurma yalnız seçili hesabın botunu durdurur (useSystemActions); hesap yoksa durdurulacak bir şey yok */}
             <DropdownMenuItem
               icon={<Power size={14} />}
               tone="danger"
-              hint={activeAccount ? t('dashboard.shutdown.hint') : t('dashboard.shutdown.noAccount.hint')}
+              hint={activeAccount ? t('header.stopBot.hint') : t('dashboard.shutdown.noAccount.hint')}
               disabled={!activeAccount}
               onSelect={() => system.setShutdownOpen(true)}
+              data-testid="header-stop-bot"
             >
-              {t('dashboard.shutdown')}
+              {t('header.stopBot')}
             </DropdownMenuItem>
-          </Section>
+          </DropdownMenuGroup>
         </div>
       </DropdownMenu>
 

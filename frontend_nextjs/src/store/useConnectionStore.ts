@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { normalizeBaseUrl, type Connection } from '@/lib/connectionCode';
+import type { ProbeFailure } from '@/lib/connection';
 
 export type ConnectionStatus =
   | 'unconfigured' // keine Adresse gespeichert
@@ -14,9 +15,18 @@ interface ConnectionState extends Connection {
   /** Erst true, wenn der Speicher gelesen wurde (vorher darf kein Request rausgehen). */
   hydrated: boolean;
   status: ConnectionStatus;
+  /** Zeitpunkt der letzten Prüfung / der letzten erfolgreichen Prüfung (ms; nur im Speicher). */
+  lastCheckedAt: number | null;
+  lastOkAt: number | null;
+  /** Grund der letzten fehlgeschlagenen Prüfung (null = Prüfung ok oder noch keine). */
+  failure: { reason: ProbeFailure; ngrokCode?: string } | null;
+  /** Eine manuelle oder periodische Prüfung läuft gerade (ändert `status` nicht). */
+  probing: boolean;
   setConnection: (connection: Connection) => void;
   clearConnection: () => void;
   setStatus: (status: ConnectionStatus) => void;
+  recordCheck: (status: ConnectionStatus, failure?: { reason: ProbeFailure; ngrokCode?: string }) => void;
+  setProbing: (probing: boolean) => void;
   markHydrated: () => void;
 }
 
@@ -41,9 +51,21 @@ export const useConnectionStore = create<ConnectionState>()(
       apiKey: '',
       hydrated: false,
       status: 'unconfigured',
-      setConnection: ({ baseUrl, apiKey }) => set({ baseUrl, apiKey, status: statusFor(baseUrl) }),
-      clearConnection: () => set({ baseUrl: '', apiKey: '', status: 'unconfigured' }),
+      lastCheckedAt: null,
+      lastOkAt: null,
+      failure: null,
+      probing: false,
+      setConnection: ({ baseUrl, apiKey }) =>
+        set({ baseUrl, apiKey, status: statusFor(baseUrl), lastCheckedAt: null, lastOkAt: null, failure: null }),
+      clearConnection: () =>
+        set({ baseUrl: '', apiKey: '', status: 'unconfigured', lastCheckedAt: null, lastOkAt: null, failure: null }),
       setStatus: (status) => set({ status }),
+      recordCheck: (status, failure) =>
+        set((s) => {
+          const now = Date.now();
+          return { status, failure: failure ?? null, lastCheckedAt: now, lastOkAt: status === 'connected' ? now : s.lastOkAt };
+        }),
+      setProbing: (probing) => set({ probing }),
       markHydrated: () =>
         set((s) => {
           if (s.hydrated) return s;

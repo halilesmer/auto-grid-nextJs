@@ -1,6 +1,6 @@
 /**
  * UI-01 · Kopfzeile: eine Zeile mit fester Höhe (56 px, CSS-Variable --nav-height, die die fixierte
- * Steuerleiste als Abstand nutzt). Rechts das Kopf-Menü mit Verbindung, Sprache, Design und System;
+ * Steuerleiste als Abstand nutzt). Rechts das Kopf-Menü mit Verbindungsstatus, Einstellungen und Bot stoppen;
  * unter `lg` stehen die Seitenlinks im ☰-Menü. Beide Panels liegen über dem Inhalt und verschieben nichts.
  */
 import type { Locator, Page } from '@playwright/test';
@@ -69,63 +69,40 @@ test.describe('UI-01 Kopf-Menü', () => {
     }
   });
 
-  test('bündelt Verbindung, Sprache, Design und System; Auswahl schließt es nicht', { tag: '@UI-01' }, async ({ page, dashboard }) => {
+  test('enthält nur Status, Verbindungseinstellungen, Einstellungen und Bot stoppen (1115-A9.5)', { tag: '@UI-01' }, async ({ page, dashboard }) => {
     await dashboard.open(DEMO_ID);
     const panel = await openHeaderMenu(page);
     const connection = panel.getByTestId('header-menu-connection');
     await expect(connection).toContainText(hostOf(MOCK_API));
     await expect(connection).toContainText(msg('connection.status.connected'));
-    await expect(panel.getByTestId('language-switcher')).toBeVisible();
-    await expect(panel.getByRole('radiogroup', { name: msg('common.theme') })).toBeVisible();
-    await expect(panel.getByRole('button', { name: msg('dashboard.sysinfo.checkUpdates') })).toBeVisible();
-    await expect(panel.getByRole('button', { name: msg('dashboard.shutdown') })).toBeVisible();
-
-    // Sprache und Design nacheinander wählen, ohne das Menü neu zu öffnen
-    await panel.getByTestId('language-en').click();
-    await panel.getByRole('radio', { name: msg('common.theme.light', undefined, 'en') }).click();
-    await expect(panel).toBeVisible();
-    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
-    await expect(page.locator('html')).not.toHaveClass(/\bdark\b/);
+    await expect(panel.getByTestId('connection-change')).toHaveText(msg('header.connection.change'));
+    await expect(panel.getByTestId('header-settings')).toHaveText(msg('sdlg.open'));
+    await expect(panel.getByTestId('header-stop-bot')).toHaveText(msg('header.stopBot'));
+    // Dil, Design, Version, Entwicklerpanel und Update-Prüfung sind aus dem Menü verschwunden
+    await expect(panel.getByTestId('language-switcher')).toHaveCount(0);
+    await expect(panel.getByRole('radiogroup')).toHaveCount(0);
+    await expect(panel.getByTestId('dev-panel-open')).toHaveCount(0);
+    await expect(panel.getByRole('button', { name: msg('dashboard.sysinfo.checkUpdates') })).toHaveCount(0);
+    await expect(panel.getByRole('button')).toHaveCount(3);
 
     await page.keyboard.press('Escape');
     await expect(panel).toBeHidden();
     await expect(headerMenuTrigger(page)).toBeFocused();
   });
 
-  test('„Verbindung ändern“ öffnet den Verbindungsdialog', { tag: '@UI-01' }, async ({ page, dashboard }) => {
+  test('„Bağlantı ayarları“ öffnet die Einstellungen im Bereich Verbindung, „Ayarlar“ im zuletzt offenen Bereich', { tag: '@UI-01' }, async ({ page, dashboard }) => {
     await dashboard.open(DEMO_ID);
-    const panel = await openHeaderMenu(page);
+    let panel = await openHeaderMenu(page);
     await panel.getByTestId('connection-change').click();
-    await expect(page.getByTestId('connection-dialog')).toBeVisible();
+    await expect(page.getByTestId('settings-pane')).toHaveAttribute('data-section', 'connection');
     await expect(panel).toBeHidden();
-  });
+    await page.getByTestId('settings-nav-chart').click();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('settings-dialog')).toBeHidden();
 
-  test('„Geliştirme panelini aç“ steht unter der Adresse und öffnet localhost:3030 in neuem Tab', { tag: ['@UI-01', '@SYS-15'] }, async ({ page, dashboard }) => {
-    await dashboard.open(DEMO_ID);
-    // window.open ersetzen: im Test lauscht auf Port 3030 kein Server
-    await page.evaluate(() => {
-      const w = window as unknown as { __opened: unknown[][] };
-      w.__opened = [];
-      window.open = (...args: unknown[]) => {
-        w.__opened.push(args);
-        return null;
-      };
-    });
-    const panel = await openHeaderMenu(page);
-    const row = panel.getByTestId('dev-panel-open');
-    await expect(row).toBeVisible();
-    await expect(row).toContainText(msg('dashboard.sysinfo.devPanel'));
-    // Reihenfolge: Adresse, dann diese Zeile, dann „Nach Updates suchen“; Herunterfahren bleibt zuletzt
-    const rowBox = (await row.boundingBox())!;
-    const updatesBox = (await panel.getByRole('button', { name: msg('dashboard.sysinfo.checkUpdates') }).boundingBox())!;
-    const shutdownBox = (await panel.getByRole('button', { name: msg('dashboard.shutdown') }).boundingBox())!;
-    expect(rowBox.y).toBeLessThan(updatesBox.y);
-    expect(updatesBox.y).toBeLessThan(shutdownBox.y);
-
-    await row.click();
-    await expect(panel).toBeHidden();
-    const opened = await page.evaluate(() => (window as unknown as { __opened: unknown[][] }).__opened);
-    expect(opened).toEqual([['http://localhost:3030', '_blank', 'noopener,noreferrer']]);
+    panel = await openHeaderMenu(page);
+    await panel.getByTestId('header-settings').click();
+    await expect(page.getByTestId('settings-pane')).toHaveAttribute('data-section', 'chart');
   });
 
   test('Panel liegt über der Steuerleiste und verschiebt nichts', { tag: '@UI-01' }, async ({ page, dashboard }) => {
@@ -148,7 +125,7 @@ test.describe('UI-01 Kopf-Menü', () => {
   test('ohne gewähltes Konto ist Herunterfahren deaktiviert und sendet nichts', { tag: ['@UI-01', '@UPD-03'] }, async ({ page, worker, dashboard }) => {
     await dashboard.open(null);
     const panel = await openHeaderMenu(page);
-    await expect(panel.getByRole('button', { name: msg('dashboard.shutdown') })).toBeDisabled();
+    await expect(panel.getByTestId('header-stop-bot')).toBeDisabled();
     expect(worker.callsTo('POST', '/api/stop')).toHaveLength(0);
   });
 
@@ -173,24 +150,18 @@ test.describe('UI-01 Kopf-Menü', () => {
     await dashboard.open(DEMO_ID);
     const panel = await openHeaderMenu(page);
     await expectInViewport(page, panel, 'Kopf-Menü');
-    await expectInViewport(page, panel.getByRole('button', { name: msg('dashboard.shutdown') }), 'Herunterfahren');
+    await expectInViewport(page, panel.getByTestId('header-stop-bot'), 'Bot stoppen');
   });
 
-  test('System funktioniert auf jeder Seite: Update-Prüfung und Herunterfahren auf /chart', { tag: ['@UI-01', '@UPD-01', '@UPD-03'] }, async ({ page, worker, dashboard }) => {
+  test('Bot stoppen funktioniert auf jeder Seite (/chart) und stoppt nur das gewählte Konto', { tag: ['@UI-01', '@UPD-03'] }, async ({ page, worker, dashboard }) => {
     worker.setBotRunning(DEMO_ID);
     await dashboard.open(DEMO_ID);
     await page.getByRole('navigation').getByRole('link', { name: msg('nav.chart') }).click();
     await expect(page).toHaveURL(/\/chart/);
 
-    let panel = await openHeaderMenu(page);
-    await panel.getByRole('button', { name: msg('dashboard.sysinfo.checkUpdates') }).click();
+    const panel = await openHeaderMenu(page);
+    await panel.getByTestId('header-stop-bot').click();
     const modal = page.getByRole('dialog');
-    await expect(modal).toContainText(msg('update.upToDate'));
-    await modal.getByRole('button', { name: msg('common.close'), exact: true }).last().click();
-    await expect(modal).toBeHidden();
-
-    panel = await openHeaderMenu(page);
-    await panel.getByRole('button', { name: msg('dashboard.shutdown') }).click();
     // Die Rückfrage nennt Konto und LIVE/DEMO (ui-design §6)
     await expect(modal).toContainText(msg('dashboard.shutdown.message', { account: 'E2E Demo', env: msg('dashboard.env.demo') }));
     await modal.getByRole('button', { name: msg('dashboard.shutdown.confirm') }).click();

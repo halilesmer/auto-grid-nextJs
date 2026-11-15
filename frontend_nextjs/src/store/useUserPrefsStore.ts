@@ -290,6 +290,12 @@ export const useUserPrefsStore = create<UserPrefsState>()(() => ({
       toast.error(t('prefs.toast.failed.text', { name: label().name }), {
         title: t('prefs.toast.failed'),
         duration: 8_000,
+        // 1115-A7.4: aynı değeri yeniden dener
+        action: { label: t('sdlg.load.retry'), hint: t('prefs.toast.retry.hint'), onClick: () => {
+            // Aradan yeni bir değişiklik geldiyse eski değeri geri yazma
+            if (versions[key] === version) void useUserPrefsStore.getState().change(key, value, label, opts);
+          },
+        },
       });
     }
   },

@@ -13,7 +13,7 @@ import { harmonic } from '../fixtures/formation-harmonic';
 import { H4, barsOf, zig } from '../fixtures/formation-rows';
 import { openCardTab } from '../fixtures/card';
 import { msg, type MessageKey } from '../fixtures/i18n';
-import { openHeaderMenu } from '../fixtures/header';
+import { setLanguage } from '../fixtures/header';
 import { DEMO_ID, LIVE_ID, ZONE_ID, expect, test, type MockWorker } from '../fixtures/test';
 import { named, seedFixtureTrend, trendOf } from '../fixtures/formation-trend';
 
@@ -598,8 +598,7 @@ test.describe('FRM-21 Hintergrundsuche', () => {
     series.H4 = rows;
     await page.goto(URL);
     await expect(page.getByRole('alert').filter({ hasText: msg('formation.scan.failed') })).toContainText(msg('formation.scan.badData'));
-    await openHeaderMenu(page);
-    await page.getByTestId('language-en').click();
+    await setLanguage(page, 'en');
     await expect(page.getByRole('alert').filter({ hasText: msg('formation.scan.failed', {}, 'en') })).toContainText(msg('formation.scan.badData', {}, 'en'));
   });
 });

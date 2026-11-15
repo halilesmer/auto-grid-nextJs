@@ -4,7 +4,7 @@ import path from 'node:path';
 import type { Page } from '@playwright/test';
 import { DEMO_ID, ZONE_ID, expect, makeZone, openSetup, test } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
-import { openHeaderMenu, openPageMenu } from '../fixtures/header';
+import { openPageMenu, openSettingsWindow, setTheme } from '../fixtures/header';
 import { cardRoot } from '../fixtures/card';
 
 /** Die Karte startet zu, solange eine Formation gezeichnet wird, und unter 1024 px (UI-22): nach dem Scan aufklappen */
@@ -216,27 +216,24 @@ test.describe('UI Oberfläche', () => {
     });
     const html = page.locator('html');
     const darkAtLoad = () => page.evaluate(() => (window as unknown as { __darkAtLoad: boolean }).__darkAtLoad);
-    const theme = page.getByRole('radiogroup', { name: msg('common.theme') });
-
     await dashboard.open(null);
     await expect(html).toHaveClass(/\bdark\b/); // Standard: dunkel
-    await openHeaderMenu(page);
-    await theme.getByRole('radio', { name: msg('common.theme.light') }).click();
+    await setTheme(page, 'light');
     await expect(html).not.toHaveClass(/\bdark\b/);
 
     await page.reload();
     expect(await darkAtLoad()).toBe(false);
-    await openHeaderMenu(page);
-    await expect(theme.getByRole('radio', { name: msg('common.theme.light') })).toHaveAttribute('aria-checked', 'true');
+    await openSettingsWindow(page);
+    await expect(page.getByTestId('settings-theme-light')).toHaveAttribute('aria-pressed', 'true');
+    await page.keyboard.press('Escape');
 
-    await theme.getByRole('radio', { name: msg('common.theme.dark') }).click();
+    await setTheme(page, 'dark');
     await page.reload();
     expect(await darkAtLoad()).toBe(true);
 
     // System folgt dem Betriebssystem, auch bei Wechsel zur Laufzeit
     await page.emulateMedia({ colorScheme: 'light' });
-    await openHeaderMenu(page);
-    await theme.getByRole('radio', { name: msg('common.theme.system') }).click();
+    await setTheme(page, 'system');
     await expect(html).not.toHaveClass(/\bdark\b/);
     await page.emulateMedia({ colorScheme: 'dark' });
     await expect(html).toHaveClass(/\bdark\b/);
@@ -259,20 +256,23 @@ test.describe('UI Oberfläche', () => {
       expect(logo!.height).toBeLessThan(24);
     });
 
-    test('Theme-Wahl im Kopf-Menü liegt im Fenster und bleibt erhalten', { tag: '@UI-02' }, async ({ page, dashboard }) => {
+    test('Theme-Wahl in den Einstellungen liegt im Fenster und bleibt erhalten', { tag: '@UI-02' }, async ({ page, dashboard }) => {
       await dashboard.open(null);
       const html = page.locator('html');
-      const theme = (await openHeaderMenu(page)).getByRole('radiogroup', { name: msg('common.theme') });
-      await expect(theme.getByRole('radio', { name: msg('common.theme.dark') })).toHaveAttribute('aria-checked', 'true');
+      await openSettingsWindow(page);
+      await page.getByTestId('settings-nav-appearance').click();
+      const theme = page.getByTestId('settings-theme');
+      await expect(page.getByTestId('settings-theme-dark')).toHaveAttribute('aria-pressed', 'true');
       const box = await theme.boundingBox();
       expect(box!.x).toBeGreaterThanOrEqual(0);
       expect(box!.x + box!.width).toBeLessThanOrEqual(375);
 
-      await theme.getByRole('radio', { name: msg('common.theme.light') }).click();
+      await page.getByTestId('settings-theme-light').click();
       await expect(html).not.toHaveClass(/\bdark\b/);
       await page.reload();
-      await openHeaderMenu(page);
-      await expect(theme.getByRole('radio', { name: msg('common.theme.light') })).toHaveAttribute('aria-checked', 'true');
+      await openSettingsWindow(page);
+      await page.getByTestId('settings-nav-appearance').click();
+      await expect(page.getByTestId('settings-theme-light')).toHaveAttribute('aria-pressed', 'true');
     });
   });
 

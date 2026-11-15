@@ -62,16 +62,19 @@ test.describe('USR-13 Yükleme kapısı', () => {
     await expect(row.getByTestId('pref-load-chart_tf')).toHaveCount(0);
   });
 
-  test('Bağlantı yokken alanlar kilitli kalır ve sebep ipucunda yazar', { tag: '@USR-13' }, async ({ page, worker }) => {
+  test('Bağlantı yokken kişisel alanlar kilitli kalır (sebep ipucunda), dil ve tema bu cihazda çalışır', { tag: '@USR-13' }, async ({ page, worker }) => {
     void worker;
     await startDisconnected(page);
     await page.goto('/');
     await page.getByTestId('settings-open').click();
-    await expect(page.getByTestId('pref-load-theme')).toHaveAttribute('data-state', 'offline');
-    await expect(page.getByTestId('settings-theme-dark')).toBeDisabled();
-    await expect(page.getByTestId('pref-load-retry-theme')).toHaveCount(0);
-    await page.getByTestId('pref-load-theme').hover();
-    await expect(page.getByText(msg('sdlg.load.offline.hint')).first()).toBeVisible();
+    await expect(page.getByTestId('pref-load-tooltip_delay')).toHaveAttribute('data-state', 'offline');
+    await expect(page.getByTestId('settings-delay-custom')).toBeDisabled();
+    await expect(page.getByTestId('pref-load-retry-tooltip_delay')).toHaveCount(0);
+    await page.getByTestId('pref-load-tooltip_delay').hover();
+    await expect(page.getByText(msg('sdlg.locked.connect.hint')).first()).toBeVisible();
+    // Dil ve tema (1115-A7.2): kilitli değil, „Bu cihazda“ rozeti
+    await expect(page.getByTestId('settings-theme-dark')).toBeEnabled();
+    await expect(page.getByTestId('pref-local-theme')).toBeVisible();
   });
 });
 

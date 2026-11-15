@@ -57,10 +57,10 @@ test.describe('USR-09 Kişisel tercihler worker’da', () => {
     expect(worker.userPrefs.admin ?? {}).toEqual({});
   });
 
-  test('Üst menüdeki dil seçimi de worker’a yazılır', { tag: '@USR-09' }, async ({ page, worker, dashboard }) => {
+  test('Dil seçimi (ayar penceresi) worker’a yazılır', { tag: '@USR-09' }, async ({ page, worker, dashboard }) => {
     await dashboard.open(DEMO_ID);
-    await page.getByTestId('connection-chip').click();
-    await page.getByTestId('language-de').click();
+    await page.getByTestId('settings-open').click();
+    await page.getByTestId('settings-lang-de').click();
     await expect.poll(() => worker.userPrefs.admin?.locale).toEqual({ locale: 'de' });
   });
 
