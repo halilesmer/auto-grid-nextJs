@@ -94,7 +94,7 @@ test('Magnet merkt Stärke; globale Sperre schützt Bearbeitung und Löschen', {
   await expect(page.getByRole('button', { name: msg('cw.magnet'), exact: true })).toHaveAttribute('aria-pressed', 'false');
   await page.getByRole('button', { name: msg('cw.magnet'), exact: true }).click();
   const productKey = await page.getByTestId('chart-workspace').getAttribute('data-context');
-  await expect.poll(() => page.evaluate(([key, product]) => JSON.parse(localStorage.getItem(key!) || '{}').documents?.[product!]?.appearance?.magnet, [storageKey, productKey])).toBe('strong');
+  await expect.poll(() => page.evaluate(([key, product]) => JSON.parse(localStorage.getItem(key!) || '{}').appearance?.magnet, [storageKey, productKey])).toBe('strong');
   await page.getByRole('button', { name: msg('cw.rail.lockAll'), exact: true }).click();
   await page.getByTestId('analysis-chart').focus(); await page.keyboard.press('Delete');
   expect(await storedDrawings(page)).toHaveLength(1);

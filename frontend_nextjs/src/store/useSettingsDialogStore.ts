@@ -15,6 +15,10 @@ interface SettingsDialogState {
   indicatorsRequested: boolean;
   requestIndicators: () => void;
   clearIndicatorsRequest: () => void;
+  /** S7: ayarlardaki „Grafik görünümünü aç“ bağlantısı: grafik sayfası görünüm ayar penceresini açınca false olur. */
+  appearanceRequested: boolean;
+  requestAppearance: () => void;
+  clearAppearanceRequest: () => void;
 }
 
 // Yalnız UI durumu (pencere açık mı, hangi bölüm); saklanmaz. Üst menüdeki dişli açar.
@@ -28,4 +32,7 @@ export const useSettingsDialogStore = create<SettingsDialogState>()((set) => ({
   indicatorsRequested: false,
   requestIndicators: () => set({ indicatorsRequested: true, open: false }),
   clearIndicatorsRequest: () => set({ indicatorsRequested: false }),
+  appearanceRequested: false,
+  requestAppearance: () => set({ appearanceRequested: true, open: false }),
+  clearAppearanceRequest: () => set({ appearanceRequested: false }),
 }));

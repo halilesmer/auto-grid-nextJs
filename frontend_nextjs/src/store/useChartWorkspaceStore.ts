@@ -13,6 +13,7 @@ import { parseIndicatorDefaults, parseIndicators } from '@/lib/chart-workspace/i
 import { parsePaneOrder, parseSystemPanes, type SystemPaneStates } from '@/lib/chart-workspace/paneOrder';
 import { FIB_KIND, templateStyleOf, parseDrawingDefaults, parseDrawingTemplates, type DrawingDefaults, type DrawingTemplates } from '@/lib/chart-workspace/fibStyle';
 import { randomId } from '@/lib/randomId';
+import { encodeAppearance, encodeDrawingDefaults, encodeFibTemplates, encodeSimpleTemplates, encodeTemplates, writeChartPref } from '@/lib/chart-workspace/chartPrefs';
 
 /** Sichtbarer Zeitbereich als Kerzenzeit in Sekunden; fehlt er, zeigt der Chart alle Kerzen */
 export interface VisibleTime { from: number; to: number }
@@ -107,6 +108,8 @@ interface State {
   deleteDrawingTemplate: (name: string, kind?: string) => void;
   saveDrawingDefault: (style: Partial<DrawingStyle>, kind?: string) => void;
   clearDrawingDefault: (kind: string) => void;
+  /** S7: kullanıcı tercihlerinden (worker) gelen değeri uygular ve önbelleğe yazar; kullanıcı eylemleri bunu değil `writeChartPref` yolunu kullanır. */
+  applyPrefs: (patch: Partial<Pick<State, 'appearance' | 'templates' | 'dockLayout' | 'favorites' | 'indicatorDefaults' | 'drawingTemplates' | 'drawingDefaults'>>) => void;
   hydrated: boolean;
   storageError: boolean;
   hydrate: () => void;
@@ -168,6 +171,8 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
       });
     } else write();
   };
+  const commitTemplates = (drawingTemplates: DrawingTemplates, kind: string) => writeChartPref(kind === FIB_KIND ? 'chart_fib_templates' : 'chart_drawing_templates', kind === FIB_KIND ? encodeFibTemplates(drawingTemplates) : encodeSimpleTemplates(drawingTemplates), () => get().applyPrefs({ drawingTemplates }));
+  const commitDefaults = (drawingDefaults: DrawingDefaults) => writeChartPref('chart_drawing_defaults', encodeDrawingDefaults(drawingDefaults), () => get().applyPrefs({ drawingDefaults }));
   return {
     links: {}, toolbar: {}, toolbarLayout: {}, dockLayout: defaultDockLayout(), floatingBar: null, appearance: { ...DEFAULT_APPEARANCE }, preview: null, overlayPreview: null, documents: {}, templates: {}, indicatorDefaults: {}, drawingTemplates: {}, drawingDefaults: {}, favorites: ['trend-line', 'horizontal-line', 'fib-retracement'], hydrated: false, storageError: false,
     hydrate: () => {
@@ -188,9 +193,10 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
       } catch { set({ hydrated: true, storageError: true }); }
     },
     receiveStorage: () => { if (pendingWrites) { receivePending = true; return; } set({ hydrated: false }); get().hydrate(); },
-    setDockLayout: dockLayout => { set({ dockLayout }); persist(); },
+    applyPrefs: patch => { if (!get().hydrated) get().hydrate(); set(patch); persist(); },
+    setDockLayout: dockLayout => writeChartPref('chart_dock', { dock: dockLayout }, () => get().applyPrefs({ dockLayout })),
     setFloatingBar: floatingBar => { set({ floatingBar }); persist(); },
-    resetDockLayout: () => { set({ dockLayout: defaultDockLayout(), toolbarLayout: {} }); persist(); },
+    resetDockLayout: () => { set({ toolbarLayout: {} }); writeChartPref('chart_dock', { dock: defaultDockLayout() }, () => get().applyPrefs({ dockLayout: defaultDockLayout() })); },
     setToolbar: (key, patch) => { set(s => ({ toolbar: { ...s.toolbar, [key]: { ...(s.toolbar[key] ?? defaultToolbar()), ...patch } } })); persist(); },
     setLinked: (key, sharedKey) => {
       if (!sharedKey) { set(s => { const links = { ...s.links }; delete links[key]; return { links }; }); persist(); return; }
@@ -212,17 +218,17 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
       set(state => ({ overlayPreview: null, documents: !commit && state.documents[snapshot.key] ? { ...state.documents, [snapshot.key]: { ...state.documents[snapshot.key], overlays: snapshot.original } } : state.documents }));
       persist();
     },
-    setAppearance: appearance => { set({ appearance: parseAppearance(appearance), preview: null }); persist(); },
+    setAppearance: appearance => { const next = parseAppearance(appearance); set({ preview: null }); writeChartPref('chart_appearance', { appearance: encodeAppearance(next) }, () => get().applyPrefs({ appearance: next })); },
     setPreview: preview => set({ preview }),
     setDocument: (key, document) => {
       set(s => ({ documents: { ...s.documents, [key]: document } })); persist();
     },
-    saveTemplate: (name, appearance) => { if (!name.trim()) return; set(s => ({ templates: { ...s.templates, [name.trim()]: parseAppearance(appearance) } })); persist(); },
-    saveIndicatorDefault: indicator => { set(s => ({ indicatorDefaults: { ...s.indicatorDefaults, [indicator.kind]: defaultsOf(indicator) } })); persist(); },
-    saveDrawingTemplate: (name, style, kind = FIB_KIND) => { const n = name.trim(); if (!n) return; set(s => ({ drawingTemplates: { ...s.drawingTemplates, [kind]: { ...s.drawingTemplates[kind], [n]: templateStyleOf(kind, style) } } })); persist(); },
-    deleteDrawingTemplate: (name, kind = FIB_KIND) => { set(s => { const next = { ...s.drawingTemplates[kind] }; delete next[name]; return { drawingTemplates: { ...s.drawingTemplates, [kind]: next } }; }); persist(); },
-    saveDrawingDefault: (style, kind = FIB_KIND) => { set(s => ({ drawingDefaults: { ...s.drawingDefaults, [kind]: templateStyleOf(kind, style) } })); persist(); },
-    clearDrawingDefault: kind => { set(s => { const next = { ...s.drawingDefaults }; delete next[kind]; return { drawingDefaults: next }; }); persist(); },
-    setFavorites: favorites => { set({ favorites }); persist(); },
+    saveTemplate: (name, appearance) => { if (!name.trim()) return; const templates = { ...get().templates, [name.trim()]: parseAppearance(appearance) }; writeChartPref('chart_appearance_templates', encodeTemplates(templates), () => get().applyPrefs({ templates })); },
+    saveIndicatorDefault: indicator => { const indicatorDefaults = { ...get().indicatorDefaults, [indicator.kind]: defaultsOf(indicator) }; writeChartPref('chart_indicator_defaults', { defaults: indicatorDefaults }, () => get().applyPrefs({ indicatorDefaults })); },
+    saveDrawingTemplate: (name, style, kind = FIB_KIND) => { const n = name.trim(); if (!n) return; const t = get().drawingTemplates; commitTemplates({ ...t, [kind]: { ...t[kind], [n]: templateStyleOf(kind, style) } }, kind); },
+    deleteDrawingTemplate: (name, kind = FIB_KIND) => { const t = get().drawingTemplates; const next = { ...t[kind] }; delete next[name]; commitTemplates({ ...t, [kind]: next }, kind); },
+    saveDrawingDefault: (style, kind = FIB_KIND) => commitDefaults({ ...get().drawingDefaults, [kind]: templateStyleOf(kind, style) }),
+    clearDrawingDefault: kind => { const next = { ...get().drawingDefaults }; delete next[kind]; commitDefaults(next); },
+    setFavorites: favorites => writeChartPref('chart_favorites', { favorites }, () => get().applyPrefs({ favorites })),
   };
 });

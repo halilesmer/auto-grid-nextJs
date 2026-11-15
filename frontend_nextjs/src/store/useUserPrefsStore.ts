@@ -9,6 +9,10 @@ import { DEFAULT_ALERTS, normalizeAlerts } from '@/lib/newsAlerts';
 import { DEFAULT_FILTER, normalizeFilter } from '@/lib/news';
 import { isThemePreference, type ThemePreference } from '@/lib/theme';
 import { DEFAULT_PERSONAL, parsePersonal, personalValue, readLegacyPersonal, stripLegacyPersonal } from '@/lib/formation/alarmPersonal';
+import { CHART_PREFS_BACKUP_KEY, CHART_PREFS_OWNER_KEY, CHART_PREF_KEYS, MAX_PREF_BYTES, isChartPrefKey, pickLegacyAppearance, prefBytes, registerChartPrefWriter, type ChartPrefKey } from '@/lib/chart-workspace/chartPrefs';
+import { applyChartPref, currentChartPref, defaultChartPref, differsFromDefault } from './chartPrefsBridge';
+import { useAnalysisPrefsStore } from './useAnalysisPrefsStore';
+import { WORKSPACE_STORAGE_KEY, useChartWorkspaceStore } from './useChartWorkspaceStore';
 import { useAlarmPrefsStore } from './useAlarmPrefsStore';
 import { useChartPrefsStore } from './useChartPrefsStore';
 import { CUSTOM_COLORS_STORAGE_KEY, useCustomColorsStore, withColor } from './useCustomColorsStore';
@@ -35,7 +39,8 @@ export type PrefKey =
   | 'chart_tf'
   | 'chart_colors'
   | 'formation_alarm'
-  | 'metrics_pinned';
+  | 'metrics_pinned'
+  | ChartPrefKey;
 export type PrefStatus = 'saving' | 'saved' | 'failed';
 /** Kişisel tercihlerin worker'dan okunma durumu (USR-13): `ready` olmadan yazma yok. */
 export type PrefLoadState = 'idle' | 'loading' | 'ready' | 'failed' | 'offline';
@@ -89,6 +94,7 @@ function isLocalOnly(err: unknown): boolean {
 }
 
 function current(key: PrefKey): Record<string, unknown> {
+  if (isChartPrefKey(key)) return currentChartPref(key);
   switch (key) {
     case 'locale':
       return { locale: useLocaleStore.getState().locale };
@@ -118,6 +124,10 @@ function current(key: PrefKey): Record<string, unknown> {
 
 
 function apply(key: PrefKey, value: Record<string, unknown>): void {
+  if (isChartPrefKey(key)) {
+    applyChartPref(key, value);
+    return;
+  }
   switch (key) {
     case 'locale':
       if (isLocale(value.locale)) useLocaleStore.getState().setLocale(value.locale);
@@ -183,7 +193,7 @@ function setStatus(key: PrefKey, status: PrefStatus | undefined, clearAfterMs?: 
 }
 
 /** Worker'dan okunan tercihleri uygular (kullanıcı bu arada dokunduysa onun değeri kalır). */
-function applyLoaded(prefs: Record<string, unknown>): void {
+function applyLoaded(prefs: Record<string, unknown>, userId: string | null): void {
   const untouched = (key: PrefKey) => versions[key] === undefined;
   const loc = prefs.locale as { locale?: unknown } | undefined;
   if (untouched('locale') && isLocale(loc?.locale)) apply('locale', { locale: loc.locale });
@@ -204,6 +214,7 @@ function applyLoaded(prefs: Record<string, unknown>): void {
     if (isRecord(stored)) apply(key, stored);
     else resetToDefault(key);
   }
+  applyChartPrefs(prefs, userId);
   accountImportDone = false;
   serverKeys = new Set(Object.keys(prefs));
   if (!serverKeys.has('chart_colors')) void migrateLocalColors();
@@ -221,12 +232,14 @@ export const useUserPrefsStore = create<UserPrefsState>()(() => ({
     const run = ++loadRun;
     useUserPrefsStore.setState({ loadState: 'loading' });
     let loaded: Record<string, unknown> | null = null;
+    let loadedUserId: string | null = null;
     for (let attempt = 0; ; attempt++) {
       try {
         const res = await axiosInstance.get<{ prefs?: unknown }>('/me/prefs', { timeout: PUT_TIMEOUT_MS });
         if (run !== loadRun) return; // daha yeni bir okuma başladı (bağlantı ya da kimlik değişti)
         if (!isRecord(res.data?.prefs)) throw new Error('invalid prefs response');
         loaded = res.data.prefs;
+        loadedUserId = typeof (res.data as { user_id?: unknown }).user_id === 'string' ? (res.data as { user_id: string }).user_id : null;
         break;
       } catch (err) {
         if (run !== loadRun) return;
@@ -252,7 +265,7 @@ export const useUserPrefsStore = create<UserPrefsState>()(() => ({
     if (loaded) {
       // Önce `ready`: değerler uygulanırken başlayan göç (yerel renkler) `change()` ile yazabilsin
       useUserPrefsStore.setState({ loadState: 'ready' });
-      applyLoaded(loaded);
+      applyLoaded(loaded, loadedUserId);
       markLoaded();
       return;
     }
@@ -288,6 +301,11 @@ export const useUserPrefsStore = create<UserPrefsState>()(() => ({
       if (!opts?.quiet) toast.error(t('prefs.toast.notloaded.text', { name: label().name }), { title: t('prefs.toast.notloaded'), duration: 8_000 });
       return;
     }
+    if (isChartPrefKey(key) && prefBytes(value) > MAX_PREF_BYTES) {
+      // Worker değer başına 8 KB kabul eder: önce kullanıcıya nedenini söyle (413 yerine)
+      if (!opts?.quiet) toast.error(t('prefs.toast.toolarge.text', { name: label().name }), { title: t('prefs.toast.toolarge'), duration: 8_000 });
+      return;
+    }
     const version = (versions[key] ?? 0) + 1;
     versions[key] = version;
     confirmed[key] ??= current(key);
@@ -298,8 +316,8 @@ export const useUserPrefsStore = create<UserPrefsState>()(() => ({
     queues[key] = run;
     try {
       await run;
+      confirmed[key] = value; // worker bu değeri kabul etti: sonraki hata buna döner
       if (versions[key] !== version) return; // arkasından yeni bir değişiklik geldi; durumu o gösterir
-      confirmed[key] = value;
       serverKeys?.add(key);
       setStatus(key, 'saved', SAVED_VISIBLE_MS);
       if (opts?.silent) return;
@@ -327,6 +345,78 @@ export const useUserPrefsStore = create<UserPrefsState>()(() => ({
     }
   },
 }));
+
+const chartLabel = (): PrefLabel => ({ name: t('sdlg.chartprefs'), value: '' });
+// Grafik sayfasındaki depolar değerlerini buradan yazdırır (iyimser, hatada geri alınır, okuma bitmeden reddedilir)
+// Sürekli girdi (renk seçici, kaydırıcı) art arda değer üretir: bir yazma sürerken yalnız en son değer bekler (en çok iki istek)
+const chartInflight = new Set<PrefKey>();
+const chartPending: Partial<Record<PrefKey, Record<string, unknown>>> = {};
+registerChartPrefWriter((key, value) => {
+  if (chartInflight.has(key)) {
+    chartPending[key] = value;
+    if (useUserPrefsStore.getState().loadState === 'ready') apply(key, value);
+    return;
+  }
+  chartInflight.add(key);
+  const run = async (next: Record<string, unknown>): Promise<void> => {
+    await useUserPrefsStore.getState().change(key, next, chartLabel, { silent: true });
+    const waiting = chartPending[key];
+    delete chartPending[key];
+    if (waiting) await run(waiting);
+    else chartInflight.delete(key);
+  };
+  void run(value);
+});
+
+const isOwnerRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/**
+ * Grafik stil tercihleri (S7): worker'daki değer geçerlidir. Worker'da değer yoksa bu cihazın eski değeri (önbellek) bir kez yazılır;
+ * önbellek başka bir kullanıcıya aitse varsayılana dönülür (önceki kullanıcının değeri sızmaz). Çakışan eski yerel değer önce yedeklenir.
+ */
+function applyChartPrefs(prefs: Record<string, unknown>, userId: string | null): void {
+  let owner: string | null = null;
+  let legacyRaw: unknown = null;
+  try {
+    owner = localStorage.getItem(CHART_PREFS_OWNER_KEY);
+    legacyRaw = JSON.parse(localStorage.getItem(WORKSPACE_STORAGE_KEY) || 'null');
+  } catch {
+    /* yok say */
+  }
+  // Depolar önbellekten okunmuş olmalı: göç ve yedek önbelleğin değerine bakar
+  useChartWorkspaceStore.getState().hydrate();
+  useAnalysisPrefsStore.persist.rehydrate();
+  const foreign = owner !== null && userId !== null && owner !== userId;
+  const migrate: ChartPrefKey[] = [];
+  const backup: Record<string, unknown> = {};
+  for (const key of CHART_PREF_KEYS) {
+    delete confirmed[key]; // worker'ın değeri, önceki kullanıcıdan kalan "onaylı" değerin yerine geçer
+    if (versions[key] !== undefined) continue;
+    const stored = prefs[key];
+    if (isOwnerRecord(stored)) {
+      if (owner === null && differsFromDefault(key) && JSON.stringify(current(key)) !== JSON.stringify(stored)) backup[key] = current(key);
+      apply(key, stored);
+      continue;
+    }
+    if (foreign) {
+      apply(key, defaultChartPref(key));
+      continue;
+    }
+    if (key === 'chart_appearance' && owner === null) {
+      // S7.1: eski kayıtta görünüm sembol başına belgedeydi; tek kullanıcı değeri olarak en sık geçeni alınır
+      const legacy = pickLegacyAppearance(legacyRaw);
+      if (legacy) useChartWorkspaceStore.getState().applyPrefs({ appearance: legacy });
+    }
+    if (differsFromDefault(key)) migrate.push(key);
+  }
+  try {
+    if (Object.keys(backup).length && !localStorage.getItem(CHART_PREFS_BACKUP_KEY)) localStorage.setItem(CHART_PREFS_BACKUP_KEY, JSON.stringify(backup));
+    if (userId) localStorage.setItem(CHART_PREFS_OWNER_KEY, userId);
+  } catch {
+    /* yok say */
+  }
+  for (const key of migrate) void useUserPrefsStore.getState().change(key, current(key), chartLabel, { silent: true, quiet: true });
+}
 
 /** Dil seçimi: önce worker'a yazılır (anında), yerel depo ve önbellek buradan güncellenir. */
 export const changeLocale = (locale: Locale) =>

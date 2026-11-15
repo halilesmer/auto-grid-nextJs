@@ -95,7 +95,7 @@ test('(c) Dar pencerede aksiyonlar ok menüsünde; menüdeki düğme ipucu taş�
   await expect.poll(async () => (await menu.count()) === 0 || (await first.getAttribute('aria-expanded')) === 'true').toBe(true);
 });
 
-test('(d) Yerleşim bağlantıdan bağımsız: zaman dilimleri alt çubuğa taşınınca her bağlantıda orada, formasyonlar paketi de hep var; varsayılan Satır 2\'de', { tag: '@UI-17' }, async ({ page }) => {
+test('(d) Yerleşim bağlantıdan bağımsız: zaman dilimleri alt çubuğa taşınınca her bağlantıda orada, formasyonlar paketi de hep var; varsayılan Satır 2\'de', { tag: '@UI-17' }, async ({ page, worker }) => {
   await go(page, FORMATION);
   await expect(row(page, 'row2').locator('[data-dock-pkg="timeframes"]')).toBeVisible();
   // Zaman dilimlerini alt çubuğa taşı; Setup bağlantısında da orada durur
@@ -112,6 +112,8 @@ test('(d) Yerleşim bağlantıdan bağımsız: zaman dilimleri alt çubuğa taş
   await expect(row(page, 'bottom').locator('[data-dock-pkg="timeframes"]')).toBeVisible();
   expect(await stored(page)).toEqual(formationStored);
   // Varsayılan Setup: zaman dilimleri Satır 2'de
+  // S7: the dock layout is a user preference. A fresh start needs an empty cache and no value on the worker.
+  delete worker.userPrefs.admin?.chart_dock;
   await page.evaluate(key => localStorage.removeItem(key), storageKey);
   await go(page, SETUP);
   await expect(row(page, 'row2').locator('[data-dock-pkg="timeframes"]').getByTestId('timeframe-select')).toBeVisible();

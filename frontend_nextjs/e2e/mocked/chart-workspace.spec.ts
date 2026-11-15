@@ -44,7 +44,6 @@ test('Freier Chart lädt Broker-Symbol ohne Setup und stellt URL wieder her', { 
 });
 
 test('Chart-Vorschau: Abbrechen, Anwenden und Neuladen', { tag: '@ANA-19' }, async ({ page, worker }) => {
-  void worker;
   await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=last7`);
   await page.getByTestId('workspace-settings').click();
   const modal = page.getByTestId('chart-workspace-settings');
@@ -58,35 +57,24 @@ test('Chart-Vorschau: Abbrechen, Anwenden und Neuladen', { tag: '@ANA-19' }, asy
   await modal.getByRole('button', { name: msg('cw.status'), exact: true }).click();
   await modal.getByRole('checkbox', { name: msg('cw.names') }).click();
   await page.getByRole('button', { name: msg('cw.apply'), exact: true }).click();
-  // The store writes through a browser lock, asynchronously. Reload only after the write, or the reload loses it.
-  const key = await page.getByTestId('chart-workspace').getAttribute('data-context');
-  await expect.poll(() => page.evaluate(contextKey => JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').documents?.[contextKey!]?.appearance?.names, key)).toBe(false);
+  // S7.1: the look is a user preference (one for every symbol). It reaches the worker and the local cache; reload only after the write, or the reload loses it.
+  await expect.poll(() => (worker.userPrefs.admin?.chart_appearance as { appearance?: { names?: boolean } } | undefined)?.appearance?.names).toBe(false);
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').appearance?.names)).toBe(false);
   await page.reload();
   await expect(page.getByTestId('workspace-indicator-values')).not.toContainText('EWO');
 });
 
-test('Bestehendes Chart-Dokument übernimmt die bisherige Darstellung', { tag: '@ANA-19' }, async ({ page, worker }) => {
-  void worker;
+test('Bestehende Darstellung aus dem Browser wird zur Darstellung des Benutzers', { tag: '@ANA-19' }, async ({ page, worker }) => {
+  // S7.1: the look was stored per symbol in the document; now it is one user preference. The old browser value is written to the worker once.
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('seeded')) return;
+    sessionStorage.setItem('seeded', '1');
+    localStorage.setItem('grid-robot-chart-workspaces-v1', JSON.stringify({ version: 3, appearance: { background: '#123456' }, documents: {} }));
+  });
   await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=last7`);
-  const chart = page.getByTestId('chart-workspace');
-  await expect(chart).toBeVisible();
-  const key = await chart.getAttribute('data-context');
-  await expect.poll(() => page.evaluate(contextKey => {
-    const saved = JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}');
-    return saved.documents?.[contextKey!]?.appearance ?? null;
-  }, key)).not.toBeNull();
-  // Vor dem App-Code schreiben: Die laufende Seite speichert den Ausschnitt verzögert und würde Altdaten überschreiben.
-  await page.addInitScript(contextKey => {
-    const saved = JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1')!);
-    delete saved.documents[contextKey!].appearance;
-    saved.appearance.background = '#123456';
-    localStorage.setItem('grid-robot-chart-workspaces-v1', JSON.stringify(saved));
-  }, key);
-  await page.reload();
-  await expect.poll(() => page.evaluate(contextKey => {
-    const saved = JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}');
-    return saved.documents?.[contextKey!]?.appearance?.background;
-  }, key)).toBe('#123456');
+  await expect(page.getByTestId('chart-workspace')).toBeVisible();
+  await expect.poll(() => (worker.userPrefs.admin?.chart_appearance as { appearance?: { background?: string } } | undefined)?.appearance?.background).toBe('#123456');
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').appearance?.background)).toBe('#123456');
 });
 
 test('Vorlagenmenü speichert eine Vorlage, setzt zurück und lädt sie wieder', { tag: '@ANA-19' }, async ({ page, worker }) => {
@@ -115,6 +103,8 @@ test('Vorlagenmenü speichert eine Vorlage, setzt zurück und lädt sie wieder',
 test('Zurückgesetzte Darstellung und Ansicht bleiben je Symbol gespeichert', { tag: '@ANA-19' }, async ({ page, worker }) => {
   void worker;
   const url = (symbol: string) => `/chart?account=${DEMO_ID}&symbol=${symbol}&tf=H1&range=last7`;
+  // S7.1: the look is one user preference for every symbol (local cache at the root); zoom stays in the symbol document
+  const look = () => page.evaluate(() => JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').appearance?.background);
   const readDocument = (key: string) => page.evaluate(contextKey => {
     const state = JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}');
     return state.documents?.[contextKey] ?? null;
@@ -134,7 +124,7 @@ test('Zurückgesetzte Darstellung und Ansicht bleiben je Symbol gespeichert', { 
   await page.getByRole('dialog').getByRole('button', { name: msg('cw.template'), exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: msg('cw.reset'), exact: true }).click();
   await page.getByRole('button', { name: msg('cw.apply'), exact: true }).click();
-  await expect.poll(async () => (await readDocument(eurKey!))?.appearance?.background).toBe('');
+  await expect.poll(look).toBe('');
 
   const rangeOf = () => page.getByTestId('analysis-chart').getAttribute('data-visible-range');
   const savedZoom = async () => { const zoom = (await readDocument(eurKey!))?.visibleTime; return zoom ? `${zoom.from},${zoom.to}` : null; };
@@ -159,14 +149,14 @@ test('Zurückgesetzte Darstellung und Ansicht bleiben je Symbol gespeichert', { 
   await expect(goldChart).toBeVisible();
   const goldKey = await goldChart.getAttribute('data-context');
   expect(goldKey).not.toBe(eurKey);
-  await expect.poll(async () => (await readDocument(goldKey!))?.appearance?.background).toBe('');
+  await expect.poll(look).toBe('');
 
   // Der Chart rundet beim Wiederherstellen um höchstens eine Kerze (3600 s)
   const nearEurRange = async () => { const shown = await rangeOf(); if (!shown) return false; const [from, to] = shown.split(',').map(Number), [wantFrom, wantTo] = eurRange!.split(',').map(Number); return Math.max(Math.abs(from - wantFrom), Math.abs(to - wantTo)) <= 3600; };
   await page.goto(url('EURUSD'));
   await expect(page.getByTestId('chart-workspace')).toBeVisible();
   await expect.poll(nearEurRange).toBe(true);
-  expect((await readDocument(eurKey!)).appearance.background).toBe('');
+  expect(await look()).toBe('');
   await page.waitForTimeout(500);
   await expect.poll(savedZoom).toBe(eurRange);
   await page.reload();
@@ -399,8 +389,7 @@ test('Anzeige-Einstellung speichert erst beim Anwenden, auch nach hartem Neulade
   await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=H1`);
   const values = page.getByTestId('workspace-indicator-values');
   await expect(values).toContainText('EWO');
-  const key = await page.getByTestId('chart-workspace').getAttribute('data-context');
-  const savedNames = () => page.evaluate(contextKey => JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').documents?.[contextKey!]?.appearance?.names, key);
+  const savedNames = () => page.evaluate(() => JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').appearance?.names);
   const toggleNames = async () => {
     await page.getByTestId('workspace-settings').click();
     const modal = page.getByTestId('chart-workspace-settings');

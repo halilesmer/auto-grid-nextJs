@@ -247,7 +247,7 @@ export function ChartCore({
   const runningCount = useRef(0);
   const [alignedView, setAlignedView] = useState<string | null>(null);
   const [workspaceTail, setWorkspaceTail] = useState<{ key: string; bar: Bar } | null>(null);
-  const appearance = useChartWorkspaceStore(useShallow(s => s.preview ?? ((workspace?.view === 'analysis' || workspace?.view === 'free') ? s.documents[workspace.key]?.appearance ?? s.appearance : s.appearance)));
+  const appearance = useChartWorkspaceStore(useShallow(s => s.preview ?? s.appearance));
   const effectiveBars = useMemo(() => {
     if (!workspaceTail || workspaceTail.key !== viewKey || workspaceTail.bar.time < (data.bars.at(-1)?.time ?? Infinity)) return data.bars;
     const out = [...data.bars];

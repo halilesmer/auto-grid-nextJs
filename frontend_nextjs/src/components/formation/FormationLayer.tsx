@@ -155,11 +155,11 @@ const NO_D: DLayout = { badges: [], rings: [], bands: [] };
 const NO_HITS: readonly ScanHit[] = [];
 
 /** Zeichnungen der Erkennung als SVG über dem Chart (für `renderOverlay` jedes `ChartView`); das Overlay endet vor der Preisachse. */
-export function FormationLayer({ scene, hit, bars, points, running, asOf, active, onActive, onCapture, onPriceBottom, visible, rsiVisible, others = NO_HITS, onSelectHit, atr, workspaceKey }: FormationLayerProps) {
+export function FormationLayer({ scene, hit, bars, points, running, asOf, active, onActive, onCapture, onPriceBottom, visible, rsiVisible, others = NO_HITS, onSelectHit, atr }: FormationLayerProps) {
   const t = useT();
   const { number } = useFormat();
   const { binding, rsi } = scene;
-  const appearance = useChartWorkspaceStore(s => s.preview ?? (workspaceKey ? s.documents[workspaceKey]?.appearance : undefined) ?? s.appearance);
+  const appearance = useChartWorkspaceStore(s => s.preview ?? s.appearance);
   const formationStyle = useAnalysisPrefsStore(s => s.formationStyle);
   const lineMenuMode = appearance.lineMenu;
   const [lineMenu, setLineMenu] = useState<{ x: number; y: number; role: FormationLineRole } | null>(null);

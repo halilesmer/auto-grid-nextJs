@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-15 · **251/282** abgehakt · ❌ 3 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-15 · **251/283** abgehakt · ❌ 3 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -16,7 +16,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 |---|---|---|
 | 1 | **SYS** – Verbindung & Infrastruktur | 13/16 |
 | 2 | **ACC** – Konten | 13/13 |
-| 3 | **USR** – Benutzer & Zugriff | 8/15 |
+| 3 | **USR** – Benutzer & Zugriff | 8/16 |
 | 4 | **SET** – Allgemeine Einstellungen | 6/6 |
 | 5 | **SYM** – Symbole | 4/4 |
 | 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 21/21 |
@@ -228,6 +228,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Plan 1115-A9.2/A9.3 (S6). Die persönlichen Felder des Formationsalarms (Hauptschalter, Ereignisse, Formationen, Systemmeldung, Ton) liegen im Worker unter dem user_prefs-Schlüssel formation_alarm; „Kennzahlen angeheftet“ unter metrics_pinned. Die Felder je Konto (Schalter je Symbol, Favoriten, gemerkter Stand, Verlauf) bleiben im localStorage. Einmalige Übernahme: fehlt der Schlüssel im Worker, wird der alte Browser-Wert geschrieben und danach gelöscht (bei formation_alarm nur active und prefs; die Konto-Felder bleiben); ein vorhandener Worker-Wert gilt immer. Bis der Wert aus dem Worker da ist, sucht und meldet der Alarm nicht. Einstellungen > Benachrichtigungen hat den Tab „Formasyon alarmı“ (Hauptschalter, Ereignisse, 11 Formationen, Kanäle, „Im Chart öffnen“, Hinweis); das Alarm-Menü im Chart liest und schreibt denselben Speicher. Die Sperren aus USR-13 und USR-14 gelten auch hier.
   - **Prüfung:** Am Mac die Alarm-Auswahl ändern, dann am Handy Einstellungen > Benachrichtigungen > Formasyon alarmı öffnen: derselbe Stand. → Bei 375 px den Tab ansehen, hell und dunkel: kein waagerechter Überlauf.
   - **Erwartet:** Die Tests @USR-15 bestehen. Die persönlichen Alarm-Felder und der Kennzahlen-Schalter folgen dem Benutzer, Einstellungen und Chart-Menü zeigen denselben Wert.
+- [ ] **USR-16** Persönliche Chart-Stil-Einstellungen gehören dem Benutzer — 🖥️ e2e ✅ 2026-11-15 · 👤 manuell ⏳
+  - Plan 1115-A9.1 (S7). Aussehen des Charts (Kerzen, Skalen, Zeichenfläche, Zeichenverhalten), Darstellungsvorlagen, Anordnung der Werkzeugleisten (dockLayout), Favoriten, Indikator-Standards, Zeichen-Standards und -Vorlagen (Fibonacci in einem eigenen Schlüssel), Ebenen (Trend, Pausen, Lücken, Setup-Ebenen), Trend-Einstellungen und Linienstile der Formationen liegen im Worker unter elf user_prefs-Schlüsseln (chart_appearance, chart_appearance_templates, chart_dock, chart_favorites, chart_indicator_defaults, chart_drawing_defaults, chart_drawing_templates, chart_fib_templates, analysis_layers, analysis_trend, formation_style). Das Aussehen und die Vorlagen werden als Unterschied zum Standard geschrieben, Fibonacci-Stile verkürzt (Stufen als Listen); jeder Wert bleibt unter 8 KB, sonst wird er nicht gespeichert und ein Hinweis erscheint. S7.1: das Aussehen gilt für den Benutzer in jedem Chart gleich (vorher je Symbol im Dokument; alte Dokument-Werte bleiben unverändert im localStorage und werden nur nicht mehr gelesen). Chart-Daten bleiben auf dem Gerät: documents (Zeichnungen, an ein Symbol gehängte Indikatoren, Bilder, sichtbarer Bereich, Paneldaten), links, toolbar, floatingBar und die RSI-Ebene des Dokuments. Einmalige Übernahme: fehlt ein Schlüssel im Worker, wird der Wert des Browsers geschrieben (Aussehen: häufigster abweichender Wert der Dokumente); ein Wert im Worker gilt immer, ein abweichender alter Browser-Wert wird zuvor einmal gesichert (grid-robot-chart-prefs-backup-v1); gehört der Browser-Speicher einem anderen Benutzer (grid-robot-chart-prefs-owner), gelten die Standardwerte. Ohne geladene Einstellungen wird nichts geändert (USR-13). Einstellungen > Grafik hat den Block „Grafik sayfasındaki tercihler“ mit sechs Punkten, den Verknüpfungen „Grafik görünümünü aç“ und „Göstergeleri aç“ und dem Hinweis, dass Chart-Daten auf dem Gerät bleiben.
+  - **Prüfung:** Am Mac das Aussehen des Charts ändern (z. B. Hintergrund), dann am Handy den Chart öffnen: derselbe Hintergrund, auch bei einem anderen Symbol. → Eine Zeichnung am Mac anlegen: sie erscheint am Handy nicht. → Bei 375 px Einstellungen > Grafik ansehen, hell und dunkel: kein waagerechter Überlauf.
+  - **Erwartet:** Die Tests @USR-16 bestehen. Die Stil-Einstellungen folgen dem Benutzer auf jedes Gerät, die Chart-Daten bleiben auf dem Gerät.
 
 ## 4. SET – Allgemeine Einstellungen
 
