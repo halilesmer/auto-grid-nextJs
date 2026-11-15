@@ -98,6 +98,13 @@ Katalog: `docs/features/features.yaml` (tek doğru kaynak) → `docs/features/FE
     # permitted: timeout 60 bash -c 'until curl -s localhost:3300 >/dev/null; do sleep 1; done'
     ```
 
+16. **[otomatik]** (in `hooks/claude/pre-bash-kill.sh`, SYS-16) Never stop a process with a shared name. The hook stops a Bash command with `pkill`, `killall`, or `pgrep` plus `kill` when its pattern does not contain the path of this checkout, because the pattern also hits the runs of all other worktrees. To stop your own run, stop the background task by its task ID, run `scripts/features/precheck.sh --stop`, or filter by your own path.
+
+    ```bash
+    # blocked:   pkill -f "scripts/features/precheck.sh"
+    # permitted: pkill -f "$CLAUDE_PROJECT_DIR/scripts/features/precheck.sh"   (or: scripts/features/precheck.sh --stop)
+    ```
+
 ## 5. Arayüz: bilgi ipuçları (tooltip) zorunlu
 
 Her ayar, alan, anahtar, buton, sekme ve menü öğesi ne işe yaradığını kendisi anlatır; kullanıcı belgeye bakmak zorunda kalmaz.
