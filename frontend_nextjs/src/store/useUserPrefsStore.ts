@@ -32,6 +32,8 @@ export type PrefKey =
   | 'chart_tf'
   | 'chart_colors';
 export type PrefStatus = 'saving' | 'saved' | 'failed';
+/** Kişisel tercihlerin worker'dan okunma durumu (USR-13): `ready` olmadan yazma yok. */
+export type PrefLoadState = 'idle' | 'loading' | 'ready' | 'failed' | 'offline';
 /** Toast metni için: ayarın adı ve yeni değerin okunur hâli. */
 export interface PrefLabel {
   name: string;
@@ -44,6 +46,8 @@ const SAVED_TOAST_MS = 3_200;
 
 interface UserPrefsState {
   status: Partial<Record<PrefKey, PrefStatus>>;
+  /** USR-13: ayar penceresi `ready` olmadan kişisel alanları kilitler; `change()` de bu durumda yazmaz. */
+  loadState: PrefLoadState;
   load: () => Promise<void>;
   /** Değeri iyimser uygular, worker'a yazar; hatada eski değere döner. `silent`: başarı toast'ı yok; `quiet`: hata toast'ı da yok. `label` (değişiklikten sonra çağrılır, yeni dilde okunur) toast metnine girer ("Tema: Koyu"). */
   change: (key: PrefKey, value: Record<string, unknown>, label: () => PrefLabel, opts?: { silent?: boolean; quiet?: boolean }) => Promise<void>;
@@ -59,6 +63,12 @@ const confirmed: Partial<Record<PrefKey, Record<string, unknown>>> = {};
 // Aynı anahtara yazmalar sırayla gider; aksi hâlde worker'da eski değer kalabilir
 const queues: Partial<Record<PrefKey, Promise<unknown>>> = {};
 const PUT_TIMEOUT_MS = 15_000;
+/** Okuma düşerse: bu aralıklarla yeniden denenir (ilk deneme + 3 yeniden deneme), sonra satırda hata ve „Tekrar dene“. */
+const LOAD_RETRY_DELAYS_MS = [600, 1_200, 2_400];
+/** Tek değerli tercihler: kullanıcının seçtiği değer varsayılandan türetilmez, yükleme bitmeden de yazılabilir (üst çubuktaki dil ve tema düğmeleri). */
+const WRITABLE_BEFORE_LOAD: readonly PrefKey[] = ['locale', 'theme'];
+let loadRun = 0;
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 // load() bitince: worker'daki anahtarlar (null = okunamadı). Göç bu bilgiye bakar.
 let serverKeys: Set<string> | null = null;
 let markLoaded: () => void = () => undefined;
@@ -155,36 +165,73 @@ function setStatus(key: PrefKey, status: PrefStatus | undefined, clearAfterMs?: 
   }
 }
 
+/** Worker'dan okunan tercihleri uygular (kullanıcı bu arada dokunduysa onun değeri kalır). */
+function applyLoaded(prefs: Record<string, unknown>): void {
+  const untouched = (key: PrefKey) => versions[key] === undefined;
+  const loc = prefs.locale as { locale?: unknown } | undefined;
+  if (untouched('locale') && isLocale(loc?.locale)) apply('locale', { locale: loc.locale });
+  const th = prefs.theme as { theme?: unknown } | undefined;
+  if (untouched('theme') && isThemePreference(th?.theme)) apply('theme', { theme: th.theme });
+  if (untouched('tooltip_delay')) apply('tooltip_delay', { ...parseDelay(prefs.tooltip_delay) });
+  if (untouched('tooltip_hold')) apply('tooltip_hold', { ...parseHold(prefs.tooltip_hold) });
+  // Yeni anahtarlar: değer varsa uygulanır; yoksa varsayılana dönülür (önceki kullanıcının değeri kalmasın)
+  for (const key of ['toast_duration', 'news_filter', 'news_alerts', 'chart_tf', 'chart_colors'] as const) {
+    const stored = prefs[key];
+    if (!untouched(key)) continue;
+    if (isRecord(stored)) apply(key, stored);
+    else resetToDefault(key);
+  }
+  accountImportDone = false;
+  serverKeys = new Set(Object.keys(prefs));
+  if (!serverKeys.has('chart_colors')) void migrateLocalColors();
+}
+
 export const useUserPrefsStore = create<UserPrefsState>()(() => ({
   status: {},
+  loadState: 'idle',
 
   load: async () => {
-    try {
-      const res = await axiosInstance.get<{ prefs?: Record<string, unknown> }>('/me/prefs');
-      const prefs = res.data.prefs ?? {};
-      // Okuma sürerken kullanıcı bir şey değiştirdiyse onun değeri kalır
-      const untouched = (key: PrefKey) => versions[key] === undefined;
-      const loc = prefs.locale as { locale?: unknown } | undefined;
-      if (untouched('locale') && isLocale(loc?.locale)) apply('locale', { locale: loc.locale });
-      const th = prefs.theme as { theme?: unknown } | undefined;
-      if (untouched('theme') && isThemePreference(th?.theme)) apply('theme', { theme: th.theme });
-      if (untouched('tooltip_delay')) apply('tooltip_delay', { ...parseDelay(prefs.tooltip_delay) });
-      if (untouched('tooltip_hold')) apply('tooltip_hold', { ...parseHold(prefs.tooltip_hold) });
-      // Yeni anahtarlar: değer varsa uygulanır; yoksa varsayılana dönülür (önceki kullanıcının değeri kalmasın)
-      for (const key of ['toast_duration', 'news_filter', 'news_alerts', 'chart_tf', 'chart_colors'] as const) {
-        const stored = prefs[key];
-        if (!untouched(key)) continue;
-        if (isRecord(stored)) apply(key, stored);
-        else resetToDefault(key);
+    const run = ++loadRun;
+    useUserPrefsStore.setState({ loadState: 'loading' });
+    let loaded: Record<string, unknown> | null = null;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const res = await axiosInstance.get<{ prefs?: unknown }>('/me/prefs', { timeout: PUT_TIMEOUT_MS });
+        if (run !== loadRun) return; // daha yeni bir okuma başladı (bağlantı ya da kimlik değişti)
+        if (!isRecord(res.data?.prefs)) throw new Error('invalid prefs response');
+        loaded = res.data.prefs;
+        break;
+      } catch (err) {
+        if (run !== loadRun) return;
+        if (err instanceof NotConnectedError) {
+          useUserPrefsStore.setState({ loadState: 'offline' });
+          markLoaded();
+          return;
+        }
+        // Tünel kapalıyken ngrok da 404 döner: bu eski worker değil, hata sayılır (yeniden denenir)
+        const tunnelDown = axios.isAxiosError(err) && !!err.response?.headers?.['ngrok-error-code'];
+        if (axios.isAxiosError(err) && err.response?.status === 404 && !tunnelDown) {
+          // Eski worker (uç yok): değerler yalnız bu oturumda kalır; yazma 404 ile yerelde biter
+          useUserPrefsStore.setState({ loadState: 'ready' });
+          markLoaded();
+          return;
+        }
+        const delay = LOAD_RETRY_DELAYS_MS[attempt];
+        if (delay === undefined) break;
+        await sleep(delay);
+        if (run !== loadRun) return;
       }
-      accountImportDone = false;
-      serverKeys = new Set(Object.keys(prefs));
-      if (!serverKeys.has('chart_colors')) void migrateLocalColors();
-    } catch {
-      // Worker'a ulaşılamadı: önbellekteki değerler geçerli kalır; sayfa yenilenince (ya da bağlantı değişince) yeniden denenir
-    } finally {
-      markLoaded();
     }
+    if (loaded) {
+      // Önce `ready`: değerler uygulanırken başlayan göç (yerel renkler) `change()` ile yazabilsin
+      useUserPrefsStore.setState({ loadState: 'ready' });
+      applyLoaded(loaded);
+      markLoaded();
+      return;
+    }
+    // Denemeler tükendi: önbellekteki değerler görünür kalır, alanlar kilitli; „Tekrar dene“ yeniden okur
+    useUserPrefsStore.setState({ loadState: 'failed' });
+    markLoaded();
   },
 
   importFromAccount: async (accountId) => {
@@ -208,6 +255,12 @@ export const useUserPrefsStore = create<UserPrefsState>()(() => ({
   },
 
   change: async (key, value, label, opts) => {
+    // Okuma bitmeden yazılırsa varsayılan değerden türeyen bir değer worker'daki kayıtlı değerin üstüne yazılırdı (USR-13)
+    const loadState = useUserPrefsStore.getState().loadState;
+    if (loadState !== 'ready' && !WRITABLE_BEFORE_LOAD.includes(key)) {
+      if (!opts?.quiet) toast.error(t('prefs.toast.notloaded.text', { name: label().name }), { title: t('prefs.toast.notloaded'), duration: 8_000 });
+      return;
+    }
     const version = (versions[key] ?? 0) + 1;
     versions[key] = version;
     confirmed[key] ??= current(key);
