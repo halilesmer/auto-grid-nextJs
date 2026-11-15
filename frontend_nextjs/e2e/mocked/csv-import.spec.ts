@@ -7,7 +7,7 @@ import { connectWithKey } from '../fixtures/connection';
 import { E2E_USER_KEY, MOCK_API } from '../fixtures/env';
 import { fmt, msg } from '../fixtures/i18n';
 import { DEMO_ID, LIVE_ID, ZONE_ID, expect, test } from '../fixtures/test';
-import { openHeaderMenu } from '../fixtures/header';
+import { setTheme } from '../fixtures/header';
 
 const MON = 1790553600;
 const URL = `/backtest?account=${DEMO_ID}&zone=${ZONE_ID}`;
@@ -34,9 +34,7 @@ test.describe('BKT CSV-Import', () => {
       void worker;
       await page.goto(URL);
       await expect(page.getByTestId('csv-open')).toBeVisible();
-      await (await openHeaderMenu(page)).getByRole('radiogroup', { name: msg('common.theme') })
-        .getByRole('radio', { name: msg(`common.theme.${theme}`) }).click();
-      await page.keyboard.press('Escape');
+      await setTheme(page, theme);
       await page.getByTestId('csv-open').click();
       await expect(page.getByTestId('csv-import-dialog')).toBeVisible();
       await page.setViewportSize({ width: 375, height: 812 });

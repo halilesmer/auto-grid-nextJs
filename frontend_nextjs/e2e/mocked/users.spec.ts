@@ -140,8 +140,12 @@ test.describe('USR Ansicht eines Benutzers', () => {
 
     await openHeaderMenu(page);
     // Die Einträge des Menüs sind normale Buttons (dropdown-menu.tsx)
-    await expect(page.getByRole('button', { name: msg('dashboard.shutdown') })).toBeVisible();
-    await expect(page.getByRole('button', { name: msg('dashboard.sysinfo.checkUpdates') })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: msg('header.stopBot') })).toBeVisible();
+    await page.keyboard.press('Escape');
+    // „VPS und System“ (Update-Prüfung) gibt es in den Einstellungen nur für Admins
+    await page.getByTestId('settings-open').click();
+    await expect(page.getByTestId('settings-nav-system')).toHaveCount(0);
+    await page.keyboard.press('Escape');
     // Die Update-Prüfung wird gar nicht erst angefragt (der Worker würde 403 antworten)
     expect(worker.callsTo('GET', '/api/system/update/check')).toHaveLength(0);
 

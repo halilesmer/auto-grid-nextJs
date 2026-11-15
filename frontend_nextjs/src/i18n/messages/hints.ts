@@ -160,8 +160,10 @@ const existingHints = defineArea(
     'nav.vps.hint': 'VPS yönetimi: worker durumu, güncelleme, yeniden başlatma ve loglar.',
     'nav.users.hint': 'Kullanıcı yönetimi (yalnızca yönetici): kullanıcı ekle, anahtarlarını yenile, sil.',
     'nav.menu.hint': 'Sayfa listesini açar: Dashboard, Grafik, İstatistik, Backtest ve (yöneticiye) VPS ve Kullanıcılar.',
-    'header.menu.hint': 'VPS bağlantısı: {status}. Bağlantı, dil, tema ve sistem (bilgi, güncelleme, kapatma) menüsünü açar.',
-    'header.connection.change.hint': 'Bağlantı penceresini açar: worker adresi ve API anahtarı, test et, bağlan veya bağlantıyı kes.',
+    'header.menu.hint': 'VPS bağlantısı: {status}. Bağlantı durumu, bağlantı ayarları, ayarlar ve botu durdurma menüsünü açar.',
+    'header.connection.change.hint': 'Ayarlar penceresini Bağlantı bölümünde açar: durum, sebep, “Şimdi dene” ve adres ile anahtarı değiştirme.',
+    'header.stopBot.hint': 'Botu durdurma penceresini açar. Yalnız seçili hesabın botu durur; worker ve VPS çalışmaya devam eder. Onay ister.',
+    'header.settings.hint': 'Ayarlar penceresini son açık bölümde açar.',
     'nav.language.option.hint': 'Arayüz dilini {language} yapar.',
 
     // --- Kullanıcılar ---
@@ -836,8 +838,10 @@ const existingHints = defineArea(
     'nav.vps.hint': 'VPS management: worker status, update, restart and logs.',
     'nav.users.hint': 'User management (administrator only): add users, renew their keys, delete them.',
     'nav.menu.hint': 'Opens the page list: Dashboard, Chart, Statistics, Backtest and (for the admin) VPS and Users.',
-    'header.menu.hint': 'VPS connection: {status}. Opens the menu for connection, language, theme and system (info, updates, shutdown).',
-    'header.connection.change.hint': 'Opens the connection dialog: worker address and API key, test, connect or disconnect.',
+    'header.menu.hint': 'VPS connection: {status}. Opens the menu for connection status, connection settings, settings and stopping the bot.',
+    'header.connection.change.hint': 'Opens the settings window on the Connection section: status, cause, “Try now” and changing address or key.',
+    'header.stopBot.hint': 'Opens the dialog to stop the bot. Only the selected account’s bot stops; the worker and VPS keep running. Asks to confirm.',
+    'header.settings.hint': 'Opens the settings window on the last section you used.',
     'nav.language.option.hint': 'Sets the interface language to {language}.',
 
     // --- Users ---
@@ -1512,8 +1516,10 @@ const existingHints = defineArea(
     'nav.vps.hint': 'VPS-Verwaltung: Worker-Status, Update, Neustart und Logs.',
     'nav.users.hint': 'Benutzerverwaltung (nur Administrator): Benutzer anlegen, Schlüssel erneuern, löschen.',
     'nav.menu.hint': 'Öffnet die Seitenliste: Dashboard, Chart, Statistik, Backtest und (für den Admin) VPS und Benutzer.',
-    'header.menu.hint': 'VPS-Verbindung: {status}. Öffnet das Menü für Verbindung, Sprache, Design und System (Info, Updates, Herunterfahren).',
-    'header.connection.change.hint': 'Öffnet den Verbindungsdialog: Worker-Adresse und API-Key, testen, verbinden oder trennen.',
+    'header.menu.hint': 'VPS-Verbindung: {status}. Öffnet das Menü für Verbindungsstatus, Verbindungseinstellungen, Einstellungen und Bot stoppen.',
+    'header.connection.change.hint': 'Öffnet die Einstellungen im Bereich Verbindung: Status, Ursache, „Jetzt versuchen“ und Adresse oder Schlüssel ändern.',
+    'header.stopBot.hint': 'Öffnet den Dialog zum Stoppen des Bots. Nur der Bot des gewählten Kontos stoppt; Worker und VPS laufen weiter. Mit Rückfrage.',
+    'header.settings.hint': 'Öffnet die Einstellungen im zuletzt benutzten Bereich.',
     'nav.language.option.hint': 'Stellt die Oberflächensprache auf {language}.',
 
     // --- Benutzer ---

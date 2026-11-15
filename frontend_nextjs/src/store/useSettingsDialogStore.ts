@@ -6,6 +6,8 @@ interface SettingsDialogState {
   open: boolean;
   /** Telefonda null = bölüm listesi; masaüstünde null = ilk bölüm. */
   section: SettingsSection | null;
+  /** Son açık bölüm: üst menüdeki „Ayarlar“ pencereyi burada açar. */
+  lastSection: SettingsSection | null;
   show: (section?: SettingsSection | null) => void;
   hide: () => void;
   setSection: (section: SettingsSection | null) => void;
@@ -19,9 +21,10 @@ interface SettingsDialogState {
 export const useSettingsDialogStore = create<SettingsDialogState>()((set) => ({
   open: false,
   section: null,
-  show: (section = null) => set({ open: true, section }),
+  lastSection: null,
+  show: (section = null) => set((s) => ({ open: true, section, lastSection: section ?? s.lastSection })),
   hide: () => set({ open: false }),
-  setSection: (section) => set({ section }),
+  setSection: (section) => set((s) => ({ section, lastSection: section ?? s.lastSection })),
   indicatorsRequested: false,
   requestIndicators: () => set({ indicatorsRequested: true, open: false }),
   clearIndicatorsRequest: () => set({ indicatorsRequested: false }),
