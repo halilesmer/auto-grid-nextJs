@@ -121,12 +121,12 @@ test.describe('NWS-02 Haber kartı', () => {
     await expect(page.getByTestId('news-day-d0')).toBeEnabled();
   });
 
-  test('Filtre hesap başına worker\'a kaydedilir: "✓ Kaydedildi" rozeti, sayfaya dönünce aynı filtre', { tag: '@NWS-02' }, async ({ page, worker, dashboard }) => {
+  test('Filtre kullanıcı başına worker\'a kaydedilir: "✓ Kaydedildi" rozeti, sayfaya dönünce aynı filtre', { tag: '@NWS-02' }, async ({ page, worker, dashboard }) => {
     await openCard(page, dashboard);
     await page.getByTestId('news-imp-low').click();
     await page.getByTestId('news-day-d-1').click();
     await expect(page.getByTestId('news-saved')).toHaveAttribute('data-kind', 'worker');
-    await expect.poll(() => worker.uiPrefs[DEMO_ID]?.news_filter).toMatchObject({ impacts: ['high', 'low'], days: ['d-1', 'd0', 'd1'] });
+    await expect.poll(() => worker.userPrefs.admin?.news_filter).toMatchObject({ impacts: ['high', 'low'], days: ['d-1', 'd0', 'd1'] });
     await expect(page.getByTestId('news-saved')).toHaveCount(0, { timeout: 5000 });
     await page.goto('/vps');
     await expect(page.getByTestId('news-button')).toHaveCount(0);
@@ -137,32 +137,29 @@ test.describe('NWS-02 Haber kartı', () => {
     await expect(page.getByTestId('news-imp-moderate')).toHaveAttribute('aria-pressed', 'false');
   });
 
-  test('Tarayıcı yedeği silinse de filtre worker\'dan geri gelir; eski yanıt yeni seçimi ezmez', { tag: '@NWS-02' }, async ({ page, worker, dashboard }) => {
-    worker.uiPrefs[DEMO_ID] = { news_filter: { impacts: ['moderate'], days: ['week'], currencies: ['EUR'] } };
+  test('Filtre worker\'daki kullanıcı değerinden gelir', { tag: '@NWS-02' }, async ({ page, worker, dashboard }) => {
+    worker.userPrefs.admin = { news_filter: { impacts: ['moderate'], days: ['week'], currencies: ['EUR'] } };
     await dashboard.open(DEMO_ID);
     await page.getByTestId('news-button').click();
     await expect(page.getByTestId('news-imp-moderate')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByTestId('news-imp-high')).toHaveAttribute('aria-pressed', 'false');
     await expect(page.getByTestId('news-day-week')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByTestId('news-ccy-summary')).toHaveText('EUR');
-    // Yedek kopya da güncellendi
-    expect(await page.evaluate((k) => localStorage.getItem(k), `grid-robot-news-filter:${DEMO_ID}`)).toContain('"moderate"');
-    // Kopyayı sil, yenile: filtre yine worker'dan gelir
-    await page.evaluate((k) => localStorage.removeItem(k), `grid-robot-news-filter:${DEMO_ID}`);
+    // Yenile: filtre yine worker'dan gelir
     await dashboard.open(DEMO_ID);
     await page.getByTestId('news-button').click();
     await expect(page.getByTestId('news-imp-moderate')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByTestId('news-day-week')).toHaveAttribute('aria-pressed', 'true');
   });
 
-  test('Worker hatasında filtre tarayıcıda kalır ve rozet bunu söyler', { tag: '@NWS-02' }, async ({ page, worker, dashboard }) => {
-    worker.uiPrefsFail = true;
+  test('Worker hatasında filtre eski değerine döner, rozet ve hata toast\'ı bunu söyler', { tag: '@NWS-02' }, async ({ page, worker, dashboard }) => {
+    worker.userPrefsFail = true;
     await openCard(page, dashboard);
     await page.getByTestId('news-imp-low').click();
     await expect(page.getByTestId('news-saved')).toHaveAttribute('data-kind', 'local');
     await expect(page.getByTestId('news-saved')).toHaveText(msg('news.savedLocal'));
-    expect(worker.uiPrefs[DEMO_ID]).toBeUndefined();
-    expect(await page.evaluate((k) => localStorage.getItem(k), `grid-robot-news-filter:${DEMO_ID}`)).toContain('"low"');
+    expect(worker.userPrefs.admin?.news_filter).toBeUndefined();
+    await expect(page.getByTestId('news-imp-low')).toHaveAttribute('aria-pressed', 'false');
     await page.getByTestId('news-saved').hover();
     await expect(page.getByRole('tooltip')).toContainText(msg('news.savedLocal.hint'));
   });

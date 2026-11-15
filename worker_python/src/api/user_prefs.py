@@ -13,7 +13,10 @@ import time
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 
+from src.api.access import account_access
+from src.api.helpers import _load_accounts
 from src.api.auth import Principal, get_principal
+from src.api import ui_prefs
 from src.utils.paths import get_user_prefs_path, safe_user_id
 
 router = APIRouter(tags=["User Prefs"])
@@ -121,3 +124,42 @@ async def put_user_pref(key: str, body: dict = Body(...), principal: Principal =
         print(f"⚠️ [USER-PREFS] Yazılamadı: {exc}")
         raise HTTPException(status_code=500, detail="could not save preference")
     return {"user_id": user_id, "key": key, "value": value}
+
+
+# USR-11: Haber filtresi ve haber uyarısı eskiden hesaba bağlıydı (`ui_prefs`); kullanıcıya taşınır (karar 1114-A2.2).
+# Göç tek seferliktir: kullanıcıda değer yoksa seçili hesabın değeri alınır. Hesap anahtarları silinmez.
+ACCOUNT_KEYS_TO_IMPORT = ("news_filter", "news_alerts")
+
+
+@router.post("/me/prefs/import-account/{account_id}", dependencies=[Depends(account_access)])
+async def import_account_prefs(account_id: str, principal: Principal = Depends(get_principal)):
+    user_id = _user_id(principal)
+    # account_access lässt den Admin für jede ID durch; ohne Konto gibt es nichts zu übernehmen
+    if not any(str(a.get("id")) == account_id for a in await asyncio.to_thread(_load_accounts)):
+        raise HTTPException(status_code=404, detail=f"Account '{account_id}' not found")
+
+    def _import() -> tuple[list[str], dict]:
+        with _lock:
+            prefs = _read(user_id, strict=True)
+            account_prefs = ui_prefs._read_locked(account_id)
+            imported = [
+                k for k in ACCOUNT_KEYS_TO_IMPORT
+                if k not in prefs and isinstance(account_prefs.get(k), dict)
+                and len(json.dumps(account_prefs[k], ensure_ascii=False, allow_nan=False).encode("utf-8")) <= MAX_VALUE_BYTES
+            ]
+            if imported:
+                for k in imported:
+                    prefs[k] = account_prefs[k]
+                if len(prefs) > MAX_KEYS or len(json.dumps(prefs, ensure_ascii=False, allow_nan=False).encode("utf-8")) > MAX_FILE_BYTES:
+                    raise OverflowError("too many keys")
+                _write(user_id, prefs)
+            return imported, prefs
+
+    try:
+        imported, prefs = await asyncio.to_thread(_import)
+    except OverflowError:
+        raise HTTPException(status_code=413, detail="too many preferences")
+    except Exception as exc:  # noqa: BLE001
+        print(f"⚠️ [USER-PREFS] Göç yazılamadı: {exc}")
+        raise HTTPException(status_code=500, detail="could not import preferences")
+    return {"user_id": user_id, "imported": imported, "prefs": prefs}

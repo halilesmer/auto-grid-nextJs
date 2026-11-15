@@ -79,13 +79,13 @@ test.describe('USR-09 Kişisel tercihler worker’da', () => {
 });
 
 test.describe('USR-10 Ayar penceresi', () => {
-  test('Menü grupları: Bildirimler ve Grafik yok (S2), admin bölümleri var; Bağlantıyı değiştir bağlantı penceresini açar', { tag: '@USR-10' }, async ({ page, dashboard }) => {
+  test('Menü grupları: yedi bölüm (Bildirimler ve Grafik dahil), admin bölümleri var; Bağlantıyı değiştir bağlantı penceresini açar', { tag: '@USR-10' }, async ({ page, dashboard }) => {
     await dashboard.open(DEMO_ID);
     await openSettings(page);
-    for (const id of ['appearance', 'connection', 'robot', 'users', 'system']) {
+    for (const id of ['appearance', 'notifications', 'chart', 'connection', 'robot', 'users', 'system']) {
       await expect(page.getByTestId(`settings-nav-${id}`)).toBeVisible();
     }
-    await expect(page.getByTestId('settings-nav').getByRole('button')).toHaveCount(5);
+    await expect(page.getByTestId('settings-nav').getByRole('button')).toHaveCount(7);
     await page.getByTestId('settings-nav-connection').click();
     await expect(page.getByTestId('settings-conn-status')).toHaveAttribute('data-status', 'connected');
     await page.getByTestId('settings-conn-change').click();

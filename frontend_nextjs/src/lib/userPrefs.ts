@@ -58,3 +58,37 @@ export function parseSeconds(text: string, minMs: number, maxMs: number): number
 export const effectiveDelayMs = (p: TooltipDelayPref): number => (p.mode === 'instant' ? 0 : p.ms);
 /** Tooltip'in etkin görünme süresi (ms); null = fare ayrılana kadar. */
 export const effectiveHoldMs = (p: TooltipHoldPref): number | null => (p.mode === 'pointer' ? null : p.ms);
+
+// --- Bildirim süresi, varsayılan zaman dilimi, kayıtlı renkler (USR-11, USR-12) ---
+
+/** Bildirim süresi (sn). 0 = kapatılana kadar. Hata bildirimleri bundan etkilenmez. */
+export const TOAST_SECONDS = [5, 10, 20, 0] as const;
+export type ToastSeconds = (typeof TOAST_SECONDS)[number];
+export const DEFAULT_TOAST_SECONDS: ToastSeconds = 10;
+
+export function parseToastSeconds(v: unknown): ToastSeconds {
+  const s = isRecord(v) ? v.seconds : undefined;
+  return (TOAST_SECONDS as readonly unknown[]).includes(s) ? (s as ToastSeconds) : DEFAULT_TOAST_SECONDS;
+}
+
+/** Bildirim süresi → toast süresi (ms); 0 = otomatik kapanmaz. */
+export const toastMs = (s: ToastSeconds): number => s * 1000;
+
+/** Grafik bağlantısında `tf` yoksa açılış zaman dilimi. */
+export const CHART_DEFAULT_TFS = ['M15', 'H1', 'H4', 'D1'] as const;
+export type ChartDefaultTf = (typeof CHART_DEFAULT_TFS)[number];
+export const DEFAULT_CHART_DEFAULT_TF: ChartDefaultTf = 'H4';
+
+export function parseChartTf(v: unknown): ChartDefaultTf {
+  const tf = isRecord(v) ? v.tf : undefined;
+  return (CHART_DEFAULT_TFS as readonly unknown[]).includes(tf) ? (tf as ChartDefaultTf) : DEFAULT_CHART_DEFAULT_TF;
+}
+
+/** Renk panelinde „+“nın yanında en fazla bu kadar özel renk durur (iki sıra). */
+export const CUSTOM_COLORS_MAX = 19;
+const HEX = /^#[\da-f]{6}$/i;
+
+export function parseColors(v: unknown): string[] {
+  const list = isRecord(v) && Array.isArray(v.colors) ? v.colors : [];
+  return list.filter((c): c is string => typeof c === 'string' && HEX.test(c)).map((c) => c.toLowerCase()).slice(-CUSTOM_COLORS_MAX);
+}

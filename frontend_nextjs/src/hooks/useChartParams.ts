@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { ChartTimeframe } from '@/lib/analysis/candles';
 import { buildChartUrl, parseChartUrl, type ChartRange, type ChartUrlChange } from '@/lib/chart/chartUrl';
+import { useChartPrefsStore } from '@/store/useChartPrefsStore';
 import { SCAN_FORMATIONS, type ScanFormation } from '@/lib/formation/scan';
 
 /**
@@ -22,7 +23,10 @@ export function useChartParams() {
     pending.current = null;
   }, [current]);
 
-  const state = useMemo(() => parseChartUrl(new URLSearchParams(current)), [current]);
+  // The user's default timeframe (Settings → Chart) counts when the address has no `tf`; a change of it re-reads the address
+  const defaultTf = useChartPrefsStore((s) => s.tf);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- defaultTf is read inside parseChartUrl through the store
+  const state = useMemo(() => parseChartUrl(new URLSearchParams(current)), [current, defaultTf]);
   const form: ScanFormation | null = (SCAN_FORMATIONS as readonly string[]).includes(state.form ?? '') ? (state.form as ScanFormation) : null;
 
   const write = useCallback(

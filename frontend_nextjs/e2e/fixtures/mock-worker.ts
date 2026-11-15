@@ -237,6 +237,8 @@ export class MockWorker {
   newsStale = false;
   /** NWS-02: Spiegel von worker_python/src/api/ui_prefs.py (je Konto ein Objekt je Schlüssel) */
   readonly uiPrefs: Record<string, Record<string, Json>> = {};
+  /** Konten, für die POST /me/prefs/import-account aufgerufen wurde (USR-11) */
+  readonly importCalls: string[] = [];
   /** PUT /ui-prefs schlägt mit 500 fehl (Worker-Fehler) */
   uiPrefsFail = false;
   /** USR-09: Spiegel von worker_python/src/api/user_prefs.py (je Benutzer-ID ein Objekt je Schlüssel) */
@@ -1095,6 +1097,17 @@ export class MockWorker {
       if (this.userPrefsFail) return { status: 500, body: { detail: 'user prefs failed' } };
       this.userPrefs[principal.id] = { ...(this.userPrefs[principal.id] ?? {}), [seg[2]]: value as Json };
       return ok({ user_id: principal.id, key: seg[2], value });
+    }
+    // USR-11: Spiegel von POST /api/me/prefs/import-account/{id} (einmalige Übernahme der Konto-Werte)
+    if (seg[0] === 'me' && seg[1] === 'prefs' && seg[2] === 'import-account' && seg.length === 4 && method === 'POST') {
+      this.importCalls.push(seg[3]);
+      if (!s.accounts.some((a) => String(a.id) === seg[3])) return { status: 404, body: { detail: `Account '${seg[3]}' not found` } };
+      const own = this.userPrefs[principal.id] ?? {};
+      const account = this.uiPrefs[seg[3]] ?? {};
+      const imported = ['news_filter', 'news_alerts'].filter((k) => !(k in own) && account[k] && typeof account[k] === 'object');
+      for (const k of imported) own[k] = account[k];
+      if (imported.length) this.userPrefs[principal.id] = own;
+      return ok({ user_id: principal.id, imported, prefs: own });
     }
     // NWS-02: Spiegel von worker_python/src/api/ui_prefs.py
     if (seg[0] === 'ui-prefs' && seg.length === 2 && method === 'GET') return ok({ account_id: seg[1], prefs: this.uiPrefs[seg[1]] ?? {} });

@@ -9,6 +9,7 @@ import { useT } from '@/i18n';
 import { joinColor, splitColor } from '@/lib/chart-workspace/fibStyle';
 import { cn } from '@/lib/utils';
 import { useCustomColorsStore } from '@/store/useCustomColorsStore';
+import { addCustomColor } from '@/store/useUserPrefsStore';
 import { NumberBox } from './indicatorControls';
 
 /** Gri sırası ve ana renkler (TradingView paleti), 10 sütun */
@@ -65,17 +66,15 @@ export function ColorPalette({ label, hint, alphaLabel, alphaHint, value, onChan
 function PalettePanel({ rgb, alpha, alphaLabel, alphaHint, onPick, onAlpha, children }: { rgb: string; alpha: number; alphaLabel: string; alphaHint: string; onPick: (c: string) => void; onAlpha: (a: number) => void; children?: ReactNode }) {
   const t = useT();
   const customs = useCustomColorsStore(s => s.colors);
-  const addColor = useCustomColorsStore(s => s.addColor);
   const picker = useRef<HTMLInputElement>(null);
-  useEffect(() => { void useCustomColorsStore.persist.rehydrate(); }, []);
   // `input` her kaydırmada gelir (canlı önizleme); listeye yalnız seçici kapanınca (`change`) eklenir
   useEffect(() => {
     const el = picker.current;
     if (!el) return;
-    const onDone = () => addColor(el.value);
+    const onDone = () => addCustomColor(el.value);
     el.addEventListener('change', onDone);
     return () => el.removeEventListener('change', onDone);
-  }, [addColor]);
+  }, []);
   const swatch = (c: string) => <Button key={c} size="icon-xs" variant="ghost" data-testid="palette-swatch" data-color={c}
     className={cn('size-5 rounded-[3px] border border-black/15 p-0 hover:scale-110 dark:border-white/15', c === rgb && 'ring-2 ring-foreground ring-offset-1 ring-offset-popover')}
     style={{ background: c }} aria-label={t('fib.palette.swatch', { color: c })} aria-pressed={c === rgb} hint={t('fib.palette.swatch.hint', { color: c })} onClick={() => onPick(c)} />;

@@ -1,17 +1,19 @@
 import { isChartTimeframe, type ChartTimeframe } from '@/lib/analysis/candles';
 import { CONTEXT_TIMEFRAMES } from '@/lib/formation/params';
+import { useChartPrefsStore } from '@/store/useChartPrefsStore';
 import { isDayString, isTimeString, RANGE_PRESETS, type DayRange, type RangePreset } from '@/lib/serverTime';
 
 /**
- * URL model of the one chart without modes (plan 1107-A21, U4-3). Pure functions, no store.
+ * URL model of the one chart without modes (plan 1107-A21, U4-3). Pure functions; the only outside input is the user's default timeframe (`useChartPrefsStore`).
  * Old links with `mode=` keep working: `mode` is ignored on read and removed on every write.
  * `tab` is the same since UI-23: Statistics is the page /stats (next.config.ts redirects `/chart?tab=stats` there).
  */
 
 export type ChartRange = { preset: RangePreset } | { custom: DayRange };
 
-/** Without `tf` the chart opens on H4 (1107-A21.7) */
+/** Without `tf` the chart opens on H4 (1107-A21.7), unless the user picked another default (Settings → Chart, USR-12) */
 export const DEFAULT_CHART_TF: ChartTimeframe = 'H4';
+export const userChartTf = (): ChartTimeframe => useChartPrefsStore.getState().tf;
 /** Range default of /chart and /stats ("All"). `/backtest` keeps its own `last30` (useAnalysisParams). */
 export const DEFAULT_CHART_RANGE: ChartRange = Object.freeze({ preset: 'all' as const });
 
@@ -41,7 +43,7 @@ export function parseChartUrl(params: URLSearchParams, zoneSymbol?: (zoneId: str
     account: params.get('account') || null,
     symbol,
     zone,
-    tf: isChartTimeframe(tfParam) ? tfParam : DEFAULT_CHART_TF,
+    tf: isChartTimeframe(tfParam) ? tfParam : userChartTf(),
     // Not validated here: the caller checks `form` against the known formations (the caller checks it against the scan hits)
     form: params.get('form') || null,
     at: params.get('at') || null,
@@ -95,7 +97,8 @@ export function buildChartUrl(current: URLSearchParams, change: ChartUrlChange):
   for (const key of ['account', 'symbol', 'zone', 'form', 'at'] as const) {
     if (key in change) setOrDelete(out, key, change[key]);
   }
-  if (change.tf) setOrDelete(out, 'tf', change.tf === DEFAULT_CHART_TF ? null : change.tf);
+  const fallbackTf = userChartTf();
+  if (change.tf) setOrDelete(out, 'tf', change.tf === fallbackTf ? null : change.tf);
   if (change.range) {
     for (const key of ['range', 'from', 'to', 'ft', 'tt']) out.delete(key);
     if ('preset' in change.range) {
@@ -109,9 +112,9 @@ export function buildChartUrl(current: URLSearchParams, change: ChartUrlChange):
     }
   }
   // Default values leave the URL, also the untouched ones of an old link
-  if (out.get('tf') === DEFAULT_CHART_TF) out.delete('tf');
+  if (out.get('tf') === fallbackTf) out.delete('tf');
   if (out.get('range') === 'all') out.delete('range');
-  const tf = isChartTimeframe(out.get('tf')) ? (out.get('tf') as ChartTimeframe) : DEFAULT_CHART_TF;
+  const tf = isChartTimeframe(out.get('tf')) ? (out.get('tf') as ChartTimeframe) : fallbackTf;
   if (!hasFormations(tf)) {
     out.delete('form');
     out.delete('at');

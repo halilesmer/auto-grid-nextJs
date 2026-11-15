@@ -197,3 +197,23 @@ function SecondsInput({
     </div>
   );
 }
+
+/** Çoklu seçim çipi (aria-pressed): açık = dolu çizgi, kapalı = kesik çizgi (tasarım). */
+export function ChipToggle({ pressed, label, hint, onClick, testId }: { pressed: boolean; label: string; hint: string; onClick: () => void; testId: string }) {
+  return (
+    <Tooltip content={hint}>
+      <button
+        type="button"
+        aria-pressed={pressed}
+        data-testid={testId}
+        onClick={onClick}
+        className={cn(
+          'min-h-11 cursor-pointer rounded-full border px-3.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-[34px]',
+          pressed ? 'border-primary bg-primary/15 font-semibold text-primary' : 'border-dashed border-border text-muted-foreground hover:text-foreground',
+        )}
+      >
+        {label}
+      </button>
+    </Tooltip>
+  );
+}
