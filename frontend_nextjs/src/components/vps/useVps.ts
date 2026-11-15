@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from '@/components/ui/animated-toast';
 import { t, type MessageKey } from '@/i18n';
-import { axiosInstance } from '@/lib/api';
 import {
   isVpsErrorCode,
   stripAnsi,
@@ -22,8 +21,6 @@ const POLL_MS = 15_000;
 // Nach Neustart/Update öfter nachsehen, bis der Worker wieder da ist
 const FAST_POLL_MS = 4_000;
 const FAST_POLL_DURATION_MS = 90_000;
-// Hängt der Tunnel, soll die Anfrage nicht unbegrenzt offen bleiben; die Seite kommt per SSH weiter
-const WORKER_STATUS_TIMEOUT_MS = 10_000;
 
 type PostAction = Extract<VpsAction, 'restart' | 'fix-elevated' | 'restart-ngrok' | 'reboot'>;
 
