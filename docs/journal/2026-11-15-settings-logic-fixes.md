@@ -32,8 +32,11 @@ Before the settings work (S1–S7, PRs 546, 552, 559, 561, 563, 562, 565) was ca
 F3, F4 and F5 bring back old functions in the approved pattern (SSH badge, lock note, row layout of the "VPS and system" section). They are not a new visual design.
 
 ## Tests
-New cases in `settings-system.spec.ts` (F2–F7), `system.spec.ts` (F1), `connection-states.spec.ts` (F8, F9) and `settings-dialog.spec.ts` (F10–F13), with the existing catalog IDs. The mock worker accepts extra response headers (`ngrok-error-code`).
+New cases in `settings-system.spec.ts` (F2–F7), `system.spec.ts` (F1), `connection-states.spec.ts` (F8, F9) and `settings-dialog.spec.ts` (F10–F12) and `settings-open-request-lib.spec.ts` (F13), with the existing catalog IDs. The mock worker accepts extra response headers (`ngrok-error-code`).
 
 ## Open points
 - The tests were written together with the fixes; a separate red run before the fixes was not possible (the machine-wide heavy lock was held by other sessions for more than an hour, and the build would have read the edited sources).
-- The F13 test depends on the timing of the chart navigation. It fails only when the bug is present; if Next.js serves the page from its prefetch cache the test passes without proving the age rule.
+- F13 has no browser test: the stale request cannot be reached through the UI (the chart consumes the request at once). The age rule and the clearing in `show()` are tested as functions.
+- F11: the listener starts when the module loads, so a tab that never writes also hears the broadcast. A message with a value equal to the current value is not applied: a new object would restart the formation scan (FRM-30 failed in the first run because of this).
+- The test "Saniye alanı kayıttan sonra odağı korur" (USR-13) failed once under load (`worker.userPrefs.admin` read before the first write); 8 repeats passed. The cause is a race inside that test, not in the field.
+- Existing test UPD-07 changed on purpose: after a failed read the worker row now says "not reachable" (F2), not the old "last read failed".
