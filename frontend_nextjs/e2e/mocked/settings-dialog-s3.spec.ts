@@ -152,8 +152,9 @@ test.describe('USR-13 Sekmeler', () => {
     const general = page.getByTestId('settings-tab-general');
     const alerts = page.getByTestId('settings-tab-alerts');
     const filter = page.getByTestId('settings-tab-filter');
+    const formation = page.getByTestId('settings-tab-formation');
 
-    for (const tab of [general, alerts, filter]) {
+    for (const tab of [general, alerts, filter, formation]) {
       const controls = await tab.getAttribute('aria-controls');
       expect(controls).toBeTruthy();
       const panel = page.locator(`[id="${controls}"]`);
@@ -168,13 +169,15 @@ test.describe('USR-13 Sekmeler', () => {
     await page.keyboard.press('ArrowRight');
     await expect(alerts).toBeFocused();
     await expect(alerts).toHaveAttribute('aria-selected', 'true');
-    await page.keyboard.press('End');
+    await page.keyboard.press('ArrowRight');
     await expect(filter).toBeFocused();
-    await expect(filter).toHaveAttribute('aria-selected', 'true');
+    await page.keyboard.press('End');
+    await expect(formation).toBeFocused();
+    await expect(formation).toHaveAttribute('aria-selected', 'true');
     await page.keyboard.press('ArrowRight');
     await expect(general).toBeFocused();
     await page.keyboard.press('ArrowLeft');
-    await expect(filter).toBeFocused();
+    await expect(formation).toBeFocused();
     await page.keyboard.press('Home');
     await expect(general).toBeFocused();
     await expect(general).toHaveAttribute('aria-selected', 'true');

@@ -1456,7 +1456,8 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     expect((await stored()).favoritesEnabled).toContain(DEMO_ID);
     await page.getByRole('switch', { name: msg('formation.alarm.channel.system') }).click();
     await expect(page.getByRole('switch', { name: msg('formation.alarm.channel.system') })).toBeChecked();
-    expect((await stored()).prefs.system).toBe(true);
+    // Die Systemmeldung gehört dem Benutzer und liegt im Worker (USR-15)
+    await expect.poll(() => (worker.userPrefs.admin?.formation_alarm as { system?: boolean } | undefined)?.system).toBe(true);
   });
 
   test('Nach dem Neuladen ohne ?account= sucht der Alarm mit dem gemerkten Konto und meldet', { tag: '@FRM-30' }, async ({ page, worker }) => {
