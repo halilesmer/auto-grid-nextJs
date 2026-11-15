@@ -3,7 +3,7 @@ date: 2026-11-15
 author: Claude
 type: diagnosis
 status: open
-pr: []
+pr: [564]
 features: [UI-26, UI-30]
 areas: [tests, chart]
 ---
@@ -45,4 +45,4 @@ Fixed clock, final file: 20 of 20 green (10 repeats of both tests, 3 workers).
 With a free clock, the first UI-30 test fails every time at this hour (6 of 6): after `refresh` the axis canvas is 62 px wide, before it was 64 px; the price labels look the same. Not caused by `freeY` (the test does not use it). The fixed clock hides it. Cause not found: it may be a product effect (axis width after the appearance effect) or a test effect. Next step: find which label gives the 64 px.
 
 ## Precheck of PR 543 with 101 red e2e tests (2026-11-14 night)
-Reported by the coordinator: 101 red tests, 66 in `formation-page.spec.ts`; 46 failures with `data-scan-ms` never set on `chart-page`, 40 time-outs; spread over 73 minutes. The same code was green in CI and merged. Reading: the Mac was overloaded (other sessions ran `npm ci` and e2e at the same time), the page was not ready in time. Not verified by a rerun; no proof of a product or test defect.
+Reported by the coordinator: 101 red tests, 66 in `formation-page.spec.ts`; 46 failures with `data-scan-ms` never set on `chart-page`; 41 failures with a test time-out as the first error (the two groups come from different counts and can overlap); spread over 73 minutes. The same code was green in CI and merged. Reading: the Mac was overloaded (other sessions ran `npm ci` and e2e at the same time), the page was not ready in time. Not verified by a rerun; no proof of a product or test defect.
