@@ -98,7 +98,7 @@ Katalog: `docs/features/features.yaml` (tek doğru kaynak) → `docs/features/FE
     # permitted: timeout 60 bash -c 'until curl -s localhost:3300 >/dev/null; do sleep 1; done'
     ```
 
-16. **[otomatik]** (in `hooks/claude/pre-bash-kill.sh`, SYS-16) Never stop a process with a shared name. The hook stops a Bash command with `pkill`, `killall`, or `pgrep` plus `kill` when its pattern does not contain the path of this checkout, because the pattern also hits the runs of all other worktrees. To stop your own run, stop the background task by its task ID, run `scripts/features/precheck.sh --stop`, or filter by your own path.
+16. **[otomatik]** (in `hooks/claude/pre-bash-kill.sh`, SYS-16) Never stop a process with a shared name. The hook stops a Bash command with `pkill`, `killall`, or `pgrep` plus `kill` when its pattern does not contain the path of this checkout, because the pattern also hits the runs of all other worktrees. The hook finds the command name also with a full path (`/usr/bin/pkill`), after `env [VAR=..]` or `VAR=..`, with a leading backslash, and inside `bash -c '…'` or `$(…)`. A `;`, `&`, `|` or `(` inside quotes does not split the command, so `grep -E "a|pkill"` and `echo 'a; pkill'` pass. To stop your own run, stop the background task by its task ID, run `scripts/features/precheck.sh --stop`, or filter by your own path.
 
     ```bash
     # blocked:   pkill -f "scripts/features/precheck.sh"

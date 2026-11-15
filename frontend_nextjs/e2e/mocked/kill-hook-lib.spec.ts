@@ -36,6 +36,16 @@ test.describe('pre-bash-kill: kein kapsamloses pkill', { tag: '@SYS-16' }, () =>
     'pgrep -f "next start" | xargs kill',
     'kill $(pgrep -f playwright)',
     'pkill -f "$PATTERN"',
+    // Umgehung über Pfad, env, Zuweisung, Backslash (SYS-16, 2026-11-15)
+    '/usr/bin/pkill -f playwright',
+    '/usr/bin/killall node',
+    'env pkill -f playwright',
+    'env VAR=1 pkill -f playwright',
+    'FOO=1 pkill -f playwright',
+    '\\pkill -f playwright',
+    'echo hi && /usr/bin/pkill -f playwright',
+    "bash -c 'echo a; pkill -f playwright'",
+    'echo "$(pkill -f playwright)"',
     // Pfad eines fremden Checkouts zählt nicht
     'pkill -f "/Users/x/other-worktree/scripts/features/precheck.sh"',
   ];
@@ -68,6 +78,11 @@ test.describe('pre-bash-kill: kein kapsamloses pkill', { tag: '@SYS-16' }, () =>
     'echo pkill is dangerous',
     'grep -n pkill notes.md',
     'scripts/features/precheck.sh --stop',
+    // Trenner in Anführungszeichen trennen nichts (SYS-16, 2026-11-15)
+    'git branch | grep -E "advisor|pkill|nws"',
+    "echo 'a; pkill -f x'",
+    'echo "a && pkill -f x"',
+    `env FOO=1 pkill -f "${CHECKOUT_ROOT}/scripts/features/precheck.sh"`,
   ];
   for (const cmd of allowed) {
     test(`erlaubt: ${cmd}`, () => {
