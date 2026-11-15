@@ -3,6 +3,7 @@
  * Eine Bedingung hat eine feste ID (z. B. `ABCD-04`); die Prüfung gibt je ID einen Zustand zurück.
  */
 import type { Timeframe } from '@/lib/analysis/candles';
+import type { TradeStatus } from './tradeStatus';
 
 /** Pflicht, Verstärkung oder Ausschluss */
 export type RuleKind = 'required' | 'bonus' | 'exclusion';
@@ -88,6 +89,8 @@ export interface Trade {
   tp3?: number;
   /** AB=CD: TP1 liegt in einer sehr starken Zone der Gegenseite (nur Hinweis, die Rechnung bleibt) */
   tp1StrongZone?: boolean;
+  /** AB=CD (1114-A4.2 b): Stand des Handels nach dem Einstieg (offen, TP1, TP1 und TP2, Stop, Rest am Einstieg); nur wenn der Einstieg erreicht ist */
+  status?: TradeStatus;
   /** SIG-29 (CRV bis TP1 über 1, sonst Umkehrkerze der tieferen ZE): ☑ bei CRV > 1; Wert = CRV; die Anzeige zeigt die Zeile nur bei CRV ≤ 1 */
   sig29?: Check;
 }

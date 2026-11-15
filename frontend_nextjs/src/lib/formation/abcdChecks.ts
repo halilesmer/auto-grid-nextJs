@@ -25,8 +25,10 @@ import {
 } from './abcd';
 import { levelPrice, legLength, type FibLeg } from './fib';
 import { ABCD_PARAMS, BAT_PARAMS, CONTEXT_TIMEFRAMES, FRZ_PARAMS, GAR_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
-import { fibPrice, strongZoneAt } from './trade';
+import { emergencyStopOf, fibPrice, strongZoneAt } from './trade';
+import { tradeStatusOf } from './tradeStatus';
 import { abcdTrade, withTrade } from './tradeApply';
+import type { TradeStatus } from './tradeStatus';
 import { abcdIsCdt } from './cdt';
 import { evaluate as evaluateBat } from './batChecks';
 import { evaluate as evaluateGar } from './garChecks';
@@ -317,7 +319,23 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: n
     strongZone,
     reachedRule: 'ABCD-08',
   });
-  const drawings = drawingsOf(env, s, reached, divState === 'met', harmonic === 'met', secondLevels.find(isNear), input.stop, freezeIdx);
+  // 1114-A4.2 b: Stand nach dem Einstieg; der Not-SL ist derselbe wie im Handelsblock (Schluss-Stop ± ATR(14))
+  const atrNow = bars.length > 0 ? (view.atr[last] ?? null) : null;
+  const status =
+    reached && d && input.entry !== null && input.stop !== null
+      ? tradeStatusOf({
+          bars,
+          entryIdx: freezeIdx,
+          side,
+          entry: input.entry,
+          stop: input.stop,
+          emergencyStop: emergencyStopOf(input.stop, side, atrNow),
+          from: from.price,
+          targets: ABCD_PARAMS.targets,
+        })
+      : null;
+  if (status) input.status = status;
+  const drawings = drawingsOf(env, s, reached, divState === 'met', harmonic === 'met', secondLevels.find(isNear), input.stop, freezeIdx, status);
   const withDrawings = checks.map((c) => ({
     ...c,
     drawings: [...new Set(drawings.filter((x) => x.rules.includes(c.id)).map((x) => x.id))],
@@ -347,7 +365,7 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: n
   return withTrade(candidate, env, tf, input, false);
 }
 
-function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolean, harmonic: boolean, second: number | undefined, stop: number | null, freezeIdx: number): Drawing[] {
+function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolean, harmonic: boolean, second: number | undefined, stop: number | null, freezeIdx: number, status: TradeStatus | null): Drawing[] {
   const bars = env.views.get(env.tf)!.bars;
   const at = (idx: number, price: number): Anchor => ({ time: bars[idx].time, price });
   const lastTime = bars[bars.length - 1].time;
@@ -382,9 +400,12 @@ function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolea
     const levels = [ABCD_PARAMS.targets.tp1, ABCD_PARAMS.targets.tp2, ...(divergence ? [ABCD_PARAMS.targets.divergence] : [])];
     out.push({ id: 'Z-ABCD-05', tool: 'fib', anchors: [at(from.idx, from.price), at(s.d.idx, s.d.price)], levels, rules: TRADE_RULES, side });
     // Der Stop ist eingefroren und steht als eigene Linie (nicht mehr als Level der mitlaufenden Ziel-Fib)
+    // Nach TP1 steht der Stop auf dem Einstieg: Linie ab der TP1-Kerze (1114-A4.2 b)
     if (stop !== null) {
-      out.push({ id: 'Z-ABCD-07', tool: 'hline', anchors: [at(freezeIdx, stop)], rules: TRADE_RULES, side });
-      out.push({ id: 'Z-ABCD-08', tool: 'label', anchors: [{ time: lastTime, price: stop }], label: 'stop', rules: TRADE_RULES, side });
+      const moved = status?.stopMovedIdx;
+      const shown = status && moved !== undefined ? status.stopNow : stop;
+      out.push({ id: 'Z-ABCD-07', tool: 'hline', anchors: [at(moved ?? freezeIdx, shown)], rules: TRADE_RULES, side });
+      out.push({ id: 'Z-ABCD-08', tool: 'label', anchors: [{ time: lastTime, price: shown }], label: 'stop', rules: TRADE_RULES, side });
     }
   }
   return out;

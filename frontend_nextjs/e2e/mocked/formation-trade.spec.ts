@@ -120,7 +120,7 @@ test.describe('FRM-39 Handelsblock', () => {
 
 test.describe('FRM-39 Handelsblock AB=CD (TP2, Ergebnisse in R)', () => {
   test('AB=CD zeigt TP2 mit Anteil und Abstand, drei Ergebnisse in R; ohne Divergenz kein TP3', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    await openPage(page, worker, 'abcd-buy-h4-02', 1752624000, 'ABCD');
+    await openPage(page, worker, 'abcd-buy-h4-02', 1752624000 - 30 * 14400, 'ABCD');
     const block = page.getByTestId('trade-block');
     await expect(block.getByTestId('trade-tp2')).not.toHaveText(/^\s*—\s*$/);
     await expect(block.getByTestId('trade-tp2-distance')).toHaveText(/^\+[\d.,]+ pip$/);
@@ -130,6 +130,62 @@ test.describe('FRM-39 Handelsblock AB=CD (TP2, Ergebnisse in R)', () => {
     await expect(block.getByTestId('trade-outcome-stop')).toContainText('-1,00');
     await expect(block.getByTestId('trade-outcome-tp1')).toContainText('+0,50');
     await expect(block.getByTestId('trade-outcome-tp12')).toContainText('+1,31');
+  });
+
+  test('Status TP1 und TP2 alındı: Stop auf dem Einstieg, beide Ziele erreicht, Ergebnis-Kasten hervorgehoben', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'abcd-buy-h4-02', 1752624000, 'ABCD');
+    const block = page.getByTestId('trade-block');
+    await expect(block.getByTestId('trade-status')).toHaveAttribute('data-status', 'tp12');
+    await expect(block.getByTestId('trade-status')).toContainText(msg('formation.trade.status.tp12'));
+    await expect(block.getByTestId('trade-stop')).toHaveText(await block.getByTestId('trade-entry').innerText());
+    await expect(block.getByTestId('trade-stop-moved')).toContainText(msg('formation.trade.stop.moved'));
+    await expect(block.getByTestId('trade-stop-emergency')).toHaveCount(0);
+    await expect(block.getByTestId('trade-tp1-state')).toContainText(msg('formation.trade.target.taken'));
+    await expect(block.getByTestId('trade-tp2-state')).toContainText(msg('formation.trade.target.taken'));
+    await expect(block.getByTestId('trade-outcome-tp12')).toHaveAttribute('data-active', 'true');
+    await expect(block.getByTestId('trade-outcome-stop')).toHaveAttribute('data-active', 'false');
+  });
+
+  test('Status TP1 und TP2 alındı: der hervorgehobene Kasten zeigt das tatsächliche Ergebnis, die blassen bleiben beim Einstiegswert', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'abcd-buy-h4-02', 1752624000, 'ABCD');
+    const block = page.getByTestId('trade-block');
+    await expect(block.getByTestId('trade-outcome-tp12')).toHaveAttribute('data-active', 'true');
+    // Das mitlaufende Ziel lag beim Erreichen näher am Einstieg als am Einstieg selbst: 1,08 statt 1,31
+    await expect(block.getByTestId('trade-outcome-tp12')).toContainText('+1,08');
+    await expect(block.getByTestId('trade-outcome-stop')).toContainText('-1,00');
+    await expect(block.getByTestId('trade-outcome-tp1')).toContainText('+0,50');
+  });
+
+  test('Status TP1 alındı: „bisher“ zeigt das tatsächliche TP1, „TP2 gelirse“ das tatsächliche TP1 plus das aktuelle TP2', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'abcd-double-h4-01', 1763452800, 'ABCD');
+    const block = page.getByTestId('trade-block');
+    await expect(block.getByTestId('trade-status')).toHaveAttribute('data-status', 'tp1');
+    await expect(block.getByTestId('trade-outcome-tp1')).toHaveAttribute('data-active', 'true');
+    await expect(block.getByTestId('trade-outcome-tp1')).toContainText(msg('formation.trade.outcome.sofar'));
+    await expect(block.getByTestId('trade-outcome-tp12')).toContainText(msg('formation.trade.outcome.ifTp2'));
+    // Gleiche Werte wie am Einstieg (+0,50 / +1,31) wären das Fehlerbild: das mitlaufende Ziel liegt bei Erreichen anders als am Einstieg
+    await expect(block.getByTestId('trade-outcome-tp1')).not.toContainText('+0,50');
+    await expect(block.getByTestId('trade-outcome-tp12')).not.toContainText('+1,31');
+    // Von Hand: Werte aus dem Zählpreis von TP1 und dem aktuellen TP2
+    await expect(block.getByTestId('trade-outcome-tp1')).toContainText('+0,43');
+    await expect(block.getByTestId('trade-outcome-tp12')).toContainText('+1,19');
+    await expect(block.getByTestId('trade-outcome-stop')).toContainText('-1,00');
+  });
+
+  test('Status açık: kein Treffer, Stop bleibt, kein Ergebnis-Kasten hervorgehoben', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'abcd-buy-h4-02', 1752624000 - 30 * 14400, 'ABCD');
+    const block = page.getByTestId('trade-block');
+    await expect(block.getByTestId('trade-status')).toHaveAttribute('data-status', 'open');
+    await expect(block.getByTestId('trade-status')).toContainText(msg('formation.trade.status.open'));
+    await expect(block.getByTestId('trade-stop-moved')).toHaveCount(0);
+    await expect(block.getByTestId('trade-stop-emergency')).toHaveCount(1);
+    await expect(block.getByTestId('trade-tp1-state')).toHaveCount(0);
+    for (const k of ['stop', 'tp1', 'tp12']) await expect(block.getByTestId(`trade-outcome-${k}`)).toHaveAttribute('data-active', 'false');
+  });
+
+  test('Status: Harmonik und andere Formationen haben keine Statuszeile', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'tdf-flag-h4-02', 1770782400, 'LIB');
+    await expect(page.getByTestId('trade-block').getByTestId('trade-status')).toHaveCount(0);
   });
 
   test('Harmonik und andere Formationen: keine TP2-Zelle, kein Ergebnisfeld', { tag: '@FRM-39' }, async ({ page, worker }) => {
@@ -144,6 +200,7 @@ test.describe('FRM-39 Handelsblock AB=CD (TP2, Ergebnisse in R)', () => {
     await openPage(page, worker, 'abcd-buy-h4-02', 1752624000, 'ABCD');
     const block = page.getByTestId('trade-block');
     await expect(block.getByTestId('trade-outcomes')).toBeVisible();
+    await expect(block.getByTestId('trade-status')).toBeVisible();
     expect(await block.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   });

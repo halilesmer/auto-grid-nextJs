@@ -9,7 +9,7 @@ import type { ContextTimeframe } from './params';
 import type { Candidate, Trade } from './types';
 
 /** Werte, die der Prüfer kennt; der Not-SL und SIG-29 kommen hier dazu */
-export type TradeInput = Pick<Trade, 'entry' | 'stop' | 'tp1' | 'reason'> & Partial<Pick<Trade, 'tp1AtEntry' | 'missed' | 'tp2' | 'tp2AtEntry' | 'tp3' | 'tp1StrongZone'>>;
+export type TradeInput = Pick<Trade, 'entry' | 'stop' | 'tp1' | 'reason'> & Partial<Pick<Trade, 'tp1AtEntry' | 'missed' | 'tp2' | 'tp2AtEntry' | 'tp3' | 'tp1StrongZone' | 'status'>>;
 
 /**
  * @param veto true bei TDF, OBO, CDT, LIB, T618, ENC und KEI (Harmoniken und 2618 sind laut Regelbuch Ausnahme)
@@ -31,6 +31,7 @@ export function withTrade(candidate: Candidate, env: Env, tf: ContextTimeframe, 
     ...(input.tp2AtEntry === undefined ? {} : { tp2AtEntry: input.tp2AtEntry }),
     ...(input.tp3 === undefined ? {} : { tp3: input.tp3 }),
     ...(input.tp1StrongZone === undefined ? {} : { tp1StrongZone: input.tp1StrongZone }),
+    ...(input.status === undefined ? {} : { status: input.status }),
     sig29: sigs.sig29,
   };
   return { ...candidate, checks: veto ? [...candidate.checks, sigs.veto] : candidate.checks, trade };
