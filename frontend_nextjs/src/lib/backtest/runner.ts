@@ -21,6 +21,7 @@ import { EngineState } from '@/lib/backtest/engine/state';
 import { TF_SECONDS, TRADE_ACTION_PENDING, TRADE_ACTION_REMOVE, TRADE_RETCODE_DONE, type Timeframe, type ZoneDict } from '@/lib/backtest/engine/types';
 import { toTimeframe, zget, zoneLogId } from '@/lib/backtest/engine/helpers';
 import { BOT_REACT_DELAY_S, sltpDelaySeconds } from '@/lib/backtest/botDelay';
+import { DEFAULT_PROFILE } from '@/lib/backtest/calibration';
 import { BOT_OP_COST_S, botTurnsActive, type BotTurns } from '@/lib/backtest/botTurns';
 import { zoneSymbolOf } from '@/lib/backtest/engine/zoneSelector';
 import type { ConversionPair, RateSeries } from '@/lib/backtest/broker/conversion';
@@ -38,7 +39,7 @@ const REPLAY_BOT_INTERVAL = 1;
 /** Abweichung von Tick-Hoch/-Tief zum Kerzen-Hoch/-Tief in Punkten, ab der die Minute als abweichend zählt */
 const REPLAY_BAR_TOLERANCE_POINTS = 1.5;
 /** BKT-23: Ausführungsverzögerung des Brokers in ms: Füllung und Ausstieg im Replay nehmen die letzte Quote bis so lange nach der Auslösung (Plan 1109-K57.2) */
-export const REPLAY_FILL_LATENCY_MS = 1;
+export const REPLAY_FILL_LATENCY_MS = DEFAULT_PROFILE.broker.fillLatencyMs;
 /** BKT-23: Vorgabe für `RunModel.triggerReplay`; nach der Abnahme A und B an (Plan 1109-K57.3/K57.4, Entscheidung 1110-K3.2) */
 export const TRIGGER_REPLAY_DEFAULT = true;
 

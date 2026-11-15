@@ -2301,6 +2301,14 @@ kategorien:
           - "Playwright-Logiktest e2e/mocked/backtest-tick-order-lib.spec.ts ausführen (@BKT-30: ohne Raster bytegleich; Bot läuft nach dem Tetik erst zum Tur-Anfang; Kurs zwischen Tur- und Zone-Anfang ändert die Entscheidung nicht; Order füllt erst zur Op-Zeit; Art mit dem Kurs der Op-Zeit; XSEND und Durchgangsgrenze 8)."
           - "Fenster P6+ und P7 auf dem DEMO-Konto vergleichen (nur lesen), Raster aus dem Orderverlauf: mit Raster P7 Summe der Netto-Abweichungen 12,63 → 0,46, P6+ 4,48 → 0,01, keine nicht zugeordneten Trades; ohne Raster unverändert."
         erwartet: Die Tests bestehen. Ohne botTurns ist das Ergebnis unverändert; mit dem Live-Raster weicht der Nettogewinn kaum noch von MT5 ab.
+      - id: BKT-31
+        titel: "Backtest: Kurslesezeit je Tur (snapAt) und Kalibrierungsprofil (Vorgabe aus, Plan 1114-M1)"
+        beschreibung: "Plan 1114-M1, PR-1 (rein, Verhalten gleich). BotTurns trägt optional snapAt (Zeitpunkt der Kurslesung je Tur, starts + snap; fehlt = starts); der Lauf liest es noch nicht. mergeTelemetry (botTurnsLoad.ts) behält jetzt die Messfelder snap, nsl, z0 und nsl0 (vorher fielen sie weg); decodeTurns liest nsl0. scheduleFromTelemetry liefert snapAt (snap null = Tur-Anfang), scheduleFromLiveOrders snapAt = starts, botTurnsFor reicht es durch. calibration.ts: CalibrationProfile und DEFAULT_PROFILE, die bisherigen Konstanten (TURN_HEAD_S, Op-Kosten, Füll-Latenz, Cluster-Abstand, Ketten-Toleranz) lesen daraus, Werte unverändert. Keine Oberfläche."
+        code: [frontend_nextjs/src/lib/backtest/botTurns.ts, frontend_nextjs/src/lib/backtest/botTurnsLoad.ts, frontend_nextjs/src/lib/backtest/turnSchedule.ts, frontend_nextjs/src/lib/backtest/calibration.ts, frontend_nextjs/src/lib/backtest/runner.ts, frontend_nextjs/e2e/mocked/backtest-turn-phases-lib.spec.ts]
+        tiers: [e2e]
+        pruefung:
+          - "Playwright-Logiktest e2e/mocked/backtest-turn-phases-lib.spec.ts ausführen (@BKT-31: DEFAULT_PROFILE gleich den alten Konstanten; mergeTelemetry behält snap/nsl/z0/nsl0; snapAt = start + snap, snap null = start; botTurnsFor reicht snapAt durch)."
+        erwartet: Die Tests bestehen. Der Lauf ist bytegleich zu vorher, weil Motor und Runner snapAt noch nicht lesen.
 
   # ---------------------------------------------------------------------------
   - id: FRM
