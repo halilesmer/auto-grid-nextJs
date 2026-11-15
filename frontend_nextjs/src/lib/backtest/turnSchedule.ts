@@ -9,8 +9,8 @@
  *  - `scheduleFromLiveOrders` (yedek): telemetrisi olmayan eski pencereler. Tur başları canlı emir geçmişinden kurulur
  *    (zincir kuralı); boş turlar bir sonraki gerçek tura geriye hizalanır (orcRb: sahte kısa tur oluşmaz).
  */
-import { BOT_OP_COST_S, type BotTurns } from '@/lib/backtest/botTurns';
-import { DEFAULT_PROFILE } from '@/lib/backtest/calibration';
+import { type BotTurns } from '@/lib/backtest/botTurns';
+import { DEFAULT_PROFILE, type CalibrationProfile } from '@/lib/backtest/calibration';
 import type { LiveOrder } from '@/lib/backtest/startState';
 
 /** Tur başından ilk op'a (SLTP yokken) kadar okuma süresi, saniye. Ölçüm: bt-n1-plan.md §1.3 (boş tur periyodu 2,105 = LOOP 2,0 + 0,105). */
@@ -18,9 +18,6 @@ export const TURN_HEAD_S = DEFAULT_PROFILE.vps.headS;
 
 /** Bir küme: birbirine bu kadar saniyeden yakın op'lar aynı turdandır (ölçüm: küme içi adım ≤ 0,23 s, tur arası ≥ 1 s) */
 export const OP_CLUSTER_GAP_S = DEFAULT_PROFILE.derived.clusterGapS;
-
-/** Zincir toleransı: sonraki küme önceki kümenin bitişinden ≤ LOOP + HEAD + bu kadar sonra gelirse hemen sonraki turdur */
-const CHAIN_SLACK_S = DEFAULT_PROFILE.derived.chainSlackS;
 
 /** Telemetride tur başına ilişkilendirilen ilk op'un gecikme penceresi (kayma tahmini); SLTP yükü pozitif uca düşer */
 const PAIR_BEFORE_S = 0.5;
@@ -37,7 +34,8 @@ export interface LiveOp {
   magic: number;
 }
 
-const OP_COST: Record<LiveOp['kind'], number> = { P: BOT_OP_COST_S.pending, C: BOT_OP_COST_S.remove };
+const opCostOf = (profile: CalibrationProfile): Record<LiveOp['kind'], number> => ({ P: profile.broker.opCost.pending, C: profile.broker.opCost.remove });
+const OP_COST = opCostOf(DEFAULT_PROFILE);
 
 /** LiveOrder satırlarından op listesi (zamana göre sıralı); yalnız `magics` içindeki magic'ler ve [from, to) */
 export function liveOpsFromOrders(orders: readonly LiveOrder[], magics: readonly number[], from: number, to: number): LiveOp[] {
@@ -52,11 +50,11 @@ export function liveOpsFromOrders(orders: readonly LiveOrder[], magics: readonly
 }
 
 /** Op'ları ≤ OP_CLUSTER_GAP_S aralıklarla kümeler (girdi zamana göre sıralı olmalı) */
-export function clusterOps(ops: readonly LiveOp[]): LiveOp[][] {
+export function clusterOps(ops: readonly LiveOp[], gap: number = OP_CLUSTER_GAP_S): LiveOp[][] {
   const clusters: LiveOp[][] = [];
   let current: LiveOp[] | null = null;
   for (const op of ops) {
-    if (!current || op.time - current[current.length - 1].time > OP_CLUSTER_GAP_S) {
+    if (!current || op.time - current[current.length - 1].time > gap) {
       current = [op];
       clusters.push(current);
     } else current.push(op);
@@ -87,14 +85,14 @@ function assignOps(starts: readonly number[], ops: readonly LiveOp[]): LiveOp[][
 }
 
 /** zoneAt: tur başı + okuma + SLTP + küçük magic'li setup'ların o turdaki op maliyeti (zone sırası magic sırasıdır) */
-function buildZoneAt(turns: readonly Turn[], opsPerTurn: readonly LiveOp[][], magics: readonly number[]): Record<number, number[]> {
+function buildZoneAt(turns: readonly Turn[], opsPerTurn: readonly LiveOp[][], magics: readonly number[], cost: Record<LiveOp['kind'], number> = OP_COST): Record<number, number[]> {
   const zoneAt: Record<number, number[]> = {};
   for (const magic of magics) zoneAt[magic] = new Array<number>(turns.length);
   turns.forEach((turn, k) => {
     const ops = opsPerTurn[k];
     for (const magic of magics) {
       let lower = 0;
-      for (const op of ops) if (op.magic < magic) lower += OP_COST[op.kind];
+      for (const op of ops) if (op.magic < magic) lower += cost[op.kind];
       zoneAt[magic][k] = turn.start + turn.head + turn.sltp + lower;
     }
   });
@@ -142,32 +140,35 @@ export function scheduleFromLiveOrders(
   from: number,
   to: number,
   loopSec: number,
-  opts: { ownOps?: readonly LiveOp[] } = {},
+  opts: { ownOps?: readonly LiveOp[]; profile?: CalibrationProfile } = {},
 ): TurnSchedule {
-  const period = TURN_HEAD_S + loopSec;
+  const profile = opts.profile ?? DEFAULT_PROFILE;
+  const headS = profile.vps.headS;
+  const cost = opCostOf(profile);
+  const period = headS + loopSec;
   const inWindow = liveOps.filter((op) => op.time >= from && op.time < to).sort((a, b) => a.time - b.time);
-  const clusters = clusterOps(inWindow);
+  const clusters = clusterOps(inWindow, profile.derived.clusterGapS);
   const starts: number[] = [];
   let end: number | null = null; // önceki kümenin bitişi
   for (const cluster of clusters) {
     const first = cluster[0].time;
-    const chained = end !== null && first - end <= period + CHAIN_SLACK_S;
-    const start = chained ? (end as number) + loopSec : first - TURN_HEAD_S;
+    const chained = end !== null && first - end <= period + profile.derived.chainSlackS;
+    const start = chained ? (end as number) + loopSec : first - headS;
     // boş turlar: bu turdan geriye doğru, önceki bitişten sonraki ilk uygun yere kadar
     const lowest = end === null ? from : (end as number) + loopSec;
     for (let k = Math.floor((start - lowest) / period); k >= 1; k -= 1) starts.push(start - k * period);
     starts.push(start);
     const last = cluster[cluster.length - 1];
-    end = last.time + OP_COST[last.kind];
+    end = last.time + cost[last.kind];
   }
   // son kümeden sonra
   for (let s = (end ?? from - loopSec) + loopSec; s < to; s += period) starts.push(s);
-  const turns: Turn[] = starts.map((start) => ({ start, head: TURN_HEAD_S, sltp: 0, snapAt: start }));
+  const turns: Turn[] = starts.map((start) => ({ start, head: headS, sltp: 0, snapAt: start }));
   const opsForCost = opts.ownOps ? [...opts.ownOps].sort((a, b) => a.time - b.time) : inWindow;
   return {
     source: 'liveOrders',
     starts,
-    zoneAt: buildZoneAt(turns, assignOps(starts, opsForCost), magics),
+    zoneAt: buildZoneAt(turns, assignOps(starts, opsForCost), magics, cost),
     snapAt: [...starts],
     turnCount: starts.length,
     alignedClusters: clusters.length,
@@ -277,14 +278,14 @@ function turnBefore(starts: readonly number[], limit: number): number {
  * kuyruk). Çift = (küme, ondan önceki son tur); sapma d = ilk op − (tur başı + tz + pre + HEAD). Kayma bu sapmaların
  * medyanıdır; iki geçiş: önce geniş pencere, sonra medyan etrafında. Tek sabittir, pencereye göre ayarlanmaz.
  */
-export function estimateClockOffset(turns: readonly DecodedTurn[], firstOps: readonly number[], tzOffsetSec: number): ClockEstimate {
+export function estimateClockOffset(turns: readonly DecodedTurn[], firstOps: readonly number[], tzOffsetSec: number, headS: number = TURN_HEAD_S): ClockEstimate {
   const starts = turns.map((t) => t.start + tzOffsetSec);
   const deviations = (center: number): number[] => {
     const out: number[] = [];
     for (const f of firstOps) {
       const i = turnBefore(starts, f + PAIR_BEFORE_S - center);
       if (i < 0) continue;
-      const d = f - (starts[i] + turns[i].pre + TURN_HEAD_S);
+      const d = f - (starts[i] + turns[i].pre + headS);
       if (d >= center - PAIR_BEFORE_S && d <= center + PAIR_AFTER_S) out.push(d);
     }
     return out;
@@ -317,6 +318,8 @@ export interface TelemetryOptions {
   ownOps?: readonly LiveOp[];
   /** tur başı SLTP yükü: 'live' = turun ilk canlı op'unun gecikmesinden (Sınıf B), 'none' = 0 */
   sltp?: 'live' | 'none';
+  /** BKT-31 (PR-4): Kalibrierungsprofil; fehlt = DEFAULT_PROFILE (bytegleich) */
+  profile?: CalibrationProfile;
 }
 
 /**
@@ -329,17 +332,20 @@ export function scheduleFromTelemetry(
   magics: readonly number[],
   opts: TelemetryOptions,
 ): TurnSchedule {
+  const profile = opts.profile ?? DEFAULT_PROFILE;
+  const headS = profile.vps.headS;
+  const cost = opCostOf(profile);
   const decoded = decodeTurns(telemetry);
   const inWindow = liveOps.filter((op) => op.time >= opts.from && op.time < opts.to).sort((a, b) => a.time - b.time);
-  const clusters = clusterOps(inWindow);
-  const clock = estimateClockOffset(decoded, clusters.map((c) => c[0].time), opts.tzOffsetSec);
+  const clusters = clusterOps(inWindow, profile.derived.clusterGapS);
+  const clock = estimateClockOffset(decoded, clusters.map((c) => c[0].time), opts.tzOffsetSec, headS);
   const offset = opts.tzOffsetSec + clock.shiftSec;
   const kept = decoded.filter((t) => t.start + offset >= opts.from && t.start + offset < opts.to);
   const starts = kept.map((t) => t.start + offset);
   const opsLive = assignOps(starts, inWindow);
   // SLTP yükü: turun ilk op'u beklenenden geç geliyorsa fark (alt magic yoktur, ilk op'un öncesi yalnız TP/SL düzeltmesi)
   const turns: Turn[] = kept.map((t, k) => {
-    const head = t.pre + TURN_HEAD_S;
+    const head = t.pre + headS;
     let sltp = 0;
     if (opts.sltp !== 'none' && opsLive[k].length > 0) {
       const d = opsLive[k][0].time - (starts[k] + head);
@@ -351,7 +357,7 @@ export function scheduleFromTelemetry(
   return {
     source: 'telemetry',
     starts,
-    zoneAt: buildZoneAt(turns, opsForCost, magics),
+    zoneAt: buildZoneAt(turns, opsForCost, magics, cost),
     snapAt: turns.map((t) => t.snapAt),
     turnCount: starts.length,
     alignedClusters: clock.pairs,

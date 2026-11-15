@@ -2335,11 +2335,12 @@ kategorien:
       - id: BKT-31
         titel: "Backtest: Kurslesezeit je Tur (snapAt) und Kalibrierungsprofil (Vorgabe aus, Plan 1114-M1)"
         beschreibung: "Plan 1114-M1, PR-1 (rein, Verhalten gleich). BotTurns trägt optional snapAt (Zeitpunkt der Kurslesung je Tur, starts + snap; fehlt = starts); der Lauf liest es noch nicht. mergeTelemetry (botTurnsLoad.ts) behält jetzt die Messfelder snap, nsl, z0 und nsl0 (vorher fielen sie weg); decodeTurns liest nsl0. scheduleFromTelemetry liefert snapAt (snap null = Tur-Anfang), scheduleFromLiveOrders snapAt = starts, botTurnsFor reicht es durch. calibration.ts: CalibrationProfile und DEFAULT_PROFILE, die bisherigen Konstanten (TURN_HEAD_S, Op-Kosten, Füll-Latenz, Cluster-Abstand, Ketten-Toleranz) lesen daraus, Werte unverändert. Keine Oberfläche."
-        code: [frontend_nextjs/src/lib/backtest/botTurns.ts, frontend_nextjs/src/lib/backtest/botTurnsLoad.ts, frontend_nextjs/src/lib/backtest/turnSchedule.ts, frontend_nextjs/src/lib/backtest/calibration.ts, frontend_nextjs/src/lib/backtest/runner.ts, frontend_nextjs/e2e/mocked/backtest-turn-phases-lib.spec.ts]
+        code: [frontend_nextjs/src/lib/backtest/botTurns.ts, frontend_nextjs/src/lib/backtest/botTurnsLoad.ts, frontend_nextjs/src/lib/backtest/turnSchedule.ts, frontend_nextjs/src/lib/backtest/calibration.ts, frontend_nextjs/src/lib/backtest/runner.ts, frontend_nextjs/e2e/mocked/backtest-turn-phases-lib.spec.ts, frontend_nextjs/src/lib/backtest/calibrationDerive.ts, frontend_nextjs/src/lib/backtest/calibrationLoad.ts, frontend_nextjs/e2e/mocked/backtest-calibration-lib.spec.ts]
         tiers: [e2e]
         pruefung:
+          - "Playwright-Logiktest e2e/mocked/backtest-calibration-lib.spec.ts ausführen (@BKT-31, PR-4: deriveProfile aus Op-Abständen im Cluster (p50), Schwellen per Formel; W_c überlappt W_e → Vorgabeprofil, Orders aus W_e fließen nie ein; zu wenig Daten oder fehlende Telemetrie → Vorgabewert plus Kennzeichen; Handelstage ohne Wochenende; loadCalibration ruft nur Fenster vor evalFrom ab; DEFAULT_PROFILE im Zeitplan bytegleich; runJob: ohne calibration kein Abruf und kein Eintrag, mit Profil run.calibration, ohne Daten run.calibrationDefault)."
           - "Playwright-Logiktest e2e/mocked/backtest-turn-phases-lib.spec.ts ausführen (@BKT-31: DEFAULT_PROFILE gleich den alten Konstanten; mergeTelemetry behält snap/nsl/z0/nsl0; snapAt = start + snap, snap null = start; botTurnsFor reicht snapAt durch)."
-        erwartet: Die Tests bestehen. Der Lauf ist bytegleich zu vorher, weil Motor und Runner snapAt noch nicht lesen.
+        erwartet: "Die Tests bestehen. Der Lauf ist bytegleich zu vorher, weil Motor und Runner snapAt noch nicht lesen. PR-4 (Schalter CALIBRATE_DEFAULT und REPLAY_LOOP_FROM_ACCOUNT_DEFAULT, beide aus): bei ausgeschaltetem Schalter bleibt der Lauf bytegleich; eingeschaltet berechnet der Lauf das Profil aus den 3 Handelstagen vor dem Auswertungsfenster (nur GET) und schreibt es ins Protokoll."
 
   # ---------------------------------------------------------------------------
   - id: FRM
@@ -2703,7 +2704,7 @@ kategorien:
         tiers: [e2e]
         pruefung:
           - "Playwright-Test e2e/mocked/formation-ask.spec.ts (@FRM-48) ausführen (Frage nach dem Chart, keine Suchanfrage vor „Evet“, Meldung einmal, Hayır und „Formasyon ara“, Favorit ohne Frage)."
-          - Im Browser mit dem VPS ein Symbol mit viel Verlauf öffnen: der Chart steht sofort, „Evet“ lässt ihn bedienbar (Zoom, Zeiteinheit), bei Ende kommt die Meldung. UI-07 (Tooltip) und UI-08 (375 px ohne Querscroll) ausführen.
+          - "Im Browser mit dem VPS ein Symbol mit viel Verlauf öffnen: der Chart steht sofort, „Evet“ lässt ihn bedienbar (Zoom, Zeiteinheit), bei Ende kommt die Meldung. UI-07 (Tooltip) und UI-08 (375 px ohne Querscroll) ausführen."
         erwartet: Der Chart wartet nie auf die Suche, die Suche startet nur nach Antwort (oder bei Favoriten von selbst), und die Meldung kommt einmal je Freigabe.
 
       - id: FRM-37

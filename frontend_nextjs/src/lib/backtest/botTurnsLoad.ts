@@ -3,6 +3,7 @@
  * Netz: die Seite gibt die Abrufe herein (Orderverlauf, Tur-Telemetrie). Quelle: Telemetrie, sonst Orderverlauf, sonst keins.
  */
 import { BOT_TURNS_DEFAULT, type BotTurnsInfo } from '@/lib/backtest/botTurns';
+import type { CalibrationProfile } from '@/lib/backtest/calibration';
 import type { LiveOrder } from '@/lib/backtest/startState';
 import {
   decodeTurns,
@@ -36,6 +37,8 @@ export interface BotTurnsLoadInput {
   magics: number[];
   fetchOrders: (range: { from: number; to: number }) => Promise<{ orders: LiveOrder[]; missing?: unknown[] } | null>;
   fetchTurns: (range: { from: number; to: number }) => Promise<TelemetryTurns | null>;
+  /** BKT-31 (PR-4): Kalibrierungsprofil für das Raster; fehlt = DEFAULT_PROFILE (bytegleich) */
+  profile?: CalibrationProfile;
 }
 
 export interface BotTurnsLoaded {
@@ -118,7 +121,7 @@ export async function loadBotTurns(input: BotTurnsLoadInput): Promise<BotTurnsLo
         const needEnd = Math.min(input.to, input.nowSec) - tz;
         // Abdeckung: die Telemetrie reicht vom Anfang bis zum Ende des Fensters (bzw. bis jetzt)
         if (first !== undefined && last !== undefined && first <= input.from - tz + TURNS_COVER_SLACK_S && last >= needEnd - TURNS_COVER_SLACK_S) {
-          const schedule = scheduleFromTelemetry(telemetry, liveOps, input.magics, { tzOffsetSec: tz, from: input.from, to: input.to });
+          const schedule = scheduleFromTelemetry(telemetry, liveOps, input.magics, { tzOffsetSec: tz, from: input.from, to: input.to, ...(input.profile ? { profile: input.profile } : {}) });
           if (schedule.turnCount > 0) {
             return {
               schedule,
@@ -140,7 +143,7 @@ export async function loadBotTurns(input: BotTurnsLoadInput): Promise<BotTurnsLo
   }
 
   if (orders && liveOps.length > 0) {
-    const schedule = scheduleFromLiveOrders(liveOps, input.magics, input.from, input.to, input.loopSec);
+    const schedule = scheduleFromLiveOrders(liveOps, input.magics, input.from, input.to, input.loopSec, input.profile ? { profile: input.profile } : {});
     return {
       schedule,
       info: { source: 'liveOrders', turns: schedule.turnCount, alignedClusters: schedule.alignedClusters, totalClusters: schedule.totalClusters },

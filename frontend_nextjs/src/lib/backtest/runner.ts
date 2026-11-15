@@ -21,8 +21,8 @@ import { EngineState } from '@/lib/backtest/engine/state';
 import { TF_SECONDS, TRADE_ACTION_PENDING, TRADE_ACTION_REMOVE, TRADE_RETCODE_DONE, type Timeframe, type ZoneDict } from '@/lib/backtest/engine/types';
 import { toTimeframe, zget, zoneLogId } from '@/lib/backtest/engine/helpers';
 import { BOT_REACT_DELAY_S, sltpDelaySeconds } from '@/lib/backtest/botDelay';
-import { DEFAULT_PROFILE } from '@/lib/backtest/calibration';
-import { BOT_OP_COST_S, botTurnsActive, type BotTurns } from '@/lib/backtest/botTurns';
+import { DEFAULT_PROFILE, type CalibrationProfile } from '@/lib/backtest/calibration';
+import { botTurnsActive, type BotTurns } from '@/lib/backtest/botTurns';
 import { zoneSymbolOf } from '@/lib/backtest/engine/zoneSelector';
 import type { ConversionPair, RateSeries } from '@/lib/backtest/broker/conversion';
 import { RunError, RunLog, type RunLogLine } from '@/lib/backtest/runContext';
@@ -87,6 +87,10 @@ export interface RunModel {
    * Minutenend-Lauf entfallen. Ohne Angabe: Lauf bytegleich wie zuvor.
    */
   botTurns?: BotTurns;
+  /** BKT-31 (PR-4): Kalibrierungsprofil (Op-Kosten, Füll-Verzögerung); fehlt = DEFAULT_PROFILE, Lauf bytegleich */
+  profile?: CalibrationProfile;
+  /** BKT-31 (PR-4): Bot-Takt im Replay in Sekunden (Konto-LOOP); fehlt = REPLAY_BOT_INTERVAL (1 s) */
+  botIntervalSec?: number;
 }
 
 /** Fraktal, das vor `from` schon gehandelt wurde (Order gefüllt oder gelöscht): der Lauf legt dafür keine Order mehr */
@@ -317,6 +321,9 @@ export function runBacktest(input: RunInput): RunResult {
 
   // BKT-30: Tur-Raster des Live-Bots. Ohne Raster bleibt alles unten beim alten Weg.
   const turns = botTurnsActive(model.botTurns) ? model.botTurns : null;
+  const opCost = (model.profile ?? DEFAULT_PROFILE).broker.opCost;
+  const fillLatencyMs = (model.profile ?? DEFAULT_PROFILE).broker.fillLatencyMs;
+  const botInterval = model.botIntervalSec ?? REPLAY_BOT_INTERVAL;
   let turnIndex = 0;
   /** Zeit, ab der die Op-Kosten der laufenden Tur zählen (null außerhalb einer Tur) */
   let opClock: number | null = null;
@@ -331,7 +338,7 @@ export function runBacktest(input: RunInput): RunResult {
         if (req.action === TRADE_ACTION_PENDING) sendTimes.push(broker.now);
         if (opClock !== null) {
           if (req.action === TRADE_ACTION_PENDING && result.order) activeAt.set(result.order, opClock);
-          opClock += req.action === TRADE_ACTION_PENDING ? BOT_OP_COST_S.pending : BOT_OP_COST_S.remove;
+          opClock += req.action === TRADE_ACTION_PENDING ? opCost.pending : opCost.remove;
         }
       }
       return result;
@@ -501,7 +508,7 @@ export function runBacktest(input: RunInput): RunResult {
             if (trigger.kind === 'fill' && (activeAt.get(trigger.ticket) ?? -Infinity) > broker.now) continue;
             countEvent();
             let j = k;
-            if (latency) while (j + 1 < replay.ms.length && replay.ms[j + 1] <= replay.ms[k] + REPLAY_FILL_LATENCY_MS) j += 1;
+            if (latency) while (j + 1 < replay.ms.length && replay.ms[j + 1] <= replay.ms[k] + fillLatencyMs) j += 1;
             broker.fire(trigger, true, j === k ? undefined : { bid: replay.bid[j], ask: replay.ask[j] });
           }
           continue;
@@ -514,7 +521,7 @@ export function runBacktest(input: RunInput): RunResult {
           countEvent();
           // BKT-23: Ausführung zur letzten Quote bis REPLAY_FILL_LATENCY_MS nach dem Tick der Auslösung
           let j = k;
-          if (latency) while (j + 1 < replay.ms.length && replay.ms[j + 1] <= replay.ms[k] + REPLAY_FILL_LATENCY_MS) j += 1;
+          if (latency) while (j + 1 < replay.ms.length && replay.ms[j + 1] <= replay.ms[k] + fillLatencyMs) j += 1;
           broker.fire(trigger, true, j === k ? undefined : { bid: replay.bid[j], ask: replay.ask[j] });
           // BKT-26 (A1): alle Marken dieses Ticks feuern zuerst, der Bot läuft danach einmal
           if (reactDelay > 0) { if (pendingBot === null) pendingBot = broker.now + reactDelay; ran = true; continue; }
@@ -523,7 +530,7 @@ export function runBacktest(input: RunInput): RunResult {
         }
         if (ran && batch && reactDelay <= 0) runBot();
         // BKT-29 (E1): wartet der Bot auf seine Tepki-Verzögerung (pendingBot), läuft er nicht periodisch dazwischen (pendingBot ist ohne botReact immer null)
-        if (!ran && pendingBot === null && broker.now - lastBot >= REPLAY_BOT_INTERVAL) {
+        if (!ran && pendingBot === null && broker.now - lastBot >= botInterval) {
           countEvent();
           runBot();
         }
