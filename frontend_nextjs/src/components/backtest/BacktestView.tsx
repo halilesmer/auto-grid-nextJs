@@ -21,6 +21,8 @@ import type { SpreadSetting } from '@/lib/backtest/broker/costs';
 import { proposeCommission } from '@/lib/backtest/commission';
 import { BOT_TURNS_DEFAULT } from '@/lib/backtest/botTurns';
 import { loadBotTurns } from '@/lib/backtest/botTurnsLoad';
+import { CALIBRATE_DEFAULT, REPLAY_LOOP_FROM_ACCOUNT_DEFAULT } from '@/lib/backtest/calibration';
+import { loadCalibration } from '@/lib/backtest/calibrationLoad';
 import type { RunParams } from '@/lib/backtest/protocol';
 import { botTurnsFor } from '@/lib/backtest/turnSchedule';
 import { fetchBotTurns } from '@/services/botTurnsApi';
@@ -276,30 +278,51 @@ export function BacktestView() {
     const launch = (final: RunParams) => {
       start(accountId, { setupId: activeId, params: final, unsaved, currency, sourceLabel: csvImport ? t('backtest.data.csv', { symbol: csvImport.symbol, tf: csvImport.timeframe, from: fmt.mt5DateTime(csvImport.first_t), to: fmt.mt5DateTime(csvImport.last_t) }) : t('backtest.data.mt5') });
     };
-    // BKT-30: Tur-Raster nur bei eingeschaltetem Schalter; aus = kein zusätzlicher Abruf, der Lauf startet sofort wie bisher
+    // BKT-31 (PR-4): beide Schalter aus = Lauf bytegleich wie bisher. Kalibrierung: der Lauf rechnet das Profil aus W_c selbst
+    // (nur GET). Bot-Takt: reiner Backtest (ohne Tur-Raster) nimmt den Konto-LOOP statt fest 1 s.
+    const tzOffsetSec = offsetSec === null ? null : Math.round(offsetSec / 3600) * 3600;
+    const allMagics = (zones ?? []).map((z) => Number(z.magic)).filter((m) => Number.isFinite(m));
+    const calibration = CALIBRATE_DEFAULT ? { tzOffsetSec, magics: allMagics } : undefined;
+    const loopSec = settings?.LOOP_INTERVAL_SECONDS ?? 1.0;
     if (!BOT_TURNS_DEFAULT) {
-      launch(params);
+      launch({
+        ...params,
+        ...(REPLAY_LOOP_FROM_ACCOUNT_DEFAULT ? { model: { ...params.model, botIntervalSec: loopSec } } : {}),
+        ...(calibration ? { calibration } : {}),
+      });
       return;
     }
     const to = bounds.to;
     const from = bounds.from;
-    void loadBotTurns({
+    // Mit Tur-Raster braucht schon das Raster das Profil: hier laden, der Lauf übernimmt es
+    const calibrated = calibration
+      ? loadCalibration({
+          evalFrom: from,
+          tzOffsetSec,
+          magics: allMagics,
+          fetchOrders: (range) => fetchLiveOrders(accountId, range),
+          fetchTurns: (range) => fetchBotTurns(accountId, range),
+        })
+      : Promise.resolve(null);
+    void calibrated.then((loaded) => void loadBotTurns({
       live: startState !== undefined || startNote !== null,
       from,
       to,
       nowSec,
-      tzOffsetSec: offsetSec === null ? null : Math.round(offsetSec / 3600) * 3600,
-      loopSec: settings?.LOOP_INTERVAL_SECONDS ?? 1.0,
-      magics: (zones ?? []).map((z) => Number(z.magic)).filter((m) => Number.isFinite(m)),
+      tzOffsetSec,
+      loopSec,
+      magics: allMagics,
       fetchOrders: (range) => fetchLiveOrders(accountId, range),
       fetchTurns: (range) => fetchBotTurns(accountId, range),
+      ...(loaded ? { profile: loaded.profile } : {}),
     }).then(({ schedule, info }) => {
       launch({
         ...params,
         model: schedule && Number.isFinite(magic) ? { ...params.model, botTurns: botTurnsFor(schedule, magic) } : params.model,
         ...(info ? { botTurnsInfo: info } : {}),
+        ...(calibration ? { calibration: { ...calibration, ...(loaded ? { profile: { profile: loaded.profile, fallbacks: loaded.fallbacks, from: loaded.from, to: loaded.to } } : {}) } } : {}),
       });
-    });
+    }));
   };
 
   // Ergebnis und Fehler gehören zu Konto und Setup ihres Laufs; bei einem anderen Setup zeigt die Seite sie nicht

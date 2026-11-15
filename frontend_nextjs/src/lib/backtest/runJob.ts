@@ -14,6 +14,8 @@ import { RunError } from '@/lib/backtest/runContext';
 import { buildStartState, type LiveOrder, type StartState } from '@/lib/backtest/startState';
 import { TF_SECONDS } from '@/lib/backtest/engine/types';
 import { BOT_TURNS_MAX_PASSES, botTurnsActive } from '@/lib/backtest/botTurns';
+import { loadCalibration, type CalibrationLoaded } from '@/lib/backtest/calibrationLoad';
+import type { TelemetryTurns } from '@/lib/backtest/turnSchedule';
 import { runBacktest, triggerReplayOn, warmupSeconds, type RunResult } from '@/lib/backtest/runner';
 
 /** Anteil des Fortschritts, der auf das Laden entfällt; der Rest ist der Lauf */
@@ -102,6 +104,19 @@ export async function runJob(
       }
       start = buildStartState(params.startState.deals, Number(params.zone.magic), params.zone, params.from, params.symbol.digits, orders);
     }
+    // BKT-31 (PR-4): Kalibrierungsprofil aus W_c (nur GET); das Fenster endet vor `from`, W_e wird nicht gelesen
+    let calibration: CalibrationLoaded | null = null;
+    if (params.calibration) {
+      calibration = params.calibration.profile
+        ? { ...params.calibration.profile, samples: {} }
+        : await loadCalibration({
+            evalFrom: params.from,
+            tzOffsetSec: params.calibration.tzOffsetSec,
+            magics: params.calibration.magics,
+            fetchOrders: async (range) => (await fetchJson(`/history/${encodeURIComponent(params.accountId)}/orders?from=${range.from}&to=${range.to}`)) as { orders: LiveOrder[]; missing?: unknown[] },
+            fetchTurns: async (range) => (await fetchJson(`/bot/${encodeURIComponent(params.accountId)}/turns?from=${range.from}&to=${range.to}`)) as TelemetryTurns,
+          });
+    }
     const paths: PathMode[] = params.path === 'both' ? ['lowFirst', 'highFirst'] : [params.path];
     const wantTrigger = triggerReplayOn(params.model) && rates.replay !== undefined && rates.point !== null && rates.digits !== null;
     const results: RunResult[] = [];
@@ -133,7 +148,7 @@ export async function runJob(
           to: params.to,
           spread: params.spread,
           commissionPerLot: params.commissionPerLot,
-          model: { ...params.model, path },
+          model: { ...params.model, path, ...(calibration ? { profile: calibration.profile } : {}) },
           startCapital: params.startCapital,
           accountCurrency: params.accountCurrency,
           conversion: wantConversion && conversion ? { pair: conversion, series: rateSeries } : null,
@@ -172,6 +187,24 @@ export async function runJob(
         fetchedMinutes += loaded.minutes.size;
         fetchedTicks += [...loaded.minutes.values()].reduce((sum, m) => sum + m.ms.length, 0);
         if (loaded.minutes.size === 0) break;
+      }
+      if (calibration) {
+        const { profile, fallbacks } = calibration;
+        if (profile.measured === null) addLog(result, 'WARN', 'run.calibrationDefault', { id: profile.id });
+        else {
+          addLog(result, 'INFO', 'run.calibration', {
+            id: profile.id,
+            from: calibration.from,
+            to: calibration.to,
+            source: profile.measured.source,
+            pending: profile.broker.opCost.pending,
+            remove: profile.broker.opCost.remove,
+            sltp: profile.broker.opCost.sltp,
+            headS: profile.vps.headS,
+            fillMs: profile.broker.fillLatencyMs,
+            defaults: fallbacks.join(', ') || '-',
+          });
+        }
       }
       if (params.botTurnsInfo) addLog(result, 'INFO', 'run.botTurns', { ...params.botTurnsInfo });
       if (rateSeries && conversion) addLog(result, 'INFO', 'run.convRateLoaded', { pair: conversion.name, candles: rateSeries.t.length, ms: rateLoadMs });

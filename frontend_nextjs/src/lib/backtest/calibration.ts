@@ -25,3 +25,22 @@ export const DEFAULT_PROFILE: CalibrationProfile = {
   broker: { opCost: { pending: 0.225, remove: 0.102, sltp: 0.1 }, fillLatencyMs: 1 },
   derived: { clusterGapS: 0.8, chainSlackS: 0.7 },
 };
+
+/**
+ * BKT-31 (PR-4): Vorgaben (aus). Eingeschaltet berechnet der Lauf das Profil aus einem Kalibrierungsfenster W_c
+ * (die 3 Handelstage vor dem Auswertungsfenster, nur GET) und schreibt es ins Protokoll (`run.calibration`).
+ * Aus = die Seite liest nichts zusätzlich, der Lauf ist bytegleich wie vorher (Plan 1114-M1 §5.3, M1.5).
+ */
+export const CALIBRATE_DEFAULT: boolean = false;
+/** BKT-31 (PR-4): Bot-Takt im Replay (`REPLAY_BOT_INTERVAL` 1 s) aus dem Konto-LOOP statt fest 1 s; nur reiner Backtest ohne Tur-Raster (M1.6) */
+export const REPLAY_LOOP_FROM_ACCOUNT_DEFAULT: boolean = false;
+/** Länge von W_c in Handelstagen (Mo–Fr) */
+export const CALIBRATION_DAYS = 3;
+
+/** Abgeleitete Schwellen aus den Op-Kosten (Formel, kein Handwert): bei den Vorgabekosten genau 0,8 und 0,7 */
+export function derivedFor(opCost: { pending: number; remove: number }): CalibrationProfile['derived'] {
+  return {
+    clusterGapS: Math.max(3 * opCost.pending, 0.8),
+    chainSlackS: Math.max(3 * Math.max(opCost.pending, opCost.remove), 0.7),
+  };
+}

@@ -7,6 +7,7 @@ import type { ConversionPair } from '@/lib/backtest/broker/conversion';
 import type { SpreadSetting } from '@/lib/backtest/broker/costs';
 import type { Timeframe, ZoneDict } from '@/lib/backtest/engine/types';
 import type { BotTurnsInfo } from '@/lib/backtest/botTurns';
+import type { CalibrationProfile } from '@/lib/backtest/calibration';
 import type { RunModel, RunResult } from '@/lib/backtest/runner';
 import type { Deal } from '@/lib/analysis/tradePairing';
 import type { MissingRange } from '@/lib/analysis/candles';
@@ -49,6 +50,16 @@ export interface RunParams {
   startState?: { deals: Deal[] };
   /** BKT-30 (PR-3): Herkunft des Tur-Rasters in `model.botTurns`; die Seite setzt es nur bei eingeschaltetem Schalter. Landet als `run.botTurns` im Protokoll. */
   botTurnsInfo?: BotTurnsInfo;
+  /**
+   * BKT-31 (PR-4): Kalibrierung eingeschaltet (nur mit `CALIBRATE_DEFAULT`; fehlt = Lauf bytegleich wie vorher). Der Lauf
+   * berechnet das Profil aus W_c (3 Handelstage vor `from`, nur GET) und schreibt `run.calibration` ins Protokoll. Hat die
+   * Seite das Profil schon (für das Tur-Raster), gibt sie es in `profile` mit.
+   */
+  calibration?: {
+    tzOffsetSec: number | null;
+    magics: number[];
+    profile?: { profile: CalibrationProfile; fallbacks: string[]; from: number; to: number };
+  };
 }
 
 export interface RunRequest {
