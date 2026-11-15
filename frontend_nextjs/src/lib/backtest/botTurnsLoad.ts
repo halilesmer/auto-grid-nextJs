@@ -48,7 +48,17 @@ const OFF: BotTurnsInfo = { source: 'off', turns: 0, alignedClusters: 0, totalCl
 
 /** Teilstücke (zeitlich geordnet, ohne Überlappung) zu einer kompakten Telemetrie verbinden */
 export function mergeTelemetry(parts: readonly TelemetryTurns[]): TelemetryTurns {
-  const out: { t0: number | null; dt: number[]; dur: number[]; kind: string[]; pre: number[] } = { t0: null, dt: [], dur: [], kind: [], pre: [] };
+  const out: {
+    t0: number | null;
+    dt: number[];
+    dur: number[];
+    kind: string[];
+    pre: number[];
+    snap: (number | null)[];
+    nsl: (number | null)[];
+    z0: (number | null)[];
+    nsl0: (number | null)[];
+  } = { t0: null, dt: [], dur: [], kind: [], pre: [], snap: [], nsl: [], z0: [], nsl0: [] };
   let lastAbs = 0;
   for (const part of parts) {
     if (part.t0 === null || part.kind.length === 0) continue;
@@ -64,6 +74,10 @@ export function mergeTelemetry(parts: readonly TelemetryTurns[]): TelemetryTurns
       out.dur.push(part.dur[i] ?? 0);
       out.kind.push(part.kind[i]);
       out.pre.push(part.pre[i] ?? 0);
+      out.snap.push(part.snap?.[i] ?? null);
+      out.nsl.push(part.nsl?.[i] ?? null);
+      out.z0.push(part.z0?.[i] ?? null);
+      out.nsl0.push(part.nsl0?.[i] ?? null);
     }
     lastAbs = abs;
   }

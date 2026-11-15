@@ -10,16 +10,17 @@
  *    (zincir kuralı); boş turlar bir sonraki gerçek tura geriye hizalanır (orcRb: sahte kısa tur oluşmaz).
  */
 import { BOT_OP_COST_S, type BotTurns } from '@/lib/backtest/botTurns';
+import { DEFAULT_PROFILE } from '@/lib/backtest/calibration';
 import type { LiveOrder } from '@/lib/backtest/startState';
 
 /** Tur başından ilk op'a (SLTP yokken) kadar okuma süresi, saniye. Ölçüm: bt-n1-plan.md §1.3 (boş tur periyodu 2,105 = LOOP 2,0 + 0,105). */
-export const TURN_HEAD_S = 0.105;
+export const TURN_HEAD_S = DEFAULT_PROFILE.vps.headS;
 
 /** Bir küme: birbirine bu kadar saniyeden yakın op'lar aynı turdandır (ölçüm: küme içi adım ≤ 0,23 s, tur arası ≥ 1 s) */
-export const OP_CLUSTER_GAP_S = 0.8;
+export const OP_CLUSTER_GAP_S = DEFAULT_PROFILE.derived.clusterGapS;
 
 /** Zincir toleransı: sonraki küme önceki kümenin bitişinden ≤ LOOP + HEAD + bu kadar sonra gelirse hemen sonraki turdur */
-const CHAIN_SLACK_S = 0.7;
+const CHAIN_SLACK_S = DEFAULT_PROFILE.derived.chainSlackS;
 
 /** Telemetride tur başına ilişkilendirilen ilk op'un gecikme penceresi (kayma tahmini); SLTP yükü pozitif uca düşer */
 const PAIR_BEFORE_S = 0.5;
@@ -70,6 +71,8 @@ interface Turn {
   head: number;
   /** tur başı TP/SL düzeltmelerinin yükü */
   sltp: number;
+  /** BKT-31: fiyat okuma anı (broker saniyesi); telemetri `snap` null ise = start */
+  snapAt: number;
 }
 
 /** Her tura, başı o tura ait olan op'ları atar: tur i = [start_i, start_{i+1}). Girdiler sıralı. */
@@ -105,6 +108,8 @@ export interface TurnSchedule {
   starts: number[];
   /** setup (magic) başına zone başları; `starts` ile aynı uzunlukta */
   zoneAt: Record<number, number[]>;
+  /** BKT-31: tur başına fiyat okuma anı (`start + snap`); liveOrders kaynağında = starts */
+  snapAt: number[];
   turnCount: number;
   /** zincire / tur başına hizalanan canlı op kümesi sayısı */
   alignedClusters: number;
@@ -117,7 +122,7 @@ export interface TurnSchedule {
 }
 
 /** Bir setup için `RunModel.botTurns` */
-export const botTurnsFor = (schedule: TurnSchedule, magic: number): BotTurns => ({ starts: schedule.starts, zoneAt: schedule.zoneAt[magic] ?? schedule.starts });
+export const botTurnsFor = (schedule: TurnSchedule, magic: number): BotTurns => ({ starts: schedule.starts, zoneAt: schedule.zoneAt[magic] ?? schedule.starts, snapAt: schedule.snapAt });
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Yedek kaynak: canlı emir geçmişi
@@ -157,12 +162,13 @@ export function scheduleFromLiveOrders(
   }
   // son kümeden sonra
   for (let s = (end ?? from - loopSec) + loopSec; s < to; s += period) starts.push(s);
-  const turns: Turn[] = starts.map((start) => ({ start, head: TURN_HEAD_S, sltp: 0 }));
+  const turns: Turn[] = starts.map((start) => ({ start, head: TURN_HEAD_S, sltp: 0, snapAt: start }));
   const opsForCost = opts.ownOps ? [...opts.ownOps].sort((a, b) => a.time - b.time) : inWindow;
   return {
     source: 'liveOrders',
     starts,
     zoneAt: buildZoneAt(turns, assignOps(starts, opsForCost), magics),
+    snapAt: [...starts],
     turnCount: starts.length,
     alignedClusters: clusters.length,
     totalClusters: clusters.length,
@@ -184,6 +190,8 @@ export interface TelemetryTurns {
   snap?: readonly (number | null)[];
   nsl?: readonly (number | null)[];
   z0?: readonly (number | null)[];
+  /** BKT-31: `nsl` değerinin z0 anındaki hâli (yalnız tur başı SLTP sayısı); eski kayıtta yok */
+  nsl0?: readonly (number | null)[];
 }
 
 /** Açılmış bir telemetri turu: UTC saniye (ondalıklı), süreler saniye */
@@ -197,6 +205,8 @@ export interface DecodedTurn {
   nsl: number | null;
   /** tur başı → zone döngüsü başı, saniye (yoksa null) */
   z0: number | null;
+  /** tur başı SLTP modify sayısı (z0 anındaki nsl; yoksa null) */
+  nsl0: number | null;
 }
 
 /** Yalnız tam turlar (`kind` t) açılır; piyasa kapalı (m), bağlantı (c) ve netting (n) turları bot kararı üretmez, atlanır */
@@ -216,6 +226,7 @@ export function decodeTurns(turns: TelemetryTurns): DecodedTurn[] {
       snap: snap === null ? null : snap / 1000,
       nsl: turns.nsl?.[i] ?? null,
       z0: z0 === null ? null : z0 / 1000,
+      nsl0: turns.nsl0?.[i] ?? null,
     });
   }
   return out;
@@ -334,13 +345,14 @@ export function scheduleFromTelemetry(
       const d = opsLive[k][0].time - (starts[k] + head);
       if (d > 0 && d <= SLTP_MAX_S) sltp = d;
     }
-    return { start: starts[k], head, sltp };
+    return { start: starts[k], head, sltp, snapAt: kept[k].snap === null ? starts[k] : starts[k] + kept[k].snap };
   });
   const opsForCost = opts.ownOps ? assignOps(starts, [...opts.ownOps].sort((a, b) => a.time - b.time)) : opsLive;
   return {
     source: 'telemetry',
     starts,
     zoneAt: buildZoneAt(turns, opsForCost, magics),
+    snapAt: turns.map((t) => t.snapAt),
     turnCount: starts.length,
     alignedClusters: clock.pairs,
     totalClusters: clusters.length,
