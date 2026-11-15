@@ -204,7 +204,7 @@ export class PathBroker extends SimBroker {
    * BKT-31: SLTP-Anfragen werden zur Op-Zeit wirksam (der Bot sieht sie sofort, der Broker erst dann). Gesetzt vom Lauf für
    * die Dauer des Tur-Kopfs: `next` = Zeit, zu der die nächste Anfrage fertig ist; jede Anfrage rückt sie um `cost` vor.
    */
-  sltpClock: { next: number; cost: number } | null = null;
+  sltpClock: { next: number; cost: number; hold?: boolean } | null = null;
   /** BKT-31 (S): Löschen ist für den Bot sofort fertig, wirkt im Broker erst zu dieser Zeit; null = sofort wie bisher */
   removeAt: number | null = null;
   /** BKT-31 (S): gelöschte, aber im Broker noch lebende Orders → Zeit, zu der das Löschen wirkt */
@@ -792,7 +792,7 @@ export class PathBroker extends SimBroker {
       this.hiddenOrders.set(request.order as number, this.removeAt);
       return { retcode: TRADE_RETCODE_DONE, order: 0, comment: '' };
     }
-    if (request.action === TRADE_ACTION_SLTP && this.tradeOpen && this.sltpClock) {
+    if (request.action === TRADE_ACTION_SLTP && this.tradeOpen && this.sltpClock && this.sltpClock.hold !== false) {
       const clock = this.sltpClock;
       const existing = this.sltpHold.get(request.position ?? -1);
       if (existing || this.positions.some((p) => p.ticket === request.position)) {

@@ -99,6 +99,8 @@ export interface RunModel {
   turnPhases?: boolean;
   /** BKT-31 (S): nur mit `turnPhases`. Löschen ist für den Bot sofort fertig, wirkt im Broker zur Op-Zeit (Vorgabe true) */
   removeAtOp?: boolean;
+  /** BKT-31: nur mit `turnPhases`. TP/SL des Kopfs wirken zur Op-Zeit (Vorgabe true); false = sofort wie vorher (nur zur Teilmessung) */
+  sltpAtOp?: boolean;
 }
 
 /** Fraktal, das vor `from` schon gehandelt wurde (Order gefüllt oder gelöscht): der Lauf legt dafür keine Order mehr */
@@ -390,7 +392,7 @@ export function runBacktest(input: RunInput): RunResult {
   const runHead = (k: number) => {
     headCount += 1;
     eventTime = snapAt[k];
-    broker.sltpClock = { next: snapAt[k], cost: BOT_OP_COST_S.sltp };
+    broker.sltpClock = { next: snapAt[k], cost: BOT_OP_COST_S.sltp, hold: model.sltpAtOp !== false };
     const head = turnHead(broker, zones, active, infos, state);
     broker.sltpClock = null;
     eventTime = null;
