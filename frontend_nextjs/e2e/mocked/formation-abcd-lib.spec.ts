@@ -1058,6 +1058,10 @@ interface ErCase {
   targetZones: { bottom: number; top: number }[];
   cZone: { bottom: number; top: number } | null;
   engulfZones?: boolean;
+  /** Die Fraktalzone im Band entsteht erst am D */
+  zoneByD?: boolean;
+  /** Volumenstärke der umschlossenen Kerze (bei einer Engulf-Kerze zählt nur sie) */
+  engulfWide?: boolean | null;
 }
 const ER_BASE: ErCase = { tip: 140.5, bandZone: { bottom: 139, top: 141 }, engulf: 'bear', targetZones: [{ bottom: 117, top: 118 }], cZone: { bottom: 113.5, top: 115 } };
 
@@ -1080,12 +1084,13 @@ function erRun(side: 'sell' | 'buy', over: Partial<ErCase> = {}) {
   const rows = rowsSell.map(([o, h, l, cl]): Row => (side === 'sell' ? [o, h, l, cl] : [m(o), m(l), m(h), m(cl)]));
   const bars = barsOf(rows, H4);
   const wide = bars.map(() => true as boolean | null);
+  if (c.engulfWide !== undefined) wide[4] = c.engulfWide;
   const s = shapeOf(bars, { a: { idx: 0, price: m(100) }, b: { idx: 1, price: m(130) }, c: { idx: 2, price: m(114) } });
   const rect = (r: { bottom: number; top: number }) => (side === 'sell' ? r : { bottom: m(r.top), top: m(r.bottom) });
   const own = side === 'sell' ? 'resistance' : 'support';
   const opp = side === 'sell' ? 'support' : 'resistance';
   const zones: EarlyZone[] = [];
-  if (c.bandZone && !c.engulfZones) zones.push({ side: own, rect: rect(c.bandZone) });
+  if (c.bandZone && !c.engulfZones) zones.push({ side: own, rect: rect(c.bandZone), fractalTimes: [bars[c.zoneByD ? 4 : 0].time] });
   for (const z of c.targetZones) zones.push({ side: opp, rect: rect(z) });
   if (c.cZone) zones.push({ side: opp, rect: rect(c.cZone) });
   const engulf: EngulfZone[] = c.engulfZones && c.bandZone ? [{ side, idx: 3, rect: rect(c.bandZone), big: true, holds: true }] : [];
@@ -1107,7 +1112,8 @@ for (const side of ['sell', 'buy'] as const) {
     expect(er!.idx).toBe(5);
   });
   frm(`Erken dönüş (${tag}): −0,272 uzatmasına ulaşılmadıysa yok`, () => {
-    expect(erRun(side, { tip: 137.5 }).er).toBeNull();
+    // Bölge uca değer (137–139), yalnız uzatma geçilmedi
+    expect(erRun(side, { tip: 137.5, bandZone: { bottom: 137, top: 139 } }).er).toBeNull();
   });
   frm(`Erken dönüş (${tag}): bantta bölge yoksa yok`, () => {
     expect(erRun(side, { bandZone: { bottom: 131, top: 133 } }).er).toBeNull();
@@ -1138,6 +1144,13 @@ for (const side of ['sell', 'buy'] as const) {
   frm(`Erken dönüş (${tag}): hedef 1 girişe en yakın karşı bölgenin yakın kenarı; girişin ters tarafındaki bölge sayılmaz`, () => {
     const { m, er } = erRun(side, { targetZones: [{ bottom: 117, top: 118 }, { bottom: 119, top: 120 }, { bottom: 127, top: 129 }] });
     near(er!.target1, m(120));
+  });
+  frm(`Erken dönüş (${tag}): bölgeyi D'nin kendisi oluşturduysa yok (döngüsel kanıt)`, () => {
+    expect(erRun(side, { zoneByD: true }).er).toBeNull();
+  });
+  frm(`Erken dönüş (${tag}): hacimsiz ya da hacmi bilinmeyen Engulf sayılmaz`, () => {
+    expect(erRun(side, { engulfWide: false }).er).toBeNull();
+    expect(erRun(side, { engulfWide: null }).er).toBeNull();
   });
   frm(`Erken dönüş (${tag}): Engulf bölgesi de bantta bölge sayılır`, () => {
     const { m, er } = erRun(side, { engulfZones: true });

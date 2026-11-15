@@ -30,7 +30,8 @@ Plan 1114-A4.5 (rule book decision, Halil 2026-11-15). Leg D can turn before it 
 ## Assumptions
 - The engulfing candle uses `engulfAt` like ABCD-20. A candle that is not volume-strong rejects it; unknown strength does not count (stricter than ABCD-20, which marks it not measurable).
 - The first engulfing candle at or after the tip, for the zone with the nearest far edge, counts.
-- Fractal zones of all loaded timeframes count, also reversed ones, like the zones of ABCD-10. Zones formed by the tip itself are not excluded for fractal zones; engulfing zones must be older than the tip.
+- Fractal zones of all loaded timeframes count, also reversed ones, like the zones of ABCD-10. A zone that the tip itself forms does not count (circular proof, as in ABCD-10 and ABCD-22); engulfing zones must be older than the tip. The review found this; before the fix, a tip that later became a fractal made its own zone.
+- Target 2: among the zones at point C, the nearest one beyond target 1 counts.
 - Target 2 is not shown if the zone at C is the same as, or nearer than, target 1.
 - Ratio below 1 still shows the existing warning text (it names target 1 as "TP1").
 - A candidate with an invalid verdict gets no early reversal.

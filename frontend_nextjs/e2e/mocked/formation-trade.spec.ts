@@ -207,9 +207,9 @@ test.describe('FRM-39 Handelsblock AB=CD (TP2, Ergebnisse in R)', () => {
 });
 
 test.describe('FRM-39 Handelsblock AB=CD (Erken dönüş, 1114-A4.5)', () => {
-  // crb-form-h4-01: Kauf-AB=CD, D (100,219) dreht in einer Stütze vor Level 1 mit einer Engulf-Kerze; Ziel 1 aus einer Gegenzone, an C keine Zone
+  // frz-support-h4-01: Kauf-AB=CD, D dreht in einer Stütze vor Level 1 mit einer Engulf-Kerze; Ziel 1 aus einer Gegenzone, an C keine Zone
   test('Kauf: Status Erken dönüş, Hinweiskasten, Einstieg/Stop/Ziel 1, kein Ziel 2, keine Ergebnisse', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    await openPage(page, worker, 'crb-form-h4-01', 1763164800, 'ABCD');
+    await openPage(page, worker, 'frz-support-h4-01', 1759766400, 'ABCD');
     const block = page.getByTestId('trade-block');
     await expect(block.getByTestId('trade-status')).toHaveAttribute('data-status', 'early');
     await expect(block.getByTestId('trade-status')).toContainText(msg('formation.trade.early'));
@@ -245,7 +245,7 @@ test.describe('FRM-39 Handelsblock AB=CD (Erken dönüş, 1114-A4.5)', () => {
 
   test('375 px: der Erken-dönüş-Block läuft nicht über', { tag: '@FRM-39' }, async ({ page, worker }) => {
     await page.setViewportSize({ width: 375, height: 812 });
-    await openPage(page, worker, 'crb-form-h4-01', 1763164800, 'ABCD');
+    await openPage(page, worker, 'frz-support-h4-01', 1759766400, 'ABCD');
     const block = page.getByTestId('trade-block');
     await expect(block.getByTestId('trade-early-note')).toBeVisible();
     expect(await block.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);

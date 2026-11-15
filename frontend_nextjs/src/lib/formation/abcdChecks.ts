@@ -319,7 +319,7 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: n
   const strongZone = tp1Entry !== null && strongZoneAt([...env.frz.zones, ...env.frz.reversed], tp1Entry, side);
   // 1114-A4.5: Erken dönüş. Das Urteil bleibt „im Aufbau“; ein ungültiger Kandidat bekommt ihn nicht
   const early =
-    invalidBy.length === 0
+    invalidBy.length === 0 && !reached && d
       ? earlyReversalOf({
           bars,
           wide: view.wide,

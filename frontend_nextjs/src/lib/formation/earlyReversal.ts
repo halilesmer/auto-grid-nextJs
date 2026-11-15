@@ -22,6 +22,8 @@ import type { FormationBar } from './types';
 export interface EarlyZone {
   side: ZoneSide;
   rect: Rect;
+  /** Öffnungszeiten der Fraktalkerzen der Zone; eine Zone, die erst das D bildet, zählt nicht als Ort des D (wie ABCD-10) */
+  fractalTimes?: readonly number[];
 }
 
 export interface EarlyReversal {
@@ -64,7 +66,7 @@ export function earlyReversalOf(o: {
 
   // Zonen der Handelsseite im Band, die das D berührt; engste ferne Kante zuerst
   const own: Rect[] = [
-    ...o.zones.filter((z) => z.side === zoneSideOf(side)).map((z) => z.rect),
+    ...o.zones.filter((z) => z.side === zoneSideOf(side) && !(z.fractalTimes && z.fractalTimes.every((ft) => ft >= tipBar.time))).map((z) => z.rect),
     ...o.engulfZones.filter((z) => z.holds && z.side === side && z.idx < d.idx).map((z) => z.rect),
   ]
     .filter((r) => r.bottom <= hi && r.top >= lo && touches(r, tipBar))
@@ -86,9 +88,9 @@ export function earlyReversalOf(o: {
         return edges.length === 0 ? null : edges.reduce((a, b) => (gain(entry, a) <= gain(entry, b) ? a : b));
       };
       const target1 = nearestFrom(opposing.map((z) => z.rect));
-      const atC = nearestFrom(opposing.filter((z) => touches(z.rect, bars[s.c.idx])).map((z) => z.rect));
       // Ziel 2 liegt hinter Ziel 1; dieselbe Zone zweimal zu zeigen hilft nicht
-      const target2 = target1 !== null && atC !== null && gain(entry, atC) > gain(entry, target1) ? atC : null;
+      const beyond1 = (r: Rect) => target1 !== null && gain(entry, sell ? r.top : r.bottom) > gain(entry, target1);
+      const target2 = target1 === null ? null : nearestFrom(opposing.filter((z) => touches(z.rect, bars[s.c.idx]) && beyond1(z.rect)).map((z) => z.rect));
       const gap = Math.max(0, out(s.level1) - out(d.price));
       return { idx: k, entry, stop, target1, target2, gap };
     }
