@@ -73,6 +73,34 @@ const confirmed: Partial<Record<PrefKey, Record<string, unknown>>> = {};
 // Aynı anahtara yazmalar sırayla gider; aksi hâlde worker'da eski değer kalabilir
 const queues: Partial<Record<PrefKey, Promise<unknown>>> = {};
 const PUT_TIMEOUT_MS = 15_000;
+// Anahtar başına uçuştaki yazma sayısı: başka sekmeden gelen yayın, bu sekmede aynı anahtara yazma sürerken yok sayılır
+const inflight: Partial<Record<PrefKey, number>> = {};
+const BROADCAST_NAME = 'grid-user-prefs';
+// Aynı tarayıcıdaki sekmeler birbirinin başarılı yazmalarını duyar (F11): eski değerli bir sekme sonra sunucuda yeni değeri ezmesin
+let channel: BroadcastChannel | null = null;
+function prefsChannel(): BroadcastChannel | null {
+  if (channel || typeof BroadcastChannel === 'undefined') return channel;
+  channel = new BroadcastChannel(BROADCAST_NAME);
+  channel.onmessage = (event: MessageEvent<unknown>) => {
+    const msg = event.data as { key?: unknown; value?: unknown } | null;
+    if (!msg || typeof msg.key !== 'string' || !isRecord(msg.value)) return;
+    const key = msg.key as PrefKey;
+    // Okuma bitmeden ya da bu sekmede yazma sürerken yok sayılır (kendi değeri sunucuya gidiyor)
+    if (useUserPrefsStore.getState().loadState !== 'ready' || (inflight[key] ?? 0) > 0) return;
+    confirmed[key] = msg.value;
+    // Aynı değer: uygulanmaz (yeni nesne bileşenleri boşuna tetikler; örn. formasyon taraması yeniden başlardı)
+    if (JSON.stringify(current(key)) === JSON.stringify(msg.value)) return;
+    apply(key, msg.value);
+  };
+  return channel;
+}
+function broadcastPref(key: PrefKey, value: Record<string, unknown>): void {
+  try {
+    prefsChannel()?.postMessage({ key, value });
+  } catch {
+    /* yayın yoksa sekmeler yalnız sonraki okumada eşitlenir */
+  }
+}
 /** Okuma düşerse: bu aralıklarla yeniden denenir (ilk deneme + 3 yeniden deneme), sonra satırda hata ve „Tekrar dene“. */
 const LOAD_RETRY_DELAYS_MS = [600, 1_200, 2_400];
 /** Tek değerli tercihler: kullanıcının seçtiği değer varsayılandan türetilmez, yükleme bitmeden de yazılabilir (üst çubuktaki dil ve tema düğmeleri). */
@@ -90,7 +118,9 @@ const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
 
 /** Bağlantı yok ya da worker bu uca sahip değil (eski sürüm): hata değil, değer yalnız bu oturumda kalır (dil, tema ve ipucu süreleri ayrıca önbellekte). */
 function isLocalOnly(err: unknown): boolean {
-  return err instanceof NotConnectedError || (axios.isAxiosError(err) && err.response?.status === 404);
+  if (err instanceof NotConnectedError) return true;
+  // Tünel kapalıyken ngrok da 404 döner (başlıkta ngrok-error-code): bu eski worker değil, gerçek hata sayılır (F10)
+  return axios.isAxiosError(err) && err.response?.status === 404 && !err.response.headers?.['ngrok-error-code'];
 }
 
 function current(key: PrefKey): Record<string, unknown> {
@@ -311,12 +341,15 @@ export const useUserPrefsStore = create<UserPrefsState>()(() => ({
     confirmed[key] ??= current(key);
     apply(key, value);
     setStatus(key, 'saving');
+    prefsChannel(); // dinleme bu sekmede de açık olsun
+    inflight[key] = (inflight[key] ?? 0) + 1;
     const send = () => axiosInstance.put(`/me/prefs/${key}`, { value }, { timeout: PUT_TIMEOUT_MS });
     const run = (queues[key] ?? Promise.resolve()).catch(() => undefined).then(send);
     queues[key] = run;
     try {
       await run;
       confirmed[key] = value; // worker bu değeri kabul etti: sonraki hata buna döner
+      broadcastPref(key, value);
       if (versions[key] !== version) return; // arkasından yeni bir değişiklik geldi; durumu o gösterir
       serverKeys?.add(key);
       setStatus(key, 'saved', SAVED_VISIBLE_MS);
@@ -342,6 +375,8 @@ export const useUserPrefsStore = create<UserPrefsState>()(() => ({
           },
         },
       });
+    } finally {
+      inflight[key] = Math.max(0, (inflight[key] ?? 1) - 1);
     }
   },
 }));
@@ -497,3 +532,6 @@ registerNewsPersister(async (key, value) => {
   const st = useUserPrefsStore.getState().status[key];
   return st === 'saved' || st === 'saving';
 });
+
+// Dinleme sekme açılır açılmaz başlar: hiç yazma yapmayan sekme de başka sekmenin değişikliğini duyar (F11)
+if (typeof window !== 'undefined') prefsChannel();

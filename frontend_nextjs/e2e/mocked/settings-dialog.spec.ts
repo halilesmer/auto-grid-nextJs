@@ -178,3 +178,63 @@ test.describe('USR-10 Ayar penceresi', () => {
     });
   });
 });
+
+test.describe('USR-10 Saniye alanı (1115-A10 F12)', () => {
+  test('değişmeden alandan çıkmak kayıt yapmaz; yuvarlanan değer yeniden yazılmaz', { tag: '@USR-10' }, async ({ page, worker, dashboard }) => {
+    worker.userPrefs.admin = { tooltip_hold: { mode: 'custom', ms: 1234 } };
+    await dashboard.open(DEMO_ID);
+    await openSettings(page);
+    const input = page.getByTestId('settings-hold-input');
+    await expect(input).toHaveValue(/1[.,]23$/);
+    await input.focus();
+    await input.blur();
+    await page.waitForTimeout(500);
+    expect(worker.callsTo('PUT', '/api/me/prefs/tooltip_hold')).toHaveLength(0);
+    expect(worker.userPrefs.admin.tooltip_hold).toEqual({ mode: 'custom', ms: 1234 });
+
+    // Değişen metin kaydedilir
+    await input.fill('2');
+    await input.press('Enter');
+    await expect.poll(() => worker.userPrefs.admin.tooltip_hold).toEqual({ mode: 'custom', ms: 2000 });
+  });
+});
+
+test.describe('USR-09 Tünel kapalı, sekmeler arası eşitleme (1115-A10 F10, F11)', () => {
+  test('F10: tünel kapalıyken (ngrok 404) yazma sessizce kaybolmaz: değer geri alınır, “Kaydedilemedi” ve “Tekrar dene” çıkar', { tag: '@USR-09' }, async ({ page, worker, dashboard }) => {
+    worker.userPrefs.admin = { theme: { theme: 'dark' } };
+    await dashboard.open(DEMO_ID);
+    await openSettings(page);
+    worker.overrides.set('PUT /api/me/prefs/theme', { status: 404, body: { detail: 'tunnel' }, headers: { 'ngrok-error-code': 'ERR_NGROK_3200' } });
+    await page.getByTestId('settings-theme-light').click();
+    await expect(page.getByTestId('pref-status-theme')).toHaveAttribute('data-status', 'failed');
+    await expect(page.getByText(msg('prefs.toast.failed')).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: msg('sdlg.load.retry') }).first()).toBeVisible();
+    await expect(page.locator('html')).toHaveClass(/dark/);
+  });
+
+  test('F10: worker’ın kendi 404’ü (eski worker) hata sayılmaz: değer bu oturumda kalır', { tag: '@USR-09' }, async ({ page, worker, dashboard }) => {
+    worker.userPrefs.admin = { theme: { theme: 'dark' } };
+    await dashboard.open(DEMO_ID);
+    await openSettings(page);
+    worker.overrides.set('PUT /api/me/prefs/theme', { status: 404, body: { detail: 'Not Found' } });
+    await page.getByTestId('settings-theme-light').click();
+    await expect(page.locator('html')).not.toHaveClass(/dark/);
+    await expect(page.getByTestId('pref-status-theme')).toHaveCount(0);
+  });
+
+  test('F11: bir sekmede kaydedilen değer öbür sekmede görünür (BroadcastChannel)', { tag: '@USR-09' }, async ({ page, worker, dashboard }) => {
+    worker.userPrefs.admin = { theme: { theme: 'dark' } };
+    await dashboard.open(DEMO_ID);
+    const other = await page.context().newPage();
+    await worker.install(other);
+    await other.goto(page.url());
+    await expect(other.locator('html')).toHaveClass(/dark/);
+    await expect(page.locator('html')).toHaveClass(/dark/);
+
+    await openSettings(other);
+    await other.getByTestId('settings-theme-light').click();
+    await expect.poll(() => worker.userPrefs.admin.theme).toEqual({ theme: 'light' });
+    await expect(page.locator('html')).not.toHaveClass(/dark/);
+    await other.close();
+  });
+});

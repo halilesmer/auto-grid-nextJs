@@ -28,6 +28,8 @@ interface Reply {
   body: unknown;
   /** Antwort erst nach so vielen Millisekunden */
   delayMs?: number;
+  /** Zusätzliche Antwort-Header (z. B. `ngrok-error-code` wie bei geschlossenem Tunnel) */
+  headers?: Record<string, string>;
 }
 
 /** Datei im Medienspeicher (Spiegel von worker_python/src/utils/account_media.py). */
@@ -507,11 +509,11 @@ export class MockWorker {
     return null;
   }
 
-  private async reply(route: Route, { status, body, delayMs }: Reply) {
+  private async reply(route: Route, { status, body, delayMs, headers }: Reply) {
     if (delayMs) await new Promise((resolve) => setTimeout(resolve, delayMs));
     return route.fulfill({
       status,
-      headers: CORS_HEADERS,
+      headers: headers ? { ...CORS_HEADERS, ...headers, 'Access-Control-Expose-Headers': Object.keys(headers).join(', ') } : CORS_HEADERS,
       contentType: 'application/json',
       body: JSON.stringify(body),
     });

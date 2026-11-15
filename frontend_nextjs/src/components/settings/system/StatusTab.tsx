@@ -26,12 +26,19 @@ export default function StatusTab({ ctx }: { ctx: SystemCtx }) {
     if (hasElevatedBots && useAccountStore.getState().accounts.length === 0) fetchAccounts();
   }, [hasElevatedBots, fetchAccounts]);
 
-  const ws = worker.status;
+  // Son okuma hatalıysa eski değerler gösterilmez
+  const ws = worker.error ? null : worker.status;
   const st = vps.status;
   const lastReboot = st?.tunnel_watchdog?.reboots.at(-1);
   const autostartOk = Boolean(st?.autologon && st.tasks.start.exists);
   const on = (v: boolean) => (v ? t('vps.tile.on') : t('vps.tile.off'));
   const yes = (v: boolean) => (v ? t('vps.tile.yes') : t('vps.tile.no'));
+  const loopState = (v: boolean) => (v ? t('vps.tile.loop.active') : t('vps.tile.loop.missing'));
+  // Tünel süreci çalışıyor ama herkese açık adres cevap vermiyor (watchdog): uyarı
+  const tunnelFailing = Boolean(st?.tunnel_watchdog?.failures) && st?.tunnel_watchdog?.last_result === 'tunnel-down';
+  let ngrokTone: 'success' | 'warning' | 'danger' = 'success';
+  if (st && !st.ngrok.running) ngrokTone = 'danger';
+  else if (tunnelFailing) ngrokTone = 'warning';
   const refreshing = () => {
     void worker.refresh();
     void vps.refreshStatus();
@@ -45,25 +52,40 @@ export default function StatusTab({ ctx }: { ctx: SystemCtx }) {
     return render();
   };
 
+  /** Worker satırı: son okuma hatalıysa eski „çalışıyor“ gösterilmez (F2), worker ulaşılamıyor sayılır. */
+  const workerCell = () => {
+    if (worker.error) {
+      return (
+        <StateValue tone="danger" detail={worker.error} testId="sys-worker-state">
+          {t('sdlg.sys.worker.down')}
+        </StateValue>
+      );
+    }
+    if (!ws) {
+      return (
+        <StateValue tone="neutral" testId="sys-worker-state">
+          {t('sdlg.sys.reading')}
+        </StateValue>
+      );
+    }
+    return (
+      <StateValue
+        tone="success"
+        testId="sys-worker-state"
+        detail={t('sdlg.sys.worker.detail', {
+          version: ws.version || '–',
+          uptime: ws.uptime_sec == null ? '–' : uptime(Math.floor(ws.uptime_sec / 60), t),
+        })}
+      >
+        {t('sdlg.sys.worker.running')}
+      </StateValue>
+    );
+  };
+
   return (
     <div data-testid="settings-sys-status">
       <SettingsRow label={t('sdlg.sys.worker')} desc={t('sdlg.sys.worker.desc')} testId="sys-row-worker">
-        {ws ? (
-          <StateValue
-            tone={worker.error ? 'warning' : 'success'}
-            testId="sys-worker-state"
-            detail={t('sdlg.sys.worker.detail', {
-              version: ws.version || '–',
-              uptime: ws.uptime_sec == null ? '–' : uptime(Math.floor(ws.uptime_sec / 60), t),
-            })}
-          >
-            {worker.error ? t('sdlg.sys.worker.stale') : t('sdlg.sys.worker.running')}
-          </StateValue>
-        ) : (
-          <StateValue tone={worker.error ? 'danger' : 'neutral'} detail={worker.error} testId="sys-worker-state">
-            {worker.error ? t('sdlg.sys.worker.down') : t('sdlg.sys.reading')}
-          </StateValue>
-        )}
+        {workerCell()}
       </SettingsRow>
       <SettingsRow label={t('sdlg.sys.bots')} desc={t('sdlg.sys.bots.desc')} testId="sys-row-bots">
         {ws ? (
@@ -111,11 +133,50 @@ export default function StatusTab({ ctx }: { ctx: SystemCtx }) {
       <SettingsRow label={t('sdlg.sys.ngrok')} desc={t('sdlg.sys.ngrok.desc')} testId="sys-row-ngrok">
         {ssh(() => (
           <StateValue
-            tone={st!.ngrok.running ? 'success' : 'danger'}
+            tone={ngrokTone}
             detail={st!.ngrok.public_url ? <span className="font-mono text-xs">{st!.ngrok.public_url}</span> : undefined}
             testId="sys-ngrok-state"
           >
             {st!.ngrok.running ? t('vps.tile.ngrok.online') : t('vps.tile.ngrok.offline')}
+          </StateValue>
+        ))}
+      </SettingsRow>
+      <SettingsRow label={t('sdlg.sys.vpsver')} desc={t('sdlg.sys.vpsver.desc')} testId="sys-row-vpsver">
+        {ssh(() => (
+          <StateValue
+            tone={st!.git.branch === 'main' ? 'success' : 'warning'}
+            detail={
+              <>
+                <span className="font-mono text-xs">
+                  {st!.git.branch || '?'} @ {st!.git.commit || '?'}
+                </span>
+                {st!.git.updated_at && <span className="block">{t('vps.tile.updatedAt', { time: fmt.dateTime(st!.git.updated_at) })}</span>}
+              </>
+            }
+            testId="sys-vpsver-state"
+          >
+            {st!.version || '?'}
+          </StateValue>
+        ))}
+      </SettingsRow>
+      <SettingsRow label={t('sdlg.sys.host')} desc={t('sdlg.sys.host.desc')} testId="sys-row-host">
+        {ssh(() => (
+          <StateValue tone="success" detail={t('vps.tile.uptime', { time: uptime(st!.uptime_minutes, t) })} testId="sys-host-state">
+            {st!.hostname}
+          </StateValue>
+        ))}
+      </SettingsRow>
+      <SettingsRow label={t('sdlg.sys.mt5')} desc={t('sdlg.sys.mt5.desc')} testId="sys-row-mt5">
+        {ssh(() => (
+          <StateValue tone="neutral" testId="sys-mt5-state">
+            {t('sdlg.sys.mt5.value', { n: st!.mt5_terminals })}
+          </StateValue>
+        ))}
+      </SettingsRow>
+      <SettingsRow label={t('sdlg.sys.loops')} desc={t('sdlg.sys.loops.desc')} testId="sys-row-loops">
+        {ssh(() => (
+          <StateValue tone={st!.worker_watchdog && st!.ngrok_watchdog ? 'success' : 'warning'} testId="sys-loops-state">
+            {t('sdlg.sys.loops.worker', { state: loopState(st!.worker_watchdog) })} · {t('sdlg.sys.loops.ngrok', { state: loopState(st!.ngrok_watchdog) })}
           </StateValue>
         ))}
       </SettingsRow>

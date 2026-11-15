@@ -5,6 +5,7 @@ import { Info, Lock } from 'lucide-react';
 import { StatusDot } from '@/components/ui/status-dot';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useT } from '@/i18n';
+import { useAccountStore } from '@/store/useAccountStore';
 import type { useVps } from '@/components/vps/useVps';
 import type { useSystemActions } from '@/hooks/useSystemActions';
 import type { useWorkerSystem } from './useWorkerSystem';
@@ -16,6 +17,8 @@ export interface SystemCtx {
   system: ReturnType<typeof useSystemActions>;
   /** SSH satırları kilitli: pencere localhost dışında açık ya da SSH kurulmamış */
   sshLocked: boolean;
+  /** İlk SSH durum cevabı henüz gelmedi: SSH düğmeleri o zamana kadar kapalı (F7) */
+  sshPending: boolean;
 }
 
 export const SYSTEM_TABS = ['status', 'update', 'restart', 'logs'] as const;
@@ -86,4 +89,26 @@ export function StateValue({
       {detail && <span className="min-w-0 break-words text-[13px] text-muted-foreground">{detail}</span>}
     </div>
   );
+}
+
+/** Onay penceresinde çalışan botlar ve LIVE/DEMO bilgisi (hesap listesi varsa); SSH okunamıyorsa worker'ın sayısı. */
+export function useBotsLine(ctx: SystemCtx): () => string | undefined {
+  const t = useT();
+  const accounts = useAccountStore((s) => s.accounts);
+  return () => {
+    const bots = ctx.vps.status?.bots;
+    if (bots) {
+      if (bots.length === 0) return t('sdlg.sys.confirm.noBots');
+      const list = bots
+        .map((b) => {
+          const a = accounts.find((x) => String(x.id) === b.account || String(x.login) === b.account);
+          if (!a) return b.account;
+          return `${b.account} (${a.env_type === 'LIVE' ? t('dashboard.env.live') : t('dashboard.env.demo')})`;
+        })
+        .join(', ');
+      return t('sdlg.sys.confirm.bots', { accounts: list });
+    }
+    const n = ctx.worker.error ? undefined : ctx.worker.status?.bots_running;
+    return n == null ? undefined : t('sdlg.sys.confirm.botsCount', { count: n });
+  };
 }

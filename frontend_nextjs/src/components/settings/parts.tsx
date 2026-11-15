@@ -240,6 +240,8 @@ function SecondsInput({
 
   const commit = () => {
     if (disabled) return;
+    // Metin değişmediyse kayıt yok: ekranda yuvarlanan değer (0,333 → „0,33“) yeniden yazılmaz
+    if (draft === shown) return;
     const parsed = parse(draft);
     if (parsed === null) {
       setInvalid(true);

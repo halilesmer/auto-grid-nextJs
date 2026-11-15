@@ -15,7 +15,7 @@ import { alarmsAfterRemove, INDICATOR_KINDS, indicatorFormula, isOscillator, isS
 import { useChartWorkspaceStore, emptyChartDocument, type ChartDocument } from '@/store/useChartWorkspaceStore';
 import { useThemeStore } from '@/store';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
-import { useSettingsDialogStore } from '@/store/useSettingsDialogStore';
+import { isOpenRequestFresh, useSettingsDialogStore } from '@/store/useSettingsDialogStore';
 import { extendFibHit } from '@/lib/chart-workspace/fibHit';
 import { ReplayDrawingVisibility } from '@/lib/chart-workspace/replayDrawings';
 import { withAlpha } from '@/lib/chartTheme';
@@ -122,13 +122,16 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   useEffect(() => {
     const take = () => {
       const requests = useSettingsDialogStore.getState();
+      const fresh = (at: number) => isOpenRequestFresh(at);
       if (requests.appearanceRequested) {
         requests.clearAppearanceRequest();
         // Über denselben Weg wie das Linienmenü: openSettings sichert die Vorschau (Abbrechen stellt wieder her)
-        window.dispatchEvent(new CustomEvent(OPEN_SETTINGS_EVENT, { detail: 'symbol' }));
+        if (fresh(requests.appearanceRequestedAt)) window.dispatchEvent(new CustomEvent(OPEN_SETTINGS_EVENT, { detail: 'symbol' }));
       }
       if (!requests.indicatorsRequested) return;
       requests.clearIndicatorsRequest();
+      // F13: eski istek (gezinme olmadı) yok sayılır
+      if (!fresh(requests.indicatorsRequestedAt)) return;
       setTreeSection('indicators');
       setIndicatorsOpen(true);
     };

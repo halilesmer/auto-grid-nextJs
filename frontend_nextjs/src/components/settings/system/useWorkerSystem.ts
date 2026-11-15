@@ -31,6 +31,8 @@ export function useWorkerSystem() {
   const [readAt, setReadAt] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [lines, setLines] = useState<string[]>([]);
+  /** Worker logu okunamadıysa nedeni (null = son okuma başarılı); `lines` eski satırları tutar */
+  const [logError, setLogError] = useState<string | null>(null);
   const [restarting, setRestarting] = useState(false);
   const fastUntil = useRef(0);
   // Worker yeniden başlatma komutundan sonra bir kez kapandıysa (ya da süre dolduysa) geri döndü sayılır
@@ -52,7 +54,14 @@ export function useWorkerSystem() {
       if (st.status === 'rejected') throw st.reason;
       setStatus(st.value.data);
       setReadAt(Date.now());
-      if (log.status === 'fulfilled') setLines((log.value.data.lines ?? []).map(stripAnsi));
+      if (log.status === 'fulfilled') {
+        setLines((log.value.data.lines ?? []).map(stripAnsi));
+        setLogError(null);
+      } else {
+        const reason = await getApiErrorMessage(log.reason, t('vps.log.readFailed'));
+        if (mine !== requestId.current) return;
+        setLogError(reason);
+      }
       setError(null);
       if (restartedAt.current && (sawDown.current || Date.now() - restartedAt.current > FAST_POLL_DURATION_MS)) {
         restartedAt.current = 0;
@@ -62,7 +71,11 @@ export function useWorkerSystem() {
     } catch (err) {
       if (mine !== requestId.current) return;
       if (restartedAt.current) sawDown.current = true;
-      setError(await getApiErrorMessage(err, t('vps.online.loadFailed')));
+      const reason = await getApiErrorMessage(err, t('vps.online.loadFailed'));
+      if (mine !== requestId.current) return;
+      setError(reason);
+      // Worker hiç cevap vermiyorsa log da okunamamıştır; eski satırlar eski diye işaretlenir
+      setLogError(reason);
     }
   }, []);
 
@@ -100,5 +113,5 @@ export function useWorkerSystem() {
     }
   }, [refresh]);
 
-  return { status, readAt, error, lines, restarting, refresh, restart };
+  return { status, readAt, error, lines, logError, restarting, refresh, restart };
 }

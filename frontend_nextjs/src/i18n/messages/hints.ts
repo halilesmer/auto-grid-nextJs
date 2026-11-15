@@ -137,7 +137,7 @@ const existingHints = defineArea(
     'update.apply.hint':
       'Yeni sürümü GitHub’dan çeker (git pull) ve worker’ı yeniden başlatır; çalışan botlar sonra kendiliğinden devam eder.',
     'update.vpsLink.hint':
-      'Worker’a ulaşılamasa bile VPS sayfasından SSH ile güncelleme veya yeniden başlatma yapabilirsiniz (yalnızca yerel).',
+      'Worker’a ulaşılamasa bile Ayarlar → VPS ve sistem bölümünden SSH ile güncelleme veya yeniden başlatma yapabilirsiniz (yalnızca bu Mac’te).',
 
     // --- Loglar ---
     'logs.tab.activity.hint': 'Bu oturumda arayüzde yaptıklarınız ve bot olayları (başlat, durdur, hata).',
@@ -827,7 +827,7 @@ const existingHints = defineArea(
     'update.apply.hint':
       'Pulls the new version from GitHub (git pull) and restarts the worker; running bots resume on their own afterwards.',
     'update.vpsLink.hint':
-      'Even if the worker is unreachable you can update or restart it via SSH on the VPS page (local only).',
+      'Even if the worker is unreachable you can update or restart it over SSH in Settings → VPS and system (this Mac only).',
 
     // --- Logs ---
     'logs.tab.activity.hint': 'What you did in the UI during this session and bot events (start, stop, errors).',
@@ -1517,7 +1517,7 @@ const existingHints = defineArea(
     'update.apply.hint':
       'Holt die neue Version von GitHub (git pull) und startet den Worker neu; laufende Bots setzen danach von selbst fort.',
     'update.vpsLink.hint':
-      'Auch wenn der Worker nicht erreichbar ist, können Sie ihn über die VPS-Seite per SSH aktualisieren oder neu starten (nur lokal).',
+      'Auch wenn der Worker nicht erreichbar ist, können Sie ihn unter Einstellungen → VPS und System per SSH aktualisieren oder neu starten (nur an diesem Mac).',
 
     // --- Logs ---
     'logs.tab.activity.hint': 'Was Sie in dieser Sitzung in der Oberfläche getan haben, und Bot-Ereignisse (Start, Stopp, Fehler).',
