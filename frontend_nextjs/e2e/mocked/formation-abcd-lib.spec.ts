@@ -400,11 +400,14 @@ test.describe('ABCD: Abdeckung und Eigenschaften', () => {
     expect(state(harmonic, 'ABCD-19')).not.toBe(M);
     const withHarmonic = harmonic.drawings.find((d) => d.id === 'Z-ABCD-05')!;
     expect(withHarmonic.anchors.map((a) => [a.time, a.price])).toEqual([[20 * H4, 130], [32 * H4, 106.41]]);
-    expect(withHarmonic.levels).toEqual([0.382, 0.618, -0.382]);
+    expect(withHarmonic.levels).toEqual([0.382, 0.618]);
+    // Stop eingefroren an der Kerze, die Level 1 erreicht: mit Harmonik ab A (130) zu Level 1 (106.40), −0.382
+    expect(harmonic.trade!.entry).toBeCloseTo(106.4, 6);
+    expect(harmonic.trade!.stop).toBeCloseTo(106.4 - 0.382 * (130 - 106.4), 6);
     const plainCase = run({ H4: X_NO_HARMONIC }, X_NO_HARMONIC_AT);
     const without = plainCase.drawings.find((d) => d.id === 'Z-ABCD-05')!;
     expect(without.anchors[0].price).toBe(X_NO_HARMONIC[26][2]);
-    expect(without.levels).toEqual([0.382, 0.618, -0.382]);
+    expect(without.levels).toEqual([0.382, 0.618]);
   });
 
   frm('ABCD-25: M1 und M5 sind ausgeschlossen, die Zeiteinheiten des Kontexts nicht', () => {
@@ -509,12 +512,12 @@ test.describe('ABCD: Abdeckung und Eigenschaften', () => {
   frm('Zeichnungen: Zickzack, Level 1, Fib A → B, Zone, Ziel-Fib und Label auch bei ☐', () => {
     const c = run({ H4: S1 }, ABC);
     const ids = c.drawings.map((d) => d.id);
-    expect(ids).toEqual(['Z-ABCD-01', 'Z-ABCD-02', 'Z-ABCD-03', 'Z-ABCD-04', 'Z-ABCD-06', 'Z-ABCD-05']);
+    expect(ids).toEqual(['Z-ABCD-01', 'Z-ABCD-02', 'Z-ABCD-03', 'Z-ABCD-04', 'Z-ABCD-06', 'Z-ABCD-05', 'Z-ABCD-07', 'Z-ABCD-08']);
     const zigzag = c.drawings.find((d) => d.id === 'Z-ABCD-01')!;
     expect(zigzag.anchors.map((a) => a.price)).toEqual([S1[2][2], S1[10][1], S1[18][2], S1[26][1]]);
     expect(c.drawings.find((d) => d.id === 'Z-ABCD-02')!.anchors[0].price).toBe(144);
     expect(c.drawings.find((d) => d.id === 'Z-ABCD-03')!.levels).toEqual([0.382, -0.272]);
-    expect(c.drawings.find((d) => d.id === 'Z-ABCD-05')!.levels).toEqual([0.382, 0.618, -0.382]);
+    expect(c.drawings.find((d) => d.id === 'Z-ABCD-05')!.levels).toEqual([0.382, 0.618]);
     expect(find(c, 'ABCD-07').drawings).toEqual(['Z-ABCD-02', 'Z-ABCD-06']);
     // ohne erreichtes D: Zickzack nur bis C, keine Ziel-Fib
     const forming = run({ H4: S_FORMING }, ABC);
@@ -530,7 +533,7 @@ test.describe('ABCD: Abdeckung und Eigenschaften', () => {
       d: { time: 62 * H4, price: 143 },
     });
     const target = div.drawings.find((d) => d.id === 'Z-ABCD-05');
-    expect(target?.levels).toEqual([0.382, 0.618, 0.786, -0.382]);
+    expect(target?.levels).toEqual([0.382, 0.618, 0.786]);
   });
 });
 
@@ -697,4 +700,71 @@ test.describe('ABCD: Abnahmefälle der Testliste, offene Fälle (echte Kerzen)',
 
 test('Handelsblock: Einstieg am D, Ziel und Stop aus der Fib ab C (oder A); keine Veto-Zeile', { tag: ['@FRM-39', '@FRM-40'] }, () => {
   expectTradeShape(run({ H4: S1_TAIL }, ABC), { veto: false });
+});
+
+// ---- Handel: Einstieg an Level 1, eingefrorener Stop (1114-A4.1) ----------------------------------------------
+
+/** A 100, B 130, C 114: Level 1 = 144; D-Docht 150 und 160 liegen jenseits von Level 1 */
+const S_PAST = zig([100, 130, 114, 150], 8, 0);
+const S_PAST_FAR = zig([100, 130, 114, 160], 8, 0);
+
+test('Handel: Einstieg an Level 1 und Stop eingefroren, auch wenn der Docht weiter läuft; TP1 folgt dem äußersten Docht', { tag: '@FRM-05' }, () => {
+  const near = run({ H4: S_PAST }, ABC).trade!;
+  const far = run({ H4: S_PAST_FAR }, ABC).trade!;
+  // Level 1 = 114 + 30 = 144; Stop = −0.382 der Fib C → Level 1 = 144 + 0.382 × 30
+  for (const t of [near, far]) {
+    expect(t.entry).toBeCloseTo(144, 9);
+    expect(t.stop).toBeCloseTo(155.46, 9);
+    expect(t.tp1AtEntry).toBeCloseTo(132.54, 9);
+  }
+  // TP1: 0.382 der Fib C → äußerster Docht (150 bzw. 160)
+  expect(near.tp1).toBeCloseTo(150 - 0.382 * 36, 9);
+  expect(far.tp1).toBeCloseTo(160 - 0.382 * 46, 9);
+  // CRV am Einstieg = 1, SIG-29 wird vom Weiterlaufen nicht berührt
+  expect(near.sig29?.value).toBeCloseTo(1, 9);
+  expect(far.sig29?.value).toBeCloseTo(1, 9);
+});
+
+test('Handel: Spiegelfall (Kauf) hat dieselben Abstände', { tag: '@FRM-05' }, () => {
+  const t = run({ H4: mirror(S_PAST) }, ABC, { sell: false }).trade!;
+  const sellT = run({ H4: S_PAST }, ABC).trade!;
+  // Risiko und CRV gleich, Stop unter dem Einstieg, TP1 darüber
+  expect(t.entry! - t.stop!).toBeCloseTo(sellT.stop! - sellT.entry!, 9);
+  expect(t.tp1AtEntry! - t.entry!).toBeCloseTo(sellT.entry! - sellT.tp1AtEntry!, 9);
+  expect(t.sig29?.value).toBeCloseTo(1, 9);
+});
+
+test('Handel: Z-ABCD-05 ohne Stop-Level, Stop als eigene Linie Z-ABCD-07 mit Beschriftung Z-ABCD-08', { tag: '@FRM-05' }, () => {
+  const c = run({ H4: S_PAST }, ABC);
+  expect(c.drawings.find((d) => d.id === 'Z-ABCD-05')!.levels).toEqual([0.382, 0.618]);
+  const line = c.drawings.find((d) => d.id === 'Z-ABCD-07')!;
+  expect(line.tool).toBe('hline');
+  expect(line.anchors[0].price).toBeCloseTo(c.trade!.stop!, 9);
+  expect(c.drawings.find((d) => d.id === 'Z-ABCD-08')!.label).toBe('stop');
+});
+
+test('Handel: Level 1 innerhalb der Toleranz verfehlt, Einstieg bleibt Level 1 und die Lücke steht im Handel', { tag: '@FRM-05' }, () => {
+  // D 143 statt 144: fehlt 0,033 von AB (Toleranz hält), Lücke 1 im Preis
+  const t = run({ H4: S_NEAR_MISS }, ABC).trade!;
+  expect(t.entry).toBeCloseTo(144, 9);
+  expect(t.stop).toBeCloseTo(155.46, 9);
+  expect(t.missed).toBeCloseTo(1, 9);
+  expect(run({ H4: S_PAST }, ABC).trade!.missed).toBeUndefined();
+});
+
+test('Handel: mit Divergenz an der Kerze, die Level 1 erreicht, ist der Stop-Anker A', { tag: '@FRM-05' }, () => {
+  const rows = DIV_BEAR;
+  const c = checkAbcdCandidate(ctxOf({ H4: rows }), END, {
+    tf: 'H4',
+    a: wick(rows, DIV.a, false),
+    b: wick(rows, DIV.b, true),
+    c: wick(rows, DIV.c, false),
+    d: { time: 62 * H4, price: 143 },
+  });
+  expect(state(c, 'ABCD-19')).toBe(M);
+  const level1 = c.drawings.find((d) => d.id === 'Z-ABCD-02')!.anchors[0].price;
+  const a = c.points.A.price;
+  // Stop = −0.382 der Fib A → Level 1 (Einstieg); Notation Start = 1, Ende = 0
+  expect(c.trade!.entry).toBeCloseTo(level1, 9);
+  expect(c.trade!.stop).toBeCloseTo(level1 - 0.382 * (a - level1), 9);
 });

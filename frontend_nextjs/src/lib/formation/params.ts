@@ -185,7 +185,7 @@ export const ABCD_PARAMS = {
   excludedTimeframes: ['M1', 'M5'] as readonly string[],
   /** ABCD-15: Retracement-Level der größeren Gegenbewegung, das als zweites Level zählt */
   confluenceLevel: 0.618,
-  /** Z-ABCD-05: Ziele und 1:1-Stop der Ziel-Fib (Level in Notation Start = 1, Ende = 0) */
+  /** Z-ABCD-05: Ziele der Ziel-Fib; `stop` ist der 1:1-Stop, den Z-ABCD-07 eingefroren zeigt (Level in Notation Start = 1, Ende = 0) */
   targets: { tp1: 0.382, tp2: 0.618, stop: 0.382, divergence: 0.786 },
 } as const;
 
