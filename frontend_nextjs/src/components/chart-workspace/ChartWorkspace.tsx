@@ -120,8 +120,14 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   // Ayarlar → Grafik → „Grafikte aç“ (USR-12): Göstergeler penceresini açar. Sayfa sonradan açılırsa istek bekler, ilk çizimden sonra işlenir.
   useEffect(() => {
     const take = () => {
-      if (!useSettingsDialogStore.getState().indicatorsRequested) return;
-      useSettingsDialogStore.getState().clearIndicatorsRequest();
+      const requests = useSettingsDialogStore.getState();
+      if (requests.appearanceRequested) {
+        requests.clearAppearanceRequest();
+        setSettingsSection('symbol');
+        setSettingsOpen(true);
+      }
+      if (!requests.indicatorsRequested) return;
+      requests.clearIndicatorsRequest();
       setTreeSection('indicators');
       setIndicatorsOpen(true);
     };
@@ -149,7 +155,6 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const previousSample = useRef<{ scope: string; values: Record<string, Value> }>({ scope: '', values: {} });
   const imageInput = useRef<HTMLInputElement>(null);
   const state = useChartWorkspaceStore(), theme = useThemeStore(s => s.resolvedTheme);
-  const perProduct = context.view === 'analysis' || context.view === 'free';
   const toolbarDefaults = useMemo(() => defaultToolbar(), []);
   const preferences = state.toolbar[context.key] ?? toolbarDefaults;
   const drawingKey = state.links[context.key] ?? context.key;
@@ -165,7 +170,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const stored = state.documents[context.key] ?? defaults;
   // A saved document without the system RSI (older version) gets it at the start; it cannot be deleted, only switched off as a layer
   const ownDocument = useMemo(() => context.systemRsi && !stored.indicators.some(isSystemRsi) ? { ...stored, indicators: [systemRsiIndicator(), ...stored.indicators] } : stored, [context.systemRsi, stored]);
-  const appearance = useChartWorkspaceStore(useShallow(s => s.preview ?? (perProduct ? s.documents[context.key]?.appearance ?? s.appearance : s.appearance)));
+  const appearance = useChartWorkspaceStore(useShallow(s => s.preview ?? s.appearance));
   const magnet = appearance.magnet as MagnetMode, keepDrawing = appearance.keepDrawing;
   const sharedDocument = state.documents[drawingKey];
   const doc = useMemo(() => drawingKey === context.key || !sharedDocument ? ownDocument : { ...ownDocument, drawings: sharedDocument.drawings, images: sharedDocument.images }, [drawingKey, context.key, sharedDocument, ownDocument]);
@@ -251,14 +256,8 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     window.addEventListener('pointerup', release, true);
     return () => window.removeEventListener('pointerup', release, true);
   }, [binding, saveDocument]);
-  const saveAppearance = useCallback((next: Appearance) => {
-    const store = useChartWorkspaceStore.getState();
-    if (perProduct) {
-      const own = store.documents[context.key] ?? defaults;
-      documentRef.current = { ...documentRef.current, appearance: next };
-      store.setDocument(context.key, { ...own, appearance: next });
-    } else store.setAppearance(next);
-  }, [context.key, perProduct, defaults]);
+  // S7.1: das Aussehen gehört dem Benutzer und gilt in jedem Chart gleich (nicht mehr je Symbol im Dokument)
+  const saveAppearance = useCallback((next: Appearance) => { useChartWorkspaceStore.getState().setAppearance(next); }, []);
   const rollbackOverlays = useCallback(() => {
     useChartWorkspaceStore.getState().finishOverlayPreview(false);
     useAnalysisPrefsStore.getState().finishPreview(false);
@@ -313,7 +312,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     manager.current = m; extendFibHit(m);
     const storeState = useChartWorkspaceStore.getState();
     const existing = storeState.documents[context.key] ?? defaults;
-    const privateDoc = perProduct && existing.appearance === undefined ? { ...existing, appearance: storeState.appearance } : existing;
+    const privateDoc = existing;
     const shared = storeState.documents[drawingKey];
     const stored = shared && drawingKey !== context.key ? { ...privateDoc, drawings: shared.drawings, images: shared.images } : privateDoc;
     documentRef.current = stored;
@@ -324,7 +323,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     // Restore image bytes before drawing; no remote image URLs are accepted.
     for (const [name, url] of Object.entries(stored.images)) void decodeImage(url).then(img => { if (!disposed) { cacheImage(name, img); m.redraw(); } }).catch(() => { if (!disposed) setError('cw.imageError'); });
     current.current = m.exportJSON(); replay.current.sync(m, live.current.until); undo.current = []; redo.current = [];
-    const off = [m.on('selection', ids => { setSelected([...ids]); if (ids[0]) setActiveObject(ids[0]); }), m.on('tool', setTool), m.on('visibility', visible => { const store = useChartWorkspaceStore.getState(); const a = perProduct ? store.documents[context.key]?.appearance ?? store.appearance : store.appearance; if (a.hideDrawings !== visible) saveAppearance({ ...a, hideDrawings: visible }); }), m.on('gestureEnd', checkpoint), m.on('remove', () => queueMicrotask(() => { if (manager.current === m) checkpoint(); })), m.on('textEdit', drawing => { if (!useChartWorkspaceStore.getState().toolbar[context.key]?.locked) setEditor({ drawing, text: drawing.text ?? '' }); }), m.on('tableEdit', (drawing, cell) => { if (!useChartWorkspaceStore.getState().toolbar[context.key]?.locked) setEditor({ drawing, cell, text: drawing.style.tableCells?.[cell[0]]?.[cell[1]] ?? '' }); })];
+    const off = [m.on('selection', ids => { setSelected([...ids]); if (ids[0]) setActiveObject(ids[0]); }), m.on('tool', setTool), m.on('visibility', visible => { const store = useChartWorkspaceStore.getState(); const a = store.appearance; if (a.hideDrawings !== visible) saveAppearance({ ...a, hideDrawings: visible }); }), m.on('gestureEnd', checkpoint), m.on('remove', () => queueMicrotask(() => { if (manager.current === m) checkpoint(); })), m.on('textEdit', drawing => { if (!useChartWorkspaceStore.getState().toolbar[context.key]?.locked) setEditor({ drawing, text: drawing.text ?? '' }); }), m.on('tableEdit', (drawing, cell) => { if (!useChartWorkspaceStore.getState().toolbar[context.key]?.locked) setEditor({ drawing, cell, text: drawing.style.tableCells?.[cell[0]]?.[cell[1]] ?? '' }); })];
     const deactivate = (e: PointerEvent) => { if (!root.current?.contains(e.target as Node)) { m.setTool(null); m.select([]); } };
     const focusOut = (e: FocusEvent) => { if (e.relatedTarget && !root.current?.contains(e.relatedTarget as Node)) { m.setTool(null); m.select([]); } };
     const inputFocus = (e: FocusEvent) => { if ((e.target as HTMLElement).closest('input, textarea, select, [contenteditable]')) { m.setTool(null); m.select([]); } };
@@ -363,7 +362,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     const dispose = () => { if (disposed) return; disposed = true; cancelAnimationFrame(frame); off.forEach(f => f()); document.removeEventListener('pointerdown', deactivate, true); binding.host.removeEventListener('pointerdown', dragStart, true); window.removeEventListener('pointerup', dragEnd, true); window.removeEventListener('pointercancel', dragEnd, true); el?.removeEventListener('dblclick', openFib); el?.removeEventListener('contextmenu', openMenu); document.removeEventListener('keydown', armFib); el?.removeEventListener('focusout', focusOut); el?.removeEventListener('focusin', inputFocus); r.destroy(); renderer.current = null; m.destroy(); manager.current = null; };
     const unregister = binding.onDispose(dispose);
     return () => { unregister(); dispose(); };
-  }, [binding, context.key, drawingKey, state.hydrated, defaults, checkpoint, perProduct, saveAppearance, systemSeries, toolRecent]);
+  }, [binding, context.key, drawingKey, state.hydrated, defaults, checkpoint, saveAppearance, systemSeries, toolRecent]);
 
   useEffect(() => {
     const m = manager.current;

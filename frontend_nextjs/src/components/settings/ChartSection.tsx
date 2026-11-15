@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ExternalLink } from 'lucide-react';
+import { Check, ExternalLink } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import ConfirmModal from '@/components/ConfirmModal';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,11 @@ export default function ChartSection() {
   const openIndicators = () => {
     useSettingsDialogStore.getState().requestIndicators();
     // Zaten grafikteyse adres (sembol, zaman dilimi, formasyon) korunur
+    if (!pathname.startsWith('/chart')) router.push('/chart');
+  };
+
+  const openAppearance = () => {
+    useSettingsDialogStore.getState().requestAppearance();
     if (!pathname.startsWith('/chart')) router.push('/chart');
   };
 
@@ -57,11 +62,38 @@ export default function ChartSection() {
         </div>
       </SettingsRow>
 
-      <SettingsRow label={t('sdlg.ind')} desc={t('sdlg.ind.desc')} testId="row-chart-indicators">
-        <Button variant="outline" size="md" className="min-h-11 md:min-h-9" hint={t('sdlg.ind.open.hint')} data-testid="settings-indicators-open" onClick={openIndicators}>
-          {t('sdlg.ind.open')}
-          <ExternalLink size={15} aria-hidden="true" />
-        </Button>
+      <SettingsRow
+        label={
+          <>
+            {t('sdlg.chartprefs')}
+            <span className="ml-2.5 rounded-full bg-primary/15 px-2 py-0.5 align-middle text-[11px] font-normal text-primary">{t('sdlg.chartprefs.badge')}</span>
+          </>
+        }
+        desc={t('sdlg.chartprefs.desc')}
+        prefKey="chart_appearance"
+        testId="row-chart-prefs"
+      >
+        <div className="flex flex-col gap-3.5">
+          <ul className="m-0 flex list-none flex-col gap-2 p-0 text-sm" data-testid="settings-chartprefs-list">
+            {(['i1', 'i2', 'i3', 'i4', 'i5', 'i6'] as const).map((id) => (
+              <li key={id} className="flex items-start gap-2">
+                <Check size={14} strokeWidth={2.5} className="mt-[3px] shrink-0 text-emerald-500" aria-hidden="true" />
+                <span>{t(`sdlg.chartprefs.${id}`)}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="md" className="min-h-11 md:min-h-9" hint={t('sdlg.chartprefs.appearance.hint')} data-testid="settings-appearance-open" onClick={openAppearance}>
+              {t('sdlg.chartprefs.appearance')}
+              <ExternalLink size={15} aria-hidden="true" />
+            </Button>
+            <Button variant="outline" size="md" className="min-h-11 md:min-h-9" hint={t('sdlg.chartprefs.indicators.hint')} data-testid="settings-indicators-open" onClick={openIndicators}>
+              {t('sdlg.chartprefs.indicators')}
+              <ExternalLink size={15} aria-hidden="true" />
+            </Button>
+          </div>
+          <span className="text-[13px] leading-snug text-muted-foreground" data-testid="settings-chartprefs-note">{t('sdlg.chartprefs.note')}</span>
+        </div>
       </SettingsRow>
 
       <ConfirmModal

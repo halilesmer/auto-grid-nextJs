@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { DEFAULT_TREND_SETTINGS, type TrendSettings } from '@/lib/formation/params';
 import { sanitizeTrendSettings } from '@/lib/formation/trdPath';
+import { writeChartPref } from '@/lib/chart-workspace/chartPrefs';
 import { DEFAULT_FORMATION_STYLE, sanitizeFormationStyle, type FormationLineRole, type FormationStyle, type LineStyleSpec } from '@/lib/formation/lineStyle';
 
 /**
@@ -51,6 +52,8 @@ interface AnalysisPrefsState extends AnalysisPrefs {
   setFormationStyle: (role: FormationLineRole, patch: Partial<LineStyleSpec>) => void;
   /** Eine Rolle (oder alle) auf die Vorgabe zurücksetzen */
   resetFormationStyle: (role?: FormationLineRole) => void;
+  /** S7: kullanıcı tercihlerinden (worker) gelen değeri uygular; kullanıcı eylemleri `writeChartPref` yolunu kullanır. */
+  applyPrefs: (patch: { layers?: Partial<AnalysisPrefs> & { showTrend?: boolean }; trend?: unknown; formationStyle?: unknown }) => void;
   previewBackup: AnalysisPrefs | null;
   /** Stil der Formationslinien beim Öffnen der Chart-Einstellungen: Abbrechen stellt ihn wieder her */
   styleBackup: FormationStyle | null;
@@ -61,6 +64,14 @@ interface AnalysisPrefsState extends AnalysisPrefs {
 
 /** Alle Felder gleich (nicht nur die, die die Linie rechnet): so bleibt ein Objekt oder ein Entwurf nur stehen, wenn nichts abweicht */
 const sameSettings = (a: TrendSettings, b: TrendSettings) => (Object.keys(DEFAULT_TREND_SETTINGS) as (keyof TrendSettings)[]).every((key) => a[key] === b[key]);
+
+/** Katman anahtarları (kullanıcı tercihi `analysis_layers`): dokuz katman + trend çizgisi */
+export const layersOf = (s: AnalysisPrefs & { showTrend: boolean }): Record<string, boolean> => {
+  const out: Record<string, boolean> = { showTrend: s.showTrend };
+  for (const key of Object.keys(DEFAULTS_KEYS) as (keyof AnalysisPrefs)[]) out[key] = s[key];
+  return out;
+};
+const DEFAULTS_KEYS: AnalysisPrefs = { showZoneLines: true, showZoneCard: true, showLevels: true, showTrades: true, showOrders: true, showPauses: true, showHistory: true, showFractals: true, showGaps: true };
 
 export const ANALYSIS_PREFS_KEY = 'grid-robot-analysis-prefs';
 const DEFAULTS: AnalysisPrefs = {
@@ -77,25 +88,32 @@ const DEFAULTS: AnalysisPrefs = {
 
 export const useAnalysisPrefsStore = create<AnalysisPrefsState>()(
   persist(
-    (set, get) => ({
+    (set, get) => {
+      /** Formasyon çizgi stili: önizleme açıkken yerel (onayda yazılır), değilse hemen kullanıcı tercihine */
+      const commitStyle = (formationStyle: FormationStyle) => {
+        if (get().styleBackup) { set({ formationStyle }); return; }
+        writeChartPref('formation_style', { style: formationStyle }, () => set({ formationStyle }));
+      };
+      return {
       ...DEFAULTS,
       showTrend: false,
       trend: DEFAULT_TREND_SETTINGS,
       trendDraft: DEFAULT_TREND_SETTINGS,
-      setShowTrend: value => set({ showTrend: value }),
+      setShowTrend: value => writeChartPref('analysis_layers', { ...layersOf(get()), showTrend: value }, () => set({ showTrend: value })),
       setTrend: patch => set({ trendDraft: sanitizeTrendSettings({ ...get().trendDraft, ...patch }) }),
       setAppliedTrend: patch => {
         const trend = sanitizeTrendSettings({ ...get().trend, ...patch });
         const draft = sanitizeTrendSettings({ ...get().trendDraft, ...patch });
-        set({ trend, trendDraft: sameSettings(draft, trend) ? trend : draft });
+        writeChartPref('analysis_trend', { trend }, () => set({ trend }));
+        // Yazma reddedildiyse (tercihler yüklenmedi) çizgi de entwurfu de değişmez
+        if (sameSettings(get().trend, trend)) set({ trend: get().trend, trendDraft: sameSettings(draft, get().trend) ? get().trend : draft });
       },
       resetTrend: () => set({ trendDraft: DEFAULT_TREND_SETTINGS }),
-      applyTrend: () => set({ trend: get().trendDraft }),
+      applyTrend: () => { const trend = get().trendDraft; writeChartPref('analysis_trend', { trend }, () => set({ trend })); },
       revertTrend: () => set({ trendDraft: get().trend }),
       formationStyle: DEFAULT_FORMATION_STYLE,
-      setFormationStyle: (role, patch) =>
-        set({ formationStyle: sanitizeFormationStyle({ ...get().formationStyle, [role]: { ...get().formationStyle[role], ...patch } }) }),
-      resetFormationStyle: role => set({ formationStyle: role ? { ...get().formationStyle, [role]: DEFAULT_FORMATION_STYLE[role] } : DEFAULT_FORMATION_STYLE }),
+      setFormationStyle: (role, patch) => commitStyle(sanitizeFormationStyle({ ...get().formationStyle, [role]: { ...get().formationStyle[role], ...patch } })),
+      resetFormationStyle: role => commitStyle(role ? { ...get().formationStyle, [role]: DEFAULT_FORMATION_STYLE[role] } : DEFAULT_FORMATION_STYLE),
       previewBackup: null,
       styleBackup: null,
       beginPreview: () => {
@@ -108,11 +126,37 @@ export const useAnalysisPrefsStore = create<AnalysisPrefsState>()(
         const backup = get().previewBackup;
         if (!backup) return;
         const style = get().styleBackup;
-        if (commit) set({ previewBackup: null, styleBackup: null });
-        else set({ ...backup, previewBackup: null, styleBackup: null, ...(style ? { formationStyle: style } : {}) });
+        if (commit) {
+          const state = get();
+          set({ previewBackup: null, styleBackup: null });
+          // Önizleme yerelde kalmıştı: onayda tek yazım (kabul edilmezse eski değere döner)
+          const layers = layersOf(state), live = { ...state.formationStyle };
+          set({ ...backup, ...(style ? { formationStyle: style } : {}) });
+          writeChartPref('analysis_layers', layers, () => set(layers));
+          writeChartPref('formation_style', { style: live }, () => set({ formationStyle: live }));
+        } else set({ ...backup, previewBackup: null, styleBackup: null, ...(style ? { formationStyle: style } : {}) });
       },
-      setPref: (key, value) => set({ [key]: value } as Pick<AnalysisPrefs, typeof key>),
-    }),
+      setPref: (key, value) => {
+        if (get().previewBackup) { set({ [key]: value } as Pick<AnalysisPrefs, typeof key>); return; } // Önizleme: yerel, onayda yazılır
+        writeChartPref('analysis_layers', { ...layersOf(get()), [key]: value }, () => set({ [key]: value } as Pick<AnalysisPrefs, typeof key>));
+      },
+      applyPrefs: patch => {
+        const cur = get(), next: Partial<AnalysisPrefsState> = {};
+        const l = patch.layers;
+        if (l) {
+          if (typeof l.showTrend === 'boolean') next.showTrend = l.showTrend;
+          for (const key of Object.keys(DEFAULTS) as (keyof AnalysisPrefs)[]) if (typeof l[key] === 'boolean') next[key] = l[key] as boolean;
+        }
+        if (patch.trend !== undefined) {
+          const stored = sanitizeTrendSettings(patch.trend);
+          next.trend = sameSettings(stored, cur.trend) ? cur.trend : stored;
+          next.trendDraft = sameSettings(cur.trendDraft, cur.trend) ? next.trend : cur.trendDraft;
+        }
+        if (patch.formationStyle !== undefined) next.formationStyle = sanitizeFormationStyle(patch.formationStyle);
+        set(next);
+      },
+    };
+    },
     {
       name: ANALYSIS_PREFS_KEY,
       // Version 1: Stilfelder dazugekommen; ein älterer Speicherstand trägt keine und fällt in `merge` auf die Vorgabe

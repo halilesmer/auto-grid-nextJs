@@ -281,21 +281,21 @@
     "e2e": {
       "datum": "2026-11-15",
       "status": "passed",
-      "tests": 4
+      "tests": 24
     }
   },
   "ANA-18": {
     "e2e": {
       "datum": "2026-11-15",
       "status": "passed",
-      "tests": 7
+      "tests": 1
     }
   },
   "ANA-19": {
     "e2e": {
       "datum": "2026-11-15",
       "status": "passed",
-      "tests": 2
+      "tests": 19
     }
   },
   "ANA-20": {
@@ -1140,7 +1140,7 @@
     "e2e": {
       "datum": "2026-11-15",
       "status": "passed",
-      "tests": 25
+      "tests": 1
     }
   },
   "FRM-21": {
@@ -1791,7 +1791,7 @@
     "e2e": {
       "datum": "2026-11-15",
       "status": "passed",
-      "tests": 120
+      "tests": 4
     }
   },
   "UI-09": {
@@ -1875,7 +1875,7 @@
     "e2e": {
       "datum": "2026-11-15",
       "status": "passed",
-      "tests": 3
+      "tests": 1
     }
   },
   "UI-21": {
@@ -2133,6 +2133,13 @@
       "datum": "2026-11-15",
       "status": "passed",
       "tests": 6
+    }
+  },
+  "USR-16": {
+    "e2e": {
+      "datum": "2026-11-15",
+      "status": "failed",
+      "tests": 10
     }
   },
   "VPS-01": {
