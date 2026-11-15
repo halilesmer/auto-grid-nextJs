@@ -262,7 +262,8 @@ export default function FormationScanRunner() {
   const offsetSec = clock.clock?.reliable ? clock.clock.offset_sec : null;
   const favoritesKey = favorites.symbols.join('|');
   const bellKey = accountId ? symbolsOf(accountId, stored.enabled).sort().join('|') : '';
-  const alarmActive = stored.active;
+  // Bevor die persönlichen Felder aus dem Worker da sind, sucht und meldet der Alarm nicht (USR-15)
+  const alarmActive = stored.active && stored.personalLoaded;
   const favoritesAlarm = accountId !== null && stored.favoritesEnabled.includes(accountId);
   // Aus Schlüsseln abgeleitet, damit eine neue Liste mit gleichem Inhalt die Suche nicht neu startet
   const { symbols, alarmSymbols } = useMemo(() => {
@@ -293,13 +294,14 @@ export default function FormationScanRunner() {
 
   // Der gemerkte Stand eines Produkts, das nicht mehr im Alarm ist, fällt weg: beim Wiedereinschalten wird er still neu gemerkt
   useEffect(() => {
-    if (!accountId || !favorites.ready) return;
+    // Ohne die persönlichen Felder ist der Alarm-Schlüssel noch leer: der gemerkte Stand bliebe sonst nicht erhalten (USR-15)
+    if (!accountId || !favorites.ready || !stored.personalLoaded) return;
     const current = snapshot();
     const keep = new Set(alarmKey ? alarmKey.split('|') : []);
     const stale = Object.keys(current.memory).filter((scope) => scope.startsWith(`${accountId}|`) && !keep.has(scope.slice(accountId.length + 1)));
     if (stale.length === 0) return;
     save({ ...current, memory: Object.fromEntries(Object.entries(current.memory).filter(([scope]) => !stale.includes(scope))) });
-  }, [accountId, favorites.ready, alarmKey]);
+  }, [accountId, favorites.ready, alarmKey, stored.personalLoaded]);
 
   // Klick auf eine Systemmeldung: der Service Worker fokussiert das Fenster und schickt die Adresse
   useEffect(() => {
