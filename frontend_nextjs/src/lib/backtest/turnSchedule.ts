@@ -71,6 +71,8 @@ interface Turn {
   sltp: number;
   /** BKT-31: fiyat okuma anı (broker saniyesi); telemetri `snap` null ise = start */
   snapAt: number;
+  /** BKT-31 (PR-3): tur başı → zone döngüsü başı (telemetri `z0`, SLTP dahil); yoksa eski formül (head + sltp) */
+  z0?: number;
 }
 
 /** Her tura, başı o tura ait olan op'ları atar: tur i = [start_i, start_{i+1}). Girdiler sıralı. */
@@ -84,19 +86,53 @@ function assignOps(starts: readonly number[], ops: readonly LiveOp[]): LiveOp[][
   return perTurn;
 }
 
-/** zoneAt: tur başı + okuma + SLTP + küçük magic'li setup'ların o turdaki op maliyeti (zone sırası magic sırasıdır) */
-function buildZoneAt(turns: readonly Turn[], opsPerTurn: readonly LiveOp[][], magics: readonly number[], cost: Record<LiveOp['kind'], number> = OP_COST): Record<number, number[]> {
+/** buildZoneAt çıktısı: setup başına zone başları ve z0 yolunun sayaçları */
+interface ZoneAtResult {
+  zoneAt: Record<number, number[]>;
+  /** z0 taşıyan tur sayısı (zone başı telemetriden kuruldu) */
+  z0Turns: number;
+  /** z0 yolunda zoneAt < snapAt olup snapAt'a çekilen (tur × setup) sayısı (plan §3.3 madde 5) */
+  zoneBeforeSnap: number;
+}
+
+/**
+ * zoneAt, iki yol:
+ *  - tur `z0` taşımıyorsa (eski satır, 11-13 öncesi, liveOrders): tur başı + okuma + SLTP + küçük magic'li setup'ların o turdaki op maliyeti
+ *    (zone sırası magic sırasıdır); bugünkü formül, bytegleich.
+ *  - `z0` varsa (BKT-31 PR-3): tur başı + z0 + Σ_{küçük magic'li zone} (o zone'un op maliyeti + profil.zoneOverhead).
+ *    z0 okuma ve SLTP'yi zaten içerir; her alt zone, op'u olmasa da zoneOverhead kadar sürer. zoneAt < snapAt ise snapAt'a çekilir.
+ */
+function buildZoneAt(
+  turns: readonly Turn[],
+  opsPerTurn: readonly LiveOp[][],
+  magics: readonly number[],
+  cost: Record<LiveOp['kind'], number> = OP_COST,
+  zoneOverheadS: number = DEFAULT_PROFILE.vps.zoneOverheadS,
+): ZoneAtResult {
   const zoneAt: Record<number, number[]> = {};
   for (const magic of magics) zoneAt[magic] = new Array<number>(turns.length);
+  let z0Turns = 0;
+  let zoneBeforeSnap = 0;
   turns.forEach((turn, k) => {
     const ops = opsPerTurn[k];
+    if (turn.z0 !== undefined) z0Turns += 1;
     for (const magic of magics) {
       let lower = 0;
       for (const op of ops) if (op.magic < magic) lower += cost[op.kind];
-      zoneAt[magic][k] = turn.start + turn.head + turn.sltp + lower;
+      if (turn.z0 === undefined) {
+        zoneAt[magic][k] = turn.start + turn.head + turn.sltp + lower;
+        continue;
+      }
+      let lowerZones = 0;
+      for (const other of magics) if (other < magic) lowerZones += 1;
+      const at = turn.start + turn.z0 + lower + lowerZones * zoneOverheadS;
+      if (at < turn.snapAt) {
+        zoneBeforeSnap += 1;
+        zoneAt[magic][k] = turn.snapAt;
+      } else zoneAt[magic][k] = at;
     }
   });
-  return zoneAt;
+  return { zoneAt, z0Turns, zoneBeforeSnap };
 }
 
 /** Takvim sonucu: PR-3 bunu koşu protokolüne (`run.botTurns`) yazar */
@@ -117,6 +153,10 @@ export interface TurnSchedule {
   clock?: ClockEstimate;
   /** alt magic op sayıları nereden geldi: canlı emir geçmişi ya da BT'nin kendi op'ları (G4.1) */
   opCounts: 'live' | 'own';
+  /** BKT-31 (PR-3): zone başı `z0`'dan kurulan tur sayısı (telemetri; liveOrders = 0) */
+  z0Turns: number;
+  /** BKT-31 (PR-3): z0 yolunda snapAt'a çekilen (tur × setup) sayısı */
+  zoneBeforeSnap: number;
 }
 
 /** Bir setup için `RunModel.botTurns` */
@@ -165,15 +205,18 @@ export function scheduleFromLiveOrders(
   for (let s = (end ?? from - loopSec) + loopSec; s < to; s += period) starts.push(s);
   const turns: Turn[] = starts.map((start) => ({ start, head: headS, sltp: 0, snapAt: start }));
   const opsForCost = opts.ownOps ? [...opts.ownOps].sort((a, b) => a.time - b.time) : inWindow;
+  const built = buildZoneAt(turns, assignOps(starts, opsForCost), magics, cost, profile.vps.zoneOverheadS);
   return {
     source: 'liveOrders',
     starts,
-    zoneAt: buildZoneAt(turns, assignOps(starts, opsForCost), magics, cost),
+    zoneAt: built.zoneAt,
     snapAt: [...starts],
     turnCount: starts.length,
     alignedClusters: clusters.length,
     totalClusters: clusters.length,
     opCounts: opts.ownOps ? 'own' : 'live',
+    z0Turns: built.z0Turns,
+    zoneBeforeSnap: built.zoneBeforeSnap,
   };
 }
 
@@ -351,18 +394,22 @@ export function scheduleFromTelemetry(
       const d = opsLive[k][0].time - (starts[k] + head);
       if (d > 0 && d <= SLTP_MAX_S) sltp = d;
     }
-    return { start: starts[k], head, sltp, snapAt: kept[k].snap === null ? starts[k] : starts[k] + kept[k].snap };
+    const z0 = kept[k].z0;
+    return { start: starts[k], head, sltp, snapAt: kept[k].snap === null ? starts[k] : starts[k] + kept[k].snap, ...(z0 === null ? {} : { z0 }) };
   });
   const opsForCost = opts.ownOps ? assignOps(starts, [...opts.ownOps].sort((a, b) => a.time - b.time)) : opsLive;
+  const built = buildZoneAt(turns, opsForCost, magics, cost, profile.vps.zoneOverheadS);
   return {
     source: 'telemetry',
     starts,
-    zoneAt: buildZoneAt(turns, opsForCost, magics, cost),
+    zoneAt: built.zoneAt,
     snapAt: turns.map((t) => t.snapAt),
     turnCount: starts.length,
     alignedClusters: clock.pairs,
     totalClusters: clusters.length,
     clock,
     opCounts: opts.ownOps ? 'own' : 'live',
+    z0Turns: built.z0Turns,
+    zoneBeforeSnap: built.zoneBeforeSnap,
   };
 }

@@ -47,4 +47,7 @@ export interface BotTurnsInfo {
   /** nur Telemetrie: feste Restverschiebung der Uhr in Sekunden */
   clockShiftSec?: number;
   clockReliable?: boolean;
+  /** BKT-31 (PR-3), nur Telemetrie mit z0: Zahl der Turen, deren Zone-Anfang aus z0 gebaut wurde, und auf snapAt gezogene Zone-Anfänge */
+  zoneFromZ0Turns?: number;
+  zoneBeforeSnap?: number;
 }

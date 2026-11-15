@@ -142,6 +142,7 @@ export async function loadBotTurns(input: BotTurnsLoadInput): Promise<BotTurnsLo
                 totalClusters: schedule.totalClusters,
                 clockShiftSec: schedule.clock?.shiftSec,
                 clockReliable: schedule.clock?.reliable,
+                ...(schedule.z0Turns > 0 ? { zoneFromZ0Turns: schedule.z0Turns, zoneBeforeSnap: schedule.zoneBeforeSnap } : {}),
               },
             };
           }
