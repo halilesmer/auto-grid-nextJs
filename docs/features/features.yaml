@@ -402,7 +402,7 @@ kategorien:
       - id: USR-09
         titel: Persönliche Einstellungen gehören dem Benutzer (Worker)
         beschreibung: "Plan 1114-A4 S1. GET /api/me/prefs und PUT /api/me/prefs/{key} speichern je Anfragendem eine Datei data/user_prefs_<id>.json (Admin: admin, Benutzer: die eigene ID aus dem Schlüssel), je Schlüssel ein JSON-Objekt (Schlüssel [a-z0-9_-]{1,40}, höchstens 8 KB je Wert, 40 Schlüssel). Jede Rolle darf; ein Benutzer sieht nie die Datei eines anderen. Das Frontend (useUserPrefsStore) lädt sie, sobald Verbindung und /auth/me bereit sind, schreibt jede Änderung sofort (optimistisch, Zustand saving/saved/failed je Schlüssel, bei Fehler zurück auf den alten Wert mit Fehler-Toast). Sprache (locale), Design (theme), Hinweis-Verzögerung (tooltip_delay) und Anzeigedauer (tooltip_hold) laufen darüber; localStorage ist nur Zwischenspeicher gegen Aufblitzen."
-        code: [worker_python/src/api/user_prefs.py, worker_python/src/utils/paths.py, worker_python/tests/api/test_user_prefs_api.py, frontend_nextjs/src/store/useUserPrefsStore.ts, frontend_nextjs/src/store/useTooltipPrefsStore.ts, frontend_nextjs/src/lib/userPrefs.ts, frontend_nextjs/src/components/layout/UserPrefsSync.tsx, frontend_nextjs/src/store/useLocaleStore.ts, frontend_nextjs/src/store/useThemeStore.ts, frontend_nextjs/src/components/layout/LanguageSwitcher.tsx, frontend_nextjs/src/components/layout/ThemeToggle.tsx, worker_python/src/api/users.py, frontend_nextjs/e2e/fixtures/mock-worker.ts, frontend_nextjs/e2e/mocked/settings-dialog.spec.ts]
+        code: [worker_python/src/api/user_prefs.py, worker_python/src/utils/paths.py, worker_python/tests/api/test_user_prefs_api.py, frontend_nextjs/src/store/useUserPrefsStore.ts, frontend_nextjs/src/store/useTooltipPrefsStore.ts, frontend_nextjs/src/lib/userPrefs.ts, frontend_nextjs/src/components/layout/UserPrefsSync.tsx, frontend_nextjs/src/store/useLocaleStore.ts, frontend_nextjs/src/store/useThemeStore.ts, worker_python/src/api/users.py, frontend_nextjs/e2e/fixtures/mock-worker.ts, frontend_nextjs/e2e/mocked/settings-dialog.spec.ts]
         tiers: [api, e2e, manuell]
         pruefung:
           - Mit dem Admin-Schlüssel und mit einem Benutzerschlüssel je ein Design wählen (Einstellungen → Darstellung); auf dem VPS liegen data/user_prefs_admin.json und data/user_prefs_<id>.json getrennt.
@@ -446,8 +446,18 @@ kategorien:
         tiers: [e2e, manuell]
         pruefung:
           - "Einstellungen öffnen, während der Worker langsam antwortet (VPS unter Last): die Felder sind gesperrt und zeigen „Lädt…“; danach ändert sich kein gespeicherter Wert."
-          - Mit der Tastatur durch das Fenster tabben, Escape zweimal drücken; der Fokus liegt wieder auf dem Zahnrad. Bei 375 px gibt es keinen waagerechten Überlauf.
+          - "Mit der Tastatur durch das Fenster tabben, Escape zweimal drücken; der Fokus liegt wieder auf dem Zahnrad. Bei 375 px gibt es keinen waagerechten Überlauf."
         erwartet: Die Tests @USR-13 bestehen. Kein Standardwert überschreibt einen gespeicherten Wert, und das Fenster ist mit der Tastatur bedienbar.
+
+      - id: USR-14
+        titel: Verbindungsstatus in Einstellungen und Kopf-Menü
+        beschreibung: "Plan 1115-A7/A9.5 (S4). Ist der Status „Nicht erreichbar“, „Schlüssel abgelehnt“ oder „Unsichere Adresse“, sind die persönlichen Bereiche schreibgeschützt: über dem Bereich steht ein Banner mit Symbol, Titel, Text, Meta-Zeile („Letzte erfolgreiche Prüfung HH:MM · alle 30 s und beim Zurückkehren ins Fenster erneut“) und der passenden Aktion („Jetzt versuchen“ + „Verbindungseinstellungen“, „Schlüssel ändern…“ oder „Adresse korrigieren…“). Die Zeilen sind gesperrt und tragen „Schreibgeschützt“; Werte sind die zuletzt geladenen, nichts wird vorgemerkt. In der Navigation haben die persönlichen Bereiche ein Schloss, Verbindung einen Statuspunkt. Ohne gespeicherte Verbindung laufen Sprache und Design auf diesem Gerät („Auf diesem Gerät“), die übrigen Zeilen zeigen „Öffnet sich nach dem Verbinden“, das Banner heißt „Noch kein VPS verbunden“. Kehrt die Verbindung zurück, erscheint der Toast „Verbindung wiederhergestellt“, die persönlichen Einstellungen werden neu geladen und das Banner verschwindet. Der Fehler-Toast eines Speicherfehlers hat „Erneut versuchen“. Der Bereich Verbindung zeigt unter dem Status die letzte Prüfung und die letzte erfolgreiche Prüfung, bei Fehlern die Ursache (Texte von connection.test.*) und die passende Aktion; die Rolle ist bei abgelehntem Schlüssel „Unbekannt“. Der Stecker-Knopf in der Kopfzeile hat einen Punkt in der Ecke: verbunden keiner, prüfend grau, Schlüssel abgelehnt gelb, sonst rot. Sein Menü enthält nur Statuszeile, „Verbindungseinstellungen“ (öffnet Einstellungen im Bereich Verbindung), „Einstellungen“ (letzter Bereich) und „Bot stoppen“ (vorher „System herunterfahren“, stoppt nur den Bot des gewählten Kontos, mit Rückfrage). Sprache, Design, Version, Entwicklerpanel und Update-Prüfung sind nur noch in den Einstellungen."
+        code: [frontend_nextjs/src/lib/connectionCheck.ts, frontend_nextjs/src/store/useConnectionStore.ts, frontend_nextjs/src/components/layout/ConnectionSync.tsx, frontend_nextjs/src/components/layout/HeaderMenu.tsx, frontend_nextjs/src/components/settings/ConnectionBanner.tsx, frontend_nextjs/src/components/settings/ConnectionSection.tsx, frontend_nextjs/src/components/settings/SettingsDialog.tsx, frontend_nextjs/src/components/settings/parts.tsx, frontend_nextjs/src/store/useUserPrefsStore.ts, frontend_nextjs/e2e/mocked/connection-states.spec.ts, frontend_nextjs/e2e/mocked/header-menu.spec.ts]
+        tiers: [e2e, manuell]
+        pruefung:
+          - "Den Worker stoppen (oder das Netz trennen), Einstellungen öffnen: Banner „VPS nicht erreichbar“, Zeilen gesperrt; Worker starten und „Jetzt versuchen“ drücken: Toast, Banner weg, Zeilen offen."
+          - "Bei 375 px Banner und Bereich Verbindung ansehen, hell und dunkel: kein waagerechter Überlauf, Status nie nur durch Farbe."
+        erwartet: Die Tests @USR-14 bestehen. Ohne Verbindung lässt sich kein persönlicher Wert ändern, der Grund steht im Banner, und das Kopf-Menü enthält nur noch die vier Einträge.
 
   # ---------------------------------------------------------------------------
   - id: SET
@@ -1434,7 +1444,7 @@ kategorien:
       - id: UI-02
         titel: Theme hell / dunkel / System
         beschreibung: Umschalter „Açık / Koyu / Sistem“ (Symbol und Name) im Kopf-Menü (UI-01), auf jeder Breite gleich, gespeichert in localStorage grid-robot-theme, ohne Aufblitzen beim Laden.
-        code: [frontend_nextjs/src/components/layout/ThemeToggle.tsx, frontend_nextjs/src/components/layout/HeaderMenu.tsx, frontend_nextjs/src/components/layout/ThemeSync.tsx, frontend_nextjs/src/app/layout.tsx]
+        code: [frontend_nextjs/src/components/layout/HeaderMenu.tsx, frontend_nextjs/src/components/layout/ThemeSync.tsx, frontend_nextjs/src/app/layout.tsx]
         tiers: [e2e]
         pruefung:
           - Im Kopf-Menü alle drei Varianten wählen und die Seite neu laden.
@@ -1461,7 +1471,7 @@ kategorien:
       - id: UI-05
         titel: Sprache Türkisch / Englisch / Deutsch
         beschreibung: Umschalter TR · EN · DE im Kopf-Menü (UI-01), auf jeder Breite gleich. Die Wahl liegt in localStorage grid-robot-locale, setzt <html lang> schon vor dem ersten Paint und gilt für alle Seiten, Dialoge, Toasts und Fehlermeldungen des Frontends. Texte stehen in frontend_nextjs/src/i18n/messages/*.ts (je Bereich tr, en, de nebeneinander, tsc erzwingt gleiche Schlüssel). Meldungen des Workers (detail-Texte, Logzeilen) bleiben unübersetzt.
-        code: [frontend_nextjs/src/i18n/index.ts, frontend_nextjs/src/i18n/messages/index.ts, frontend_nextjs/src/store/useLocaleStore.ts, frontend_nextjs/src/components/layout/LanguageSwitcher.tsx, frontend_nextjs/src/components/layout/HeaderMenu.tsx, frontend_nextjs/src/components/layout/LocaleSync.tsx]
+        code: [frontend_nextjs/src/i18n/index.ts, frontend_nextjs/src/i18n/messages/index.ts, frontend_nextjs/src/store/useLocaleStore.ts, frontend_nextjs/src/components/layout/HeaderMenu.tsx, frontend_nextjs/src/components/layout/LocaleSync.tsx]
         tiers: [e2e]
         pruefung:
           - Im Kopf-Menü EN, dann DE, dann TR wählen und dabei Dashboard, /vps und /chart ansehen.

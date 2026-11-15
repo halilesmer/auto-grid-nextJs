@@ -2,7 +2,7 @@
 import type { Page } from '@playwright/test';
 import { DEMO_ID, expect, test } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
-import { NEWS_SOON_ID, installNewsClock, newsFixture } from '../fixtures/news';
+import { NEWS_BASE, NEWS_SOON_ID, installNewsClock, newsFixture } from '../fixtures/news';
 
 type Dash = import('../fixtures/dashboard').Dashboard;
 type Perm = 'default' | 'granted' | 'denied';
@@ -152,9 +152,12 @@ test.describe('NWS-03 Haber uyarıları', () => {
   test('Haber kartı isteği: hesap açılışında /news/events bir kez istenir', { tag: '@NWS-03' }, async ({ page, dashboard }) => {
     const requests: string[] = [];
     page.on('request', (r) => { if (r.url().includes('/news/events')) requests.push(r.url()); });
+    // Zamanlayıcılar donuk: hesap seçimi (fixture tıklaması) yükte 700 ms SETTLE_MS'i aşabiliyordu ve hesapsız ilk istek (tüm para birimleri) araya giriyordu.
+    // Saat hesap seçilip ayarlar yüklenene kadar durur, sonra ilerletilir; duvar saatine bağlı yarış kalmaz.
+    await page.clock.pauseAt(new Date(NEWS_BASE.getTime() + 1000));
     await dashboard.open(DEMO_ID);
+    await page.clock.runFor(1500);
     await expect(page.getByTestId('news-button-label')).toContainText('USD');
-    await page.waitForTimeout(1500);
     expect(requests).toHaveLength(1);
     expect(requests[0]).toContain('currencies=USD');
   });

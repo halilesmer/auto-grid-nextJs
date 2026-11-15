@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type KeyboardEvent } from 'react';
-import { Bell, ChartCandlestick, ChevronLeft, ChevronRight, ExternalLink, Palette, Bot, Link2, Server, Users, X, type LucideIcon } from 'lucide-react';
+import { Bell, ChartCandlestick, ChevronLeft, ChevronRight, ExternalLink, Lock, Palette, Bot, Link2, Server, Users, X, type LucideIcon } from 'lucide-react';
 import { VERSION } from '@/app/version';
 import SystemModals from '@/components/layout/SystemModals';
 import { Modal } from '@/components/ui/modal';
@@ -14,7 +14,7 @@ import { effectiveDelayMs } from '@/lib/userPrefs';
 import { cn } from '@/lib/utils';
 import { useAuthStore, useIsAdmin } from '@/store/useAuthStore';
 import { useChartPrefsStore } from '@/store/useChartPrefsStore';
-import { useConnectionStore } from '@/store/useConnectionStore';
+import { useConnectionStore, type ConnectionStatus } from '@/store/useConnectionStore';
 import { useCustomColorsStore } from '@/store/useCustomColorsStore';
 import { useNewsCurrencies } from '@/hooks/useNewsCurrencies';
 import { useNewsStore } from '@/store/useNewsStore';
@@ -23,6 +23,8 @@ import { useThemeStore } from '@/store/useThemeStore';
 import { useTooltipPrefsStore } from '@/store/useTooltipPrefsStore';
 import { useUserPrefsStore } from '@/store/useUserPrefsStore';
 import AppearanceSection from './AppearanceSection';
+import ConnectionBanner from './ConnectionBanner';
+import { FAULTY_STATUSES } from './parts';
 import ChartSection from './ChartSection';
 import ConnectionSection from './ConnectionSection';
 import NotificationsSection, { NOTIFICATION_TABS, type NotificationsTab } from './NotificationsSection';
@@ -70,6 +72,15 @@ const GROUPS: GroupDef[] = [
     ],
   },
 ];
+
+const DOT_TONE: Record<ConnectionStatus, 'success' | 'danger' | 'warning' | 'neutral'> = {
+  unconfigured: 'neutral',
+  checking: 'neutral',
+  connected: 'success',
+  unauthorized: 'warning',
+  unreachable: 'danger',
+  insecure: 'danger',
+};
 
 const BADGE_TONE: Record<SectionDef['badge'], string> = {
   user: 'border-secondary/60 text-secondary',
@@ -140,6 +151,8 @@ export default function SettingsDialog() {
   const setSection = useSettingsDialogStore((s) => s.setSection);
   const isAdmin = useIsAdmin();
   const summary = useSummary();
+  const connStatus = useConnectionStore((s) => s.status);
+  const connHydrated = useConnectionStore((s) => s.hydrated);
   const system = useSystemActions();
   const prefStatus = useUserPrefsStore((s) => s.status);
   const [tabState, setTab] = useState<{ section: string; tab: SectionTab }>({ section: '', tab: 'general' });
@@ -235,6 +248,22 @@ export default function SettingsDialog() {
                                 </span>
                               )}
                             </span>
+                            {s.badge === 'user' && (FAULTY_STATUSES.includes(connStatus) || (connStatus === 'unconfigured' && connHydrated && s.id !== 'appearance')) && (
+                              <Tooltip content={t('sdlg.nav.lock.hint')}>
+                                <span data-testid={`settings-nav-lock-${s.id}`} className="shrink-0 text-muted-foreground">
+                                  <Lock size={14} aria-hidden="true" />
+                                  <span className="sr-only">{t('sdlg.ro')}</span>
+                                </span>
+                              </Tooltip>
+                            )}
+                            {s.id === 'connection' && connHydrated && (
+                              <Tooltip content={t(`connection.status.${connStatus}`)}>
+                                <span data-testid="settings-nav-dot" data-status={connStatus} className="shrink-0">
+                                  <StatusDot tone={DOT_TONE[connStatus]} pulse={connStatus === 'checking'} />
+                                  <span className="sr-only">{t(`connection.status.${connStatus}`)}</span>
+                                </span>
+                              </Tooltip>
+                            )}
                             {s.link ? (
                               <ExternalLink size={16} className="shrink-0 text-muted-foreground md:hidden" aria-hidden="true" />
                             ) : (
@@ -302,6 +331,7 @@ export default function SettingsDialog() {
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-2 md:px-10" data-testid="settings-body">
+              {active.badge === 'user' && <ConnectionBanner />}
               {active.id === 'appearance' && <AppearanceSection />}
               {active.id === 'notifications' &&
                 NOTIFICATION_TABS.map((id) => (

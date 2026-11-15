@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-15 · **251/280** abgehakt · ❌ 2 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-15 · **251/281** abgehakt · ❌ 3 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -16,7 +16,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 |---|---|---|
 | 1 | **SYS** – Verbindung & Infrastruktur | 13/16 |
 | 2 | **ACC** – Konten | 13/13 |
-| 3 | **USR** – Benutzer & Zugriff | 8/13 |
+| 3 | **USR** – Benutzer & Zugriff | 8/14 |
 | 4 | **SET** – Allgemeine Einstellungen | 6/6 |
 | 5 | **SYM** – Symbole | 4/4 |
 | 6 | **ZON** – Zonen-Konfiguration (UI ↔ Backend) | 21/21 |
@@ -220,6 +220,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Plan 1114-A4 S3. Persönliche Felder im Einstellungsfenster sind gesperrt, bis useUserPrefsStore.load() fertig ist: die Zeile zeigt „Lädt…“ (Hinweis nennt den Grund), und change() schreibt davor nichts (nur Sprache und Design aus der Kopfzeile gehen, sie sind Einzelwerte). So überschreibt kein Standardwert einen gespeicherten Wert. Ohne Verbindung bleiben die Felder gesperrt („Keine Verbindung“). Fällt load() aus, wird bis zu dreimal mit wachsendem Abstand wiederholt; danach zeigt die Zeile „Nicht geladen“ und „Erneut versuchen“. Fokus: Tab bleibt im Fenster (Modal, auch ineinander liegende Fenster), Escape schließt zuerst das offene Unterelement (Eingabe wird zurückgesetzt, Rückfrage-Fenster schließt allein), ein zweites Escape das Fenster; beim Schließen kehrt der Fokus zum öffnenden Knopf zurück; das Sekundenfeld behält den Fokus nach dem Speichern. Tabs der Benachrichtigungen haben role tablist/tab/tabpanel, aria-controls, aria-selected und gehen mit Pfeilen, Home und End.
   - **Prüfung:** Einstellungen öffnen, während der Worker langsam antwortet (VPS unter Last): die Felder sind gesperrt und zeigen „Lädt…“; danach ändert sich kein gespeicherter Wert. → Mit der Tastatur durch das Fenster tabben, Escape zweimal drücken; der Fokus liegt wieder auf dem Zahnrad. Bei 375 px gibt es keinen waagerechten Überlauf.
   - **Erwartet:** Die Tests @USR-13 bestehen. Kein Standardwert überschreibt einen gespeicherten Wert, und das Fenster ist mit der Tastatur bedienbar.
+- [ ] **USR-14** Verbindungsstatus in Einstellungen und Kopf-Menü — 🖥️ e2e ❌ 2026-11-15 · 👤 manuell ⏳
+  - Plan 1115-A7/A9.5 (S4). Ist der Status „Nicht erreichbar“, „Schlüssel abgelehnt“ oder „Unsichere Adresse“, sind die persönlichen Bereiche schreibgeschützt: über dem Bereich steht ein Banner mit Symbol, Titel, Text, Meta-Zeile („Letzte erfolgreiche Prüfung HH:MM · alle 30 s und beim Zurückkehren ins Fenster erneut“) und der passenden Aktion („Jetzt versuchen“ + „Verbindungseinstellungen“, „Schlüssel ändern…“ oder „Adresse korrigieren…“). Die Zeilen sind gesperrt und tragen „Schreibgeschützt“; Werte sind die zuletzt geladenen, nichts wird vorgemerkt. In der Navigation haben die persönlichen Bereiche ein Schloss, Verbindung einen Statuspunkt. Ohne gespeicherte Verbindung laufen Sprache und Design auf diesem Gerät („Auf diesem Gerät“), die übrigen Zeilen zeigen „Öffnet sich nach dem Verbinden“, das Banner heißt „Noch kein VPS verbunden“. Kehrt die Verbindung zurück, erscheint der Toast „Verbindung wiederhergestellt“, die persönlichen Einstellungen werden neu geladen und das Banner verschwindet. Der Fehler-Toast eines Speicherfehlers hat „Erneut versuchen“. Der Bereich Verbindung zeigt unter dem Status die letzte Prüfung und die letzte erfolgreiche Prüfung, bei Fehlern die Ursache (Texte von connection.test.*) und die passende Aktion; die Rolle ist bei abgelehntem Schlüssel „Unbekannt“. Der Stecker-Knopf in der Kopfzeile hat einen Punkt in der Ecke: verbunden keiner, prüfend grau, Schlüssel abgelehnt gelb, sonst rot. Sein Menü enthält nur Statuszeile, „Verbindungseinstellungen“ (öffnet Einstellungen im Bereich Verbindung), „Einstellungen“ (letzter Bereich) und „Bot stoppen“ (vorher „System herunterfahren“, stoppt nur den Bot des gewählten Kontos, mit Rückfrage). Sprache, Design, Version, Entwicklerpanel und Update-Prüfung sind nur noch in den Einstellungen.
+  - **Prüfung:** Den Worker stoppen (oder das Netz trennen), Einstellungen öffnen: Banner „VPS nicht erreichbar“, Zeilen gesperrt; Worker starten und „Jetzt versuchen“ drücken: Toast, Banner weg, Zeilen offen. → Bei 375 px Banner und Bereich Verbindung ansehen, hell und dunkel: kein waagerechter Überlauf, Status nie nur durch Farbe.
+  - **Erwartet:** Die Tests @USR-14 bestehen. Ohne Verbindung lässt sich kein persönlicher Wert ändern, der Grund steht im Banner, und das Kopf-Menü enthält nur noch die vier Einträge.
 
 ## 4. SET – Allgemeine Einstellungen
 
@@ -656,7 +660,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Erwartet:** Worker ist nach ~20 s wieder erreichbar bzw. die Version steigt; beim Update zeigt die Antwort des Buttons den git-Pull (nicht „Already up to date.“), und im Worker-Log steht vor dem Neustart keine Zeile „[AUTO-UPDATE] Güncellendi“. Über die Aufgabe steht AutoGrid-Update danach wieder auf Ready, und das Update-Log endet mit „Worker neu gestartet.“.
   - 📝 Worker-Neustart, Update per Button (v0.7.212→v0.7.213, Auto-Updater aus) und Aufgabe AutoGrid-Update direkt geprüft
 - [x] **VPS-03** Logs vom VPS — 🖥️ e2e ✅ 2026-11-15
-  - Tabs Worker (logs/worker_console.log), ngrok (logs/ngrok.log) und Update (logs/vps_update.log), jeweils die letzten 300 Zeilen per SSH. Das Log lädt mit dem Status-Poll neu, Farbcodes von uvicorn werden entfernt; fehlt die Neustart-Schleife (dann gibt es kein Log), erklärt ein Hinweis den Klick auf „Worker neu starten“. Seit Plan 1115-A9 (VPS-11) steht das im Einstellungsfenster, Abschnitt „VPS und System“; /vps leitet dorthin um. SSH-Zeilen sind dort nur auf localhost:3000 am Mac bedienbar, sonst sichtbar aber gesperrt.
+  - Quellen Worker (über die Worker-API, logs/worker_console.log) und ngrok (logs/ngrok.log per SSH); die Logs Update und Tunnel sind im Einstellungsfenster nicht mehr abrufbar, jeweils die letzten 300 Zeilen per SSH. Das Log lädt mit dem Status-Poll neu, Farbcodes von uvicorn werden entfernt; fehlt die Neustart-Schleife (dann gibt es kein Log), erklärt ein Hinweis den Klick auf „Worker neu starten“. Seit Plan 1115-A9 (VPS-11) steht das im Einstellungsfenster, Abschnitt „VPS und System“; /vps leitet dorthin um. SSH-Zeilen sind dort nur auf localhost:3000 am Mac bedienbar, sonst sichtbar aber gesperrt.
   - **Prüfung:** Tabs wechseln. → Seite offen lassen, nachdem der VPS aktualisiert oder neu gestartet wurde.
   - **Erwartet:** Konsolenausgabe des Workers bzw. ngrok erscheint ohne Farbcodes und aktualisiert sich von selbst; ein alter Fehler bleibt nicht stehen.
 - [x] **VPS-04** Schutz der VPS-Route — 🖥️ e2e ✅ 2026-11-15

@@ -38,7 +38,9 @@ export async function probeWorker(
 ): Promise<ProbeResult> {
   const baseUrl = normalizeBaseUrl(rawBaseUrl);
   if (!baseUrl) return { ok: false, reason: 'invalid', baseUrl: null };
-  if (typeof window !== 'undefined' && isMixedContent(baseUrl, window.location.protocol)) {
+  // `__gridPageProtocol`: Testnaht (E2E läuft auf http, „insecure“ braucht eine https-Seite)
+  const pageProtocol = typeof window === 'undefined' ? '' : ((window as { __gridPageProtocol?: string }).__gridPageProtocol ?? window.location.protocol);
+  if (pageProtocol && isMixedContent(baseUrl, pageProtocol)) {
     return { ok: false, reason: 'insecure', baseUrl };
   }
 

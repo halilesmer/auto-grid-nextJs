@@ -1,42 +1,64 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
-import { Check, X } from 'lucide-react';
+import { Check, Lock, Monitor, X } from 'lucide-react';
 import { claimEscape } from '@/components/ui/modal';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useFormat, useT } from '@/i18n';
 import { cn } from '@/lib/utils';
-import { useConnectionStore } from '@/store/useConnectionStore';
+import { useConnectionStore, type ConnectionStatus } from '@/store/useConnectionStore';
 import { useUserPrefsStore, type PrefKey } from '@/store/useUserPrefsStore';
 
-export type PrefsLock = 'loading' | 'failed' | 'offline';
+export type PrefsLock = 'loading' | 'failed' | 'offline' | 'readonly';
 
-/** USR-13: kişisel alanlar, kayıtlı değerler okunana kadar kilitlidir (yoksa varsayılan kayıtlının üstüne yazılırdı). */
-export function usePrefsLock(): PrefsLock | null {
+/** Dil ve tema bu cihazda da çalışır (bugünkü isLocalOnly davranışı, 1115-A7.2). */
+const DEVICE_LOCAL: PrefKey[] = ['locale', 'theme'];
+
+/** Bağlantı hatası (ulaşılamıyor, anahtar geçersiz, güvensiz adres): kişisel alanlar salt okunur (1115-A7.1). */
+export const FAULTY_STATUSES: ConnectionStatus[] = ['unreachable', 'unauthorized', 'insecure'];
+
+/**
+ * USR-13 + 1115-A7: kişisel alanlar, kayıtlı değerler okunana kadar ve bağlantı yokken kilitlidir
+ * (yoksa varsayılan kayıtlının üstüne yazılırdı). `local`: bağlı olmasa da bu cihazda çalışan ayar.
+ */
+export function usePrefsLock(prefKey?: PrefKey): { lock: PrefsLock | null; local: boolean } {
   const loadState = useUserPrefsStore((s) => s.loadState);
   const hydrated = useConnectionStore((s) => s.hydrated);
-  const connected = useConnectionStore((s) => !!s.baseUrl);
-  if (!hydrated) return 'loading';
-  if (!connected || loadState === 'offline') return 'offline';
-  if (loadState === 'ready') return null;
-  return loadState === 'failed' ? 'failed' : 'loading';
+  const baseUrl = useConnectionStore((s) => s.baseUrl);
+  const status = useConnectionStore((s) => s.status);
+  if (!hydrated) return { lock: 'loading', local: false };
+  if (!baseUrl) {
+    const local = !!prefKey && DEVICE_LOCAL.includes(prefKey);
+    return { lock: local ? null : 'offline', local };
+  }
+  if (FAULTY_STATUSES.includes(status)) return { lock: 'readonly', local: false };
+  if (loadState === 'offline') return { lock: 'offline', local: false };
+  if (loadState === 'ready') return { lock: null, local: false };
+  return { lock: loadState === 'failed' ? 'failed' : 'loading', local: false };
 }
 
-/** Satırda etiketin yanındaki yükleme durumu: Yükleniyor… / Yüklenemedi + „Tekrar dene“ / Bağlantı yok. */
+/** Satırda etiketin yanındaki yükleme durumu: Yükleniyor… / Yüklenemedi + „Tekrar dene“ / Bağlanınca açılır / Salt okunur. */
 function PrefLoadBadge({ prefKey, lock }: { prefKey: PrefKey; lock: PrefsLock }) {
   const t = useT();
   const load = useUserPrefsStore((s) => s.load);
+  const keys = { offline: 'sdlg.locked.connect', readonly: 'sdlg.ro', loading: 'sdlg.load.loading', failed: 'sdlg.load.failed' } as const;
+  const text = t(keys[lock]);
+  const hint = t(`${keys[lock]}.hint`);
   return (
     <>
-      <Tooltip content={t(`sdlg.load.${lock}.hint`)}>
+      <Tooltip content={hint}>
         <span
           role="status"
           tabIndex={0}
           data-testid={`pref-load-${prefKey}`}
           data-state={lock}
-          className={cn('inline-flex items-center gap-1 rounded text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', lock === 'loading' ? 'text-muted-foreground' : 'font-medium text-danger')}
+          className={cn(
+            'inline-flex items-center gap-1 rounded text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            lock === 'failed' ? 'font-medium text-danger' : 'text-muted-foreground',
+          )}
         >
-          {t(`sdlg.load.${lock}`)}
+          {(lock === 'readonly' || lock === 'offline') && <Lock size={12} strokeWidth={2.5} aria-hidden="true" />}
+          {text}
         </span>
       </Tooltip>
       {lock === 'failed' && (
@@ -91,7 +113,7 @@ interface RowProps {
 /** Bir ayar satırı: solda etiket ve açıklama, sağda kontrol (dar ekranda alt alta). */
 export function SettingsRow({ label, desc, prefKey, isNew, children, testId }: RowProps) {
   const t = useT();
-  const lock = usePrefsLock();
+  const { lock, local } = usePrefsLock(prefKey);
   const locked = prefKey && lock ? lock : null;
   return (
     <div
@@ -103,6 +125,14 @@ export function SettingsRow({ label, desc, prefKey, isNew, children, testId }: R
           <span className="font-semibold">{label}</span>
           {isNew && <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] text-primary">{t('sdlg.new')}</span>}
           {locked && prefKey ? <PrefLoadBadge prefKey={prefKey} lock={locked} /> : prefKey && <PrefStatusBadge prefKey={prefKey} />}
+          {local && prefKey && (
+            <Tooltip content={t('sdlg.local.hint')}>
+              <span tabIndex={0} data-testid={`pref-local-${prefKey}`} className="inline-flex items-center gap-1 rounded text-xs text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <Monitor size={12} strokeWidth={2.5} aria-hidden="true" />
+                {t('sdlg.local')}
+              </span>
+            </Tooltip>
+          )}
         </span>
         {desc && <span className="text-[13px] leading-snug text-muted-foreground">{desc}</span>}
       </div>
