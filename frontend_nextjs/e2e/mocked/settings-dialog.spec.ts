@@ -142,6 +142,8 @@ test.describe('USR-10 Ayar penceresi', () => {
     await hold.fill('1');
     await hold.press('Enter');
     await expect.poll(() => worker.userPrefs.admin?.tooltip_hold).toEqual({ mode: 'custom', ms: 1000 });
+    // Alan kayıttan sonra odağı korur (USR-13); odak ipucu açık kalmasın diye alandan çıkılır
+    await hold.blur();
     await tryBtn.hover();
     await expect(tip).toBeVisible();
     await expect(tip).toHaveCount(0, { timeout: 3000 });

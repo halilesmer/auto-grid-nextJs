@@ -2,10 +2,58 @@
 
 import { useState, type ReactNode } from 'react';
 import { Check, X } from 'lucide-react';
+import { claimEscape } from '@/components/ui/modal';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useFormat, useT } from '@/i18n';
 import { cn } from '@/lib/utils';
+import { useConnectionStore } from '@/store/useConnectionStore';
 import { useUserPrefsStore, type PrefKey } from '@/store/useUserPrefsStore';
+
+export type PrefsLock = 'loading' | 'failed' | 'offline';
+
+/** USR-13: kişisel alanlar, kayıtlı değerler okunana kadar kilitlidir (yoksa varsayılan kayıtlının üstüne yazılırdı). */
+export function usePrefsLock(): PrefsLock | null {
+  const loadState = useUserPrefsStore((s) => s.loadState);
+  const hydrated = useConnectionStore((s) => s.hydrated);
+  const connected = useConnectionStore((s) => !!s.baseUrl);
+  if (!hydrated) return 'loading';
+  if (!connected || loadState === 'offline') return 'offline';
+  if (loadState === 'ready') return null;
+  return loadState === 'failed' ? 'failed' : 'loading';
+}
+
+/** Satırda etiketin yanındaki yükleme durumu: Yükleniyor… / Yüklenemedi + „Tekrar dene“ / Bağlantı yok. */
+function PrefLoadBadge({ prefKey, lock }: { prefKey: PrefKey; lock: PrefsLock }) {
+  const t = useT();
+  const load = useUserPrefsStore((s) => s.load);
+  return (
+    <>
+      <Tooltip content={t(`sdlg.load.${lock}.hint`)}>
+        <span
+          role="status"
+          tabIndex={0}
+          data-testid={`pref-load-${prefKey}`}
+          data-state={lock}
+          className={cn('inline-flex items-center gap-1 rounded text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', lock === 'loading' ? 'text-muted-foreground' : 'font-medium text-danger')}
+        >
+          {t(`sdlg.load.${lock}`)}
+        </span>
+      </Tooltip>
+      {lock === 'failed' && (
+        <Tooltip content={t('sdlg.load.retry.hint')}>
+          <button
+            type="button"
+            data-testid={`pref-load-retry-${prefKey}`}
+            onClick={() => void load()}
+            className="min-h-6 cursor-pointer rounded text-xs text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {t('sdlg.load.retry')}
+          </button>
+        </Tooltip>
+      )}
+    </>
+  );
+}
 
 /** Satırda etiketin yanındaki durum: Kaydediliyor… → ✓ Kaydedildi (birkaç sn sonra kaybolur) ya da ✕ Kaydedilemedi. */
 export function PrefStatusBadge({ prefKey }: { prefKey: PrefKey }) {
@@ -43,6 +91,8 @@ interface RowProps {
 /** Bir ayar satırı: solda etiket ve açıklama, sağda kontrol (dar ekranda alt alta). */
 export function SettingsRow({ label, desc, prefKey, isNew, children, testId }: RowProps) {
   const t = useT();
+  const lock = usePrefsLock();
+  const locked = prefKey && lock ? lock : null;
   return (
     <div
       data-testid={testId}
@@ -52,11 +102,14 @@ export function SettingsRow({ label, desc, prefKey, isNew, children, testId }: R
         <span className="flex min-h-[22px] flex-wrap items-center gap-x-2.5 gap-y-1">
           <span className="font-semibold">{label}</span>
           {isNew && <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] text-primary">{t('sdlg.new')}</span>}
-          {prefKey && <PrefStatusBadge prefKey={prefKey} />}
+          {locked && prefKey ? <PrefLoadBadge prefKey={prefKey} lock={locked} /> : prefKey && <PrefStatusBadge prefKey={prefKey} />}
         </span>
         {desc && <span className="text-[13px] leading-snug text-muted-foreground">{desc}</span>}
       </div>
-      <div className="min-w-0">{children}</div>
+      {/* fieldset disabled: içindeki tüm düğme ve alanlar kilitlenir */}
+      <fieldset disabled={locked !== null} className={cn('m-0 min-w-0 border-0 p-0', locked && 'opacity-50')}>
+        {children}
+      </fieldset>
     </div>
   );
 }
@@ -129,8 +182,7 @@ interface SecondsFieldProps {
 export function SecondsField(props: SecondsFieldProps) {
   const f = useFormat();
   const shown = props.disabled ? f.number(0) : f.number(props.ms / 1000, { maximumFractionDigits: 2 });
-  // Gösterilen değer (kayıt, mod değişimi, dil) değişince taslak yeniden başlar: effect yerine key
-  return <SecondsInput key={shown} {...props} shown={shown} />;
+  return <SecondsInput {...props} shown={shown} />;
 }
 
 function SecondsInput({
@@ -148,6 +200,13 @@ function SecondsInput({
   const t = useT();
   const [draft, setDraft] = useState(shown);
   const [invalid, setInvalid] = useState(false);
+  // Gösterilen değer (kayıt, mod değişimi, dil) değişince taslak yeniden başlar. Alan yeniden kurulmaz (key yok): kayıttan sonra odak kalır
+  const [seen, setSeen] = useState(shown);
+  if (seen !== shown) {
+    setSeen(shown);
+    setDraft(shown);
+    setInvalid(false);
+  }
 
   const commit = () => {
     if (disabled) return;
@@ -180,6 +239,11 @@ function SecondsInput({
               if (e.key === 'Enter') {
                 e.preventDefault();
                 commit();
+              } else if (e.key === 'Escape' && (draft !== shown || invalid)) {
+                // İlk Escape yalnız düzenlemeyi geri alır; pencereyi ikincisi kapatır
+                claimEscape(e);
+                setDraft(shown);
+                setInvalid(false);
               }
             }}
             className={cn(

@@ -247,6 +247,10 @@ export class MockWorker {
   userPrefsFail = false;
   /** Verzögerung der Antwort auf PUT /me/prefs in ms (Zwischenzustand „Kaydediliyor…“ prüfen) */
   userPrefsDelayMs = 0;
+  /** USR-13: Verzögerung der Antwort auf GET /me/prefs in ms (Ladezustand prüfen) */
+  userPrefsGetDelayMs = 0;
+  /** USR-13: so viele GET /me/prefs antworten noch mit 500 (Wiederholungen prüfen) */
+  userPrefsGetFailures = 0;
   newsAvailable = true;
   /** Worker nicht erreichbar: REST-Anfragen scheitern mit Netzwerkfehler. */
   offline = false;
@@ -448,6 +452,13 @@ export class MockWorker {
 
     if (this.userPrefsDelayMs > 0 && method === 'PUT' && url.pathname.startsWith('/api/me/prefs/')) {
       await new Promise((resolve) => setTimeout(resolve, this.userPrefsDelayMs));
+    }
+    if (method === 'GET' && url.pathname === '/api/me/prefs') {
+      if (this.userPrefsGetDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, this.userPrefsGetDelayMs));
+      if (this.userPrefsGetFailures > 0) {
+        this.userPrefsGetFailures -= 1;
+        return this.reply(route, { status: 500, body: { detail: 'user prefs unavailable' } });
+      }
     }
     const reply = this.dispatch(method, url, body, principal);
     if (!reply) {

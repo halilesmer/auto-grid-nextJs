@@ -3,6 +3,10 @@ import { defineArea } from './define';
 // Ayar penceresindeki her kontrolün ipucu metni (hooks/RULES.md §5): anahtar `<etiket-anahtarı>.hint`.
 export default defineArea(
   {
+    'sdlg.load.loading.hint': 'Kayıtlı ayarlar VPS’ten okunuyor. Okuma bitene kadar bu ayar kilitli; böylece kayıtlı değerin üstüne varsayılan yazılmaz.',
+    'sdlg.load.failed.hint': 'Kayıtlı ayarlar birkaç denemeye rağmen okunamadı. Bu ayar kilitli; „Tekrar dene“ okumayı yeniden başlatır.',
+    'sdlg.load.offline.hint': 'Bu tarayıcı bir worker’a bağlı değil, kayıtlı ayarlar okunamıyor. Bu ayar kilitli; Ayarlar → Bağlantı’dan bağlan.',
+    'sdlg.load.retry.hint': 'Kayıtlı ayarları VPS’ten yeniden okur.',
     'sdlg.open.hint': 'Ayarlar penceresini açar: görünüm, bağlantı ve sistem ayarları. Kişisel ayarlar anında kaydedilir.',
     'sdlg.back.hint': 'Bölüm listesine döner.',
     'sdlg.sec.appearance.hint': 'Dil, tema ve ipuçlarının gecikmesi ile görünme süresi. Kullanıcına ait, VPS’te saklanır.',
@@ -37,6 +41,10 @@ export default defineArea(
     'sdlg.ind.open.hint': 'Grafik sayfasını açar ve Göstergeler penceresini gösterir.',
   },
   {
+    'sdlg.load.loading.hint': 'The saved settings are being read from the VPS. This setting stays locked until that finishes, so a default never overwrites a saved value.',
+    'sdlg.load.failed.hint': 'The saved settings could not be read after several tries. This setting is locked; “Try again” starts the read again.',
+    'sdlg.load.offline.hint': 'This browser is not connected to a worker, so the saved settings cannot be read. This setting is locked; connect under Settings → Connection.',
+    'sdlg.load.retry.hint': 'Reads the saved settings from the VPS again.',
     'sdlg.open.hint': 'Opens the settings window: appearance, connection and system. Personal settings are saved at once.',
     'sdlg.back.hint': 'Goes back to the list of sections.',
     'sdlg.sec.appearance.hint': 'Language, theme, hint delay and display time. Yours, stored on the VPS.',
@@ -71,6 +79,10 @@ export default defineArea(
     'sdlg.ind.open.hint': 'Opens the chart page and shows the Indicators window.',
   },
   {
+    'sdlg.load.loading.hint': 'Die gespeicherten Einstellungen werden vom VPS gelesen. Bis dahin bleibt diese Einstellung gesperrt, damit kein Standardwert einen gespeicherten Wert überschreibt.',
+    'sdlg.load.failed.hint': 'Die gespeicherten Einstellungen ließen sich nach mehreren Versuchen nicht lesen. Diese Einstellung ist gesperrt; „Erneut versuchen“ liest noch einmal.',
+    'sdlg.load.offline.hint': 'Dieser Browser ist mit keinem Worker verbunden, die gespeicherten Einstellungen lassen sich nicht lesen. Diese Einstellung ist gesperrt; unter Einstellungen → Verbindung verbinden.',
+    'sdlg.load.retry.hint': 'Liest die gespeicherten Einstellungen noch einmal vom VPS.',
     'sdlg.open.hint': 'Öffnet die Einstellungen: Darstellung, Verbindung und System. Persönliche Einstellungen werden sofort gespeichert.',
     'sdlg.back.hint': 'Geht zurück zur Liste der Bereiche.',
     'sdlg.sec.appearance.hint': 'Sprache, Design, Verzögerung und Anzeigedauer der Hinweise. Deine, auf dem VPS gespeichert.',

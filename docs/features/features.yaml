@@ -428,6 +428,16 @@ kategorien:
           - "Im Farbwähler eine eigene Farbe anlegen, auf einem zweiten Gerät mit demselben Schlüssel ansehen (Einstellungen → Chart)."
         erwartet: Die Tests @USR-12 bestehen. Zeitrahmen und Farben folgen dem Benutzer, „Im Chart öffnen“ zeigt das Indikatoren-Fenster.
 
+      - id: USR-13
+        titel: Einstellungsfenster robust (Ladesperre, Wiederholung, Fokus, Tabs)
+        beschreibung: "Plan 1114-A4 S3. Persönliche Felder im Einstellungsfenster sind gesperrt, bis useUserPrefsStore.load() fertig ist: die Zeile zeigt „Lädt…“ (Hinweis nennt den Grund), und change() schreibt davor nichts (nur Sprache und Design aus der Kopfzeile gehen, sie sind Einzelwerte). So überschreibt kein Standardwert einen gespeicherten Wert. Ohne Verbindung bleiben die Felder gesperrt („Keine Verbindung“). Fällt load() aus, wird bis zu dreimal mit wachsendem Abstand wiederholt; danach zeigt die Zeile „Nicht geladen“ und „Erneut versuchen“. Fokus: Tab bleibt im Fenster (Modal, auch ineinander liegende Fenster), Escape schließt zuerst das offene Unterelement (Eingabe wird zurückgesetzt, Rückfrage-Fenster schließt allein), ein zweites Escape das Fenster; beim Schließen kehrt der Fokus zum öffnenden Knopf zurück; das Sekundenfeld behält den Fokus nach dem Speichern. Tabs der Benachrichtigungen haben role tablist/tab/tabpanel, aria-controls, aria-selected und gehen mit Pfeilen, Home und End."
+        code: [frontend_nextjs/src/store/useUserPrefsStore.ts, frontend_nextjs/src/components/settings/parts.tsx, frontend_nextjs/src/components/settings/SettingsDialog.tsx, frontend_nextjs/src/components/settings/NotificationsSection.tsx, frontend_nextjs/src/components/ui/modal.tsx, frontend_nextjs/src/components/ui/animated-tabs.tsx, frontend_nextjs/src/i18n/messages/settingsDialog.ts, frontend_nextjs/src/i18n/messages/settingsHints.ts, frontend_nextjs/e2e/mocked/settings-dialog-s3.spec.ts, frontend_nextjs/e2e/fixtures/mock-worker.ts]
+        tiers: [e2e, manuell]
+        pruefung:
+          - Einstellungen öffnen, während der Worker langsam antwortet (VPS unter Last): die Felder sind gesperrt und zeigen „Lädt…“; danach ändert sich kein gespeicherter Wert.
+          - Mit der Tastatur durch das Fenster tabben, Escape zweimal drücken; der Fokus liegt wieder auf dem Zahnrad. Bei 375 px gibt es keinen waagerechten Überlauf.
+        erwartet: Die Tests @USR-13 bestehen. Kein Standardwert überschreibt einen gespeicherten Wert, und das Fenster ist mit der Tastatur bedienbar.
+
   # ---------------------------------------------------------------------------
   - id: SET
     titel: Allgemeine Einstellungen

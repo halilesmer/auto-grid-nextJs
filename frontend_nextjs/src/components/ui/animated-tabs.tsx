@@ -13,6 +13,8 @@ export interface AnimatedTabsProps {
   defaultTab?: string;
   layoutId?: string;
   onChange?: (tabId: string) => void;
+  /** Sekmenin paneline işaret eden kimlik (`aria-controls`); panel `role="tabpanel"` ve `aria-labelledby={`<layoutId>-tab-<id>`}` taşır. Verilmezse aria-controls yazılmaz. */
+  panelId?: (tabId: string) => string;
   /** `hint` ist Pflicht (hooks/RULES.md §5): was der Tab zeigt. */
   tabs: { id: string; label: string; icon?: ReactNode; hint: HintContent }[];
   variant?: "underline" | "pill" | "segment";
@@ -31,6 +33,7 @@ export default function AnimatedTabs({
   onChange,
   variant = "underline",
   layoutId: customLayoutId,
+  panelId,
   className,
 }: AnimatedTabsProps) {
   const t = useT();
@@ -156,6 +159,7 @@ export default function AnimatedTabs({
         return (
           <Tooltip key={tab.id} content={tab.hint} role="presentation">
             <button
+              aria-controls={panelId?.(tab.id)}
               aria-selected={isActive}
               className={getTabStyles(isActive)}
               id={`${layoutId}-tab-${tab.id}`}

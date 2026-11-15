@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { claimEscape } from '@/components/ui/modal';
 import { Tooltip } from '@/components/ui/tooltip';
 import { SwitchToggle } from '@/components/ui/switch';
 import { useT, type MessageKey } from '@/i18n';
@@ -102,6 +103,14 @@ function AlertsTab() {
                     if (e.key === 'Enter') {
                       e.preventDefault();
                       commit(i);
+                    } else if (e.key === 'Escape' && draft !== undefined) {
+                      // İlk Escape yalnız düzenlemeyi geri alır; pencereyi ikincisi kapatır
+                      claimEscape(e);
+                      setDrafts((d) => {
+                        const next = { ...d };
+                        delete next[i];
+                        return next;
+                      });
                     }
                   }}
                   className={cn(

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type KeyboardEvent } from 'react';
 import { Bell, ChartCandlestick, ChevronLeft, ChevronRight, ExternalLink, Palette, Bot, Link2, Server, Users, X, type LucideIcon } from 'lucide-react';
 import { VERSION } from '@/app/version';
 import SystemModals from '@/components/layout/SystemModals';
@@ -146,6 +146,21 @@ export default function SettingsDialog() {
   const tab: NotificationsTab = tabState.section === active.id ? tabState.tab : 'general';
   const foot = footState(Object.values(prefStatus));
 
+  // Sekmeler (WAI-ARIA): ← → döner, Home/End uçlara gider; odak ve seçim birlikte taşınır
+  const tabId = (id: NotificationsTab) => `settings-tab-${id}`;
+  const panelId = (id: NotificationsTab) => `settings-tabpanel-${id}`;
+  const onTabKey = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return; // tarayıcı kısayollarını yutma
+    const last = NOTIFICATION_TABS.length - 1;
+    const n = NOTIFICATION_TABS.length;
+    const targets: Record<string, number> = { ArrowRight: (index + 1) % n, ArrowLeft: (index - 1 + n) % n, Home: 0, End: last };
+    const next = targets[e.key] ?? -1;
+    if (next < 0) return;
+    e.preventDefault();
+    setTab({ section: active.id, tab: NOTIFICATION_TABS[next] });
+    document.getElementById(tabId(NOTIFICATION_TABS[next]))?.focus();
+  };
+
   return (
     <>
       <Modal
@@ -245,14 +260,18 @@ export default function SettingsDialog() {
               </div>
               {active.id === 'notifications' && (
                 <div role="tablist" aria-label={t('sdlg.tabs.aria')} className="-mb-4 mt-4 flex gap-6 overflow-x-auto md:-mb-5" data-testid="settings-tabs">
-                  {NOTIFICATION_TABS.map((id) => (
+                  {NOTIFICATION_TABS.map((id, index) => (
                     <Tooltip key={id} content={t(`sdlg.tab.${id}.hint` as MessageKey)}>
                       <button
                         type="button"
                         role="tab"
+                        id={tabId(id)}
                         aria-selected={tab === id}
+                        aria-controls={panelId(id)}
+                        tabIndex={tab === id ? 0 : -1}
                         data-testid={`settings-tab-${id}`}
                         onClick={() => setTab({ section: active.id, tab: id })}
+                        onKeyDown={(e) => onTabKey(e, index)}
                         className={cn(
                           '-mb-px min-h-11 shrink-0 cursor-pointer whitespace-nowrap border-b-2 pb-3 pt-2 text-[15px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                           tab === id ? 'border-primary font-semibold text-primary' : 'border-transparent text-muted-foreground hover:text-foreground',
@@ -268,7 +287,12 @@ export default function SettingsDialog() {
 
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-2 md:px-10" data-testid="settings-body">
               {active.id === 'appearance' && <AppearanceSection />}
-              {active.id === 'notifications' && <NotificationsSection tab={tab} />}
+              {active.id === 'notifications' &&
+                NOTIFICATION_TABS.map((id) => (
+                  <div key={id} role="tabpanel" id={panelId(id)} aria-labelledby={tabId(id)} hidden={tab !== id}>
+                    {tab === id && <NotificationsSection tab={id} />}
+                  </div>
+                ))}
               {active.id === 'chart' && <ChartSection />}
               {active.id === 'connection' && <ConnectionSection />}
               {active.id === 'robot' && <LinkSection href="/" textKey="sdlg.robot.text" openKey="sdlg.robot.open" testId="settings-robot" />}
