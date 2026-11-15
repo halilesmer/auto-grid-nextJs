@@ -21,6 +21,18 @@ async function still(page: Page) {
   return axis(page);
 }
 
+/**
+ * A y on the candles where the topmost element is a chart canvas. Overlays on top of the chart (hit areas of formation
+ * lines, labels) take the press, so the chart would not see the drag. Where the lines are depends on the candles, and
+ * the mock draws them from the clock.
+ */
+const freeY = (page: Page, x: number, fromY: number, toY: number) => page.evaluate(([px, a, b]) => {
+  for (let y = a; y < b; y += 4) {
+    if ([-10, 0, 10].every(dx => document.elementFromPoint(px + dx, y) instanceof HTMLCanvasElement)) return y;
+  }
+  return null;
+}, [x, fromY, toY]);
+
 /** Re-runs the chart's appearance effect without a visible change (cursor preference); every new candle does the same */
 async function refresh(page: Page, mode: 'arrow' | 'crosshair') {
   await page.getByRole('button', { name: msg('cw.rail.cursor') }).click();
@@ -64,15 +76,20 @@ test('Mumlar dikey sürüklenir ve yerinde kalır; görünümü sıfırla otomat
   const fit = page.getByRole('button', { name: msg('cw.fit') }).first();
   await fit.click();
   const before = await still(page);
-  const x = box.x + box.width * 0.5, y = box.y + box.height * 0.3;
-  await drag(page, x, y, 120);
+  const x = box.x + box.width * 0.5;
+  // The price pane is the upper half of the chart (the oscillator panes start at about 0.53)
+  const y = await freeY(page, x, box.y + box.height * 0.2, box.y + box.height * 0.4);
+  expect(y, 'a point on the candles that no overlay covers').not.toBeNull();
+  await drag(page, x, y!, 120);
   const released = await still(page);
   expect(released).not.toBe(before);
   await refresh(page, 'arrow');
   expect(await still(page)).toBe(released);
 
-  // A second drag (auto scale now off) is done by the chart library itself; it starts below the moved target zone
-  await drag(page, x, box.y + box.height * 0.45, -60);
+  // A second drag (auto scale now off) is done by the chart library itself; it starts below where the first drag ended, on a point no overlay covers
+  const y2 = await freeY(page, x, y! + 120 + 12, box.y + box.height * 0.5);
+  expect(y2, 'a point on the candles that no overlay covers').not.toBeNull();
+  await drag(page, x, y2!, -60);
   await refresh(page, 'crosshair');
   const second = await still(page);
   expect(second).not.toBe(released);
