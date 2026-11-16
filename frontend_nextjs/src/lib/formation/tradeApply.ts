@@ -2,11 +2,12 @@
  * Hängt den Handelsblock (A40.3) und die Veto-Zeile (A40.2) an einen fertigen Kandidaten. Das Urteil, `invalidBy`, Alarm und Favoriten
  * bleiben unberührt: die Veto-Zeile kommt erst nach `settle` in die Liste.
  */
+import { outward, wickEnd, type ZoneSide } from './frz';
 import { tradeSigChecks } from './sigChecks';
 import { emergencyStopOf, fibPrice } from './trade';
 import type { Env } from './reasons';
 import type { ContextTimeframe } from './params';
-import type { Candidate, Trade } from './types';
+import { TRADE_RULES, type Candidate, type Drawing, type FormationBar, type Side, type Trade } from './types';
 
 /** Werte, die der Prüfer kennt; der Not-SL und SIG-29 kommen hier dazu */
 export type TradeInput = Pick<Trade, 'entry' | 'stop' | 'tp1' | 'reason'> & Partial<Pick<Trade, 'tp1AtEntry' | 'missed' | 'tp2' | 'tp2AtEntry' | 'tp3' | 'tpBig' | 'tpBigAtEntry' | 'tpBigActivation' | 'tp1StrongZone' | 'status' | 'earlyReversal' | 'reentry' | 'reentryTp1Only'>>;
@@ -43,8 +44,52 @@ export function withTrade(candidate: Candidate, env: Env, tf: ContextTimeframe, 
   return { ...candidate, checks: veto ? [...candidate.checks, sigs.veto] : candidate.checks, trade };
 }
 
+/** Zustand der Harmonik bei der ersten Berührung des D-Levels: Kerze, Einstiegs-Level (nur Gartley, Bat) und Docht der Berührungskerze */
+export interface HarmonicFreeze {
+  idx: number;
+  entryLevel?: number;
+  touchEnd: number;
+}
+
 /**
- * Handel einer Harmonik: Einstieg am D, Ziel und 1:1-Stop aus der Ziel-Fib `from → D` (Level in Notation Start = 1, Ende = 0, `-stop` jenseits von D).
+ * Friert die Harmonik an der ersten Kerze ein, deren Docht das D-Level erreicht (bis `tol` davor); beginnt wie die D-Suche nach dem Trend-Pivot von C.
+ * Ohne Treffer (ein eigenes D liegt nicht auf einem Docht) gilt die Kerze des D. `atLevel`: Einstieg am Preis des Levels (Gartley, Bat).
+ */
+export function harmonicFreeze(
+  bars: readonly FormationBar[],
+  s: { es: ZoneSide; c: { idx: number; pivotIdx?: number }; d: { idx: number; price: number } | null },
+  level: number,
+  tol: number,
+  atLevel: boolean,
+): HarmonicFreeze | null {
+  if (!s.d) return null;
+  let idx = -1;
+  for (let k = Math.max(s.c.idx, s.c.pivotIdx ?? s.c.idx) + 1; k < bars.length; k++) {
+    if (outward(s.es, wickEnd(bars[k], s.es)) >= outward(s.es, level) - tol) {
+      idx = k;
+      break;
+    }
+  }
+  const touchEnd = idx < 0 ? s.d.price : wickEnd(bars[idx], s.es);
+  return { idx: idx < 0 ? s.d.idx : idx, touchEnd, ...(atLevel ? { entryLevel: level } : {}) };
+}
+
+/** Eingefrorener Stop der Harmonik: 1:1-Stop der Fib `from → Anker`; Anker = Einstiegs-Level (Gartley, Bat) oder Docht der Berührungskerze (Butterfly, Crab) */
+export const harmonicStop = (from: { price: number }, freeze: HarmonicFreeze, stopLevel: number): number =>
+  fibPrice(from.price, freeze.entryLevel ?? freeze.touchEnd, -stopLevel);
+
+/** Stop-Linie ab der Berührungskerze und ihre Beschriftung (wie Z-ABCD-07 und Z-ABCD-08); der Stop läuft nicht mit der Ziel-Fib */
+export function frozenStopDrawings(ids: [string, string], bars: readonly FormationBar[], freeze: HarmonicFreeze, stop: number, side: Side): Drawing[] {
+  return [
+    { id: ids[0], tool: 'hline', anchors: [{ time: bars[freeze.idx].time, price: stop }], rules: TRADE_RULES, side },
+    { id: ids[1], tool: 'label', anchors: [{ time: bars[bars.length - 1].time, price: stop }], label: 'stop', rules: TRADE_RULES, side },
+  ];
+}
+
+/**
+ * Handel einer Harmonik: Ziel aus der Ziel-Fib `from → D` (Level in Notation Start = 1, Ende = 0); TP1 läuft mit dem äußersten Docht.
+ * Der Stop ist eingefroren (`harmonicStop`). Gartley und Bat steigen am Preis des D-Levels ein, nicht am äußersten Docht;
+ * `tp1AtEntry` (Fib `from → Level`) ist dann die Grundlage des CRV (1:1). Butterfly und Crab steigen wie bisher am äußersten Docht ein.
  * Solange D nicht erreicht ist, fehlen alle drei Werte; `reachedRule` ist die Bedingung, auf die sie warten.
  */
 export function harmonicTrade(
@@ -53,9 +98,16 @@ export function harmonicTrade(
   reached: boolean,
   targets: { tp1: number; stop: number },
   reachedRule: string,
+  freeze: HarmonicFreeze | null,
 ): TradeInput {
-  if (!from || !d || !reached) return { entry: null, stop: null, tp1: null, reason: { entry: reachedRule, stop: reachedRule, tp1: reachedRule } };
-  return { entry: d.price, stop: fibPrice(from.price, d.price, -targets.stop), tp1: fibPrice(from.price, d.price, targets.tp1), reason: {} };
+  if (!from || !d || !reached || !freeze) return { entry: null, stop: null, tp1: null, reason: { entry: reachedRule, stop: reachedRule, tp1: reachedRule } };
+  return {
+    entry: freeze.entryLevel ?? d.price,
+    stop: harmonicStop(from, freeze, targets.stop),
+    tp1: fibPrice(from.price, d.price, targets.tp1),
+    ...(freeze.entryLevel === undefined ? {} : { tp1AtEntry: fibPrice(from.price, freeze.entryLevel, targets.tp1) }),
+    reason: {},
+  };
 }
 
 /**

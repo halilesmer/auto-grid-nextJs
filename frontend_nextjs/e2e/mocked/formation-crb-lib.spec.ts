@@ -202,13 +202,13 @@ test.describe('CRB: Abgrenzung, Urteil und Zeichnungen', () => {
 
   frm('Zeichnungen: Z-CRB 01, 02, 03, 05 immer, Z-CRB 04 nur mit erreichtem D', () => {
     const ok = run({ H4: BASE });
-    expect(ok.drawings.map((d) => d.id)).toEqual(['Z-CRB-01', 'Z-CRB-02', 'Z-CRB-03', 'Z-CRB-05', 'Z-CRB-04']);
+    expect(ok.drawings.map((d) => d.id)).toEqual(['Z-CRB-01', 'Z-CRB-02', 'Z-CRB-03', 'Z-CRB-05', 'Z-CRB-04', 'Z-CRB-06', 'Z-CRB-07']);
     const short = run({ H4: D_SHORT });
     expect(short.drawings.map((d) => d.id)).toEqual(['Z-CRB-01', 'Z-CRB-02', 'Z-CRB-03', 'Z-CRB-05']);
     expect(ok.drawings.find((d) => d.id === 'Z-CRB-01')!.levels!.map((v) => Math.round(v * 1000) / 1000)).toEqual([0.382, 0.618, 0.786, 0.886, 1, 1.618]);
     expect(ok.drawings.find((d) => d.id === 'Z-CRB-02')!.levels).toEqual([0.382, 0.786, 0.886]);
     expect(ok.drawings.find((d) => d.id === 'Z-CRB-03')!.levels).toEqual([2, 2.618, 3.618]);
-    expect(ok.drawings.find((d) => d.id === 'Z-CRB-04')!.levels).toEqual([0.382, 0.618, -0.382]);
+    expect(ok.drawings.find((d) => d.id === 'Z-CRB-04')!.levels).toEqual([0.382, 0.618]);
     expect(find(ok, 'CRB-04').drawings).toEqual(['Z-CRB-01', 'Z-CRB-05']);
     expect(find(ok, 'CRB-10').drawings).toEqual(['Z-CRB-03']);
     expect(ok.drawings.every((d) => d.side === 'buy')).toBe(true);

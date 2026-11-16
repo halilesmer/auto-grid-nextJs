@@ -1,5 +1,5 @@
 /**
- * Gartley (GAR): Prüfung je Bedingungs-ID und Zeichnungen Z-GAR-01 bis Z-GAR-06.
+ * Gartley (GAR): Prüfung je Bedingungs-ID und Zeichnungen Z-GAR-01 bis Z-GAR-08.
  * `analyzeGar` sucht je geladener Zeiteinheit die letzten Punkte X, A, B, C aus den Wendepunkten und misst D;
  * `checkGarCandidate` prüft eigene Punkte, auch wenn sie keine Formation ergeben (Zeichnung und ☐ gibt es trotzdem).
  *
@@ -13,7 +13,7 @@ import { nearEdge } from './cdt';
 import { divergenceOf, rsiExtreme } from './sig';
 import { exemptFor, settle } from './settle';
 import { ABCD_PARAMS, FIB_PARAMS, GAR_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
-import { harmonicTrade, withTrade } from './tradeApply';
+import { frozenStopDrawings, harmonicFreeze, harmonicStop, harmonicTrade, withTrade, type HarmonicFreeze } from './tradeApply';
 import type { Env } from './reasons';
 import {
   analyzeXabcd,
@@ -139,7 +139,9 @@ export function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: num
   const oneStep = xPos >= 0 && trend.pivots[xPos + 1]?.idx === pivotIdxOf(a);
   add('GAR-21', flag(fractals && impulse && oneStep));
 
-  const drawings = drawingsOf(env, tf, s, dTarget, reached);
+  // Einstieg am D-Level, Stop ab der ersten Berührung eingefroren
+  const freeze = reached ? harmonicFreeze(bars, s, dTarget, tol, true) : null;
+  const drawings = drawingsOf(env, tf, s, dTarget, reached, freeze);
   const withDrawings = checks.map((k) => ({
     ...k,
     drawings: [...new Set(drawings.filter((z) => z.rules.includes(k.id)).map((z) => z.id))],
@@ -164,10 +166,10 @@ export function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: num
   };
   if (d) points.D = anchorAt(bars, d.idx, d.price);
   const candidate: Candidate = { code: 'GAR', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
-  return withTrade(candidate, env, tf, harmonicTrade(a, d ?? null, reached, HARMONIC_PARAMS.targets, 'GAR-05'), false);
+  return withTrade(candidate, env, tf, harmonicTrade(a, d ?? null, reached, HARMONIC_PARAMS.targets, 'GAR-05', freeze), false);
 }
 
-function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, dTarget: number, reached: boolean): Drawing[] {
+function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, dTarget: number, reached: boolean, freeze: HarmonicFreeze | null): Drawing[] {
   const bars = env.views.get(tf)!.bars;
   const lastTime = bars[bars.length - 1].time;
   const { x, a, b, c, d, side, abcd } = s;
@@ -208,10 +210,12 @@ function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, dTarget: numb
       id: 'Z-GAR-06',
       tool: 'fib',
       anchors: [anchorAt(bars, a.idx, a.price), anchorAt(bars, d.idx, d.price)],
-      levels: [t.tp1, t.tp2, -t.stop],
+      levels: [t.tp1, t.tp2],
       rules: TRADE_RULES,
       side,
     });
+    // Der Stop ist eingefroren und steht als eigene Linie, nicht als Level der mitlaufenden Ziel-Fib
+    if (freeze) out.push(...frozenStopDrawings(['Z-GAR-07', 'Z-GAR-08'], bars, freeze, harmonicStop(a, freeze, t.stop), side));
   }
   return out;
 }
