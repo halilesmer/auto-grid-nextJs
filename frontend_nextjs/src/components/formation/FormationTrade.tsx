@@ -3,7 +3,7 @@
 import { ArrowDown, ArrowUp, Check, Clock, Info, Minus, RotateCcw, TriangleAlert, Undo2, X } from 'lucide-react';
 import { StateIcon, checkRowState } from '@/components/formation/FormationChecklist';
 import { InfoHint, Tooltip } from '@/components/ui/tooltip';
-import { useFormat, useLocale, useT } from '@/i18n';
+import { useFormat, useLocale, useT, type MessageKey } from '@/i18n';
 import { ruleText } from '@/lib/formation/ruleTexts';
 import type { ScanHit } from '@/lib/formation/scan';
 import { CRV_EPS as EPS, outcomesOf, pipSizeOf, realizedOutcomesOf, tradeMetrics } from '@/lib/formation/trade';
@@ -128,6 +128,26 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
   const reCrvText = reMetrics ? number(reMetrics.crv, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : dash;
   const reAway = (v: number, sign: '+' | '−') =>
     re ? t(pipSize === null ? 'formation.trade.away.price' : 'formation.trade.away.pips', { n: `${sign}${dist(Math.abs(v - re.entry))}` }) : null;
+
+  // C-Bein: eigene Liste und, wenn alle Pflichtzeilen erfüllt sind, eigene Werte und ein eigenes Verhältnis zum Ziel (Level 1)
+  const cl = trade.cLeg;
+  const clBuy = cl?.side === 'buy';
+  const clMetrics = cl && cl.entry !== null ? tradeMetrics({ entry: cl.entry, stop: cl.stop, tp1: cl.target }, cl.side) : null;
+  const clCrvText = clMetrics ? number(clMetrics.crv, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : dash;
+  const clAway = (v: number, sign: '+' | '−') =>
+    cl && cl.entry !== null ? t(pipSize === null ? 'formation.trade.away.price' : 'formation.trade.away.pips', { n: `${sign}${dist(Math.abs(v - cl.entry))}` }) : null;
+  const clRowValue = (key: string, value: number | string | undefined): string | null => {
+    if (value === undefined) return null;
+    if (typeof value === 'number') return number(value, { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+    if (key === 'candle') return t(`formation.trade.cleg.tf.${value}` as MessageKey);
+    return t(`formation.trade.cleg.value.${value}` as MessageKey);
+  };
+  const clRowLabel = (key: string): MessageKey =>
+    (key === 'noDivergence' || key === 'zone' ? `formation.trade.cleg.row.${key}.${clBuy ? 'buy' : 'sell'}` : `formation.trade.cleg.row.${key}`) as MessageKey;
+  // C-Bein wartet auf eine Umkehrkerze: alle Pflichtzeilen außer der Kerze sind erfüllt, am C liegt keine Zone, in der tieferen Zeiteinheit gibt es keine Kerze
+  const clWaiting =
+    !!cl && cl.variant === null && cl.rows.find((r) => r.key === 'zone')?.state === 'unmet' && cl.rows.find((r) => r.key === 'candle')?.state === 'unmet' &&
+    cl.rows.filter((r) => r.kind === 'required' && r.key !== 'candle').every((r) => r.state === 'met');
 
   // Großes Ziel: bis eine Kerze jenseits von A schloss, steht unter dem Wert, was es aktiviert; danach „etkin“
   const bigNote = (() => {
@@ -512,6 +532,121 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
           <TriangleAlert size={13} aria-hidden="true" className="mt-px shrink-0" />
           <span className="flex-1">{t('formation.trade.reentry.warning')}</span>
           <InfoHint hint={t('formation.trade.reentry.warning.hint')} className="text-warning" />
+        </div>
+      )}
+      {cl && (
+        <div data-testid="trade-cleg" data-variant={cl.variant ?? 'none'} className="border-t border-border">
+          <div className="flex flex-wrap items-center gap-1.5 border-b border-info/35 bg-info/10 px-2.5 py-2">
+            <Undo2 size={13} strokeWidth={2.5} aria-hidden="true" className="shrink-0 text-info" />
+            <span className="min-w-0 flex-1">
+              <span className="text-xs font-semibold text-info">{t('formation.trade.cleg.title')}</span>
+              <span className="text-[11.5px] text-muted-foreground">{` · ${t('formation.trade.cleg.sub')}`}</span>
+            </span>
+            <span data-testid="trade-cleg-dir" className={cn('text-xs font-semibold', clBuy ? 'text-success' : 'text-danger')}>
+              {t(clBuy ? 'formation.trade.cleg.dir.buy' : 'formation.trade.cleg.dir.sell')}
+            </span>
+            <InfoHint hint={t('formation.trade.cleg.hint')} />
+          </div>
+          {(['required', 'bonus'] as const).map((kind) => {
+            const rows = cl.rows.filter((r) => r.kind === kind);
+            const met = rows.filter((r) => r.state === 'met').length;
+            return (
+              <div key={kind} data-testid={`trade-cleg-group-${kind}`} data-count={`${met}/${rows.length}`}>
+                <h4 className="flex items-center gap-1 px-2.5 pt-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {`${t(`formation.group.${kind}` as MessageKey)} ${met}/${rows.length}`}
+                  {kind === 'required' && <InfoHint hint={t('formation.trade.cleg.group.hint')} />}
+                </h4>
+                {rows.map((r) => {
+                  const value = r.state === 'unmeasurable' ? null : clRowValue(r.key, r.value);
+                  return (
+                    <div
+                      key={r.key}
+                      data-testid={`trade-cleg-row-${r.key}`}
+                      data-state={r.state}
+                      className="grid grid-cols-[22px_minmax(0,1fr)_auto] items-start gap-2 px-2.5 py-1"
+                    >
+                      <StateIcon state={r.state} />
+                      <span className={cn('flex min-w-0 items-center gap-1 text-xs', r.state === 'unmeasurable' && 'text-muted-foreground')}>
+                        {t(clRowLabel(r.key))}
+                        <InfoHint hint={t(`formation.trade.cleg.row.${r.key}.hint` as MessageKey)} />
+                      </span>
+                      {value !== null && (
+                        <span data-testid={`trade-cleg-value-${r.key}`} className="text-xs tabular-nums text-foreground/80">
+                          {value}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+          {clWaiting && (
+            <div data-testid="trade-cleg-waiting" className="mx-2.5 my-2 flex items-start gap-1.5 rounded-lg border border-info/35 bg-info/10 px-2 py-1.5 text-[11.5px]">
+              <Clock size={13} aria-hidden="true" className="mt-px shrink-0 text-info" />
+              <span className="flex-1">{t('formation.trade.cleg.waiting')}</span>
+            </div>
+          )}
+          {cl.variant !== null && cl.entry !== null && cl.stop !== null && cl.target !== null && (
+            <>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-2 border-t border-border px-2.5 py-2.5">
+                <div className="flex min-w-0 flex-col gap-px">
+                  <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                    {t('formation.trade.entry')}
+                    <InfoHint hint={t('formation.trade.cleg.entry.hint')} />
+                  </span>
+                  <span data-testid="trade-cleg-entry" className="text-[13px] font-medium tabular-nums">
+                    {fmt(cl.entry)}
+                  </span>
+                  <span className="text-[10.5px] text-muted-foreground">
+                    {t(cl.variant === 'candle' ? 'formation.trade.cleg.entry.candle' : (`formation.trade.cleg.entry.zone.${clBuy ? 'buy' : 'sell'}` as MessageKey))}
+                  </span>
+                </div>
+                <div className="flex min-w-0 flex-col gap-px">
+                  <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                    {t('formation.trade.stop')}
+                    <InfoHint hint={t('formation.trade.cleg.stop.hint')} />
+                  </span>
+                  <span data-testid="trade-cleg-stop" className="text-[13px] font-medium tabular-nums text-danger">
+                    {fmt(cl.stop)}
+                  </span>
+                  <span className="text-[10.5px] tabular-nums text-muted-foreground">
+                    {clAway(cl.stop, '−')}
+                    {` · ${t(`formation.trade.cleg.stop.${cl.variant}.${clBuy ? 'buy' : 'sell'}` as MessageKey)}`}
+                    {cl.emergencyStop !== null && ` · ${t('formation.trade.emergency', { price: fmt(cl.emergencyStop) })}`}
+                  </span>
+                </div>
+                <div className="col-span-2 flex min-w-0 flex-col gap-px">
+                  <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                    {t('formation.trade.reentry.target')}
+                    <InfoHint hint={t('formation.trade.cleg.target.hint')} />
+                  </span>
+                  <span data-testid="trade-cleg-target" className="text-[13px] font-medium tabular-nums text-success">
+                    {fmt(cl.target)}
+                  </span>
+                  <span className="text-[10.5px] tabular-nums text-muted-foreground">{`${clAway(cl.target, '+')} · ${t('formation.trade.cleg.target.sub')}`}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5 border-t border-border px-2.5 py-2">
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  {t('formation.trade.reentry.crv')}
+                  <InfoHint hint={t('formation.trade.reentry.crv.hint')} />
+                </span>
+                <span data-testid="trade-cleg-crv" className={cn('text-[15px] font-semibold tabular-nums', !clMetrics && 'text-muted-foreground')}>
+                  {clCrvText}
+                </span>
+                {clMetrics ? (
+                  <span role="img" aria-label={t('formation.trade.ratio', { n: clCrvText })} className="flex h-1.5 flex-1 overflow-hidden rounded-[3px] bg-muted">
+                    <span className="block h-full bg-danger" style={{ width: `${(1 / (1 + clMetrics.crv)) * 100}%` }} />
+                    <span className="block h-full bg-success" style={{ width: `${100 - (1 / (1 + clMetrics.crv)) * 100}%` }} />
+                  </span>
+                ) : (
+                  <span className="flex-1 text-right text-[10.5px] text-muted-foreground">{t('formation.trade.reentry.crv.missing')}</span>
+                )}
+              </div>
+            </>
+          )}
+          <div data-testid="trade-cleg-footer" className="border-t border-border px-2.5 py-2 text-[10.5px] text-muted-foreground">{t('formation.trade.cleg.footer')}</div>
         </div>
       )}
       {trade.tp1StrongZone && (

@@ -113,8 +113,36 @@ export interface Trade {
   reentry?: { entry: number; stop: number; emergencyStop: number | null; target: number | null; /** Ziel 2 (letzte Tief-/Hochzone); null, wenn leer oder dieselbe Zone wie `target` */ target2: number | null };
   /** AB=CD (1114-A4.4): nur TP1 erreicht und der Kurs ist in die Engulf-Zone zurückgekehrt: kein Wiedereinstieg, nur ein Hinweis */
   reentryTp1Only?: true;
+  /**
+   * AB=CD: C-Bein. Bevor D (Level 1) erreicht ist, ein Handel von C zu Level 1, also gegen die Richtung des AB=CD-Handels (beim Verkauf-AB=CD ein Kauf).
+   * Eigene Pflicht- und Verstärkungsliste (`rows`); die Zeilen stehen nicht in `candidate.checks` und ändern Urteil, `invalidBy`, Alarm und Favoriten nicht.
+   * Die Werte stehen nur, wenn alle Pflichtzeilen erfüllt sind.
+   */
+  cLeg?: CLeg;
   /** SIG-29 (CRV bis TP1 über 1, sonst Umkehrkerze der tieferen ZE): ☑ bei CRV > 1; Wert = CRV; die Anzeige zeigt die Zeile nur bei CRV ≤ 1 */
   sig29?: Check;
+}
+
+/** Zeile der Liste des C-Beins; `value` ist eine Zahl (Tiefe) oder ein Schlüssel (`engulf`, `fractal`) oder die Zeiteinheit der Umkehrkerze */
+export interface CLegRow {
+  key: 'depth' | 'trend' | 'noDivergence' | 'zone' | 'candle' | 'lowerAbcd';
+  kind: 'required' | 'bonus';
+  state: CheckState;
+  value?: number | string;
+}
+
+/** C-Bein (siehe `Trade.cLeg`); `side` ist die Richtung des C-Beins (gegen den AB=CD-Handel) */
+export interface CLeg {
+  side: Side;
+  rows: CLegRow[];
+  /** `zone`: Einstieg an der nahen Kante der Zone am C; `candle`: Schluss der Umkehrkerze; null: keine Werte */
+  variant: 'zone' | 'candle' | null;
+  entry: number | null;
+  /** Schluss-Stop (ferne Kante der Zone, Kerzenspitze) */
+  stop: number | null;
+  emergencyStop: number | null;
+  /** Level 1 des AB=CD */
+  target: number | null;
 }
 
 export interface Candidate {
