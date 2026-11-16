@@ -27,6 +27,8 @@ import { E2E_API_KEY, E2E_PORT, MOCK_API } from './e2e/fixtures/env';
  * Builds landen in .next-e2e bzw. .next-live (NEXT_DIST_DIR), damit sie neben
  * `npm run dev:frontend` laufen können.
  */
+/** Wiederholungen eines fehlgeschlagenen Tests in CI und im Vorab-Check; die einzige Stelle für die Zahl. */
+const CI_RETRIES = 1;
 const LIVE = process.env.E2E_LIVE === '1';
 const LIVE_PORT = Number(process.env.E2E_LIVE_PORT || 3200);
 const LIVE_BASE_URL = process.env.E2E_LIVE_BASE_URL;
@@ -72,7 +74,9 @@ export default defineConfig({
   // Live: nacheinander, damit der VPS/ngrok nicht mit parallelen Browsern belastet wird
   workers,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
+  // Eine Wiederholung in CI und in scripts/features/precheck.sh (setzt E2E_PRECHECK=1); sonst keine,
+  // damit run.sh und ein Lauf von Hand einen oynak-Test sofort zeigen (1116-A8.4).
+  retries: process.env.CI || process.env.E2E_PRECHECK === '1' ? CI_RETRIES : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   timeout: LIVE ? 90_000 : 30_000,
   expect: { timeout: LIVE ? 20_000 : 7_000 },

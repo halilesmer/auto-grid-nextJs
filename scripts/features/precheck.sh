@@ -5,6 +5,10 @@
 #   scripts/features/precheck.sh --grep @ZON-05   zusätzliche Playwright-Argumente (nur zum Prüfen des Skripts);
 #                                                  die Ergebniszeile heißt dann „PRECHECK TEILLAUF“, nie „PRECHECK OK“
 #
+# Eine Wiederholung wie in CI: der e2e-Schritt setzt E2E_PRECHECK=1; playwright.config.ts nimmt dann dieselbe
+# Konstante (CI_RETRIES) wie in CI. Ein oynak-Test (erst rot, bei der Wiederholung grün) lässt den Lauf grün,
+# steht aber mit Datei:Zeile und Titel unter der e2e-Zeile. run.sh und ein Aufruf von Hand wiederholen nie
+# (1116-A8.4, hooks/RULES.md §4.8).
 # Der e2e-Lauf nimmt den Port dieses Checkouts (e2e/fixtures/env.ts, SYS-10), nie einen fremden Server.
 # Bricht ab, wenn Playwright keinen Test ausgeführt hat (scripts/features/pw_stats.py).
 # Ändert keine Dateien im Repo: Bericht unter .feature-results/precheck-e2e.json,
@@ -121,14 +125,17 @@ e2e() {
   local port="$E2E_PORT_NUM"
   echo "   Port ${port:-?} (E2E_PORT überschreibt)"
   e2e_server_cleanup "$port" "$FRONTEND" start || return 1
-  (cd "$FRONTEND" && PLAYWRIGHT_JSON_OUTPUT_NAME="$JSON" \
+  (cd "$FRONTEND" && E2E_PRECHECK=1 PLAYWRIGHT_JSON_OUTPUT_NAME="$JSON" \
       npx playwright test --project=mocked --reporter=dot,json "$@")
   local pw=$?
   local line
-  line=$("$PY" "$STATS" "$JSON")
+  local out
+  out=$("$PY" "$STATS" "$JSON")
   local st=$?
+  line=$(printf '%s\n' "$out" | head -n 1)
   E2E_LINE="${line:-kein Bericht}"
   echo "   $E2E_LINE"
+  FLAKY_LINES=$(printf '%s\n' "$out" | tail -n +2 | grep '^oynak: ')
   # Null Tests ist immer ein Fehler, auch wenn Playwright 0 zurückgibt
   [ "$st" -eq 3 ] && return 3
   [ "$pw" -eq 0 ] && [ "$st" -eq 0 ] && return 0
@@ -136,6 +143,7 @@ e2e() {
 }
 
 E2E_LINE=""
+FLAKY_LINES=""
 # CI-Reihenfolge: Katalog → Worker → lint + tsc → e2e. Ein Fehler stoppt nicht: alle Ergebnisse auf einmal.
 step katalog catalog
 step worker worker
@@ -158,4 +166,6 @@ if [ "$fail" -eq 0 ]; then
 else
   echo "$label FEHLER in ${total}s (Sperre ${LOCK_WAIT}s gewartet) · ${results[*]} · e2e ${E2E_LINE:-–}"
 fi
+# Oynak-Tests (CI würde sie als „flaky“ grün melden): Namen unter die Ergebniszeile
+[ -n "$FLAKY_LINES" ] && printf '%s\n' "$FLAKY_LINES" | sed 's/^/  /'
 exit "$fail"
