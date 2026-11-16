@@ -3,7 +3,7 @@ date: 2026-11-16
 author: Claude
 type: fix
 status: open
-pr: []
+pr: [586]
 features: [ANA-27, UI-26, ANA-20, FRM-30, USR-17]
 areas: [tests, chart]
 ---
@@ -106,7 +106,7 @@ PR A (tests only):
 | `frontend_nextjs/e2e/mocked/chart-workspace.spec.ts` | `:805` and `:815` are in a new block "M1 mit fester Uhr" with `fakeNow`: the mock gives no new candle during the test. The fixture also checks `data-bars` against `initialBars` after the reload (reviewer finding: the old order checked this indirectly). |
 | `frontend_nextjs/e2e/mocked/settings-osc-scope.spec.ts` | `:86` and `:101` wait for the personal prefs (`prefsLoaded`: the key `grid-robot-chart-prefs-owner` in `localStorage`, written in the same task as the prefs) before the click on the legend. |
 
-PR B (application, UI-26): `LatestBarButton.tsx` writes the end position (`scrollToPosition(rightOffset, false)`) 400 ms after `scrollToRealTime()`, when the user did not press, scroll or type in this time. New test in `chart-latest-bar.spec.ts`: a busy main thread for 500 ms during the animation.
+PR B (application, UI-26): `LatestBarButton.tsx` writes the end position (`scrollToPosition(rightOffset, false)`) 400 ms after `scrollToRealTime()`, when the user did not press, scroll or touch the page in this time (no key scrolls the chart, so a key does not cancel it; reviewer finding). New test in `chart-latest-bar.spec.ts`: a busy main thread for 500 ms during the animation.
 
 ## Why
 
@@ -124,10 +124,18 @@ All on the Mac under the heavy lock, mocked e2e, own `next start` with `E2E_REUS
 | PR A, before the review changes: `chart-workspace.spec.ts`, `chart-older-heavy.spec.ts`, `settings-osc-scope.spec.ts` and the copy of `:805` without a hold, `--repeat-each=10`, 3 workers, load average 5.0 → 32.6 | 398 passed, 2 failed (17.8 min). Both failures: ANA-20 `:526` (open point). ANA-27 `:805`, `:815`, heavy `:29`, `:95`, USR-17 `:86`, `:101` and the copy without a hold: 10 of 10 each |
 | `npx tsc --noEmit`, `npx eslint` on the changed files | no output |
 | `python scripts/features/update_checklist.py --check` | `features.yaml ok (284 Features)` |
+| PR B: new UI-26 test, code of `main`, 5 runs | 5 of 5 failed |
+| PR B: `chart-latest-bar.spec.ts` with the fix, `--repeat-each=10` | 20 of 20 passed |
+| PR B: `scripts/features/precheck.sh` (before the rebase on PR 586) | `PRECHECK OK in 1281s (Sperre 0s gewartet) · katalog ok (0s) worker ok (150s) lint ok (17s) tsc ok (2s) e2e ok (1112s) · e2e ran=3901 passed=3899 failed=0 flaky=2 skipped=0`; flaky: `chart-layers-menu.spec.ts:195`, `formation-prefs-draft-lib.spec.ts:8` |
+| PR B: reviewer | no critical finding; applied: a key does not cancel the end position |
+| PR A: `scripts/features/precheck.sh` | `PRECHECK OK in 1409s (Sperre 390s gewartet) · … e2e ran=3900 passed=3898 failed=0 flaky=2`; flaky: `formation-prefs-draft-lib.spec.ts:8`, `heavy-lock-lib.spec.ts:349` |
+| PR A: CI of PR 586 (run 43969018431) | green; on the retry: UI-26 `chart-latest-bar.spec.ts:7` (flaky on `main` too: runs 43948738746, 43910686873; fixed by PR B) and BKT-05 `csv-import.spec.ts:175` (open point) |
 | Reviewer (subagent) | no critical finding; applied: the Turkish comment in `settings-osc-scope.spec.ts`, the `initialBars` check after the reload, a fixed clock with more time to the next minute (12:00:05), no hold of the second page, the temporary specs deleted |
 
 ## Open points
-- [ ] PR A and PR B merged, and the runs on `main` after the merges reported.
+- [x] PR A merged: PR 586, squash `9d2c2304` (2026-11-16 22:54 UTC).
+- [ ] PR B and PR C merged, and the runs on `main` after the merges reported.
+- [ ] BKT-05 `csv-import.spec.ts`: `:175` failed on the first try in the CI of PR 586 (run 43969018431, "Frontend e2e (2/4)", `csv-series` count 0 after the first import) and passed on the retry; `:210` failed on the first try in the CI of PR 576 (run 43855095207, timeout of a click). Both branches did not change the CSV code. `:175` passed on the first try in the 3 `main` runs before (43957424126, 43948738746, 43910686873). Locally `:175` passed 24 of 24 (6 workers). Cause not known.
 - [ ] FRM-30: fix in `FormationScanRunner.tsx` (the search starts again when the personal prefs come). Waits for the decision of the owner; red test first (a copy of the test with a slow `GET /me/prefs`).
 - [ ] ANA-20: find which element of the legend row changes its width between the press and the release, then decide on a stable position of the buttons (visible UI, design first).
 - [ ] ANA-27 finding: after the first older page, the chart requests a second page at once when the last input is less than 1.5 s old (the check inside `candles.setData()` reads `barsBefore` from the old bars). The application is not changed.
