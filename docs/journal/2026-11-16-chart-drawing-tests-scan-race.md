@@ -3,7 +3,7 @@ date: 2026-11-16
 author: Claude
 type: fix
 status: open
-pr: [574, 579]
+pr: [574, 579, 582]
 features: [UI-27, UI-28, UI-29, ANA-17]
 areas: [tests, chart]
 ---
