@@ -14,6 +14,7 @@ import {
   chmodSync,
   cpSync,
   existsSync,
+  readFileSync,
   mkdirSync,
   mkdtempSync,
   realpathSync,
@@ -46,6 +47,7 @@ function bash(script: string, extra: Record<string, string> = {}) {
   delete env.CI;
   delete env.E2E_REUSE;
   delete env.E2E_PORT;
+  delete env.E2E_PRECHECK; // precheck.sh setzt es für seinen Playwright-Lauf; die Spec läuft darunter
   return spawnSync('bash', ['-c', script], { env: { ...env, ...extra }, encoding: 'utf8', timeout: 60_000 });
 }
 
@@ -198,7 +200,7 @@ kategorien:
   mkdirSync(bin);
   writeFileSync(
     path.join(bin, 'npx'),
-    '#!/bin/sh\nif [ -n "$STUB_JSON" ] && [ -n "$PLAYWRIGHT_JSON_OUTPUT_NAME" ]; then echo "$STUB_JSON" > "$PLAYWRIGHT_JSON_OUTPUT_NAME"; fi\nexit "${STUB_RC:-0}"\n',
+    '#!/bin/sh\n[ -n "$STUB_ENV_OUT" ] && echo "E2E_PRECHECK=${E2E_PRECHECK:-}" > "$STUB_ENV_OUT"\nif [ -n "$STUB_JSON" ] && [ -n "$PLAYWRIGHT_JSON_OUTPUT_NAME" ]; then echo "$STUB_JSON" > "$PLAYWRIGHT_JSON_OUTPUT_NAME"; fi\nexit "${STUB_RC:-0}"\n',
   );
   writeFileSync(path.join(bin, 'npm'), '#!/bin/sh\nexit 0\n');
   chmodSync(path.join(bin, 'npx'), 0o755);
@@ -207,6 +209,9 @@ kategorien:
 }
 
 const STATS_RAN = '{"stats":{"expected":3,"unexpected":0,"flaky":0,"skipped":0}}';
+const STATS_FLAKY =
+  '{"stats":{"expected":2,"unexpected":0,"flaky":1,"skipped":0},"suites":[{"title":"a.spec.ts","specs":[],"suites":[{"title":"Gruppe","specs":[{"title":"zeichnet eine Linie","file":"mocked/a.spec.ts","line":42,"tests":[{"status":"flaky"}]},{"title":"stabil","file":"mocked/a.spec.ts","line":50,"tests":[{"status":"expected"}]}]}]}]}';
+const STATS_FAILED = '{"stats":{"expected":2,"unexpected":1,"flaky":0,"skipped":0}}';
 const STATS_ZERO = '{"stats":{"expected":0,"unexpected":0,"flaky":0,"skipped":0}}';
 
 function runIn(root: string, bin: string, script: string, args: string[], extra: Record<string, string> = {}) {
@@ -218,6 +223,7 @@ function runIn(root: string, bin: string, script: string, args: string[], extra:
     ...extra,
   };
   delete env.CI;
+  delete env.E2E_PRECHECK;
   return spawnSync('bash', [path.join(root, 'scripts/features', script), ...args], { env, encoding: 'utf8', timeout: 90_000 });
 }
 
@@ -241,6 +247,65 @@ test.describe('precheck.sh', { tag: '@SYS-10' }, () => {
     expect(part.status).not.toBe(0);
     expect(part.stdout).toContain('PRECHECK TEILLAUF');
     expect(part.stdout).toContain('FEHLER');
+  });
+});
+
+test.describe('precheck.sh: eine Wiederholung wie CI und sichtbare oynak-Tests (1116-A8.4)', { tag: '@SYS-10' }, () => {
+  test('precheck.sh setzt E2E_PRECHECK=1 für Playwright, run.sh nicht', () => {
+    const { root, bin } = fakeRepo();
+    const out = path.join(work, 'env.txt');
+    const stub = { STUB_JSON: STATS_RAN, STUB_ENV_OUT: out };
+    runIn(root, bin, 'precheck.sh', [], stub);
+    expect(readFileSync(out, 'utf8').trim()).toBe('E2E_PRECHECK=1');
+    runIn(root, bin, 'run.sh', ['e2e', 'ZZZ'], stub);
+    expect(readFileSync(out, 'utf8').trim()).toBe('E2E_PRECHECK=');
+  });
+
+  test('oynak-Test: Exit 0, PRECHECK OK, flaky=1 und Name mit Datei:Zeile in eigener Zeile', () => {
+    const { root, bin } = fakeRepo();
+    const r = runIn(root, bin, 'precheck.sh', [], { STUB_JSON: STATS_FLAKY });
+    expect(r.status, r.stdout + r.stderr).toBe(0);
+    expect(r.stdout).toMatch(/PRECHECK OK in \d+s .* e2e ran=3 passed=2 failed=0 flaky=1 skipped=0$/m);
+    expect(r.stdout).toMatch(/^ +oynak: mocked\/a\.spec\.ts:42 .*zeichnet eine Linie$/m);
+    expect(r.stdout).not.toContain('stabil');
+  });
+
+  test('ohne oynak-Test steht keine oynak-Zeile in der Ausgabe', () => {
+    const { root, bin } = fakeRepo();
+    const r = runIn(root, bin, 'precheck.sh', [], { STUB_JSON: STATS_RAN });
+    expect(r.stdout).not.toContain('oynak:');
+  });
+
+  test('fehlgeschlagener Test: Exit 1, FEHLER', () => {
+    const { root, bin } = fakeRepo();
+    const r = runIn(root, bin, 'precheck.sh', [], { STUB_JSON: STATS_FAILED });
+    expect(r.status, r.stdout + r.stderr).toBe(1);
+    expect(r.stdout).toContain('PRECHECK FEHLER');
+    expect(r.stdout).not.toContain('PRECHECK OK');
+  });
+
+  test('Fehler plus oynak-Test: Exit 1, die oynak-Zeile bleibt sichtbar', () => {
+    const { root, bin } = fakeRepo();
+    const json = STATS_FLAKY.replace('"unexpected":0', '"unexpected":1');
+    const r = runIn(root, bin, 'precheck.sh', [], { STUB_JSON: json });
+    expect(r.status, r.stdout + r.stderr).toBe(1);
+    expect(r.stdout).toContain('PRECHECK FEHLER');
+    expect(r.stdout).toMatch(/^ +oynak: mocked\/a\.spec\.ts:42 /m);
+  });
+
+  test('Null Tests bleiben ein Fehler (§4.9)', () => {
+    const { root, bin } = fakeRepo();
+    const r = runIn(root, bin, 'precheck.sh', [], { STUB_JSON: STATS_ZERO });
+    expect(r.status).not.toBe(0);
+    expect(r.stdout).toContain('FEHLER');
+  });
+
+  test('Playwright-Konfiguration: CI und precheck lesen dieselbe Konstante, sonst 0', () => {
+    const cfg = readFileSync(path.join(CHECKOUT_ROOT, 'frontend_nextjs/playwright.config.ts'), 'utf8');
+    const n = cfg.match(/const CI_RETRIES = (\d+);/)?.[1];
+    expect(Number(n)).toBeGreaterThan(0);
+    // Ein Ausdruck für beide: kein zweiter Zahlenwert neben CI_RETRIES
+    expect(cfg).toMatch(/retries:\s*process\.env\.CI \|\| process\.env\.E2E_PRECHECK === '1' \? CI_RETRIES : 0/);
   });
 });
 

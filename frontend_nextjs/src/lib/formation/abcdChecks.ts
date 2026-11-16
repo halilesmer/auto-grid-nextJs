@@ -37,6 +37,7 @@ import { reversalAt } from './reversal';
 import { earlyReversalOf, type EarlyReversal } from './earlyReversal';
 import { reentryOf } from './reentry';
 import { exemptFor, settle } from './settle';
+import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
 import { levelXA, ordered, pipOf, shapeOfX } from './xabcd';
 import { divergenceOf, engulfZones, rsiExtreme, zoneSideOf } from './sig';
 import { TRADE_RULES, type Anchor, type Candidate, type Check, type CheckState, type Drawing, type RuleKind, type RuleStatus, type Verdict } from './types';
@@ -135,7 +136,20 @@ function harmonicXOf(env: Env, p: AbcdPoints): number | null {
   return at > 0 ? pivots[at - 1].price : null;
 }
 
-function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: number): Candidate {
+/** Großes AB=CD-Ziel: Versatz A − X und Aktivierungspreis A */
+interface BigTarget {
+  offset: number;
+  activation: number;
+}
+
+/** Stellt die Umgebung zum Zeitpunkt der Einstiegskerze her; der Aufrufer wertet dort das große Ziel aus */
+type AtEntry = (entryTime: number) => Env | null;
+
+function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: number, atEntry?: AtEntry): Candidate {
+  return evaluateFull(env, p, dInput, pip, atEntry).candidate;
+}
+
+function evaluateFull(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: number, atEntry?: AtEntry): { candidate: Candidate; big: BigTarget | null } {
   const { tf } = env;
   const view = env.views.get(tf)!;
   const trend = env.trends.get(tf)!;
@@ -339,7 +353,19 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: n
       : null;
   // 1114-A4.3: großes AB=CD-Ziel nur bei harmonischem D mit bekanntem X; Versatz = A − X (Kauf: nach oben, Verkauf: nach unten)
   const xPrice = harmonic === 'met' ? harmonicXOf(env, p) : null;
-  const big = xPrice === null ? null : { offset: s.a.price - xPrice, activation: s.a.price };
+  let big: BigTarget | null = xPrice === null ? null : { offset: s.a.price - xPrice, activation: s.a.price };
+  // Eingefroren am Einstieg (Halil 2026-11-16): Ob es das große Ziel gibt, entscheiden nur die Daten bis zur Einstiegskerze.
+  // Spätere Kerzen ändern X-Schluss (GAR-18), Zonen und innere Wendepunkte; das darf einen offenen Handel nicht umdeuten.
+  if (atEntry && reached && d && freezeIdx < last) {
+    const entryEnv = atEntry(bars[freezeIdx].time);
+    const entryBars = entryEnv?.views.get(tf)?.bars;
+    if (entryEnv && entryBars && entryBars.length > freezeIdx) {
+      const dk: AbcdPoint = { idx: freezeIdx, price: wickEnd(bars[freezeIdx], es) };
+      const probeD = dInput && dInput.idx <= freezeIdx ? dInput : undefined;
+      const entryD = dInput && !probeD ? dk : probeD;
+      big = evaluateFull(entryEnv, p, entryD, pip).big;
+    }
+  }
   const input = abcdTrade({
     from,
     frozenFrom,
@@ -406,7 +432,7 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: n
   };
   if (d) points.D = { time: bars[d.idx].time, price: d.price };
   const candidate: Candidate = { code: 'ABCD', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
-  return withTrade(candidate, env, tf, input, false);
+  return { candidate: withTrade(candidate, env, tf, input, false), big };
 }
 
 function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolean, harmonic: boolean, second: number | undefined, stop: number | null, freezeIdx: number, status: TradeStatus | null, early: EarlyReversal | null, bigTarget: number | null): Drawing[] {
@@ -470,6 +496,11 @@ function unmeasurable(tf: ContextTimeframe): Candidate {
   return { code: 'ABCD', side: 'buy', tf, points: {}, checks, drawings: [], verdict: 'forming' };
 }
 
+/** Umgebung zum Ende der Einstiegskerze (Schlusszeit = Beginn + Dauer der Zeiteinheit) für das eingefrorene große Ziel */
+function entryEnvOf(ctx: FormationContext, tf: ContextTimeframe): AtEntry {
+  return (entryTime) => buildEnv(ctx, entryTime + TIMEFRAME_SEC[tf], tf);
+}
+
 /** Sucht je geladener Zeiteinheit (hoch → tief) die letzten Punkte A, B, C und misst D */
 export function analyzeAbcd(ctx: FormationContext, t: number): AbcdAnalysis[] {
   const tfs = ctx.timeframes();
@@ -479,7 +510,7 @@ export function analyzeAbcd(ctx: FormationContext, t: number): AbcdAnalysis[] {
   return tfs.map((tf) => {
     const env = envFor(base, ctx, t, tf);
     const points = selectPoints(env.trends.get(tf)!.pivots);
-    return { tf, candidate: points ? evaluate(env, points, undefined, pip) : unmeasurable(tf) };
+    return { tf, candidate: points ? evaluate(env, points, undefined, pip, entryEnvOf(ctx, tf)) : unmeasurable(tf) };
   });
 }
 
@@ -497,5 +528,5 @@ export function checkAbcdCandidate(ctx: FormationContext, t: number, input: Abcd
     b: { idx: ib, price: input.b.price },
     c: { idx: ic, price: input.c.price },
   };
-  return evaluate(env, points, input.d && idxD !== undefined ? { idx: idxD, price: input.d.price } : undefined, pipOf(ctx.symbol));
+  return evaluate(env, points, input.d && idxD !== undefined ? { idx: idxD, price: input.d.price } : undefined, pipOf(ctx.symbol), entryEnvOf(ctx, input.tf));
 }
