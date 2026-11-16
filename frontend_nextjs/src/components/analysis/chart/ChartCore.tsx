@@ -10,7 +10,9 @@ import {
   createChart,
   createSeriesMarkers,
   LineStyle,
+  MismatchDirection,
   type AutoscaleInfo,
+  type CandlestickData,
   type IChartApi,
   type IPriceLine,
   type ISeriesApi,
@@ -187,6 +189,22 @@ function seriesPoints(points: readonly ChartPoint[], appearance: Appearance) {
 }
 const LINE_STYLE = { solid: LineStyle.Solid, dashed: LineStyle.Dashed, dotted: LineStyle.Dotted } as const;
 
+/**
+ * Schreibt die laufende Kerze. Eine neue Kerze rechts schiebt lightweight-charts die Ansicht um eine Kerze weiter, wenn die letzte
+ * Kerze sichtbar ist (`shiftVisibleRangeOnNewBar`): aus einer Ansicht, die alle Kerzen zeigt, fiele die erste Kerze, und die nächste
+ * Meldung des Bereichs gälte als Zoom des Nutzers. Zeigte die Ansicht alle Kerzen (`showsAll`), passt der Chart sie darum wieder ein
+ * (1116-A28.1). Hat der Nutzer gezoomt, bleibt das Verhalten der Bibliothek. `onAppend` läuft vor update(), damit der Chart die neue
+ * Punktzahl schon kennt, wenn er den verschobenen Bereich meldet.
+ */
+function writeLastBar(chart: IChartApi | null, candles: ISeriesApi<'Candlestick'>, item: CandlestickData<UTCTimestamp>, showsAll: () => boolean, onAppend: () => void) {
+  const last = candles.dataByIndex(Number.MAX_SAFE_INTEGER, MismatchDirection.NearestLeft);
+  const appends = !last || item.time > Number(last.time);
+  const refit = appends && showsAll();
+  if (appends) onAppend();
+  candles.update(item);
+  if (refit) chart?.timeScale().fitContent();
+}
+
 function toneColor(c: ChartColors, tone: LineTone) {
   if (tone === 'up') return c.up;
   if (tone === 'down') return c.down;
@@ -244,8 +262,11 @@ export function ChartCore({
   const [scene, setScene] = useState<ChartScene | null>(null);
   const binding = scene?.binding ?? null;
   const shownRunning = useRef<{ view: string; bar: Bar } | null>(null);
-  // Für rememberChartView: die laufende Kerze zählt mit, sonst gälte ihr Erscheinen als Zoom des Nutzers
+  // Laufende Kerze der Suche gezeigt (1) oder nicht (0)
   const runningCount = useRef(0);
+  // Für rememberChartView: Kerzen, die writeLastBar seit dem letzten setData angehängt hat (laufende Kerze, Live-Kerze), zählen mit,
+  // sonst gälte ihr Erscheinen als Zoom des Nutzers
+  const appendedBars = useRef(0);
   const [alignedView, setAlignedView] = useState<string | null>(null);
   const [workspaceTail, setWorkspaceTail] = useState<{ key: string; bar: Bar } | null>(null);
   const appearance = useChartWorkspaceStore(useShallow(s => s.preview ?? s.appearance));
@@ -283,6 +304,10 @@ export function ChartCore({
   const workspaceKey = workspace?.key;
   const workspaceView = workspace?.view;
   const forgetView = useRef<(() => void) | null>(null);
+  // Zeigt die gemerkte Ansicht alle Kerzen (kein Zoom des Nutzers)? Nur solange rememberChartView angemeldet ist. Solange nach einer
+  // Seite älterer Kerzen die Korrektur der Ansicht aussteht (viewFixPending), passt writeLastBar nicht neu ein: das Einpassen
+  // träfe die Korrektur im nächsten Bild und verschöbe die Ansicht um die neuen Kerzen
+  const viewShowsAll = useRef<() => boolean>(() => false);
   const pointsRef = useRef(data.points);
   const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
   const [colors, setColors] = useState<ChartColors | null>(null);
@@ -383,6 +408,7 @@ export function ChartCore({
       lastBar.current = null;
       shownRunning.current = null;
       runningCount.current = 0;
+      appendedBars.current = 0;
     };
   }, [hasCurves, hasNotes, overlayLayout, systemSeries]);
 
@@ -405,8 +431,7 @@ export function ChartCore({
   // Die Achse springt dabei (die Formationssuche liefert die Seiten oft erst nach dem Öffnen): während ein Zeichenwerkzeug aktiv ist
   // oder ein Zeiger auf dem Chart gedrückt ist, wartet die Änderung, damit ein gesetzter Punkt nicht von seinem Pixel wegwandert.
   // Danach gilt der letzte Wert (auch `null`).
-  // Grenzen: bleibt ein Werkzeug dauerhaft gewählt, kommt die Ausweitung erst, wenn es endet. Die laufende Kerze der Suche verschiebt
-  // die Zeitachse um eine Kerze (Verhalten der Bibliothek bei einer neuen Kerze); das bleibt (Journal 2026-11-16-chart-drawing-tests-scan-race).
+  // Grenzen: bleibt ein Werkzeug dauerhaft gewählt, kommt die Ausweitung erst, wenn es endet. Zur Zeitachse bei der laufenden Kerze: writeLastBar.
   const toolRef = useRef<() => boolean>(() => false);
   // Der Zeiger wird für den ganzen Chart verfolgt, nicht je Änderung: ein Zug, der vor der Änderung begann, zählt mit
   const pressedRef = useRef<() => boolean>(() => false);
@@ -487,6 +512,7 @@ export function ChartCore({
     const previousTimes = fittedKey.current === viewKey ? chart.timeScale().getVisibleRange() : null;
     // Vor setData, damit rememberChartView die neue Punktzahl kennt, wenn der Chart den Bereich meldet
     pointsRef.current = data.points;
+    appendedBars.current = 0;
     candles.setData(seriesPoints(data.points, appearance));
     if (previousTimes && previousFirst !== undefined && data.points.length > 0 && data.points[0].time < previousFirst) {
       const points = data.points;
@@ -539,8 +565,10 @@ export function ChartCore({
         chart.timeScale().setVisibleLogicalRange({ from: n <= FIT_MAX_POINTS ? -1 : n - VISIBLE_BARS, to: n + 3 });
         return;
       }
-      restoreChartView(chart, data.points.map(p => p.time), useChartWorkspaceStore.getState().documents[workspaceKey]?.visibleTime);
-      forgetView.current = rememberChartView(chart, surfaceRef.current ? [el, surfaceRef.current] : [el], workspaceKey, () => pointsRef.current.length + runningCount.current);
+      const fitAll = restoreChartView(chart, data.points.map(p => p.time), useChartWorkspaceStore.getState().documents[workspaceKey]?.visibleTime);
+      const memory = rememberChartView(chart, surfaceRef.current ? [el, surfaceRef.current] : [el], workspaceKey, () => pointsRef.current.length + appendedBars.current, fitAll);
+      viewShowsAll.current = memory.showsAll;
+      forgetView.current = () => { viewShowsAll.current = () => false; memory.dispose(); };
     };
     // Erst nach dem ersten ResizeObserver-Lauf ausrichten; eine zu frühe Wiederherstellung
     // wird beim Wechsel zwischen Seitenbreiten sonst an den Chart-Rand geklemmt.
@@ -736,7 +764,7 @@ export function ChartCore({
     if (!bar || (lastPoint && bar.time < lastPoint.time)) return;
     const last = data.bars.at(-1), previous = last?.time === bar.time ? data.bars.at(-2) : last;
     const override = appearance.previous && previous ? previousStyle(bar.close >= previous.close, appearance.body, appearanceColors(appearance)) : {};
-    candlesRef.current.update({ ...bar, ...override, time: bar.time as UTCTimestamp });
+    writeLastBar(chartRef.current, candlesRef.current, { ...bar, ...override, time: bar.time as UTCTimestamp }, () => viewShowsAll.current() && !viewFixPending.current, () => { appendedBars.current += 1; });
     lastBar.current = bar;
     const frame = requestAnimationFrame(() => setWorkspaceTail({ key: viewKey, bar }));
     // Stand der letzten Kerze am Element (Tests und Fehlersuche; der Chart zeichnet in <canvas>)
@@ -750,7 +778,10 @@ export function ChartCore({
     const closed = data.bars.at(-1);
     // Nie vor oder auf der letzten geschlossenen Kerze schreiben: update() würde die Kerze ersetzen oder werfen
     if (!closed || !runningBar || runningBar.time <= closed.time) {
-      if (runningCount.current) candles.setData(seriesPoints(data.points, appearance));
+      if (runningCount.current) {
+        appendedBars.current = 0;
+        candles.setData(seriesPoints(data.points, appearance));
+      }
       runningCount.current = 0;
       shownRunning.current = null;
       surfaceRef.current?.removeAttribute('data-last-price');
@@ -764,7 +795,7 @@ export function ChartCore({
     const bar = prev ? { ...runningBar, high: Math.max(runningBar.high, prev.high), low: Math.min(runningBar.low, prev.low) } : runningBar;
     shownRunning.current = { view: viewKey, bar };
     const style = appearance.previous ? previousStyle(bar.close >= closed.close, appearance.body, appearanceColors(appearance)) : {};
-    candles.update({ ...bar, ...style, time: bar.time as UTCTimestamp });
+    writeLastBar(chartRef.current, candles, { ...bar, ...style, time: bar.time as UTCTimestamp }, () => viewShowsAll.current() && !viewFixPending.current, () => { appendedBars.current += 1; });
     // Stand der letzten Kerze am Element (Tests und Fehlersuche; der Chart zeichnet in <canvas>)
     surfaceRef.current?.setAttribute('data-last-price', `${runningBar.time}:${runningBar.close}`);
     surfaceRef.current?.setAttribute('data-last-range', `${bar.low}:${bar.high}`);

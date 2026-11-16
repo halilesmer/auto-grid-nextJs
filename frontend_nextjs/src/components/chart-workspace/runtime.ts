@@ -31,21 +31,27 @@ const VIEW_SETTLE_MS = 150;
 /** Kleinster Kerzenabstand in px (`minBarSpacing`); Standard von lightweight-charts wäre 0,5, 0,2 erlaubt mehr Auszoomen (1107-A9.3) */
 export const MIN_BAR_SPACING_PX = 0.2;
 
-/** Zeigt den gespeicherten Zeitbereich, wenn er die geladenen Kerzen überlappt, sonst alle Kerzen (wie „Ansicht zurücksetzen“). */
-export function restoreChartView(chart: IChartApi, times: readonly number[], saved: VisibleTime | undefined) {
+/** Zeigt den gespeicherten Zeitbereich, wenn er die geladenen Kerzen überlappt, sonst alle Kerzen (wie „Ansicht zurücksetzen“). Gibt true zurück, wenn alle Kerzen gezeigt werden. */
+export function restoreChartView(chart: IChartApi, times: readonly number[], saved: VisibleTime | undefined): boolean {
   const first = times[0], last = times[times.length - 1];
   const overlaps = saved && first !== undefined && saved.to >= first && saved.from <= last;
   if (overlaps) chart.timeScale().setVisibleRange({ from: saved.from as UTCTimestamp, to: saved.to as UTCTimestamp });
   else chart.timeScale().fitContent();
+  return !overlaps;
 }
+
+/** Gemerkte Ansicht eines Charts: `showsAll` sagt, ob sie zuletzt alle Kerzen zeigte (kein Zoom des Nutzers); `dispose` meldet ab und schreibt Ausstehendes */
+export interface ChartViewMemory { showsAll: () => boolean; dispose: () => void }
 
 /**
  * Speichert den Zoom des Nutzers in dem Chart-Dokument `contextKey`; ein Bereich, der alle Kerzen zeigt, löscht ihn.
- * Änderungen durch neue Kerzen (`pointCount`) oder eine andere Breite sind kein Zoom und bleiben unbeachtet.
- * Setzt `data-visible-range` (von,bis in Kerzenzeit) an den Elementen `hosts`; gibt die Abmeldung zurück, die Ausstehendes schreibt.
+ * Änderungen durch neue Kerzen (`pointCount`) oder eine andere Breite sind kein Zoom und bleiben unbeachtet; sie ändern auch `showsAll` nicht.
+ * `showsAllAtStart`: die Ansicht beim Anmelden zeigt alle Kerzen (kein gespeicherter Zoom wiederhergestellt).
+ * Setzt `data-visible-range` (von,bis in Kerzenzeit) an den Elementen `hosts`.
  */
-export function rememberChartView(chart: IChartApi, hosts: HTMLElement[], contextKey: string, pointCount: () => number): () => void {
+export function rememberChartView(chart: IChartApi, hosts: HTMLElement[], contextKey: string, pointCount: () => number, showsAllAtStart: boolean): ChartViewMemory {
   const scale = chart.timeScale();
+  let all = showsAllAtStart;
   let count = pointCount(), width = scale.width();
   const asText = (r: { from: unknown; to: unknown }) => `${r.from},${r.to}`;
   const settledAt = performance.now() + VIEW_SETTLE_MS;
@@ -83,14 +89,18 @@ export function rememberChartView(chart: IChartApi, hosts: HTMLElement[], contex
     const reachesEnd = logical.to >= count - 3;
     const widest = logical.to - logical.from + 2 >= scale.width() / MIN_BAR_SPACING_PX;
     const showsAll = reachesEnd && (logical.from <= 1 || widest);
+    all = showsAll;
     pending = { zoom: showsAll ? undefined : { from: Number(range.from), to: Number(range.to) } };
     if (timer) clearTimeout(timer);
     timer = setTimeout(flush, VIEW_SAVE_DELAY_MS);
   };
   scale.subscribeVisibleLogicalRangeChange(onChange);
-  return () => {
-    scale.unsubscribeVisibleLogicalRangeChange(onChange);
-    flush();
+  return {
+    showsAll: () => all,
+    dispose: () => {
+      scale.unsubscribeVisibleLogicalRangeChange(onChange);
+      flush();
+    },
   };
 }
 
