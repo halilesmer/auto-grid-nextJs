@@ -5,7 +5,7 @@
 import type { Page } from '@playwright/test';
 import { DEMO_ID, expect, test } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
-import { composeStandard, parseOscScope, parseOscStandard, splitStandard, standardOf } from '../../src/lib/chart-workspace/oscStandard';
+import { composeStandard, parseOscScope, parseOscStandard, splitStandard, standardIndicators, standardOf } from '../../src/lib/chart-workspace/oscStandard';
 import { emptyChartDocument } from '../../src/store/useChartWorkspaceStore';
 import { newIndicator } from '../../src/lib/chart-workspace/indicators';
 
@@ -46,6 +46,23 @@ test.describe('USR-17 Osilatör standardı: Kodlama', () => {
     expect(product.indicators.find((i) => i.id === 'own-rsi')?.period).toBe(5);
     expect(product.paneOrder).toEqual(['own-rsi']);
     expect(product.paneHeights).toEqual({ 'own-rsi': 10 });
+  });
+
+  test('Göstergeler değişmeyince gösterge dizisinin kimliği korunur (ANA-27)', { tag: '@USR-17' }, () => {
+    // Görünüm ya da çizim kaydı göstergelere dokunmaz: yeni dizi grafikte bütün göstergeleri yeniden hesaplatırdı
+    const own = { ...emptyChartDocument(), indicators: [{ ...newIndicator('RSI'), id: 'own-rsi' }, { ...newIndicator('SMA'), id: 'sma' }] };
+    const std = { indicators: [{ ...newIndicator('RSI'), id: 'std-rsi' }] };
+    const indicators = standardIndicators(own.indicators, std, []);
+    const doc = composeStandard(own, std, [], indicators);
+    expect(doc.indicators).toBe(indicators);
+    expect(composeStandard({ ...own, visibleTime: { from: 1, to: 2 } }, std, [], indicators).indicators).toBe(indicators);
+    expect(splitStandard({ ...doc, drawings: '[]', visibleTime: { from: 1, to: 2 } }, own).product.indicators).toBe(own.indicators);
+    // Ürün kaydında RSI başka bir göstergenin arkasında dursa da (eski sıra)
+    const mixed = { ...own, indicators: [...own.indicators].reverse() };
+    expect(splitStandard({ ...composeStandard(mixed, std, []), visibleTime: { from: 1, to: 2 } }, mixed).product.indicators).toBe(mixed.indicators);
+    // Değişen gösterge yeni dizi verir
+    const changed = { ...doc, indicators: doc.indicators.map((i) => (i.id === 'sma' ? { ...i, period: 99 } : i)) };
+    expect(splitStandard(changed, own).product.indicators).not.toBe(own.indicators);
   });
 });
 

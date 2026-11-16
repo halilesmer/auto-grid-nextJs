@@ -38,11 +38,19 @@ export function parseOscStandard(raw: unknown): OscStandard | null {
 }
 export const encodeOscStandard = (s: OscStandard | null): Record<string, unknown> => (s ? { ...s } : {});
 
-/** Standart modda belgenin RSI/EWO kısmı standarttan gelir; diğer göstergeler, çizimler ve katmanlar belgede kalır. */
-export function composeStandard(own: ChartDocument, std: OscStandard | null, fallback: readonly Indicator[]): ChartDocument {
+/** Standart modda gösterge listesi: ürünün diğer göstergeleri, sonra standardın RSI/EWO'su. */
+export const standardIndicators = (own: readonly Indicator[], std: OscStandard | null, fallback: readonly Indicator[]): Indicator[] =>
+  [...own.filter(item => !isStandardKind(item)), ...(std?.indicators ?? fallback)];
+
+/**
+ * Standart modda belgenin RSI/EWO kısmı standarttan gelir; diğer göstergeler, çizimler ve katmanlar belgede kalır.
+ * `indicators`: çağıran `standardIndicators` sonucunu kendisi önbelleğe alabilir (ANA-27: görünüm kaydı gibi gösterge dışı bir
+ * değişiklik göstergelerin kimliğini değiştirmemeli, yoksa grafik bütün göstergeleri yeniden hesaplar).
+ */
+export function composeStandard(own: ChartDocument, std: OscStandard | null, fallback: readonly Indicator[], indicators = standardIndicators(own.indicators, std, fallback)): ChartDocument {
   return {
     ...own,
-    indicators: [...own.indicators.filter(item => !isStandardKind(item)), ...(std?.indicators ?? fallback)],
+    indicators,
     paneOrder: std?.paneOrder,
     paneHeights: std?.paneHeights,
   };
@@ -59,16 +67,21 @@ export function standardOf(doc: ChartDocument): OscStandard {
 
 /** Kayıtta: birleşik belge ürün parçasına ve standart parçasına ayrılır; ürünün kendi RSI/EWO kaydı, sırası ve yükseklikleri olduğu gibi kalır. */
 export function splitStandard(next: ChartDocument, own: ChartDocument): { std: OscStandard; product: ChartDocument } {
+  const others = next.indicators.filter(item => !isStandardKind(item));
   return {
     std: standardOf(next),
     product: {
       ...next,
-      indicators: [...own.indicators.filter(isStandardKind), ...next.indicators.filter(item => !isStandardKind(item))],
+      // Ürünün diğer göstergeleri aynı nesnelerse (yalnız çizim ya da görünüm kaydı) eski dizi kalır, sırası ne olursa olsun:
+      // kimlik değişmez, grafik göstergeleri yeniden hesaplamaz (ANA-27)
+      indicators: sameItems(others, own.indicators.filter(item => !isStandardKind(item))) ? own.indicators : [...own.indicators.filter(isStandardKind), ...others],
       paneOrder: own.paneOrder,
       paneHeights: own.paneHeights,
     },
   };
 }
+
+const sameItems = <T>(a: readonly T[], b: readonly T[]) => a.length === b.length && a.every((item, i) => item === b[i]);
 
 /** Biçimden bağımsız eşitlik: yazmadan önce değişiklik var mı. */
 export const sameStandard = (a: OscStandard, b: OscStandard) => JSON.stringify(a) === JSON.stringify(b);

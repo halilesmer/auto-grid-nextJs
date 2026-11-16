@@ -4,6 +4,7 @@
  */
 import type { Page } from '@playwright/test';
 import { openDrawings } from '../fixtures/chart-dialog';
+import { chartReady } from '../fixtures/chart-ready';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, expect, test } from '../fixtures/test';
 
@@ -22,6 +23,7 @@ async function stored(page: Page) {
   }, KEY).then(all => all.filter(d => d.kind === 'fib-retracement'));
 }
 async function drawFib(page: Page) {
+  await chartReady(page);
   await page.getByRole('button', { name: msg('cw.rail.fibMenu'), exact: true }).click();
   await page.getByTestId('tool-fib-retracement').click();
   const box = (await page.getByTestId('analysis-chart').boundingBox())!;
@@ -103,6 +105,7 @@ test('UI-27: Farbpanel wie TradingView: Palette, eigene Farbe (bleibt), Deckkraf
   await expect.poll(async () => (await stored(page))[0].style.fibTrendLine?.color).toBe('#12345680');
   // nach dem Neuladen steht die eigene Farbe noch im Panel (jeder Farbknopf)
   await page.reload();
+  await chartReady(page);
   await openByDoubleClick(page, at);
   await d.getByRole('button', { name: `${msg('fib.levelColor')} 0`, exact: true }).click();
   await expect(d.getByTestId('color-palette').locator('[data-color="#123456"]')).toHaveCount(1);
