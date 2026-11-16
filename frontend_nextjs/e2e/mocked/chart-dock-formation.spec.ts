@@ -103,8 +103,13 @@ test('Satır 2\'de sağa dayalı paket satırın içerik kutusunda biter (dolguy
     const content = r.getBoundingClientRect().right - parseFloat(cs.paddingRight) - parseFloat(cs.borderRightWidth);
     return document.querySelector('[data-dock-pkg="formations"]')!.closest('.dock-wrap')!.getBoundingClientRect().right - content;
   });
-  await page.waitForTimeout(800); // yerleşim oturana kadar (ilk çizimde boşluk henüz uygulanmamıştır)
-  expect(await gap()).toBeLessThanOrEqual(0.5);
+  // Paket, formasyon araması bitince genişler (yalnız tutamaç → düğmeler, ~29 → ~392 px); boşluk yeniden hesaplanır ve margin-left
+  // 0,22 s'lik geçişle oturur. Geçiş sırasında sağ kenar bir an içerik kutusunun ~400 px dışındadır. Sabit 800 ms bekleme bu ana denk
+  // gelince test düştü (journal 2026-11-16-dock-row2-gap-after-axis-defer): aramanın bitişini bekle (düğmelerle aynı çizimde gelir,
+  // hangi formasyonun aday olduğundan bağımsız), sonra oturmasını yokla. Alt sınır: son hâlde paket sağa dayalıdır, solda kalmaz
+  await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/, { timeout: 20_000 });
+  await expect.poll(gap, { timeout: 5_000 }).toBeLessThanOrEqual(0.5);
+  expect(await gap()).toBeGreaterThanOrEqual(-1);
 });
 
 test('Zaman dilimleri paketini alt çubuğa taşı: oradan seçim grafiği değiştirir', { tag: '@UI-17' }, async ({ page, worker }) => {
