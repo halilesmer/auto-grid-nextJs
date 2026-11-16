@@ -36,7 +36,7 @@ import { buildEnv, dirSide, envFor, neighborTf, type Env } from './reasons';
 import { reversalAt } from './reversal';
 import { earlyReversalOf, type EarlyReversal } from './earlyReversal';
 import { reentryOf } from './reentry';
-import { cLegOf, lowerCandleAt, noPeakDivergence } from './cLeg';
+import { cLegOf, lowerAbcdAt, lowerCandleAt, noPeakDivergence } from './cLeg';
 import { exemptFor, settle } from './settle';
 import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
 import { levelXA, ordered, pipOf, shapeOfX } from './xabcd';
@@ -427,6 +427,7 @@ function evaluateFull(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pi
       engulfZones: engulfZones(bars, view.wide),
       zones: [...env.frz.zones, ...env.frz.reversed],
       candle: lowerCandleAt(env, tf, s),
+      lowerAbcd: lowerAbcdAt(env, tf, s),
       atr: atrNow,
     });
     if (cLeg) input.cLeg = cLeg;
