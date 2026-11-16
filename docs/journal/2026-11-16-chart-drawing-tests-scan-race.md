@@ -3,7 +3,7 @@ date: 2026-11-16
 author: Claude
 type: fix
 status: open
-pr: [579]
+pr: [574, 579]
 features: [UI-27, UI-28, UI-29, ANA-17]
 areas: [tests, chart]
 ---
@@ -65,7 +65,7 @@ The time of the search depends on the speed of the machine and of the app. This 
 
 The tests wait for a signal that the app already gives. Some tests in `chart-toolbar.spec.ts` and `chart-floating-bar-templates.spec.ts` used the same signal before. A longer fixed wait was rejected: it only moves the race. A retry of the gesture was rejected: it does not help when the first click of the drawing is before the change of the scale.
 
-The limit of ANA-27 (8 s for each page) did not change. A different session examines the time of ANA-27 since PR 570. A higher limit hides a slower chart.
+The limit of ANA-27 (8 s for each page) did not change. A different session examined the time of ANA-27 since PR 570 and corrected the cause in PR 575 (see the open points). A higher limit hides a slower chart.
 
 The app did not change in the first PR (574). The change of the view was fixed later in the PR of 1116-B1 (open point about the view, below).
 
@@ -90,18 +90,43 @@ The app did not change in the first PR (574). The change of the view was fixed l
 | 1116-B1: UI-29 old test (without `chartReady`), `--repeat-each=8`, load average 4.67 / 8.94 at the start of the arms | With the `ChartCore.tsx` change: 8 of 8 failed. With the `origin/main` version: 1 of 8 failed |
 | 1116-B1: after the `chartReady` changes: `chart-floating-bar-templates.spec.ts` and `chart-toolbar.spec.ts`, `--repeat-each=6`, under the heavy lock, load average 17.09 at the start and 72.23 at the end | 78 of 78 passed |
 | 1116-B1: first CI run of PR 579 (run 43869966669, "Frontend e2e (1/4)") | red: UI-29 (`chart-floating-bar-templates.spec.ts:100`) failed on the first try and the retry; `chart-dock-formation.spec.ts:95` was flaky; `settings-osc-scope.spec.ts:86` and `:101` were flaky in the same run (not changed by this branch). ANA-27 `:29` 34.9 s |
-| CI of the PR and on `main` after the merge | not verified at the time of this entry |
+| PR 574: CI of the PR and the run on `main` after the merge (run 43832842813, `9a051ade`) | green |
+| PR 579: last CI run of the PR (run 43874293527) | green, no retry and no flaky test |
+| PR 579: test times in that run against the 3 runs on `main` before it (43836250040, 43850002630, 43858219661), all on the first try | ANA-19 `chart-workspace.spec.ts:103`: 19.3 s against 15.1 / 19.3 / 17.1 s. ANA-19 `:386`: 26.9 s against 23.9 / 28.0 / 24.4 s. ANA-27 `chart-older-heavy.spec.ts:29`: 33.4 s against 45.9 / 34.1 / 37.9 s. ANA-27 `:95`: 29.0 s against 38.5 / 27.5 / 32.1 s. No test was slower than on `main`. This is one run. |
+| PR 579: run on `main` after the merge (run 43876765164, `05528bbb`) | red: UI-17 `chart-dock-formation.spec.ts:95` failed on the first try and on the retry (see the open points) |
+| PR 581 (correction of that test): CI of the PR (run 43902743522) | green; `chart-dock-formation.spec.ts:95` passed on the first try (5.1 s) |
 
 ## Open points
 - [x] The view changes when the formation search finishes (1116-A7.1, fixed in the PR of 1116-B1). A user who draws in the first seconds sees the chart move, and the second point goes to the new view.
   - Cause (measured with a temporary test that exposed the chart; four runs, each candidate switched off in turn): when the search ends, `hit` goes from none to a formation, so `priceRange` (`OneChart.tsx:270`, `drawingPriceRange`) goes from `null` to {94.69, 109.61}. The `autoscaleInfoProvider` in `ChartCore.tsx` then widens the price axis to the levels of the formation. The axis went from 101.77/93.66 to 117.38/91.48 (range x3.2), and the same price moved 135 px down. With the `priceRange` effect switched off the axis did not change (0 px). Scale margins (`marginsFor`) and `focus` have no part in it.
   - Fix: while a drawing tool is active or a pointer is pressed on the chart, the widening waits; when the user is free, the last value applies (`null` too). Files: `ChartCore.tsx`, `drawingBusy.tsx`. Test: `e2e/mocked/chart-scan-scale-tool.spec.ts` (ANA-17), red before the fix (98.317 against 106.345 for two points on one pixel row), green after.
   - The widening itself stays: the levels of a formation can lie outside the candles on purpose.
-- [ ] ANA-27 takes 1.2 to 1.6 min since PR 570 (before: 47 s). A different session examines this.
-- [ ] `chart-toolbar.spec.ts`, `chart-indicator-menu.spec.ts`, `chart-workspace.spec.ts`, `chart-trend-menu.spec.ts` and `chart-floating-bar-templates.spec.ts` also use pointer gestures on the chart. They did not change: no failure was measured, and some of them wait for the search.
-- [ ] `main` was red from 2026-11-15 23:31 UTC to the second attempt at 2026-11-16 06:32 UTC. No session saw it: after the merge of a PR no session looks at the run on `main`.
-- [ ] Local `precheck.sh` runs Playwright without a retry. CI uses 1 retry. A flaky test fails the local run and passes in CI.
-- [ ] The Mac was slow on 2026-11-16: the e2e step of `precheck.sh` took 55.7 min. Seen, not measured as a cause: `mobileassetd` used 85 % of one core for 11 hours, and Spotlight indexes the volume of the worktrees.
+- [x] ANA-27 takes 1.2 to 1.6 min since PR 570 (before: 47 s). A different session corrected the cause in PR 575 (merged 2026-11-16 09:02 UTC): in the standard mode the indicator series keeps its identity. After PR 575 the 2 tests of ANA-27 took 27.5 to 45.9 s in the 3 runs on `main` (see Verification).
+- [x] `chart-toolbar.spec.ts`, `chart-indicator-menu.spec.ts`, `chart-workspace.spec.ts`, `chart-trend-menu.spec.ts` and `chart-floating-bar-templates.spec.ts` also use pointer gestures on the chart. They did not change in PR 574: no failure was measured, and some of them wait for the search. PR 579 examined them (see Why): 2 tests got `chartReady(page)`, the others do not click a drawing at a fixed pixel.
+- [x] `main` was red from 2026-11-15 23:31 UTC to the second attempt at 2026-11-16 06:32 UTC. No session saw it: after the merge of a PR no session looked at the run on `main`. Since 2026-11-16 the mod `pr-izleyici` also monitors the `tests.yml` run of the merge commit on `main` (1116-A8.3; `hooks/RULES.md` §1.8, `~/.claude/rules/pr-izleme.md`). The mod is not in this repository; its 25 tests passed. A session that started before the change of the mod runs the old version, so the merges of PR 576 and PR 579 had no monitor. First live record: after the merge of PR 581 (2026-11-16 16:22 UTC) the mod wrote the file for the merge commit `a72b59f3` into `~/.claude/pr-izleyici/main-watch/`. Not seen live: the wake-up after a failed run, and the takeover by a different session.
+- [x] Local `precheck.sh` runs Playwright without a retry. CI uses 1 retry. A flaky test fails the local run and passes in CI. Corrected in PR 576 (1116-A8.4, journal `2026-11-16-precheck-retry-like-ci`).
+- [x] The Mac was slow on 2026-11-16: the e2e step of `precheck.sh` took 55.7 min. Correction: the first version of this entry said that `mobileassetd` used 85 % of one core for 11 hours. That was wrong. The 85 % was a value of one moment; the process used 3 min 55 s of CPU time in 11 hours. Measurement (1116-A10.1, read-only, one `precheck.sh` run at a time):
+  - Largest cause: the load of the run itself. 3 Playwright workers and their Chromium processes used approx. 412 % CPU on 8 cores; the load average was 156, then 78, then 20 during one run.
+  - Second cause: the wait for the heavy lock (1101 s in the measurement, 2315 s and 5009 s later that day).
+  - Possible, not shown: other load at the same time (Google Chrome 35 to 45 %, `ecosystemd` 21 to 25 %, `ecosystemanalyticsd` 18 to 22 %).
+  - Not a cause: `mobileassetd`, the dev server, the disk. Spotlight used 2 to 3 % on average; `.next` and `test-results` are not in its index.
+  - Memory: swap 3.1 of 4.1 GB in use during the measurement, 4.6 of 6 GB at 11:03 UTC. The effect of the swap on the test times was not measured.
+  - Not explained: the run of 55.7 min.
+  - The owner decides: run feature runs (`run.sh <ID>`) under the heavy lock too; try 2 Playwright workers; close Google Chrome during heavy runs.
+- [x] UI-17 `chart-dock-formation.spec.ts:95` made `main` red after PR 579 (run 43876765164). In the first 4 CI runs with the change it failed in 3 of 6 attempts; in 10 runs without the change it passed on the first try. The layout was correct: the test measured at a fixed time (800 ms), and with PR 579 the result of the search came earlier, so the measurement was in the `margin-left` animation of the package. Corrected in PR 581 (journal `2026-11-16-dock-row2-gap-after-axis-defer`). The test was flaky in the first CI run of PR 579; the coordinator saw it and did not compare it with `main` (see Lessons).
+- [ ] FRM-30 ("Zwei Tabs lösen nur eine Suche aus", `formation-page.spec.ts`) is flaky on the loaded Mac: it failed in a full `precheck.sh` (8 calls, 4 expected) and in 1 of 3 runs alone, on a branch that did not change application code (PR 576). It also failed on the first try and on the retry in a `precheck.sh` run of a branch with documents only. The cause is not known. 2 tabs share 1 search through a Web Lock (`FormationScanRunner.tsx`); 8 calls show that the second tab got the lock for a moment. No link to the price axis or the running candle was seen.
+- [ ] ANA-19 `chart-workspace.spec.ts:386` takes 23.5 to 28.0 s in CI (9 runs on `main`, 2026-11-15 and 2026-11-16, each on the first try); the limit is 30 s. It failed with a timeout on the loaded Mac, also with the code of `main`. It was this slow before PR 570 too (23.5 s and 25.8 s).
+- [ ] ANA-19 `chart-workspace.spec.ts:103` fails on the Mac in some runs; in CI it passes on the first try (15.1 to 19.6 s). The failure is not a timeout: the range is different by 1 candle (3600 s). PR 579 is not the cause. Measurement (a temporary copy of lines 103 to 141 with a sampler for each animation frame, 10 runs for each arm, under the heavy lock, load average 16 to 7): `main` 2 of 10 failed, `ChartCore.tsx` from before PR 579 3 of 10 failed, each time in line 141.
+  - Cause: in the 5 failed runs the running candle of the formation search came approx. 60 ms after the first fit of the chart (for example at 991 ms; first fit at 932 ms). The library then moved the view by 1 candle, and the first candle left the view (`…268800,…852000` became `…272400,…855600`). In the 15 passed runs the running candle was there at the first draw. The test reads `fitRange` from the moved view; the "fit" button then gives a different range.
+  - `chartReady(page)` does not help: the move comes approx. 800 ms before `data-scan-ms`, and the view stays moved.
+  - Effect for the user: after the page opens, the view can move by 1 candle, and "fit" shows a different range. In 1 loaded `precheck.sh` run the test failed in line 135: a range was stored although the user did not zoom, so the next visit opens a fixed window, not "all". This was not seen in the 20 runs. Assumption, not measured: `rememberChartView` (`runtime.ts`) stores the move when the change of the candle count comes in a separate event.
+  - Not changed. A possible correction is in the application: when the view is "all" (no stored zoom) and the running candle comes, fit again. This changes visible behavior, so the owner decides (1116-A28.1). A comparison with a tolerance in the test was rejected: it makes the test weaker.
+  - Correction of an earlier reading in this entry (Verification, row "ANA-27 and ANA-19, with and without the `ChartCore.tsx` change"): the load is not the cause of the ANA-19 failures.
+- [ ] `settings-osc-scope.spec.ts:86` and `:101` (USR-17) were flaky in one CI run (43869966669). Not examined.
 
 ## Lessons
 A red test on the chart is not always a slow machine. Find the event that changes the picture, and wait for it. When a precheck fails in a test that the branch did not change, read the last run on `main` first.
+
+A fix that moves the time of a change in the picture can make a different test fail. When the local check is red because of the machine, compare each test in the CI run of the PR with the runs on `main` (first try or retry, time) before the merge, not after it. A test that is flaky in the CI run of the PR and was not flaky on `main` is a finding of that PR until the comparison shows a different cause.
+
+One feature ID can be on more than one test. Name a test by its file and line, not by its ID only: on 2026-11-16 the CI times of ANA-19 `:386` were used for ANA-19 `:103`.
