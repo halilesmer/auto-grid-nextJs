@@ -3,13 +3,12 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'motion/react';
-import { BarChart3, CandlestickChart, FlaskConical, Grid3x3, LayoutDashboard, Menu, Server, Users } from 'lucide-react';
+import { BarChart3, CandlestickChart, FlaskConical, Grid3x3, LayoutDashboard, Menu, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip } from '@/components/ui/tooltip';
 import { VERSION } from '@/app/version';
 import { useT, type MessageKey } from '@/i18n';
 import { DropdownMenu, DropdownMenuGroup, useDropdownClose } from '@/components/ui/dropdown-menu';
-import { useAuthStore, type Me } from '@/store/useAuthStore';
 import NewsButton from '@/components/news/NewsButton';
 import HeaderMenu from './HeaderMenu';
 import SettingsButton from '@/components/settings/SettingsButton';
@@ -19,34 +18,27 @@ const LINKS: {
   href: string;
   labelKey: MessageKey;
   hintKey: MessageKey;
-  icon: typeof Server;
-  /** Sichtbarkeit je Rolle; fehlt = für alle. `me` ist null, solange die Rolle nicht geladen ist. */
-  visible?: (me: Me | null) => boolean;
+  icon: LucideIcon;
 }[] = [
   { href: '/', labelKey: 'nav.dashboard', hintKey: 'nav.dashboard.hint', icon: LayoutDashboard },
   { href: '/chart', labelKey: 'nav.chart', hintKey: 'nav.chart.hint', icon: CandlestickChart },
   { href: '/stats', labelKey: 'nav.stats', hintKey: 'nav.stats.hint', icon: BarChart3 },
   { href: '/backtest', labelKey: 'nav.backtest', hintKey: 'nav.backtest.hint', icon: FlaskConical },
-  // /vps läuft auch ohne Worker-Verbindung: erst ausblenden, wenn feststeht, dass es kein Admin ist
-  { href: '/vps', labelKey: 'nav.vps', hintKey: 'nav.vps.hint', icon: Server, visible: (me) => !me || me.role === 'admin' },
-  { href: '/users', labelKey: 'nav.users', hintKey: 'nav.users.hint', icon: Users, visible: (me) => me?.role === 'admin' },
 ];
 
-/** Das Werkzeuge-Menü steht hinter Dashboard, Chart, Statistik und Backtest; VPS und Benutzer folgen. */
-const TOOLS_AFTER = 4;
+/** VPS und Benutzer stehen nicht in der Kopfzeile: beide sind in den Einstellungen („VPS und System“, „Benutzer“). */
 
 /**
  * Seitenlinks. `row` = in der Kopfzeile (ab lg) mit gleitender Markierung, `panel` = untereinander im
  * ☰-Menü (unter lg); dort schließt ein Klick das Menü.
  */
-function NavLinks({ layout, from = 0, to = LINKS.length }: { layout: 'row' | 'panel'; from?: number; to?: number }) {
+function NavLinks({ layout }: { layout: 'row' | 'panel' }) {
   const pathname = usePathname();
   const t = useT();
-  const me = useAuthStore((s) => s.me);
   const close = useDropdownClose();
   const inPanel = layout === 'panel';
 
-  return LINKS.slice(from, to).filter((link) => !link.visible || link.visible(me)).map(({ href, labelKey, hintKey, icon: Icon }) => {
+  return LINKS.map(({ href, labelKey, hintKey, icon: Icon }) => {
     const label = t(labelKey);
     const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
     return (
@@ -106,9 +98,8 @@ export default function AppNav() {
 
         {chartWorkspace && <span className="hidden text-sm font-medium sm:block lg:hidden">{t('nav.chart')}</span>}
         <div className="hidden min-w-0 flex-1 items-center justify-center gap-1 lg:flex">
-          <NavLinks layout="row" to={TOOLS_AFTER} />
+          <NavLinks layout="row" />
           <ToolsNav layout="row" />
-          <NavLinks layout="row" from={TOOLS_AFTER} />
         </div>
 
         <div className="ml-auto flex min-w-0 items-center gap-2 lg:ml-0">
@@ -126,9 +117,8 @@ export default function AppNav() {
           >
             <div data-testid="nav-menu-panel">
               <DropdownMenuGroup className="space-y-0.5">
-                <NavLinks layout="panel" to={TOOLS_AFTER} />
+                <NavLinks layout="panel" />
                 <ToolsNav layout="panel" />
-                <NavLinks layout="panel" from={TOOLS_AFTER} />
               </DropdownMenuGroup>
             </div>
           </DropdownMenu>

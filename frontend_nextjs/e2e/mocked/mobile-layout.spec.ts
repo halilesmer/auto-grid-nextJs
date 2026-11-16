@@ -280,7 +280,7 @@ test.describe('Weitere Seiten (de)', () => {
     await expect(page).toHaveURL(/\/chart(\?account=\d+)?$/);
     await expectNoPageOverflow(page);
 
-    await (await openPageMenu(page)).getByRole('link', { name: msg('nav.vps', undefined, 'de') }).click();
+    await page.goto('/vps'); // nicht in der Kopfzeile: VPS steht in den Einstellungen, die Seite bleibt per Adresse erreichbar
     await expect(page.getByTestId('vps-elevated')).toBeVisible();
     await expectNoPageOverflow(page);
 

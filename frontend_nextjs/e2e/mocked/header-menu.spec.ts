@@ -36,7 +36,7 @@ test.describe('UI-01 Kopfzeile', () => {
     await expect(nav.getByRole('link', { name: msg('nav.chart') })).toHaveCount(0);
 
     const panel = await openPageMenu(page);
-    for (const key of ['nav.dashboard', 'nav.chart', 'nav.stats', 'nav.backtest', 'nav.vps', 'nav.users'] as const) {
+    for (const key of ['nav.dashboard', 'nav.chart', 'nav.stats', 'nav.backtest'] as const) {
       await expectInViewport(page, panel.getByRole('link', { name: msg(key), exact: true }), key);
     }
     await expect(panel.getByRole('link', { name: msg('nav.dashboard') })).toHaveAttribute('aria-current', 'page');
@@ -138,7 +138,7 @@ test.describe('UI-01 Kopf-Menü', () => {
     await expect(trigger).toHaveAttribute('data-status', 'unauthorized');
     await expect(trigger).toHaveAccessibleName(msg('header.menu.aria', { status: msg('connection.status.unauthorized') }));
     const triggerBox = (await trigger.boundingBox())!;
-    const lastLink = page.getByRole('navigation').getByRole('link', { name: msg('nav.users'), exact: true });
+    const lastLink = page.getByTestId('nav-tools');
     const linkBox = (await lastLink.boundingBox())!;
     expect(linkBox.x + linkBox.width, 'letzter Link endet vor dem Auslöser').toBeLessThanOrEqual(triggerBox.x);
     expect(triggerBox.x + triggerBox.width).toBeLessThanOrEqual(1024);
