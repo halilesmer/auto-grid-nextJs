@@ -4,6 +4,7 @@
  * Löschen ist ein Rückgängig-Schritt; der gezogene Platz bleibt nach dem Neuladen; bei 375 px unten ohne Griff und ohne Überlauf.
  */
 import type { Page } from '@playwright/test';
+import { chartReady } from '../fixtures/chart-ready';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, expect, test } from '../fixtures/test';
 
@@ -20,6 +21,7 @@ async function stored(page: Page) {
   }, KEY).then(all => all.filter(d => d.kind === 'fib-retracement'));
 }
 async function drawFib(page: Page, phone = false) {
+  await chartReady(page);
   await page.getByRole('button', { name: msg('cw.rail.fibMenu'), exact: true }).click();
   await page.getByTestId('tool-fib-retracement').click();
   const box = (await page.getByTestId('analysis-chart').boundingBox())!;
@@ -110,7 +112,7 @@ test('UI-29: gezogener Platz bleibt nach dem Neuladen, Doppelklick stellt den er
   expect(first.x - moved.x).toBeGreaterThan(120);
   await expect.poll(() => page.evaluate((key) => JSON.parse(localStorage.getItem(key) || '{}').floatingBar, KEY)).toBeTruthy();
   await page.reload();
-  await page.waitForTimeout(1500);
+  await chartReady(page);
   await select(page, at);
   await expect(bar(page)).toBeVisible();
   const again = (await bar(page).boundingBox())!;
