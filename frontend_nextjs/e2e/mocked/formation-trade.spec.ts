@@ -10,7 +10,7 @@ import { parseFixture } from '../../src/lib/formation/fixture';
 import { groupZones, makeZone } from '../fixtures/data';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, ZONE_ID, expect, test, type MockWorker } from '../fixtures/test';
-import { named, seedFixtureTrend } from '../fixtures/formation-trend';
+import { fixtureTrend, named, seedFixtureTrend } from '../fixtures/formation-trend';
 
 // Formationen rechnen auf dem Trendzug des Nutzers (FRM-41); die Fixtures zeigen ihre Formation mit FIXTURE_TREND
 test.beforeEach(({ page }) => seedFixtureTrend(page));
@@ -18,14 +18,14 @@ test.beforeEach(({ page }) => seedFixtureTrend(page));
 const URL = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}`;
 const load = (file: string) => named(`e2e/fixtures/formation/${file}.json`, parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}.json`, 'utf-8')))).bars;
 
-async function openPage(page: Page, worker: MockWorker, file: string, now: number, form: string, tweak?: (bars: ReturnType<typeof load>) => void) {
+async function openPage(page: Page, worker: MockWorker, file: string, now: number, form: string, tweak?: (bars: ReturnType<typeof load>) => void, series?: { D1?: number[][]; H1?: number[][] }) {
   const narrow = (page.viewportSize()?.width ?? 1280) < 640;
   const bars = load(file);
   tweak?.(bars);
   worker.state.settings[DEMO_ID] = { LOOP_INTERVAL_SECONDS: 2, SYMBOLS: groupZones([makeZone({ symbol: 'EURUSD' })]) };
   const rows = bars.filter((b) => b.time + 14400 <= now).map((b) => [b.time, b.open, b.high, b.low, b.close]);
   const last = rows[rows.length - 1];
-  worker.state.ratesSeries = { D1: [], H4: rows, H1: [], M15: [[now - 900, last[4], last[4], last[4], last[4]]] };
+  worker.state.ratesSeries = { D1: series?.D1 ?? [], H4: rows, H1: series?.H1 ?? [], M15: [[now - 900, last[4], last[4], last[4], last[4]]] };
   await page.goto(`${URL}&form=${form}`);
   await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
   // Unter 1024 px ist die Karte zu: die Taste „Karte“ öffnet sie über dem Chart, dann der Reiter Bedingungen
@@ -397,6 +397,124 @@ test.describe('FRM-39 Handelsblock AB=CD (Yeniden giriş, 1114-A4.4)', () => {
     await block.getByTestId('trade-reentry').scrollIntoViewIfNeeded();
     await block.getByTestId('trade-reentry').screenshot({ path: test.info().outputPath('reentry-two-targets-375.png') });
   });
+});
+
+// ---- C ayağı (2026-11-16): AB=CD'de D'ye (seviye 1) ulaşılmadan, C'den D'ye doğru ters yönde işlem ---------------------------------------
+// Gerçek fixture'lar tek zaman dilimlidir (H4). Üst trend için günlük kerzeler H4'ten türetilir (6 H4 = 1 gün); alt zaman dilimi dönüş mumu sentetiktir.
+const d1Of = (file: string, now: number): number[][] => {
+  const groups = new Map<number, ReturnType<typeof load>>();
+  for (const b of load(file)) {
+    const k = Math.floor(b.time / 86400) * 86400;
+    groups.set(k, [...(groups.get(k) ?? []), b]);
+  }
+  return [...groups]
+    .filter(([k, v]) => v.length === 6 && k + 86400 <= now)
+    .map(([k, v]) => [k, v[0].open, Math.max(...v.map((b) => b.high)), Math.min(...v.map((b) => b.low)), v[5].close]);
+};
+
+// abcd-breakc-h4-01: Satış-AB=CD (alış C ayağı), C = 1785240000 ve 1,32729. C'de bölge yok. Saatlik dolgu kerzeleri C'den 60 saat öncesinden başlar;
+// `engulf` ile C'den 8 saat sonra düşen (ayı) ve onu saran (boğa) iki saatlik kerze eklenir (sentetik).
+const BREAKC = { file: 'abcd-breakc-h4-01', now: 1785744000, c: { time: 1785240000, price: 1.32729 }, range: 0.0031716667 };
+const h1Of = (engulf: boolean): number[][] => {
+  const { c, range: r } = BREAKC;
+  const rows: number[][] = [];
+  for (let ts = c.time - 60 * 3600; ts < c.time + 8 * 3600; ts += 3600) rows.push([ts, c.price, c.price + 0.01 * r, c.price, c.price + 0.005 * r]);
+  if (engulf) {
+    rows.push([c.time + 8 * 3600, c.price + 0.3 * r, c.price + 0.32 * r, c.price, c.price + 0.05 * r]);
+    rows.push([c.time + 9 * 3600, c.price + 0.04 * r, c.price + 0.45 * r, c.price, c.price + 0.4 * r]);
+  }
+  return rows;
+};
+const openCLeg = async (page: Page, worker: MockWorker, o: { file: string; now: number }, h1?: number[][]) => {
+  await seedFixtureTrend(page, fixtureTrend(o.file), true);
+  await openPage(page, worker, o.file, o.now, 'ABCD', undefined, { D1: d1Of(o.file, o.now), ...(h1 ? { H1: h1 } : {}) });
+};
+// bat-sell-h4-01: Alış-AB=CD (satış C ayağı), C'de güçlü fraktal bölgesi (kart 9)
+const ZONE_CASE = { file: 'bat-sell-h4-01', now: 1762401600 };
+
+test.describe('FRM-39 Handelsblock AB=CD (C ayağı)', () => {
+  test('Kart 9: C’de bölge var → zorunlu 3/3, takviye 1/3, giriş/stop/hedef ve oran', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openCLeg(page, worker, ZONE_CASE);
+    const cl = page.getByTestId('trade-block').getByTestId('trade-cleg');
+    await expect(cl).toBeVisible();
+    await expect(cl).toHaveAttribute('data-variant', 'zone');
+    await expect(cl).toContainText(msg('formation.trade.cleg.title'));
+    await expect(cl).toContainText(msg('formation.trade.cleg.sub'));
+    await expect(cl.getByTestId('trade-cleg-dir')).toHaveText(msg('formation.trade.cleg.dir.sell'));
+    await expect(cl.getByTestId('trade-cleg-group-required')).toHaveAttribute('data-count', '3/3');
+    await expect(cl.getByTestId('trade-cleg-group-bonus')).toHaveAttribute('data-count', '1/3');
+    for (const key of ['depth', 'trend', 'noDivergence', 'zone']) await expect(cl.getByTestId(`trade-cleg-row-${key}`)).toHaveAttribute('data-state', 'met');
+    // yalnız günlük kerzeler yüklü: alt zaman dilimi yok, dönüş mumu takviye ve karşılanmamış
+    await expect(cl.getByTestId('trade-cleg-row-candle')).toHaveAttribute('data-state', /^(unmet|unmeasurable)$/);
+    await expect(cl.getByTestId('trade-cleg-row-lowerAbcd')).toHaveAttribute('data-state', 'unmeasurable');
+    await expect(cl.getByTestId('trade-cleg-value-depth')).toHaveText(/^0[.,]\d{3}$/);
+    await expect(cl.getByTestId('trade-cleg-row-zone')).toContainText(msg('formation.trade.cleg.row.zone.sell'));
+    await expect(cl.getByTestId('trade-cleg-row-noDivergence')).toContainText(msg('formation.trade.cleg.row.noDivergence.sell'));
+    for (const f of ['entry', 'stop', 'target', 'crv']) await expect(cl.getByTestId(`trade-cleg-${f}`)).not.toHaveText(/^\s*—\s*$/);
+    await expect(cl).toContainText(msg('formation.trade.cleg.target.sub'));
+    await expect(cl.getByTestId('trade-cleg-footer')).toHaveText(msg('formation.trade.cleg.footer'));
+    await expect(cl.getByTestId('trade-cleg-waiting')).toHaveCount(0);
+    // Kural kimliği ve kısaltma yok; pay ve sonuç kutuları yok
+    await expect(cl).not.toContainText(/ABCD-\d|HDL-\d|SIG-\d|TP\d/);
+    await expect(cl.locator('[data-testid^="trade-outcome-"]')).toHaveCount(0);
+  });
+
+  test('Kart 10: C’de bölge yok, alt zaman diliminde dönüş mumu var → zorunlu 4/4, takviye 0/2, giriş mumun kapanışı', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openCLeg(page, worker, BREAKC, h1Of(true));
+    const cl = page.getByTestId('trade-block').getByTestId('trade-cleg');
+    await expect(cl).toHaveAttribute('data-variant', 'candle');
+    await expect(cl.getByTestId('trade-cleg-dir')).toHaveText(msg('formation.trade.cleg.dir.buy'));
+    await expect(cl.getByTestId('trade-cleg-group-required')).toHaveAttribute('data-count', '4/4');
+    await expect(cl.getByTestId('trade-cleg-group-bonus')).toHaveAttribute('data-count', '0/2');
+    await expect(cl.getByTestId('trade-cleg-row-candle')).toHaveAttribute('data-state', 'met');
+    await expect(cl.getByTestId('trade-cleg-value-candle')).toHaveText(msg('formation.trade.cleg.tf.H1'));
+    await expect(cl.getByTestId('trade-cleg-row-zone')).toHaveAttribute('data-state', 'unmet');
+    await expect(cl).toContainText(msg('formation.trade.cleg.entry.candle'));
+    await expect(cl).toContainText(msg('formation.trade.cleg.stop.candle.buy'));
+    for (const f of ['entry', 'stop', 'target', 'crv']) await expect(cl.getByTestId(`trade-cleg-${f}`)).not.toHaveText(/^\s*—\s*$/);
+  });
+
+  test('Bekleme satırı: bölge yok, mum yok → değer yok, “C ayağı bekleniyor” satırı', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openCLeg(page, worker, BREAKC, h1Of(false));
+    const cl = page.getByTestId('trade-block').getByTestId('trade-cleg');
+    await expect(cl).toBeVisible();
+    await expect(cl.getByTestId('trade-cleg-group-required')).toHaveAttribute('data-count', '3/4');
+    await expect(cl.getByTestId('trade-cleg-row-candle')).toHaveAttribute('data-state', 'unmet');
+    await expect(cl.getByTestId('trade-cleg-waiting')).toHaveText(msg('formation.trade.cleg.waiting'));
+    for (const f of ['entry', 'stop', 'target', 'crv']) await expect(cl.getByTestId(`trade-cleg-${f}`)).toHaveCount(0);
+  });
+
+  test('Üst zaman dilimi yüklü değil: trend ve dönüş mumu ölçülemedi, değer yok, bekleme satırı yok', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await seedFixtureTrend(page, fixtureTrend(BREAKC.file), true);
+    await openPage(page, worker, BREAKC.file, BREAKC.now, 'ABCD');
+    const cl = page.getByTestId('trade-block').getByTestId('trade-cleg');
+    await expect(cl.getByTestId('trade-cleg-row-trend')).toHaveAttribute('data-state', 'unmeasurable');
+    await expect(cl.getByTestId('trade-cleg-row-candle')).toHaveAttribute('data-state', 'unmeasurable');
+    await expect(cl.getByTestId('trade-cleg-waiting')).toHaveCount(0);
+    await expect(cl.getByTestId('trade-cleg-entry')).toHaveCount(0);
+  });
+
+  test('Seviye 1’e ulaşılmışsa bölüm yok', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'crb-form-h4-01', 1763496000, 'ABCD');
+    await expect(page.getByTestId('trade-block')).toBeVisible();
+    await expect(page.getByTestId('trade-cleg')).toHaveCount(0);
+  });
+
+  for (const theme of ['light', 'dark'] as const) {
+    test(`375 px, ${theme} tema: bölüm yatay kaydırma üretmez`, { tag: '@FRM-39' }, async ({ page, worker }) => {
+      await page.setViewportSize({ width: 375, height: 812 });
+      await page.addInitScript((value) => localStorage.setItem('grid-robot-theme', JSON.stringify({ state: { theme: value }, version: 0 })), theme);
+      await openCLeg(page, worker, ZONE_CASE);
+      if (theme === 'dark') await expect(page.locator('html')).toHaveClass(/dark/);
+      else await expect(page.locator('html')).not.toHaveClass(/dark/);
+      const block = page.getByTestId('trade-block');
+      await expect(block.getByTestId('trade-cleg')).toBeVisible();
+      expect(await block.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+      await block.getByTestId('trade-cleg').scrollIntoViewIfNeeded();
+      await block.getByTestId('trade-cleg').screenshot({ path: test.info().outputPath(`cleg-375-${theme}.png`) });
+    });
+  }
 });
 
 test.describe('FRM-40 Veto', () => {

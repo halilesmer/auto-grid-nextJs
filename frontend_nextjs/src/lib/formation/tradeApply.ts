@@ -10,7 +10,7 @@ import type { ContextTimeframe } from './params';
 import { TRADE_RULES, type Candidate, type Drawing, type FormationBar, type Side, type Trade } from './types';
 
 /** Werte, die der Prüfer kennt; der Not-SL und SIG-29 kommen hier dazu */
-export type TradeInput = Pick<Trade, 'entry' | 'stop' | 'tp1' | 'reason'> & Partial<Pick<Trade, 'tp1AtEntry' | 'missed' | 'tp2' | 'tp2AtEntry' | 'tp3' | 'tpBig' | 'tpBigAtEntry' | 'tpBigActivation' | 'tp1StrongZone' | 'status' | 'earlyReversal' | 'reentry' | 'reentryTp1Only'>>;
+export type TradeInput = Pick<Trade, 'entry' | 'stop' | 'tp1' | 'reason'> & Partial<Pick<Trade, 'tp1AtEntry' | 'missed' | 'tp2' | 'tp2AtEntry' | 'tp3' | 'tpBig' | 'tpBigAtEntry' | 'tpBigActivation' | 'tp1StrongZone' | 'status' | 'earlyReversal' | 'reentry' | 'reentryTp1Only' | 'cLeg'>>;
 
 /**
  * @param veto true bei TDF, OBO, CDT, LIB, T618, ENC und KEI (Harmoniken und 2618 sind laut Regelbuch Ausnahme)
@@ -39,6 +39,7 @@ export function withTrade(candidate: Candidate, env: Env, tf: ContextTimeframe, 
     ...(input.earlyReversal === undefined ? {} : { earlyReversal: input.earlyReversal }),
     ...(input.reentry === undefined ? {} : { reentry: input.reentry }),
     ...(input.reentryTp1Only === undefined ? {} : { reentryTp1Only: input.reentryTp1Only }),
+    ...(input.cLeg === undefined ? {} : { cLeg: input.cLeg }),
     sig29: sigs.sig29,
   };
   return { ...candidate, checks: veto ? [...candidate.checks, sigs.veto] : candidate.checks, trade };
