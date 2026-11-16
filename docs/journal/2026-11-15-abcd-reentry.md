@@ -43,5 +43,5 @@ Plan 1114-A4.4 (design approved by Halil, 2026-11-15, box 7). After the first tr
 
 ## Open points
 - [ ] Not checked on a live chart. Only buy examples exist in the real fixtures; sell is covered by the library tests.
-- [ ] Which opposing zone counts as the target ("nearest" vs "last") is an assumption; the ratio in the design (6.82) cannot decide it.
+- [x] Which opposing zone counts as the target ("nearest" vs "last"): closed on 2026-11-16 — show both, see `2026-11-16-abcd-reentry-two-targets.md`.
 - [ ] "Engulf zone at D" is read as a zone formed before the D candle (as in ABCD-10 and the early reversal). The zone of an Engulf candle that wraps the D candle itself (zone index = D + 1) does not count. If Halil means that zone too, the state does not arise in those setups.

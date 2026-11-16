@@ -110,7 +110,7 @@ export interface Trade {
    * AB=CD (1114-A4.4): Wiedereinstieg. TP1 und TP2 des ersten Handels sind erreicht, der Kurs berührt die Engulf-Zone am D erneut, und keine Kerze hat jenseits davon geschlossen.
    * Einstieg = nahe Zonenkante, Stop = ferne Kante (Schlusswert), Not-SL wie beim ersten Handel, Ziel = nächste Gegenzone. Keine Aufteilung, kein Stand danach; der erste Handel (`status`) bleibt unverändert.
    */
-  reentry?: { entry: number; stop: number; emergencyStop: number | null; target: number | null };
+  reentry?: { entry: number; stop: number; emergencyStop: number | null; target: number | null; /** Ziel 2 (letzte Tief-/Hochzone); null, wenn leer oder dieselbe Zone wie `target` */ target2: number | null };
   /** AB=CD (1114-A4.4): nur TP1 erreicht und der Kurs ist in die Engulf-Zone zurückgekehrt: kein Wiedereinstieg, nur ein Hinweis */
   reentryTp1Only?: true;
   /** SIG-29 (CRV bis TP1 über 1, sonst Umkehrkerze der tieferen ZE): ☑ bei CRV > 1; Wert = CRV; die Anzeige zeigt die Zeile nur bei CRV ≤ 1 */

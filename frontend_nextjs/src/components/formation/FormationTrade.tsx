@@ -122,6 +122,9 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
   // Wiedereinstieg (1114-A4.4): eigene Werte und eigenes Verhältnis zum einen Ziel; der erste Handel bleibt oben unverändert
   const re = trade.reentry;
   const reMetrics = re ? tradeMetrics({ entry: re.entry, stop: re.stop, tp1: re.target }, candidate.side) : null;
+  const re2 = re?.target2 != null ? re.target2 : null;
+  const reMetrics2 = re && re2 !== null ? tradeMetrics({ entry: re.entry, stop: re.stop, tp1: re2 }, candidate.side) : null;
+  const reCrv2Text = reMetrics2 ? number(reMetrics2.crv, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : dash;
   const reCrvText = reMetrics ? number(reMetrics.crv, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : dash;
   const reAway = (v: number, sign: '+' | '−') =>
     re ? t(pipSize === null ? 'formation.trade.away.price' : 'formation.trade.away.pips', { n: `${sign}${dist(Math.abs(v - re.entry))}` }) : null;
@@ -441,9 +444,9 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
                 {re.emergencyStop !== null && ` · ${t('formation.trade.emergency', { price: fmt(re.emergencyStop) })}`}
               </span>
             </div>
-            <div className="col-span-2 flex min-w-0 flex-col gap-px">
+            <div className={cn('flex min-w-0 flex-col gap-px', re2 === null && 'col-span-2')}>
               <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                {t('formation.trade.reentry.target')}
+                {t(re2 === null ? 'formation.trade.reentry.target' : 'formation.trade.reentry.target1')}
                 <InfoHint hint={t('formation.trade.reentry.target.hint')} />
               </span>
               <span data-testid="trade-reentry-target" className={cn('text-[13px] font-medium tabular-nums', re.target === null ? 'text-muted-foreground' : 'text-success')}>
@@ -453,6 +456,18 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
                 {re.target === null ? reasonText('noZone') : `${reAway(re.target, '+')} · ${t(buy ? 'formation.trade.reentry.target.buy' : 'formation.trade.reentry.target.sell')}`}
               </span>
             </div>
+            {re2 !== null && (
+              <div className="flex min-w-0 flex-col gap-px">
+                <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                  {t('formation.trade.reentry.target2')}
+                  <InfoHint hint={t('formation.trade.reentry.target2.hint')} />
+                </span>
+                <span data-testid="trade-reentry-target2" className="text-[13px] font-medium tabular-nums text-success">
+                  {fmt(re2)}
+                </span>
+                <span className="text-[10.5px] tabular-nums text-muted-foreground">{`${reAway(re2, '+')} · ${t(buy ? 'formation.trade.reentry.target2.buy' : 'formation.trade.reentry.target2.sell')}`}</span>
+              </div>
+            )}
           </div>
           <div className="mx-2.5 mb-2 flex items-start gap-1.5 rounded-lg border border-info/35 bg-info/10 px-2 py-1.5 text-[11.5px]">
             <Info size={13} aria-hidden="true" className="mt-px shrink-0 text-info" />
@@ -460,7 +475,7 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
           </div>
           <div className="flex items-center gap-2.5 border-t border-border px-2.5 py-2">
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              {t('formation.trade.reentry.crv')}
+              {t(re2 === null ? 'formation.trade.reentry.crv' : 'formation.trade.reentry.crv1')}
               <InfoHint hint={t('formation.trade.reentry.crv.hint')} />
             </span>
             <span data-testid="trade-reentry-crv" className={cn('text-[15px] font-semibold tabular-nums', !reMetrics && 'text-muted-foreground')}>
@@ -475,7 +490,18 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
               <span className="flex-1 text-right text-[10.5px] text-muted-foreground">{t('formation.trade.reentry.crv.missing')}</span>
             )}
           </div>
-          <div className="border-t border-border px-2.5 py-2 text-[10.5px] text-muted-foreground">{t('formation.trade.reentry.footer')}</div>
+          {re2 !== null && (
+            <div className="flex items-center gap-2.5 px-2.5 pb-2">
+              <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                {t('formation.trade.reentry.crv2')}
+                <InfoHint hint={t('formation.trade.reentry.crv2.hint')} />
+              </span>
+              <span data-testid="trade-reentry-crv2" className={cn('text-[13px] font-medium tabular-nums', !reMetrics2 && 'text-muted-foreground')}>
+                {reCrv2Text}
+              </span>
+            </div>
+          )}
+          <div className="border-t border-border px-2.5 py-2 text-[10.5px] text-muted-foreground">{t(re2 === null ? 'formation.trade.reentry.footer' : 'formation.trade.reentry.footer2')}</div>
         </div>
       )}
       {trade.reentryTp1Only && (
