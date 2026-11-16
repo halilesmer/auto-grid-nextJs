@@ -36,6 +36,7 @@ import { buildEnv, dirSide, envFor, neighborTf, type Env } from './reasons';
 import { reversalAt } from './reversal';
 import { earlyReversalOf, type EarlyReversal } from './earlyReversal';
 import { reentryOf } from './reentry';
+import { cLegOf, lowerCandleAt, noPeakDivergence } from './cLeg';
 import { exemptFor, settle } from './settle';
 import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
 import { levelXA, ordered, pipOf, shapeOfX } from './xabcd';
@@ -413,6 +414,22 @@ function evaluateFull(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pi
     input.reentry = { entry: reentry.entry, stop: reentry.stop, emergencyStop: emergencyStopOf(reentry.stop, side, atrNow), target: reentry.target, target2: reentry.target2 };
   } else if (reentry?.kind === 'tp1Only') {
     input.reentryTp1Only = true;
+  }
+  // C-Bein (2026-11-16): vor Level 1 ein Handel von C Richtung D, gegen den AB=CD-Handel; nur der Handelsblock zeigt es, Prüfliste und Urteil bleiben
+  if (!reached && !early) {
+    const cLeg = cLegOf({
+      bars,
+      s,
+      reached,
+      early: false,
+      withTrend,
+      noDivergence: noPeakDivergence(trend, s),
+      engulfZones: engulfZones(bars, view.wide),
+      zones: [...env.frz.zones, ...env.frz.reversed],
+      candle: lowerCandleAt(env, tf, s),
+      atr: atrNow,
+    });
+    if (cLeg) input.cLeg = cLeg;
   }
   const drawings = drawingsOf(env, s, reached, divState === 'met', harmonic === 'met', secondLevels.find(isNear), input.stop, freezeIdx, status, early, input.tpBig ?? null);
   const withDrawings = checks.map((c) => ({

@@ -23,9 +23,22 @@ export interface ReversalAnchor {
  * Trade-Seite, die höchstens so weit vom Punkt entfernt liegen. Ohne ATR oder bei unbekannter Volumenstärke nicht messbar.
  */
 export function reversalAt(env: Env, tf: ContextTimeframe, side: Side, anchor: ReversalAnchor, scans: readonly ContextTimeframe[]): CheckState {
+  return reversalCandleAt(env, tf, side, anchor, scans).state;
+}
+
+/** Die erste gefundene Umkehrkerze: Zeiteinheit, Schluss der letzten Engulf-Kerze und ihre Spitze (Kauf: tiefstes Tief der Engulf-Kerzen, Verkauf: höchstes Hoch) */
+export interface ReversalCandle {
+  state: CheckState;
+  tf?: ContextTimeframe;
+  close?: number;
+  tip?: number;
+}
+
+/** Wie `reversalAt`, liefert bei ☑ zusätzlich die Kerze selbst; `reversalAt` gibt nur den Zustand zurück */
+export function reversalCandleAt(env: Env, tf: ContextTimeframe, side: Side, anchor: ReversalAnchor, scans: readonly ContextTimeframe[]): ReversalCandle {
   const base = env.views.get(tf);
   const atr = base ? (base.atr[anchor.idx] ?? null) : null;
-  if (!base || atr === null) return 'unmeasurable';
+  if (!base || atr === null) return { state: 'unmeasurable' };
   const near = ABCD_PARAMS.nearAtr * atr;
   const places: Rect[] = [{ top: anchor.price + near, bottom: anchor.price - near }];
   for (const z of [...env.frz.zones, ...env.frz.reversed]) {
@@ -44,8 +57,12 @@ export function reversalAt(env: Env, tf: ContextTimeframe, side: Side, anchor: R
       if (strong.some((w) => w === false)) continue;
       if (!view.bars.slice(e.prevIdx, e.idx + 1).some((b) => places.some((r) => touches(r, b)))) continue;
       if (strong.some((w) => w === null)) unknown = true;
-      else return 'met';
+      else {
+        const own = view.bars.slice(e.prevIdx + 1, e.idx + 1);
+        const tip = side === 'buy' ? Math.min(...own.map((b) => b.low)) : Math.max(...own.map((b) => b.high));
+        return { state: 'met', tf: x, close: view.bars[e.idx].close, tip };
+      }
     }
   }
-  return unknown ? 'unmeasurable' : 'unmet';
+  return { state: unknown ? 'unmeasurable' : 'unmet' };
 }
