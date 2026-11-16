@@ -11,8 +11,8 @@ import type { ChartBinding } from '@/components/chart-workspace/runtime';
 const SHOW_AFTER_BARS = 3;
 // `scrollToRealTime()` animasyonunun süresi (lightweight-charts 5.2.1, `DefaultAnimationDuration`)
 const SCROLL_ANIMATION_MS = 400;
-// Bu olaylar kullanıcının grafiği kendisinin oynattığını gösterir: o zaman son konum yazılmaz
-const USER_INPUTS = ['pointerdown', 'wheel', 'touchstart', 'keydown'] as const;
+// Bu olaylar kullanıcının grafiği kendisinin oynattığını gösterir: o zaman son konum yazılmaz (grafiği kaydıran bir tuş yok)
+const USER_INPUTS = ['pointerdown', 'wheel', 'touchstart'] as const;
 
 /**
  * Son muma dön (1110-A1): grafik sola kaydırılıp son mum görünür alanın sağına taştığında, fiyat ekseninin solunda
