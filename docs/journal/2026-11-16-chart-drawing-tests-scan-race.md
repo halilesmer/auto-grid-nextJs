@@ -45,14 +45,14 @@ The time of the search depends on the speed of the machine and of the app. This 
 
 | File | Change |
 |---|---|
-| `frontend_nextjs/e2e/fixtures/chart-ready.ts` | New. `chartReady(page)` waits for `data-bars` on the chart, for `data-scan-ms` on the chart page, and then for 2 animation frames (the chart draws the new scale in the next frame). |
+| `frontend_nextjs/e2e/fixtures/chart-ready.ts` | New. `chartReady(page)` waits for `data-bars` on the chart, for `data-scan-ms` on the chart page, and then for 2 animation frames, to give the chart time to draw the new scale (this time was not measured). |
 | `chart-drawing-menu.spec.ts`, `chart-fib-unsaved.spec.ts`, `chart-fib-settings.spec.ts`, `chart-fib-text-opacity.spec.ts`, `chart-floating-bar.spec.ts` | `drawFib` calls `chartReady(page)` before it selects the tool. |
 | `chart-fib-unsaved.spec.ts`, `chart-floating-bar.spec.ts` | `chartReady(page)` after `page.reload()` and before the next click on the drawing. In `chart-floating-bar.spec.ts` it replaces a wait of 1500 ms. |
 | `chart-fib-hit.spec.ts` | `chartReady(page)` replaces the wait for `data-bars` only. |
 | `.claude/rules/tests.md`, `hooks/RULES.md` §4.17 | New rules (the owner asked for them on 2026-11-16). |
 
 ## Why
-The tests wait for a signal that the app already gives. `chart-toolbar.spec.ts` and `chart-floating-bar-templates.spec.ts` used the same signal before, and they did not fail. A longer fixed wait was rejected: it only moves the race. A retry of the gesture was rejected: it does not help when the first click of the drawing is before the change of the scale.
+The tests wait for a signal that the app already gives. Some tests in `chart-toolbar.spec.ts` and `chart-floating-bar-templates.spec.ts` used the same signal before. A longer fixed wait was rejected: it only moves the race. A retry of the gesture was rejected: it does not help when the first click of the drawing is before the change of the scale.
 
 The limit of ANA-27 (8 s for each page) did not change. A different session examines the time of ANA-27 since PR 570. A higher limit hides a slower chart.
 
