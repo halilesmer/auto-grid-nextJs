@@ -105,6 +105,12 @@ Katalog: `docs/features/features.yaml` (tek doğru kaynak) → `docs/features/FE
     # permitted: pkill -f "$CLAUDE_PROJECT_DIR/scripts/features/precheck.sh"   (or: scripts/features/precheck.sh --stop)
     ```
 
+17. **[elle]** When `precheck.sh` fails in a test that the branch did not change, read the last `tests.yml` run on `main` before you start a second run. If `main` fails or is flaky in the same test, do not start `precheck.sh` again: the run holds the heavy lock for about 20 minutes and fails again. Tell the session that owns the cause, or the user. Reason: on 2026-11-16 `main` was red for 7 hours, and a precheck on a new branch failed in the same chart tests (journal `2026-11-16-chart-drawing-tests-scan-race`).
+
+    ```bash
+    gh run list --branch main --workflow tests.yml --limit 1 --json conclusion,headSha,databaseId
+    ```
+
 ## 5. Arayüz: bilgi ipuçları (tooltip) zorunlu
 
 Her ayar, alan, anahtar, buton, sekme ve menü öğesi ne işe yaradığını kendisi anlatır; kullanıcı belgeye bakmak zorunda kalmaz.
