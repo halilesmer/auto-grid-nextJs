@@ -31,7 +31,24 @@ The `PRECHECK OK` line keeps its format, including `flaky=N`. The names are on s
 - Zero tests stays an error (`hooks/RULES.md` §4.9). Extra Playwright arguments still give `PRECHECK TEILLAUF`.
 
 ## Verification
-See the PR description for the command results.
+Measured on the Mac of the project owner, under heavy load (load average 28–69, swap nearly full). Nothing here says "the pre-PR check passed": both full runs of the final code ended red in tests that this branch did not change.
+
+| Check | Result |
+|---|---|
+| `test-scripts-lib.spec.ts` before the fix (3 new tests, implementation reverted) | 3 failed, 3 passed |
+| `test-scripts-lib.spec.ts` after the fix, also with `E2E_PRECHECK=1` in the environment | 20 passed |
+| `pw_stats.py` with a hand-made report (2 flaky specs) | `ran=2 passed=1 failed=0 flaky=1 skipped=0`, then 2 `oynak:` lines |
+| `tsc --noEmit`, `eslint` (changed files), `update_checklist.py --check` | clean |
+| Full `precheck.sh` run 1 (before `main` was merged) | `PRECHECK FEHLER in 1830s (Sperre 345s gewartet) · katalog ok (0s) worker ok (168s) lint ok (18s) tsc ok (3s) e2e FEHLER (1641s) · e2e ran=3806 passed=3804 failed=1 flaky=1 skipped=0`. Failed: FRM-30 "Zwei Tabs lösen nur eine Suche aus" (4 expected, 8 seen, in both attempts). Flaky: ANA-27 `chart-older-heavy.spec.ts:95`. |
+| FRM-30 alone, 3 runs, no `E2E_PRECHECK` | 2 passed, 1 failed with 8 |
+| FRM-30 alone, 3 runs, `E2E_PRECHECK=1` | 3 passed |
+| Full `precheck.sh` run 2 (after `main` was merged) | `PRECHECK FEHLER in 2790s (Sperre 2315s gewartet) · katalog ok (0s) worker ok (193s) lint ok (18s) tsc ok (5s) e2e FEHLER (2574s) · e2e ran=3807 passed=3800 failed=1 flaky=6 skipped=0`. Failed: ANA-19 `chart-workspace.spec.ts:386` (timeout in both attempts). Flaky: BKT-15 `backtest-exact-range.spec.ts:30`, UI-17/UI-08 `chart-dock-s5.spec.ts:175`, FRM-42 `formation-prefs-draft-lib.spec.ts:8` (2 tests), FRM-39 `formation-trade.spec.ts:122` and `:149`. |
+| ANA-19 alone, 3 runs, no `E2E_PRECHECK`, load 28–55 | 3 failed (timeouts: "Test timeout of 30000ms", `locator.click`, "element(s) not found") |
+| `git diff --stat origin/main...HEAD -- frontend_nextjs/src worker_python` | empty: the branch changes no application code |
+| `tests.yml` on `main`, ANA-19 duration in the first attempt (read by the coordinator from the GitHub logs) | 24.2 s (run 43773614864), 27.2 s (43832842813), 23.9 s (43836250040), 28.0 s (43850002630); none flaky; the limit is 30 s |
+
+Measured: the CI times and the 3 failed local runs. Inferred, not measured: ANA-19 fails because the test runs close to its 30 s limit and the Mac was overloaded. "ANA-19 passes on an idle Mac" was not measured. CI of this PR is the proof for the unchanged tests.
 
 ## Open points
+- [ ] ANA-19 takes 24–28 s in CI against a limit of 30 s (it fails on an overloaded Mac). Not changed here; the coordinator tracks it.
 - The open point in `2026-11-16-chart-drawing-tests-scan-race` ("precheck without a retry") is solved by this entry. The coordinator marks it there; this PR does not touch that file.
