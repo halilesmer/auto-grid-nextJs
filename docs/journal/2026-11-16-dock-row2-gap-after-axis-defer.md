@@ -86,11 +86,29 @@ No application code changed.
 - Rejected: no `margin-left` animation in tests. The animation is part of the product.
 
 ## Verification
-See the PR description for the command output.
+
+All runs on the Mac, under the heavy lock, with 3 Playwright workers. Load average = 1-minute value at start → end.
+
+| Check | Command | Result | Load |
+|---|---|---|---|
+| Two-arm measurement (temporary spec, not committed) | `npx playwright test e2e/mocked/zz-measure-dock-gap.spec.ts --repeat-each=10` per arm | arm A `20 passed (4.2m)`, arm B `20 passed (2.5m)`; data in "Cause" | A 49 → 53, B 40 → 67 |
+| Fixed test, first version (waits for `formation-form-GAR`) | `npx playwright test e2e/mocked/chart-dock-formation.spec.ts e2e/mocked/chart-scan-scale-tool.spec.ts --repeat-each=10` | `100 passed (4.1m)` | 24 → 23 |
+| Fixed test, final version (waits for `data-scan-ms`, lower limit) | same two specs, plus a temporary copy of the test with CPU throttling 4×, plus `chart-workspace.spec.ts:103`, `--repeat-each=10` | `116 passed`, `4 failed (5.0m)`: the 4 failures are all `chart-workspace.spec.ts:103` (ANA-19). `chart-dock-formation.spec.ts` 70/70, `chart-scan-scale-tool.spec.ts` 30/30, throttled copy 10/10 | 22 → 16 |
+| Type check | `npx tsc --noEmit` | exit 0 | |
+| Lint (changed file) | `npx eslint e2e/mocked/chart-dock-formation.spec.ts` | exit 0 | |
+| Catalog | `python scripts/features/update_checklist.py --check` | `features.yaml ok (284 Features)` | |
+| Full pre-PR check (first version of the fix) | `scripts/features/precheck.sh` | `PRECHECK FEHLER in 2717s (Sperre 0s gewartet) · katalog ok (1s) worker ok (155s) lint ok (18s) tsc ok (2s) e2e FEHLER (2541s) · e2e ran=3827 passed=3822 failed=1 flaky=4 skipped=0` | 20 → 36 |
+
+- The pre-PR check failed only in `chart-workspace.spec.ts:103` (ANA-19), in both attempts. This branch does not change that test or application code.
+- ANA-19 alone (row 3): 6 of 10 passed. On CI, ANA-19 passed at the first attempt in the `main` runs 43872364127, 43876765164 and 43889945427.
+- ANA-19 is a separate step (separate branch and PR).
+- Flaky in the pre-PR check (passed at the retry): `formation-page.spec.ts:1988` (FRM-23), `formation-prefs-draft-lib.spec.ts:8` (2 tests, R1-04), `settings-formation-alarm.spec.ts:88` (USR-15).
+- The pre-PR check ran with the first version of the fix. The final version changed only the wait in the same test. Row 3 examined the final version.
 
 ## Open points
 - [ ] Find why the formation search result comes earlier with PR 579 (measured: arm A median 1944 ms, arm B 2364 ms, without throttling).
 - [ ] The right-aligned formations box moves two times while the page loads (note → handle only → buttons). This was also so before PR 579. A design decision is necessary if this movement must stop.
+- [ ] `chart-workspace.spec.ts:103` (ANA-19) fails locally (4 of 10 runs above). Separate step.
 - [ ] The note `chart.formation.noneTf` ("no formations") shows for a short time before the search starts. This was also so before PR 579.
 
 ## Lessons
