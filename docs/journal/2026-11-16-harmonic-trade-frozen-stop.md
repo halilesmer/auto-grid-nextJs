@@ -3,7 +3,7 @@ date: 2026-11-16
 author: Claude
 type: fix
 status: done
-pr: [PRNR]
+pr: [580]
 features: [FRM-39, FRM-07, FRM-13, FRM-14]
 areas: [frontend]
 ---
