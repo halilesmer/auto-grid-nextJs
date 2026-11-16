@@ -200,7 +200,7 @@ test.describe('UI Oberfläche', () => {
     await expect(page.getByTestId('nav-menu')).toBeHidden();
     await expect(nav.getByRole('link', { name: msg('nav.chart') })).toHaveAttribute('aria-current', 'page');
     await expect(nav.getByRole('link', { name: msg('nav.dashboard') })).not.toHaveAttribute('aria-current', 'page');
-    await expect(nav.getByRole('link', { name: msg('nav.vps') })).toHaveAttribute('href', '/vps');
+    await expect(nav.getByRole('link', { name: msg('nav.stats') })).toHaveAttribute('href', '/stats');
 
     const version = readFileSync(path.join(__dirname, '../../../VERSION'), 'utf-8').trim();
     await expect(nav).toContainText(version);
@@ -245,7 +245,7 @@ test.describe('UI Oberfläche', () => {
     test('Header scrollt nicht horizontal', { tag: '@UI-01' }, async ({ page }) => {
       await page.goto('/');
       const nav = page.getByRole('navigation');
-      await expect((await openPageMenu(page)).getByRole('link', { name: msg('nav.vps') })).toBeVisible();
+      await expect((await openPageMenu(page)).getByRole('link', { name: msg('nav.backtest') })).toBeVisible();
       const { scrollWidth, clientWidth } = await page.evaluate(() => ({
         scrollWidth: document.documentElement.scrollWidth,
         clientWidth: document.documentElement.clientWidth,

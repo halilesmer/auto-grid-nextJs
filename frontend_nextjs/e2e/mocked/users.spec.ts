@@ -3,7 +3,7 @@ import { connectWithKey } from '../fixtures/connection';
 import { E2E_USER_KEY, MOCK_API } from '../fixtures/env';
 import { DEMO_ID, LIVE_ID, MT5_PATH, expect, test } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
-import { openConnectionDialog, openHeaderMenu } from '../fixtures/header';
+import { openConnectionDialog, openHeaderMenu, openSettingsWindow } from '../fixtures/header';
 import { decodeConnectionCode } from '../../src/lib/connectionCode';
 
 const NAV = (page: import('@playwright/test').Page, name: string) => page.getByRole('link', { name, exact: true });
@@ -69,12 +69,15 @@ test.describe('USR Benutzerverwaltung (Admin)', () => {
     expect(worker.state.accounts.find((a) => a.id === DEMO_ID)?.owner).toBeNull();
   });
 
-  test('Nav: Benutzer-Link für Admin, Seite selbst nur mit Admin-Schlüssel', { tag: '@USR-07' }, async ({ page, worker }) => {
+  test('Einstellungen: Benutzer-Abschnitt für Admin führt zur Seite, Seite selbst nur mit Admin-Schlüssel', { tag: '@USR-07' }, async ({ page, worker }) => {
     void worker;
     await page.goto('/');
-    await expect(NAV(page, msg('nav.users'))).toBeVisible();
-    await NAV(page, msg('nav.users')).click();
+    await expect(NAV(page, msg('nav.users'))).toHaveCount(0); // nicht in der Kopfzeile
+    await openSettingsWindow(page);
+    await page.getByTestId('settings-nav-users').click();
+    await page.getByTestId('settings-users-link').click();
     await expect(page).toHaveURL('/users');
+    await expect(page.getByTestId('settings-dialog')).toBeHidden(); // der Link schließt das Fenster; dessen Titel ist auch eine Überschrift
     await expect(page.getByRole('heading', { name: msg('users.title') })).toBeVisible();
   });
 });

@@ -13,7 +13,7 @@ for (const appLocale of ['tr', 'en', 'de'] as AppLocale[]) {
         // Unter lg stehen die Seitenlinks im ☰-Menü (UI-01), ab lg in der Kopfzeile
         const narrow = width < 1024;
         const linkArea = narrow ? await openPageMenu(page) : nav;
-        await expect(linkArea.getByRole('link', { name: msg('nav.users', undefined, appLocale), exact: true })).toBeVisible();
+        await expect(linkArea.getByRole('link', { name: msg('nav.backtest', undefined, appLocale), exact: true })).toBeVisible();
         for (const link of await linkArea.locator('a').all()) {
           await expect(link.locator('span').last()).toBeVisible();
         }
@@ -57,7 +57,7 @@ for (const appLocale of ['tr', 'en', 'de'] as AppLocale[]) {
         expect(workspace.y).toBe(narrow ? 0 : 56);
         expect(workspace.height).toBe(narrow ? 900 : 844);
         const linkArea = narrow ? await openPageMenu(page) : nav;
-        await expect(linkArea.getByRole('link', { name: msg('nav.users', undefined, appLocale), exact: true })).toBeVisible();
+        await expect(linkArea.getByRole('link', { name: msg('nav.backtest', undefined, appLocale), exact: true })).toBeVisible();
         for (const link of await linkArea.locator('a').all()) {
           await expect(link.locator('span').last()).toBeVisible();
         }
