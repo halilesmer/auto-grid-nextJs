@@ -14,4 +14,6 @@ import { expect } from './test';
 export async function chartReady(page: Page) {
   await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-bars', /^[1-9]\d*$/);
   await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+  // The attribute comes with the React commit; the chart draws the new scale in the next frame. Two frames later it is on screen.
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
 }

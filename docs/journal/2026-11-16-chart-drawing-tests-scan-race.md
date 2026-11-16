@@ -45,7 +45,7 @@ The time of the search depends on the speed of the machine and of the app. This 
 
 | File | Change |
 |---|---|
-| `frontend_nextjs/e2e/fixtures/chart-ready.ts` | New. `chartReady(page)` waits for `data-bars` on the chart and for `data-scan-ms` on the chart page. |
+| `frontend_nextjs/e2e/fixtures/chart-ready.ts` | New. `chartReady(page)` waits for `data-bars` on the chart, for `data-scan-ms` on the chart page, and then for 2 animation frames (the chart draws the new scale in the next frame). |
 | `chart-drawing-menu.spec.ts`, `chart-fib-unsaved.spec.ts`, `chart-fib-settings.spec.ts`, `chart-fib-text-opacity.spec.ts`, `chart-floating-bar.spec.ts` | `drawFib` calls `chartReady(page)` before it selects the tool. |
 | `chart-fib-unsaved.spec.ts`, `chart-floating-bar.spec.ts` | `chartReady(page)` after `page.reload()` and before the next click on the drawing. In `chart-floating-bar.spec.ts` it replaces a wait of 1500 ms. |
 | `chart-fib-hit.spec.ts` | `chartReady(page)` replaces the wait for `data-bars` only. |
@@ -62,10 +62,14 @@ The app did not change. See the open point about the view.
 
 | Check | Result |
 |---|---|
-| The 6 changed spec files, 6 repeats, under the heavy lock, load average 6 to 13 | 174 of 174 passed |
 | UI-28 before the change, same Mac | 3 of 9 failed |
+| The 6 changed spec files, 6 repeats, under the heavy lock, load average 6 to 13 (without the 2 frames) | 174 of 174 passed |
+| The 6 changed spec files, 4 repeats, load average 17 to 30 (with the 2 frames) | 116 of 116 passed |
 | `npx tsc --noEmit`, `npx eslint` on the changed files | no output |
-| CI on `main` after the merge | not verified at the time of this entry |
+| `scripts/features/precheck.sh` | FEHLER. Catalog, worker, lint and tsc were ok. e2e: 3789 of 3799 passed in 55.7 min (usual: 15 min). The 10 failures were timeouts of 30 s in 5 files that the branch did not change (`formation-prefs-draft-lib`, `spread-guard`, `system`, `test-scripts-lib`, `tools-grid-risk`). The load average was 158 at the end of the run. |
+| The same 5 files alone, under the heavy lock, load average 32 to 40 | 34 of 34 passed |
+| The last `tests.yml` run on `main` for these 5 files (RULES §4.17) | green (they are not in "Frontend e2e (1/4)", the only job that failed) |
+| CI of the PR and on `main` after the merge | not verified at the time of this entry |
 
 ## Open points
 - [ ] The view changes when the formation search finishes. A user who draws in the first seconds sees the chart move, and the second point goes to the new view. Measured in the temporary test: the pixel rows that hit the drawing changed from 212–426 to 177–454 at the same x. The selection state of the drawing was different in the 2 measurements, so the size is approximate. The cause in the code is not known (`ChartCore.tsx`: scale margins, `autoscaleInfoProvider`, `focus`). The owner decides if this is a defect.
@@ -73,6 +77,7 @@ The app did not change. See the open point about the view.
 - [ ] `chart-toolbar.spec.ts`, `chart-indicator-menu.spec.ts`, `chart-workspace.spec.ts`, `chart-trend-menu.spec.ts` and `chart-floating-bar-templates.spec.ts` also use pointer gestures on the chart. They did not change: no failure was measured, and some of them wait for the search.
 - [ ] `main` was red from 2026-11-15 23:31 UTC to the second attempt at 2026-11-16 06:32 UTC. No session saw it: after the merge of a PR no session looks at the run on `main`.
 - [ ] Local `precheck.sh` runs Playwright without a retry. CI uses 1 retry. A flaky test fails the local run and passes in CI.
+- [ ] The Mac was slow on 2026-11-16: the e2e step of `precheck.sh` took 55.7 min. Seen, not measured as a cause: `mobileassetd` used 85 % of one core for 11 hours, and Spotlight indexes the volume of the worktrees.
 
 ## Lessons
 A red test on the chart is not always a slow machine. Find the event that changes the picture, and wait for it. When a precheck fails in a test that the branch did not change, read the last run on `main` first.
