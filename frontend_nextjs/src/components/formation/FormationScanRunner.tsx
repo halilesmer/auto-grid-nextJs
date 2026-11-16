@@ -23,6 +23,7 @@ import { brokerNow, brokerToday, DAY_SEC, dayStart } from '@/lib/serverTime';
 import { useAccountStore } from '@/store/useAccountStore';
 import { ANALYSIS_PREFS_KEY, useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 import { useFavoritesScanStore, type ScanGap } from '@/store/useFavoritesScanStore';
+import { useUserPrefsStore } from '@/store/useUserPrefsStore';
 
 const LOCK_NAME = 'grid-favorites-scan';
 const CHANNEL_NAME = 'grid-favorites-scan';
@@ -281,7 +282,10 @@ export default function FormationScanRunner() {
   // Die Trend-Einstellungen ändern Linie und Treffer: ein Wechsel startet die Suche neu (Dependency des Laufs unten)
   const trendKey = useAnalysisPrefsStore((s) => trendFingerprint(s.trend));
   const searchedTrend = useRef<string | null>(null);
-  const active = accountId !== null && favorites.ready && !clock.loading;
+  // Kişisel tercihler (/me/prefs) okunmadan alarm anahtarı boş: tarama önce başlarsa tercihler gelince durur ve dört zaman dilimini
+  // baştan ister (1116-A35, FRM-30). Okuma bir kez bittiyse (düşse ya da eski worker 404 verse de) beklenmez.
+  const prefsSettled = useUserPrefsStore((s) => s.settled);
+  const active = accountId !== null && favorites.ready && !clock.loading && prefsSettled;
 
   useEffect(() => {
     const store = useFavoritesScanStore.getState();
