@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { DEMO_ID, LIVE_ID, makeZone, test, expect } from '../fixtures/test';
+import { chartReady } from '../fixtures/chart-ready';
 import { msg } from '../fixtures/i18n';
 import { openDrawings } from '../fixtures/chart-dialog';
 
@@ -213,6 +214,7 @@ test('Einzelne Objektsperren überleben die globale Sperre; ausgewählte Löschu
 test('Mehrere ausgewählte Zeichnungen bleiben bis zur Löschbestätigung vorgemerkt', { tag: '@ANA-17' }, async ({ page, worker }) => {
   void worker;
   await page.goto(URL);
+  await chartReady(page); // the test clicks the drawn lines at fixed pixels later (journal 2026-11-16-chart-drawing-tests-scan-race)
   await page.getByRole('button', { name: msg('cw.magnet'), exact: true }).click();
   await drawLine(page, 60);
   await drawLine(page, 110);

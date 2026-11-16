@@ -51,10 +51,7 @@ async function select(page: Page, at: Drawn) {
   }).toPass({ timeout: 30_000 });
   await expect(bar(page)).toBeVisible();
 }
-async function ready(page: Page) {
-  await page.getByTestId('analysis-chart').waitFor();
-  await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
-}
+const ready = (page: Page) => chartReady(page);
 
 test('UI-29: Trendlinien-Vorlage speichern, auf neue Linie anwenden, nach dem Neuladen noch da, löschen', { tag: '@UI-29' }, async ({ page, worker }) => {
   void worker;
