@@ -23,7 +23,7 @@ import type { Appearance, Section } from '@/lib/chart-workspace/settings';
 import { OPEN_SETTINGS_EVENT } from '@/lib/chart-workspace/settingsRequest';
 import { useShallow } from 'zustand/react/shallow';
 import { applyAppearance, appearanceColors, enableVerticalPan, IndicatorRenderer, resetPriceScale, type ChartBinding, type SystemPaneInput, type SystemPaneModel, type SystemSeriesRefs } from './runtime';
-import { composeStandard, isStandardKind, sameStandard, splitStandard, standardOf } from '@/lib/chart-workspace/oscStandard';
+import { composeStandard, isStandardKind, sameStandard, splitStandard, standardIndicators, standardOf } from '@/lib/chart-workspace/oscStandard';
 import { isSystemPane, orderPanes, presentPanes, SYSTEM_PANE_IDS, type SystemPaneId } from '@/lib/chart-workspace/paneOrder';
 import { applySystemLayer } from './systemLayers';
 import { Choice, ColorField, fieldClass, Numeric, SettingsDialog, Toggle } from './SettingsDialog';
@@ -175,9 +175,13 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   // USR-17: in the standard mode (default) the RSI/EWO part, the pane order and the pane heights come from the user's standard; the product's own records stay untouched and are ignored
   const standardOn = state.oscScope === 'standard' && !!context.systemRsi;
   const standardFallback = useMemo(() => defaults.indicators.filter(isStandardKind), [defaults]);
-  const stored = useMemo(() => standardOn ? composeStandard(rawStored, state.oscStandard, standardFallback) : rawStored, [standardOn, rawStored, state.oscStandard, standardFallback]);
+  // ANA-27: the indicator list keeps its identity while only other parts of the document change (the visible range on every pan);
+  // a new list makes the chart compute every indicator again over all bars
+  const standardList = useMemo(() => standardOn ? standardIndicators(rawStored.indicators, state.oscStandard, standardFallback) : null, [standardOn, rawStored.indicators, state.oscStandard, standardFallback]);
+  const stored = useMemo(() => standardList ? composeStandard(rawStored, state.oscStandard, standardFallback, standardList) : rawStored, [standardList, rawStored, state.oscStandard, standardFallback]);
   // A saved document without the system RSI (older version) gets it at the start; it cannot be deleted, only switched off as a layer
-  const ownDocument = useMemo(() => context.systemRsi && !stored.indicators.some(isSystemRsi) ? { ...stored, indicators: [systemRsiIndicator(), ...stored.indicators] } : stored, [context.systemRsi, stored]);
+  const ownIndicators = useMemo(() => context.systemRsi && !stored.indicators.some(isSystemRsi) ? [systemRsiIndicator(), ...stored.indicators] : stored.indicators, [context.systemRsi, stored.indicators]);
+  const ownDocument = useMemo(() => ownIndicators === stored.indicators ? stored : { ...stored, indicators: ownIndicators }, [ownIndicators, stored]);
   const appearance = useChartWorkspaceStore(useShallow(s => s.preview ?? s.appearance));
   const magnet = appearance.magnet as MagnetMode, keepDrawing = appearance.keepDrawing;
   const sharedDocument = state.documents[drawingKey];
