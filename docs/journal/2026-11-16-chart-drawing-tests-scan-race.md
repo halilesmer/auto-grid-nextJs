@@ -51,6 +51,7 @@ The time of the search depends on the speed of the machine and of the app. This 
 | `chart-fib-hit.spec.ts` | `chartReady(page)` replaces the wait for `data-bars` only. |
 | `.claude/rules/tests.md`, `hooks/RULES.md` §4.17 | New rules (the owner asked for them on 2026-11-16). |
 | `ChartCore.tsx`, `drawingBusy.tsx` (1116-B1) | The widening of the price axis waits while a drawing tool is active or the main button is pressed on the chart, then the last value applies. A right click does not count and a context menu, `pointercancel`, a move without a held button and window `blur` end a press. |
+| `chart-floating-bar-templates.spec.ts` (1116-B1) | `chartReady(page)` after `page.reload()` in the test of the old Fibonacci templates (UI-29, line 100). It failed 2 times in the CI of PR 579 (first try and retry): the drawing is set at fixed pixels, and now the axis change comes after the tool ends. 12 of 12 passed after the change (2 tests, 6 repeats). |
 | `chart-scan-scale-tool.spec.ts` (1116-B1) | New, ANA-17. Red before the fix, green after (see Verification). |
 
 ## Why
