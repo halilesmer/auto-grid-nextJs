@@ -71,10 +71,14 @@ All runs on the Mac under the heavy lock (SYS-11), mocked e2e, 3 Playwright work
 | Final code: `chart-scan-scale-tool`, `chart-latest-bar`, `chart-price-scale`, `settings-osc-scope`, `chart-older-heavy`, `formation-page`, `analysis-chart`, `chart-one-chart`, `chart-page` (1 time each) | 216 of 216 passed |
 | `scripts/features/run.sh ANA-19` | e2e 22 passed; `results.json` updated. The render of `FEATURES.md` failed on a defect from PR 578 (an item of FRM-39 `pruefung` had `: ` and YAML read it as a map); the item now has `–`, then `run.sh render` and `run.sh check` passed |
 | `npx tsc --noEmit`, `npx eslint` on the changed files | no output |
+| `scripts/features/precheck.sh` (commit `82102b3e`) | PRECHECK OK in 1715s (Sperre 0s gewartet) · katalog ok (0s) worker ok (152s) lint ok (19s) tsc ok (2s) e2e ok (1542s) · e2e ran=3838 passed=3835 failed=0 flaky=3 skipped=0. Flaky: UI-26 `chart-latest-bar.spec.ts:7`, ANA-20 `chart-workspace.spec.ts:526`, `formation-prefs-draft-lib.spec.ts:8` |
+| UI-26 `chart-latest-bar.spec.ts:7` on `main` | failed on the first try and passed on the retry in run 43910686873 (`0979a7f5`, before this change): flaky on `main` too |
+| ANA-20 `:526`, 4 alternating arms of 10 runs (code of `main`, fix, code of `main`, fix), same session, load average 9.9 to 26.7 | code of `main`: 4 of 20 failed; fix: 2 of 20 failed. All failures: timeout of 90 s while the test waits for an item of an indicator menu. The flaky test is not caused by this change; it depends on the load |
 
 ## Open points
 - [ ] PR merged and the run on `main` is green.
 - [ ] ANA-27 `:805` and `:815` (M1) failed 1 time each in the same repeat of the 10-times run, each with 1 candle more than the test expected; alone they passed 20 of 20, and on `main` CI they pass on the first try. Inference, not measured: a new M1 candle at a minute boundary (the test expects ±1 only at the first load). The changed code is not on this path: on M1 there is no running candle of the search, and the test sends no live price, so `writeLastBar` does not run.
+- [ ] ANA-20 `chart-workspace.spec.ts:526` (indicator menu) fails under load on the Mac with the code of `main` too (4 of 20 at load average 10 to 27; 0 of 20 at 3 to 9). On `main` CI it passes on the first try. The item of the menu does not come after the click on the menu button. Cause not examined.
 - [ ] Not verified by a test: the `viewFixPending` guard (finding 1116-A28.1.1 of the review, from the code). Two attempts to get a page of older candles while the view shows all candles (H1, range "all", 5000 candles, 1600 px) did not send the request for the page: (a) zoom out with the wheel, the library did not change an "all" view; (b) a click on the chart, then the running candle (0 of 3 runs). The cause was not examined. The scenario is an inference from the code.
 
 ## Lessons
