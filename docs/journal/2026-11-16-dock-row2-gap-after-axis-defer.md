@@ -3,7 +3,7 @@ date: 2026-11-16
 author: Claude
 type: fix
 status: open
-pr: []
+pr: [581]
 features: [UI-17]
 areas: [tests, frontend]
 ---
