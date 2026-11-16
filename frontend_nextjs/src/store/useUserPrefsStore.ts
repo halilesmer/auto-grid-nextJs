@@ -304,8 +304,12 @@ export const useUserPrefsStore = create<UserPrefsState>()(() => ({
     if (loaded) {
       // Önce `ready`: değerler uygulanırken başlayan göç (yerel renkler) `change()` ile yazabilsin
       useUserPrefsStore.setState({ loadState: 'ready' });
-      applyLoaded(loaded, loadedUserId);
-      finishLoad();
+      try {
+        applyLoaded(loaded, loadedUserId);
+      } finally {
+        // Bir değer uygulanamasa da okuma bitti: `settled` beklenen taramayı bırakır
+        finishLoad();
+      }
       return;
     }
     // Denemeler tükendi: önbellekteki değerler görünür kalır, alanlar kilitli; „Tekrar dene“ yeniden okur

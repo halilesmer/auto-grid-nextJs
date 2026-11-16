@@ -1405,6 +1405,32 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     expect(favoriteCalls()).toBe(4);
   });
 
+  test('Ein alter Worker ohne /me/prefs (404): der Alarm sucht die Favoriten einmal (1116-A35)', { tag: '@FRM-30' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    worker.overrides.set('GET /api/me/prefs', { status: 404, body: { detail: 'Not Found' } });
+    serveFixture(worker, NOW);
+    await seed(page, { favoritesEnabled: [DEMO_ID] });
+    const favoriteCalls = () => worker.callsTo('GET', /\/market\/.*\/rates$/).filter((c) => c.query.get('symbol') === 'EURUSD').length;
+    await page.goto(`${ALARM_URL}&symbol=XAUUSD`);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/, { timeout: 15_000 });
+    expect(favoriteCalls()).toBe(4);
+  });
+
+  test('Startet das Lesen der persönlichen Einstellungen nie (/auth/me scheitert), sucht der Alarm die Favoriten nach der Wartezeit (1116-A35)', { tag: '@FRM-30' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    worker.overrides.set('GET /api/auth/me', { status: 500, body: { detail: 'boom' } });
+    serveFixture(worker, NOW);
+    await seed(page, { favoritesEnabled: [DEMO_ID] });
+    const favoriteCalls = () => worker.callsTo('GET', /\/market\/.*\/rates$/).filter((c) => c.query.get('symbol') === 'EURUSD').length;
+    await page.clock.install();
+    await page.goto(`${ALARM_URL}&symbol=XAUUSD`);
+    await expect(page.getByTestId('chart-workspace')).toBeVisible();
+    expect(worker.callsTo('GET', '/api/me/prefs')).toHaveLength(0);
+    // Die Wartezeit der Suche auf das erste Lesen (PREFS_WAIT_MS, 15 s)
+    await page.clock.runFor(16_000);
+    await expect.poll(favoriteCalls, { timeout: 15_000 }).toBe(4);
+  });
+
   test('Ein entferntes Alarm-Produkt wird bei der nächsten Kerze nicht mehr geladen (1116-A35)', { tag: '@FRM-30' }, async ({ page, worker }) => {
     // Zwei Glocken-Produkte ohne Favorit; die Suche lädt sie in dieser Reihenfolge (sortiert), also EURUSD vor GBPUSD
     serveFixture(worker, NOW);
@@ -1420,7 +1446,7 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     const since = () => worker.callsTo('GET', /\/market\/.*\/rates$/).slice(before).map((c) => c.query.get('symbol'));
     await nextSlot(page, worker);
     // GBPUSD kommt in einem Durchlauf nach EURUSD: ist GBPUSD geladen, wäre ein Abruf von EURUSD schon da
-    await expect.poll(() => since().includes('GBPUSD')).toBe(true);
+    await expect.poll(() => since().includes('GBPUSD'), { timeout: 15_000 }).toBe(true);
     expect(since()).not.toContain('EURUSD');
   });
 
