@@ -131,7 +131,7 @@ All on the Mac under the heavy lock, mocked e2e, own `next start` with `E2E_REUS
 - [ ] FRM-30: fix in `FormationScanRunner.tsx` (the search starts again when the personal prefs come). Waits for the decision of the owner; red test first (a copy of the test with a slow `GET /me/prefs`).
 - [ ] ANA-20: find which element of the legend row changes its width between the press and the release, then decide on a stable position of the buttons (visible UI, design first).
 - [ ] ANA-27 finding: after the first older page, the chart requests a second page at once when the last input is less than 1.5 s old (the check inside `candles.setData()` reads `barsBefore` from the old bars). The application is not changed.
-- [ ] UI-26: the same end-position defect can be in other calls of an animated scroll (`scrollToPosition(…, true)`, `scrollToRealTime()`) in the app. Not examined.
+- [x] UI-26: the same end-position defect can be in other calls of an animated scroll. Examined (`git grep` in `frontend_nextjs/src` and `e2e`): `scrollToRealTime`, `scrollToPosition` and `scrollPosition(` occur only in `LatestBarButton.tsx`.
 
 ## Lessons
 A failed click on a legend or menu button is not always a slow page. Log the targets of `pointerdown` and `pointerup`: when they differ, the element moved during the click.
