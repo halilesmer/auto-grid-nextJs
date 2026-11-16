@@ -11,6 +11,7 @@ import { groupZones, makeZone } from '../fixtures/data';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, ZONE_ID, expect, test, type MockWorker } from '../fixtures/test';
 import { fixtureTrend, named, seedFixtureTrend } from '../fixtures/formation-trend';
+import { zig } from '../fixtures/formation-rows';
 
 // Formationen rechnen auf dem Trendzug des Nutzers (FRM-41); die Fixtures zeigen ihre Formation mit FIXTURE_TREND
 test.beforeEach(({ page }) => seedFixtureTrend(page));
@@ -429,6 +430,18 @@ const openCLeg = async (page: Page, worker: MockWorker, o: { file: string; now: 
   await seedFixtureTrend(page, fixtureTrend(o.file), true);
   await openPage(page, worker, o.file, o.now, 'ABCD', undefined, { D1: d1Of(o.file, o.now), ...(h1 ? { H1: h1 } : {}) });
 };
+// Saatlik küçük AB=CD (sentetik): B'den başlayan düz dolgu, sonra a 1,3373 (tepe), b 1,3313, c 1,3343 (derinlik 0,5), d 1,3273 (seviye 1 = 1,3283);
+// d, C mumunun ilk saatinde (C + 1 saat) biter. Ölçek: fiyat = 1,3273 + (x − 79) · 0,00015.
+const smallAbcdH1 = (): number[][] => {
+  const B = 1784145600;
+  const price = (x: number) => 1.3273 + (x - 79) * 0.00015;
+  const z = zig([140, 100, 120, 79], 16, 3);
+  const start = BREAKC.c.time + 3600 - (z.length - 4) * 3600;
+  const rows: number[][] = [];
+  for (let ts = B; ts < start; ts += 3600) rows.push([ts, price(137.8), price(137.8) + 0.00002, price(137.8) - 0.00002, price(137.8)]);
+  z.forEach(([o, h, l, c], i) => rows.push([start + i * 3600, price(o), price(h), price(l), price(c)]));
+  return rows;
+};
 // bat-sell-h4-01: Alış-AB=CD (satış C ayağı), C'de güçlü fraktal bölgesi (kart 9)
 const ZONE_CASE = { file: 'bat-sell-h4-01', now: 1762401600 };
 
@@ -472,6 +485,20 @@ test.describe('FRM-39 Handelsblock AB=CD (C ayağı)', () => {
     await expect(cl).toContainText(msg('formation.trade.cleg.entry.candle'));
     await expect(cl).toContainText(msg('formation.trade.cleg.stop.candle.buy'));
     for (const f of ['entry', 'stop', 'target', 'crv']) await expect(cl.getByTestId(`trade-cleg-${f}`)).not.toHaveText(/^\s*—\s*$/);
+  });
+
+  test('Alt zaman diliminde AB=CD karşılanınca satır yeşil ve sağda zaman diliminin adı görünür; zorunlu satırlar ve değerler bundan etkilenmez', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openCLeg(page, worker, BREAKC, smallAbcdH1());
+    const cl = page.getByTestId('trade-block').getByTestId('trade-cleg');
+    await expect(cl).toBeVisible();
+    const row = cl.getByTestId('trade-cleg-row-lowerAbcd');
+    await expect(row).toHaveAttribute('data-state', 'met');
+    await expect(cl.getByTestId('trade-cleg-value-lowerAbcd')).toHaveText(msg('formation.trade.cleg.tf.H1'));
+    // takviye grubunda sayılır; zorunlu grup sayısı değişmez (mum satırı zorunlu ve karşılanmamış)
+    await expect(cl.getByTestId('trade-cleg-group-bonus')).toHaveAttribute('data-count', '1/2');
+    // bölge ve dönüş mumu yok: değerler yine yok, bekleme satırı durur
+    await expect(cl.getByTestId('trade-cleg-waiting')).toHaveText(msg('formation.trade.cleg.waiting'));
+    await expect(cl.getByTestId('trade-cleg-entry')).toHaveCount(0);
   });
 
   test('Bekleme satırı: bölge yok, mum yok → değer yok, “C ayağı bekleniyor” satırı', { tag: '@FRM-39' }, async ({ page, worker }) => {

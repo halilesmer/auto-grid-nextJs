@@ -6,7 +6,9 @@
  */
 import { expect, test } from '@playwright/test';
 import { shapeOf } from '../../src/lib/formation/abcd';
-import { cLegOf, type CLegFractalZone, type LowerCandle } from '../../src/lib/formation/cLeg';
+import { cLegOf, lowerAbcdAt, type CLegFractalZone, type LowerAbcd, type LowerCandle } from '../../src/lib/formation/cLeg';
+import type { Env } from '../../src/lib/formation/reasons';
+import type { Pivot } from '../../src/lib/formation/trd';
 import type { EngulfZone } from '../../src/lib/formation/sig';
 import type { CheckState, CLeg, CLegRow, FormationBar, Side } from '../../src/lib/formation/types';
 
@@ -38,6 +40,7 @@ interface Over {
   early?: boolean;
   /** C yerine bu fiyat (alış AB=CD'si aynasında 200 − p değil, doğrudan satış tabanlı p) */
   cLow?: number;
+  lower?: LowerAbcd;
 }
 
 function run(abSide: Side, over: Over = {}): { cl: CLeg | null; m: (p: number) => number } {
@@ -73,6 +76,7 @@ function run(abSide: Side, over: Over = {}): { cl: CLeg | null; m: (p: number) =
     engulfZones,
     zones,
     candle,
+    ...(over.lower ? { lowerAbcd: over.lower } : {}),
     atr: 2,
   });
   return { cl, m };
@@ -206,5 +210,132 @@ for (const abSide of ['sell', 'buy'] as const) {
     // geniş bölge 110–115 (uzak kenar 110) ve dar bölge 113–115 (uzak kenar 113): dar olan önce
     const both = need(run(abSide, { engulf: [{ rect: { bottom: 110, top: 115 } }, {}] }).cl);
     expect(both.stop).toBeCloseTo(abSide === 'sell' ? 113 : 87, 9);
+  });
+}
+
+/**
+ * Alt zaman diliminde AB=CD (2026-11-16): büyük (4 saatlik) mumlar run() ile aynı: B (idx 2) T0+2·STEP, C (idx 4) T0+4·STEP.
+ * Alt zaman dilimi (1 saatlik) mumları B'den bir mum önce başlar; mum i'nin zamanı LT0 + i·3600. C mumunun aralığı 1 saatlik idx 9..12.
+ * Satış AB=CD'sinin B→C düzeltmesi (130 → 114) içinde küçük AB=CD: a 128 (tepe), b 120 (dip), c 124 (tepe, derinlik 0,5), seviye 1 = 116, d 115,5.
+ * Alış AB=CD'si aynalanır (p → 200 − p, tepe ↔ dip).
+ */
+const H = 3600;
+const LT0 = T0 + 2 * STEP - H;
+type Pv = { idx: number; top: boolean; price: number };
+const SMALL: Pv[] = [
+  { idx: 2, top: true, price: 128 },
+  { idx: 4, top: false, price: 120 },
+  { idx: 7, top: true, price: 124 },
+  { idx: 10, top: false, price: 115.5 },
+];
+
+function lowerEnv(abSide: Side, pv: Pv[], o: { loaded?: boolean; start?: number; bars?: number; noPivots?: boolean } = {}): { env: Env; s: ReturnType<typeof shapeOf> } {
+  const sell = abSide === 'sell';
+  const m = (p: number) => (sell ? p : 200 - p);
+  const big: FormationBar[] = BASE.concat([AFTER]).map(([h, l, c], i) => {
+    const [hh, ll] = sell ? [h, l] : [m(l), m(h)];
+    return { time: T0 + i * STEP, open: m(c), high: hh, low: ll, close: m(c) };
+  });
+  const s = shapeOf(big, { a: { idx: 1, price: m(100) }, b: { idx: 2, price: m(130) }, c: { idx: 4, price: m(114) } });
+  const t0 = o.start ?? LT0;
+  const low: FormationBar[] = Array.from({ length: o.bars ?? 16 }, (_, i) => ({ time: t0 + i * H, open: m(120), high: m(121), low: m(119), close: m(120) }));
+  const pivots = pv.map((p): Pivot => ({ idx: p.idx, doneAt: p.idx + 2, side: p.top === sell ? 'resistance' : 'support', price: m(p.price), kind: 'correction', len: 1 }));
+  const views = new Map<string, unknown>([['H4', { bars: big }]]);
+  if (o.loaded !== false) views.set('H1', { bars: low });
+  const trends = new Map<string, unknown>();
+  if (o.loaded !== false) trends.set('H1', { bars: low, pivots: o.noPivots ? [] : pivots });
+  return { env: { views, trends } as unknown as Env, s };
+}
+
+for (const abSide of ['sell', 'buy'] as const) {
+  const tag = abSide === 'sell' ? 'Satış AB=CD' : 'Alış AB=CD';
+  const lowerOf = (pv: Pv[], o?: Parameters<typeof lowerEnv>[2]) => {
+    const { env, s } = lowerEnv(abSide, pv, o);
+    return lowerAbcdAt(env, 'H4', s);
+  };
+  const withD = (d: Partial<Pv>, c?: Partial<Pv>): Pv[] => SMALL.map((p, i) => ({ ...p, ...(i === 3 ? d : {}), ...(i === 2 ? c : {}) }));
+
+  frm(`Alt AB=CD (${tag}): dört şart tamam → karşılandı, değer alt zaman diliminin adı`, () => {
+    expect(lowerOf(SMALL)).toEqual({ state: 'met', tf: 'H1' });
+    // aralık sonrası ek dönüş noktası ve önceki dönüş noktaları sonucu değiştirmez
+    const extra: Pv[] = [{ idx: 0, top: false, price: 131 }, ...SMALL, { idx: 14, top: true, price: 125 }];
+    expect(lowerOf(extra)).toEqual({ state: 'met', tf: 'H1' });
+  });
+
+  frm(`Alt AB=CD (${tag}): küçük a tam B mumunun açılışında → karşılandı`, () => {
+    const pv: Pv[] = [{ idx: 1, top: true, price: 128 }, ...SMALL.slice(1)];
+    expect(lowerOf(pv).state).toBe('met');
+  });
+
+  frm(`Alt AB=CD (${tag}): düzeltme tek bacak, ara dönüş yok → karşılanmadı`, () => {
+    const pv: Pv[] = [{ idx: 0, top: true, price: 131 }, { idx: 10, top: false, price: 115.5 }];
+    expect(lowerOf(pv).state).toBe('unmet');
+    expect(lowerOf([SMALL[0], SMALL[1], SMALL[3]]).state).toBe('unmet');
+  });
+
+  frm(`Alt AB=CD (${tag}): küçük d seviye 1'e ulaşmadı → karşılanmadı`, () => {
+    expect(lowerOf(withD({ price: 118 })).state).toBe('unmet');
+    // tolerans içinde (AB'nin %5'i = 0,4): 116,3 sayılır, 116,5 sayılmaz
+    expect(lowerOf(withD({ price: 116.3 })).state).toBe('met');
+    expect(lowerOf(withD({ price: 116.5 })).state).toBe('unmet');
+  });
+
+  frm(`Alt AB=CD (${tag}): küçük c 0,382'den sığ → karşılanmadı`, () => {
+    // c 122: derinlik 0,25; seviye 1 = 114, d 113,5 ulaşır
+    expect(lowerOf(withD({ price: 113.5 }, { price: 122 })).state).toBe('unmet');
+    // c 123,1: derinlik 0,3875 ≥ 0,382 → sınırın üstü karşılanır (seviye 1 = 115,1)
+    expect(lowerOf(withD({ price: 115 }, { price: 123.1 })).state).toBe('met');
+  });
+
+  frm(`Alt AB=CD (${tag}): küçük c üst sınırı aşıyor → karşılanmadı`, () => {
+    // c 127: derinlik 0,875 > 0,728; seviye 1 = 119, d 118 ulaşır
+    expect(lowerOf(withD({ price: 118 }, { price: 127 })).state).toBe('unmet');
+  });
+
+  frm(`Alt AB=CD (${tag}): küçük a büyük B'den önce → karşılanmadı`, () => {
+    const pv: Pv[] = [{ idx: 0, top: true, price: 128 }, ...SMALL.slice(1)];
+    expect(lowerOf(pv).state).toBe('unmet');
+  });
+
+  frm(`Alt AB=CD (${tag}): küçük d büyük C mumunun aralığı dışında → karşılanmadı`, () => {
+    // 1 saatlik idx 9 = C açılışı (içeride), idx 8 = bir mum önce, idx 13 = C mumunun bitişi (dışarıda)
+    expect(lowerOf(withD({ idx: 9 })).state).toBe('met');
+    expect(lowerOf(withD({ idx: 12 })).state).toBe('met');
+    expect(lowerOf(withD({ idx: 8 })).state).toBe('unmet');
+    expect(lowerOf(withD({ idx: 13 })).state).toBe('unmet');
+  });
+
+  frm(`Alt AB=CD (${tag}): yön sırası yanlışsa karşılanmadı`, () => {
+    const flipped = SMALL.map((p) => ({ ...p, top: !p.top }));
+    expect(lowerOf(flipped).state).toBe('unmet');
+  });
+
+  frm(`Alt AB=CD (${tag}): alt zaman dilimi yüklü değil → ölçülemedi`, () => {
+    expect(lowerOf(SMALL, { loaded: false })).toEqual({ state: 'unmeasurable' });
+  });
+
+  frm(`Alt AB=CD (${tag}): alt zaman diliminde dönüş noktası yok → ölçülemedi`, () => {
+    expect(lowerOf(SMALL, { noPivots: true })).toEqual({ state: 'unmeasurable' });
+  });
+
+  frm(`Alt AB=CD (${tag}): alt zaman dilimi verisi B'ye kadar uzanmıyor → ölçülemedi`, () => {
+    expect(lowerOf(SMALL, { start: LT0 + 2 * H, bars: 14 })).toEqual({ state: 'unmeasurable' });
+    // veri tam B mumunun açılışında başlıyorsa yeter
+    expect(lowerOf(SMALL.map((p) => ({ ...p, idx: p.idx - 1 })), { start: LT0 + H, bars: 15 }).state).toBe('met');
+  });
+
+  frm(`Alt AB=CD (${tag}): satır bonus kalır; giriş, stop, hedef, varyant ve diğer satırlar bağımsız`, () => {
+    const base = need(run(abSide, { engulf: [{}] }).cl);
+    for (const lower of [lowerOf(SMALL), lowerOf(withD({ price: 118 })), lowerOf(SMALL, { loaded: false })]) {
+      const cl = need(run(abSide, { engulf: [{}], lower }).cl);
+      expect(row(cl, 'lowerAbcd')).toMatchObject({ kind: 'bonus', state: lower.state });
+      if (lower.state === 'met') expect(row(cl, 'lowerAbcd').value).toBe('H1');
+      else expect(row(cl, 'lowerAbcd').value).toBeUndefined();
+      expect({ ...cl, rows: cl.rows.filter((r) => r.key !== 'lowerAbcd') }).toEqual({ ...base, rows: base.rows.filter((r) => r.key !== 'lowerAbcd') });
+    }
+    // zorunlu satır eksikken karşılanan satır değer üretmez
+    const none = need(run(abSide, { lower: { state: 'met', tf: 'H1' } }).cl);
+    expect(none.variant).toBeNull();
+    expect(none.entry).toBeNull();
   });
 }

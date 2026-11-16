@@ -6,12 +6,13 @@
  * Sichtbar: kein D-Level erreicht, kein Erken dönüş, und seit C hat keine Kerze jenseits des Stops geschlossen (sonst verbraucht, wie beim Wiedereinstieg).
  * Pflicht: Korrektur mindestens 0,382; Handel in Richtung des höheren Trends (A → B); keine Wave-Divergenz an den B-Hochs (Verkauf-AB=CD; Kauf gespiegelt).
  * Verstärkung: Zone am C (Engulf-Zone oder sehr starke Fraktalzone der C-Bein-Seite, vor der C-Kerze entstanden, vom C berührt); Umkehrkerze in der tieferen
- * Zeiteinheit ist Pflicht, wenn es keine Zone gibt, sonst Verstärkung; „AB=CD in der tieferen Zeiteinheit“ ist Verstärkung und noch nicht messbar.
+ * Zeiteinheit ist Pflicht, wenn es keine Zone gibt, sonst Verstärkung; „AB=CD in der tieferen Zeiteinheit“ ist Verstärkung (`lowerAbcdAt`, nur Form).
  * Werte nur, wenn alle Pflichtzeilen erfüllt sind: mit Zone Einstieg = nahe Kante, Stop = ferne Kante; sonst mit Umkehrkerze Einstieg = Schluss,
  * Stop = Spitze der Kerze; Ziel = Level 1. Der Not-SL kommt vom Aufrufer (ATR). Keine Aufteilung, kein Stand danach.
  */
 import { ABCD_PARAMS, type ContextTimeframe } from './params';
-import type { AbcdShape } from './abcd';
+import { dReached, shapeOf, type AbcdShape } from './abcd';
+import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
 import type { Rect, ZoneSide } from './frz';
 import { neighborTf, touches, type Env } from './reasons';
 import { reversalCandleAt } from './reversal';
@@ -61,6 +62,41 @@ export function lowerCandleAt(env: Env, tf: ContextTimeframe, s: AbcdShape): Low
   return { state: r.state, ...(r.close === undefined ? {} : { close: r.close }), ...(r.tip === undefined ? {} : { tip: r.tip }), ...(r.tf ? { tf: r.tf } : {}) };
 }
 
+/** AB=CD in der tieferen Zeiteinheit (Zustand, bei ☑ die Zeiteinheit) */
+export interface LowerAbcd {
+  state: CheckState;
+  tf?: string;
+}
+
+/**
+ * AB=CD in der tieferen Zeiteinheit (2026-11-16, nur Form): Die B → C-Korrektur des großen AB=CD ist in der nächsttieferen geladenen Zeiteinheit
+ * ein fertiges kleines AB=CD (a, b, c, d; a am großen B, d am großen C). Wendepunkte: die letzten vier der Trend-Wendepunkte der tieferen
+ * Zeiteinheit, die vor dem Ende der C-Kerze liegen (Annahme). Alle vier Bedingungen müssen gelten:
+ * 1. a öffnet am B oder danach; 2. Korrekturtiefe von c wie ABCD-04/06 (`ABCD_PARAMS.minCorrection` bis `maxCorrection`, gleiche `shapeOf`-Rechnung);
+ * 3. d erreicht Level 1 des kleinen AB=CD mit der Toleranz von ABCD-08 (`dReached`); 4. die Kerze von d öffnet in der Zeit der C-Kerze.
+ * Nicht messbar: keine tiefere Zeiteinheit, keine Wendepunkte dort oder Daten beginnen nach der B-Kerze. Keine Zone, kein RSI, keine Divergenz.
+ */
+export function lowerAbcdAt(env: Env, tf: ContextTimeframe, s: AbcdShape): LowerAbcd {
+  const lower = neighborTf(env, tf, 1);
+  const view = lower ? env.views.get(lower) : undefined;
+  const trend = lower ? env.trends.get(lower) : undefined;
+  const base = env.views.get(tf);
+  if (!lower || !view || !trend || !base || trend.pivots.length === 0) return { state: 'unmeasurable' };
+  const bTime = base.bars[s.b.idx].time;
+  const cTime = base.bars[s.c.idx].time;
+  if (view.bars.length === 0 || view.bars[0].time > bTime) return { state: 'unmeasurable' };
+  const timeOf = (idx: number) => trend.bars[idx].time;
+  const upto = trend.pivots.filter((p) => timeOf(p.idx) < cTime + TIMEFRAME_SEC[tf]);
+  if (upto.length < 4) return { state: 'unmet' };
+  const [a, b, c, d] = upto.slice(-4);
+  // a öffnet am B oder danach, d öffnet in der Zeit der C-Kerze (bis zur Obergrenze oben)
+  if (timeOf(a.idx) < bTime || timeOf(d.idx) < cTime) return { state: 'unmet' };
+  if (a.side !== s.es || b.side !== s.cs || c.side !== s.es || d.side !== s.cs) return { state: 'unmet' };
+  const small = shapeOf(trend.bars, { a: { idx: a.idx, price: a.price }, b: { idx: b.idx, price: b.price }, c: { idx: c.idx, price: c.price } }, { idx: d.idx, price: d.price });
+  if (small.depth === null || small.depth < ABCD_PARAMS.minCorrection || small.depth > ABCD_PARAMS.maxCorrection) return { state: 'unmet' };
+  return dReached(small) ? { state: 'met', tf: lower } : { state: 'unmet' };
+}
+
 export function cLegOf(o: {
   bars: readonly FormationBar[];
   s: AbcdShape;
@@ -75,6 +111,8 @@ export function cLegOf(o: {
   engulfZones: readonly EngulfZone[];
   zones: readonly CLegFractalZone[];
   candle: LowerCandle;
+  /** AB=CD in der tieferen Zeiteinheit (`lowerAbcdAt`); ohne Angabe nicht messbar */
+  lowerAbcd?: LowerAbcd;
   atr: number | null;
 }): CLeg | null {
   const { bars, s } = o;
@@ -102,6 +140,7 @@ export function cLegOf(o: {
   const zone = live[0] ?? null;
 
   const candle = o.candle;
+  const lower: LowerAbcd = o.lowerAbcd ?? { state: 'unmeasurable' };
   const candleUsable = !zone && candle.state === 'met' && candle.close !== undefined && candle.tip !== undefined;
   if (candleUsable && consumed(s.c.idx + 1, candle.tip!)) return null;
 
@@ -114,7 +153,7 @@ export function cLegOf(o: {
     { key: 'noDivergence', kind: 'required', state: o.noDivergence },
     { key: 'zone', kind: 'bonus', state: zone ? 'met' : 'unmet', ...(zone ? { value: zone.kind } : {}) },
     { key: 'candle', kind: zone ? 'bonus' : 'required', state: candle.state, ...(candle.state === 'met' && candle.tf ? { value: candle.tf } : {}) },
-    { key: 'lowerAbcd', kind: 'bonus', state: 'unmeasurable' },
+    { key: 'lowerAbcd', kind: 'bonus', state: lower.state, ...(lower.state === 'met' && lower.tf ? { value: lower.tf } : {}) },
   ];
   const ok = rows.every((r) => r.kind !== 'required' || r.state === 'met');
   const none: CLeg = { side, rows, variant: null, entry: null, stop: null, emergencyStop: null, target: null };

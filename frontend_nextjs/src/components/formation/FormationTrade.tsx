@@ -139,7 +139,7 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
   const clRowValue = (key: string, value: number | string | undefined): string | null => {
     if (value === undefined) return null;
     if (typeof value === 'number') return number(value, { minimumFractionDigits: 3, maximumFractionDigits: 3 });
-    if (key === 'candle') return t(`formation.trade.cleg.tf.${value}` as MessageKey);
+    if (key === 'candle' || key === 'lowerAbcd') return t(`formation.trade.cleg.tf.${value}` as MessageKey);
     return t(`formation.trade.cleg.value.${value}` as MessageKey);
   };
   const clRowLabel = (key: string): MessageKey =>
