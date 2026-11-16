@@ -3,7 +3,7 @@ date: 2026-11-16
 author: Claude
 type: feature
 status: done
-pr: []
+pr: [585]
 features: [FRM-05, FRM-39]
 areas: [frontend]
 ---
