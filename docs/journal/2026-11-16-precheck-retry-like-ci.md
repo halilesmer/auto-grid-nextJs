@@ -3,7 +3,7 @@ date: 2026-11-16
 author: Claude
 type: decision
 status: done
-pr: []
+pr: [576]
 features: [SYS-10]
 areas: [tests]
 ---
