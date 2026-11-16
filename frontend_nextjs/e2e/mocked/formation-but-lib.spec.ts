@@ -181,14 +181,14 @@ test.describe('BUT: Abgrenzung, Urteil und Zeichnungen', () => {
 
   frm('Zeichnungen: Z-BUT 01, 02, 03, 04, 06 immer, Z-BUT 05 nur mit erreichtem D', () => {
     const ok = run({ H4: BASE });
-    expect(ok.drawings.map((d) => d.id)).toEqual(['Z-BUT-01', 'Z-BUT-02', 'Z-BUT-03', 'Z-BUT-04', 'Z-BUT-06', 'Z-BUT-05']);
+    expect(ok.drawings.map((d) => d.id)).toEqual(['Z-BUT-01', 'Z-BUT-02', 'Z-BUT-03', 'Z-BUT-04', 'Z-BUT-06', 'Z-BUT-05', 'Z-BUT-07', 'Z-BUT-08']);
     const short = run({ H4: D_SHORT });
     expect(short.drawings.map((d) => d.id)).toEqual(['Z-BUT-01', 'Z-BUT-02', 'Z-BUT-03', 'Z-BUT-04', 'Z-BUT-06']);
     expect(ok.drawings.find((d) => d.id === 'Z-BUT-01')!.levels).toEqual([0.786, 0.886, 1.272]);
     expect(ok.drawings.find((d) => d.id === 'Z-BUT-02')!.levels).toEqual([0.382, 0.618, 0.786, 0.886, -0.618]);
     expect(ok.drawings.find((d) => d.id === 'Z-BUT-03')!.levels).toEqual([2]);
     expect(ok.drawings.find((d) => d.id === 'Z-BUT-04')!.levels).toEqual([1]);
-    expect(ok.drawings.find((d) => d.id === 'Z-BUT-05')!.levels).toEqual([0.382, 0.618, -0.382]);
+    expect(ok.drawings.find((d) => d.id === 'Z-BUT-05')!.levels).toEqual([0.382, 0.618]);
     expect(find(ok, 'BUT-07').drawings).toEqual(['Z-BUT-01', 'Z-BUT-06']);
     expect(find(ok, 'BUT-09').drawings).toEqual(['Z-BUT-03']);
     expect(ok.drawings.every((d) => d.side === 'buy')).toBe(true);

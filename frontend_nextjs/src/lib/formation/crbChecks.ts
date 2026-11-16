@@ -15,7 +15,7 @@ import { outward } from './frz';
 import { levelBC } from './cyp';
 import { dTargetOfCrab, zonesNearOutsideX } from './crb';
 import { CRB_PARAMS, FIB_PARAMS, type ContextTimeframe } from './params';
-import { harmonicTrade, withTrade } from './tradeApply';
+import { frozenStopDrawings, harmonicFreeze, harmonicStop, harmonicTrade, withTrade, type HarmonicFreeze } from './tradeApply';
 import type { Env } from './reasons';
 import { divergenceOf, rsiExtreme } from './sig';
 import { exemptFor, settle } from './settle';
@@ -142,7 +142,9 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape): Candidate {
   add('CRB-16', lowerReversal(env, tf, s));
 
   const stateOf = (id: string) => checks.find((k) => k.id === id)!.state;
-  const drawings = drawingsOf(env, tf, s, reached);
+  // Einstieg wie bisher am äußersten Docht, Stop ab der ersten Berührung des D-Levels eingefroren
+  const freeze = reached ? harmonicFreeze(bars, s, dTarget, 0, false) : null;
+  const drawings = drawingsOf(env, tf, s, reached, freeze);
   const inactiveIds = otherVariantIds(stateOf);
   const withDrawings: Check[] = checks.map((k) => ({
     ...k,
@@ -173,10 +175,10 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape): Candidate {
   };
   if (d) points.D = anchorAt(bars, d.idx, d.price);
   const candidate: Candidate = { code: 'CRB', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
-  return withTrade(candidate, env, tf, harmonicTrade(a, d ?? null, reached, CRB_PARAMS.targets, 'CRB-04'), false);
+  return withTrade(candidate, env, tf, harmonicTrade(a, d ?? null, reached, CRB_PARAMS.targets, 'CRB-04', freeze), false);
 }
 
-function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, reached: boolean): Drawing[] {
+function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, reached: boolean, freeze: HarmonicFreeze | null): Drawing[] {
   const bars = env.views.get(tf)!.bars;
   const { x, a, b, c, d, side } = s;
   const [low, strong, far, deep] = [FIB_PARAMS.retrace[0], FIB_PARAMS.retrace[2], FIB_PARAMS.levels[4], FIB_PARAMS.lastLevel];
@@ -202,7 +204,8 @@ function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, reached: bool
   ];
   if (d && reached) {
     const t = P.targets;
-    out.push({ id: 'Z-CRB-04', tool: 'fib', anchors: [anchorAt(bars, a.idx, a.price), anchorAt(bars, d.idx, d.price)], levels: [t.tp1, t.tp2, -t.stop], rules: TRADE_RULES, side });
+    out.push({ id: 'Z-CRB-04', tool: 'fib', anchors: [anchorAt(bars, a.idx, a.price), anchorAt(bars, d.idx, d.price)], levels: [t.tp1, t.tp2], rules: TRADE_RULES, side });
+    if (freeze) out.push(...frozenStopDrawings(['Z-CRB-06', 'Z-CRB-07'], bars, freeze, harmonicStop(a, freeze, t.stop), side));
   }
   return out;
 }

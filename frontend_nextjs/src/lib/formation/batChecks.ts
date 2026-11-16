@@ -14,7 +14,7 @@ import { nearEdge } from './cdt';
 import { rsiExtreme } from './sig';
 import { exemptFor, settle } from './settle';
 import { ABCD_PARAMS, BAT_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
-import { harmonicTrade, withTrade } from './tradeApply';
+import { frozenStopDrawings, harmonicFreeze, harmonicStop, harmonicTrade, withTrade, type HarmonicFreeze } from './tradeApply';
 import type { Env } from './reasons';
 import {
   analyzeXabcd,
@@ -128,7 +128,9 @@ export function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: num
   add('BAT-16', flag(HARMONIC_PARAMS.excludedTimeframes.includes(tf)));
   add('BAT-17', flag(closedBeyondX(env, tf, s)));
 
-  const drawings = drawingsOf(env, tf, s, dLevel, reached);
+  // Einstieg am D-Level, Stop ab der ersten Berührung eingefroren
+  const freeze = reached ? harmonicFreeze(bars, s, dLevel, HARMONIC_PARAMS.touchPips * pip, true) : null;
+  const drawings = drawingsOf(env, tf, s, dLevel, reached, freeze);
   const withDrawings = checks.map((k) => ({
     ...k,
     drawings: [...new Set(drawings.filter((z) => z.rules.includes(k.id)).map((z) => z.id))],
@@ -153,10 +155,10 @@ export function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: num
   };
   if (d) points.D = anchorAt(bars, d.idx, d.price);
   const candidate: Candidate = { code: 'BAT', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
-  return withTrade(candidate, env, tf, harmonicTrade(a, d ?? null, reached, HARMONIC_PARAMS.targets, 'BAT-07'), false);
+  return withTrade(candidate, env, tf, harmonicTrade(a, d ?? null, reached, HARMONIC_PARAMS.targets, 'BAT-07', freeze), false);
 }
 
-function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, dLevel: number, reached: boolean): Drawing[] {
+function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, dLevel: number, reached: boolean, freeze: HarmonicFreeze | null): Drawing[] {
   const bars = env.views.get(tf)!.bars;
   const lastTime = bars[bars.length - 1].time;
   const { x, a, b, c, d, side, abcd } = s;
@@ -193,10 +195,12 @@ function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, dLevel: numbe
       id: 'Z-BAT-06',
       tool: 'fib',
       anchors: [anchorAt(bars, a.idx, a.price), anchorAt(bars, d.idx, d.price)],
-      levels: [t.tp1, t.tp2, -t.stop],
+      levels: [t.tp1, t.tp2],
       rules: TRADE_RULES,
       side,
     });
+    // Der Stop ist eingefroren und steht als eigene Linie, nicht als Level der mitlaufenden Ziel-Fib
+    if (freeze) out.push(...frozenStopDrawings(['Z-BAT-07', 'Z-BAT-08'], bars, freeze, harmonicStop(a, freeze, t.stop), side));
   }
   return out;
 }

@@ -13,7 +13,12 @@ import { analyzeT618 } from '../../src/lib/formation/t618Checks';
 import { AXIS, ctxOf, lineRows } from '../fixtures/formation-lines';
 import { buildEnv } from '../../src/lib/formation/reasons';
 import { tradeSigChecks } from '../../src/lib/formation/sigChecks';
-import { crvOf, emergencyStopOf, pipSizeOf, tradeMetrics } from '../../src/lib/formation/trade';
+import { crvOf, emergencyStopOf, fibPrice, pipSizeOf, tradeMetrics } from '../../src/lib/formation/trade';
+import { checkGarCandidate } from '../../src/lib/formation/garChecks';
+import { checkBatCandidate } from '../../src/lib/formation/batChecks';
+import { checkButCandidate } from '../../src/lib/formation/butChecks';
+import { checkCrbCandidate } from '../../src/lib/formation/crbChecks';
+import { AT as HARMONIC_AT, harmonic, makeRun } from '../fixtures/formation-harmonic';
 import type { Anchor, Candidate, Trade } from '../../src/lib/formation/types';
 import { END, H4, barsOf, mirror, plain, zig, type Row } from '../fixtures/formation-rows';
 import { FIXTURE_TREND } from '../fixtures/formation-trend';
@@ -179,3 +184,51 @@ t39('pipSizeOf: 10 × Punkt bei 3 oder 5 Nachkommastellen, sonst null', () => {
   expect(pipSizeOf(3)).toBeCloseTo(1e-2, 12);
   for (const d of [0, 1, 2, 4, null]) expect(pipSizeOf(d)).toBeNull();
 });
+
+// ---- Harmoniken: Einstieg am D-Level (GAR, BAT), Stop eingefroren (alle vier) -----------------------------------
+// Das D wandert mit dem äußersten Docht. Nach der Berührung des D-Levels ändert eine weitere Kerze jenseits des Levels
+// weder den Einstieg (GAR, BAT: D-Level) noch den Stop; nur TP1 läuft mit dem neuen Ende der Ziel-Fib.
+
+const H_LEGS = [18, 4, 4, 4];
+const H_AT = { x: 2, a: 20, b: 24, c: 28 };
+const GAR_ROWS = zig([100, 130, 111.46, 122.92, 106.41], H_LEGS, 3);
+const BAT_ROWS = zig([100, 130, 115, 120.8, 103.42], H_LEGS, 3);
+const BUT_ROWS = harmonic([100, 130, 106, 120.16, 91.8]);
+const CRB_ROWS = harmonic([100, 130, 112, 123.68, 81.4]);
+const HARMONIC_AT_NO_D = { x: HARMONIC_AT.x, a: HARMONIC_AT.a, b: HARMONIC_AT.b, c: HARMONIC_AT.c };
+
+/** hängt eine Kerze an, deren Tief `low` unter dem bisherigen D liegt (Kauf) */
+const overshoot = (rows: Row[], low: number): Row[] => {
+  const close = rows[rows.length - 1][3];
+  return [...rows, [close, close + 0.1, low, low + 1]];
+};
+
+const harmonicCases = [
+  { code: 'GAR', check: checkGarCandidate, rows: GAR_ROWS, at: H_AT, low: 104, entryLevel: 111.46 - 0.272 * (130 - 111.46), dEnd: 106.41, entryAtLevel: true },
+  { code: 'BAT', check: checkBatCandidate, rows: BAT_ROWS, at: H_AT, low: 101, entryLevel: 130 + 0.886 * (100 - 130), dEnd: 103.42, entryAtLevel: true },
+  { code: 'BUT', check: checkButCandidate, rows: BUT_ROWS, at: HARMONIC_AT_NO_D, low: 90, entryLevel: 0, dEnd: 91.8, entryAtLevel: false },
+  { code: 'CRB', check: checkCrbCandidate, rows: CRB_ROWS, at: HARMONIC_AT_NO_D, low: 80, entryLevel: 0, dEnd: 81.4, entryAtLevel: false },
+] as const;
+
+for (const hc of harmonicCases) {
+  for (const buy of [true, false]) {
+    t39(`${hc.code} (${buy ? 'Kauf' : 'Verkauf'}): Stop bleibt nach einer Kerze jenseits des D-Levels stehen, TP1 läuft mit${hc.entryAtLevel ? ', Einstieg bleibt am D-Level' : ''}`, () => {
+      const run = makeRun(hc.check, hc.at as never);
+      const go = (rows: Row[]) => tradeOf(run({ H4: buy ? rows : mirror(rows) }, hc.at as never, { buy }));
+      const mir = (p: number) => (buy ? p : 200 - p);
+      const before = go(hc.rows);
+      const after = go(overshoot(hc.rows, hc.low));
+      // Anker des Stops: bei GAR und BAT das D-Level, bei BUT und CRB das Ende der Ziel-Fib bei der ersten Berührung
+      const anchor = hc.entryAtLevel ? hc.entryLevel : hc.dEnd;
+      const stop = mir(fibPrice(130, anchor, -0.382));
+      expect(before.stop, 'Stop vorher').toBeCloseTo(stop, 6);
+      expect(after.stop, 'Stop nachher').toBeCloseTo(stop, 6);
+      expect(after.tp1, 'TP1 läuft mit').toBeCloseTo(mir(fibPrice(130, hc.low, 0.382)), 6);
+      if (hc.entryAtLevel) {
+        expect(before.entry, 'Einstieg vorher').toBeCloseTo(mir(hc.entryLevel), 6);
+        expect(after.entry, 'Einstieg nachher').toBeCloseTo(mir(hc.entryLevel), 6);
+        expect(after.tp1AtEntry, 'TP1 am Einstieg').toBeCloseTo(mir(fibPrice(130, hc.entryLevel, 0.382)), 6);
+      }
+    });
+  }
+}
