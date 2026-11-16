@@ -10,14 +10,14 @@ import type { EarlyZone } from '../../src/lib/formation/earlyReversal';
 import type { EngulfZone } from '../../src/lib/formation/sig';
 import type { FormationBar } from '../../src/lib/formation/types';
 
-const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-05' }, fn);
+const frm = (name: string, fn: () => void) => test(name, { tag: ['@FRM-05', '@FRM-39'] }, fn);
 
 /** [yüksek, düşük, kapanış] */
 type Sk = [number, number, number];
 const ZONE = { bottom: 143, top: 145 };
 const OPPOSING = { bottom: 118, top: 119 };
 
-function run(side: 'sell' | 'buy', rows: Sk[], over: { noZone?: boolean; noOpposing?: boolean } = {}) {
+function run(side: 'sell' | 'buy', rows: Sk[], over: { noZone?: boolean; noOpposing?: boolean; opposing?: { bottom: number; top: number }[] } = {}) {
   const m = (p: number) => (side === 'sell' ? p : 200 - p);
   const rect = (r: { bottom: number; top: number }) => (side === 'sell' ? r : { bottom: m(r.top), top: m(r.bottom) });
   const bars: FormationBar[] = rows.map(([h, l, c], i) => {
@@ -27,8 +27,8 @@ function run(side: 'sell' | 'buy', rows: Sk[], over: { noZone?: boolean; noOppos
   // 0 = bölgeyi kuran Engulf mumu, 1 = D ve giriş mumu
   const status = tradeStatusOf({ bars, entryIdx: 1, side, entry: m(144), stop: m(150), emergencyStop: null, from: m(114), targets: { tp1: 0.382, tp2: 0.618 } });
   const engulfZones: EngulfZone[] = over.noZone ? [] : [{ side, idx: 0, rect: rect(ZONE), big: true, holds: true }];
-  const zones: EarlyZone[] = over.noOpposing ? [] : [{ side: side === 'sell' ? 'support' : 'resistance', rect: rect(OPPOSING) }];
-  return { m, status, re: reentryOf({ bars, side, dIdx: 1, status, engulfZones, zones }) };
+  const zones: EarlyZone[] = over.noOpposing ? [] : (over.opposing ?? [OPPOSING]).map((r) => ({ side: side === 'sell' ? 'support' : 'resistance', rect: rect(r) }));
+  return { m, status, re: reentryOf({ bars, side, dIdx: 1, entryIdx: 1, status, engulfZones, zones }) };
 }
 
 const START: Sk[] = [
@@ -37,6 +37,11 @@ const START: Sk[] = [
 ];
 const TP1: Sk = [141, 132, 135];
 const TP2: Sk = [133, 125, 126];
+/** TP2 alınır ve fiyat 109'a kadar düşer (son dip) */
+const DIP: Sk = [133, 109, 126];
+const TOUCH: Sk = [143.5, 130, 140];
+const NEAR = { bottom: 118, top: 119 };
+const DEEP = { bottom: 108, top: 110 };
 
 for (const side of ['sell', 'buy'] as const) {
   const tag = side === 'sell' ? 'Satış' : 'Alış';
@@ -94,5 +99,44 @@ for (const side of ['sell', 'buy'] as const) {
   frm(`Yeniden giriş (${tag}): D'de Engulf bölgesi yoksa ne durum ne uyarı`, () => {
     expect(run(side, [...START, TP1, TP2, [143.5, 130, 140]], { noZone: true }).re).toBeNull();
     expect(run(side, [...START, TP1, [143.2, 133, 138]], { noZone: true }).re).toBeNull();
+  });
+
+  frm(`Yeniden giriş (${tag}): arada küçük karşı bölge + dipte bölge → iki hedef (hedef 1 en yakın, hedef 2 son dip)`, () => {
+    const { m, re } = run(side, [...START, TP1, DIP, TOUCH], { opposing: [NEAR, DEEP] });
+    if (re?.kind !== 'reentry') throw new Error('beklenen: yeniden giriş');
+    expect(re.target).toBeCloseTo(m(119), 9);
+    expect(re.target2).toBeCloseTo(m(110), 9);
+  });
+
+  frm(`Yeniden giriş (${tag}): yalnız dip bölgesi → hedef dip, hedef 2 boş`, () => {
+    const { m, re } = run(side, [...START, TP1, DIP, TOUCH], { opposing: [DEEP] });
+    if (re?.kind !== 'reentry') throw new Error('beklenen: yeniden giriş');
+    expect(re.target).toBeCloseTo(m(110), 9);
+    expect(re.target2).toBeNull();
+  });
+
+  frm(`Yeniden giriş (${tag}): arada bölge var, uçta bölge yok → yalnız hedef`, () => {
+    const { m, re } = run(side, [...START, TP1, TP2, TOUCH], { opposing: [NEAR] });
+    if (re?.kind !== 'reentry') throw new Error('beklenen: yeniden giriş');
+    expect(re.target).toBeCloseTo(m(119), 9);
+    expect(re.target2).toBeNull();
+  });
+
+  frm(`Yeniden giriş (${tag}): uç fiyat hedef 1 ile aynı bölgede → hedef 2 boş`, () => {
+    const { m, re } = run(side, [...START, TP1, [133, 118.5, 126], TOUCH], { opposing: [NEAR, DEEP] });
+    if (re?.kind !== 'reentry') throw new Error('beklenen: yeniden giriş');
+    expect(re.target).toBeCloseTo(m(119), 9);
+    expect(re.target2).toBeNull();
+  });
+
+  frm(`Yeniden giriş (${tag}): uç fiyatı birden çok bölge keserse girişe en uzak yakın kenar`, () => {
+    const { m, re } = run(side, [...START, TP1, DIP, TOUCH], { opposing: [NEAR, DEEP, { bottom: 109.5, top: 112 }] });
+    if (re?.kind !== 'reentry') throw new Error('beklenen: yeniden giriş');
+    expect(re.target2).toBeCloseTo(m(110), 9);
+  });
+
+  frm(`Yeniden giriş (${tag}): karşı bölge yoksa iki hedef de boş`, () => {
+    const { re } = run(side, [...START, TP1, DIP, TOUCH], { noOpposing: true });
+    expect(re).toMatchObject({ kind: 'reentry', target: null, target2: null });
   });
 }

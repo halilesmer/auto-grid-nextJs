@@ -18,9 +18,10 @@ test.beforeEach(({ page }) => seedFixtureTrend(page));
 const URL = `/chart?account=${DEMO_ID}&zone=${ZONE_ID}`;
 const load = (file: string) => named(`e2e/fixtures/formation/${file}.json`, parseFixture(JSON.parse(readFileSync(`e2e/fixtures/formation/${file}.json`, 'utf-8')))).bars;
 
-async function openPage(page: Page, worker: MockWorker, file: string, now: number, form: string) {
+async function openPage(page: Page, worker: MockWorker, file: string, now: number, form: string, tweak?: (bars: ReturnType<typeof load>) => void) {
   const narrow = (page.viewportSize()?.width ?? 1280) < 640;
   const bars = load(file);
+  tweak?.(bars);
   worker.state.settings[DEMO_ID] = { LOOP_INTERVAL_SECONDS: 2, SYMBOLS: groupZones([makeZone({ symbol: 'EURUSD' })]) };
   const rows = bars.filter((b) => b.time + 14400 <= now).map((b) => [b.time, b.open, b.high, b.low, b.close]);
   const last = rows[rows.length - 1];
@@ -347,6 +348,54 @@ test.describe('FRM-39 Handelsblock AB=CD (Yeniden giriş, 1114-A4.4)', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
     await block.getByTestId('trade-reentry').scrollIntoViewIfNeeded();
     await block.getByTestId('trade-reentry').screenshot({ path: test.info().outputPath('reentry-375.png') });
+  });
+  // Sentetik (kein Fixture hat zwei Ziele): crb-form-h4-01 mit höherem Hoch der Berührungskerze (Index 201). Das Hoch reicht dann in beide Widerstandszonen:
+  // Ziel 1 = nahe Kante der nächsten (101,123), Ziel 2 = nahe Kante der weiteren (101,403).
+  const twoTargets = (bars: ReturnType<typeof load>) => {
+    bars[201].high = 101.5;
+  };
+
+  test('Zwei Ziele: zwei Zellen „Ziel 1“ und „Ziel 2“, zwei Verhältnis-Zeilen (nur die erste mit Balken), eigener Fußtext', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'crb-form-h4-01', 1763496000, 'ABCD', twoTargets);
+    const re = page.getByTestId('trade-block').getByTestId('trade-reentry');
+    await expect(re).toBeVisible();
+    await expect(re).toContainText(msg('formation.trade.reentry.target1'));
+    await expect(re).toContainText(msg('formation.trade.reentry.target2'));
+    await expect(re).toContainText(msg('formation.trade.reentry.target.buy'));
+    await expect(re).toContainText(msg('formation.trade.reentry.target2.buy'));
+    await expect(re.getByTestId('trade-reentry-target')).toContainText(/101[.,]123/);
+    await expect(re.getByTestId('trade-reentry-target2')).toContainText(/101[.,]403/);
+    await expect(re).toContainText(msg('formation.trade.reentry.crv1'));
+    await expect(re).toContainText(msg('formation.trade.reentry.crv2'));
+    await expect(re.getByTestId('trade-reentry-crv')).not.toHaveText(/^\s*—\s*$/);
+    await expect(re.getByTestId('trade-reentry-crv2')).not.toHaveText(/^\s*—\s*$/);
+    // Balken nur bei der ersten Zeile
+    await expect(re.locator('span.block.bg-danger')).toHaveCount(1);
+    await expect(re).toContainText(msg('formation.trade.reentry.footer2'));
+    await expect(re).not.toContainText(msg('formation.trade.reentry.footer'));
+    await expect(re.locator('[data-testid^="trade-outcome-"]')).toHaveCount(0);
+    await expect(re).not.toContainText(/ABCD-\d|HDL-\d|SIG-\d|TP\d/);
+  });
+
+  test('Ein Ziel: keine Zelle „Ziel 2“, keine zweite Verhältnis-Zeile, Text wie bisher', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'crb-form-h4-01', 1763496000, 'ABCD');
+    const re = page.getByTestId('trade-block').getByTestId('trade-reentry');
+    await expect(re.getByTestId('trade-reentry-target')).toBeVisible();
+    await expect(re.getByTestId('trade-reentry-target2')).toHaveCount(0);
+    await expect(re.getByTestId('trade-reentry-crv2')).toHaveCount(0);
+    await expect(re).toContainText(msg('formation.trade.reentry.crv'));
+    await expect(re).not.toContainText(msg('formation.trade.reentry.target1'));
+  });
+
+  test('375 px: der Abschnitt mit zwei Zielen läuft nicht über', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await openPage(page, worker, 'crb-form-h4-01', 1763496000, 'ABCD', twoTargets);
+    const block = page.getByTestId('trade-block');
+    await expect(block.getByTestId('trade-reentry-target2')).toBeVisible();
+    expect(await block.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+    await block.getByTestId('trade-reentry').scrollIntoViewIfNeeded();
+    await block.getByTestId('trade-reentry').screenshot({ path: test.info().outputPath('reentry-two-targets-375.png') });
   });
 });
 
