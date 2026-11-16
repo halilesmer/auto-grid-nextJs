@@ -47,6 +47,7 @@ function bash(script: string, extra: Record<string, string> = {}) {
   delete env.CI;
   delete env.E2E_REUSE;
   delete env.E2E_PORT;
+  delete env.E2E_PRECHECK; // precheck.sh setzt es für seinen Playwright-Lauf; die Spec läuft darunter
   return spawnSync('bash', ['-c', script], { env: { ...env, ...extra }, encoding: 'utf8', timeout: 60_000 });
 }
 
@@ -222,6 +223,7 @@ function runIn(root: string, bin: string, script: string, args: string[], extra:
     ...extra,
   };
   delete env.CI;
+  delete env.E2E_PRECHECK;
   return spawnSync('bash', [path.join(root, 'scripts/features', script), ...args], { env, encoding: 'utf8', timeout: 90_000 });
 }
 
@@ -280,6 +282,15 @@ test.describe('precheck.sh: eine Wiederholung wie CI und sichtbare oynak-Tests (
     expect(r.status, r.stdout + r.stderr).toBe(1);
     expect(r.stdout).toContain('PRECHECK FEHLER');
     expect(r.stdout).not.toContain('PRECHECK OK');
+  });
+
+  test('Fehler plus oynak-Test: Exit 1, die oynak-Zeile bleibt sichtbar', () => {
+    const { root, bin } = fakeRepo();
+    const json = STATS_FLAKY.replace('"unexpected":0', '"unexpected":1');
+    const r = runIn(root, bin, 'precheck.sh', [], { STUB_JSON: json });
+    expect(r.status, r.stdout + r.stderr).toBe(1);
+    expect(r.stdout).toContain('PRECHECK FEHLER');
+    expect(r.stdout).toMatch(/^ +oynak: mocked\/a\.spec\.ts:42 /m);
   });
 
   test('Null Tests bleiben ein Fehler (§4.9)', () => {

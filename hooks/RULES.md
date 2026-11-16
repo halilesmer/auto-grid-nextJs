@@ -57,8 +57,8 @@ Katalog: `docs/features/features.yaml` (tek doğru kaynak) → `docs/features/FE
 8. **[elle]** Before the first push of a PR, run the full pre-PR check. It runs the CI steps in CI order (catalog, worker pytest, lint, tsc, all mocked e2e tests) on the port of this checkout. A category run (for example `run.sh FRM`) is not sufficient when the change touches shared logic, fixtures or shared UI. The check takes approx. 15 min, so it is not in the pre-push hook. The check retries a failed e2e test once, as CI does, and lists each flaky test (file:line and title) under the result line, so a flaky test does not turn the check red but stays visible (1116-A8.4, 2026-11-16).
 
    ```bash
-   scripts/features/precheck.sh   # last line: PRECHECK OK … · e2e ran=N passed=N failed=0 …
-   # with extra Playwright arguments the last line is PRECHECK TEILLAUF: not a full check
+   scripts/features/precheck.sh   # result line: PRECHECK OK … · e2e ran=N passed=N failed=0 …
+   # with extra Playwright arguments the result line is PRECHECK TEILLAUF: not a full check
    ```
 
 9. **[elle]** A script that uses Playwright JSON results as a pass signal must fail when zero tests ran (`stats.expected + stats.unexpected + stats.flaky == 0`). `precheck.sh` and an unfiltered `run.sh` use this check. A filtered `run.sh` (ID or category) fails when no tier ran a test for the filter. `run.sh` deletes the old report before each Playwright run. Use the check in each ad hoc sweep too.
