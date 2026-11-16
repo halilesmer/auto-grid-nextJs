@@ -1380,6 +1380,50 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     expect(favoriteCalls()).toBe(4);
   });
 
+  test('Kommen die persönlichen Einstellungen spät, sucht der Alarm die Favoriten nur einmal (1116-A35)', { tag: '@FRM-30' }, async ({ page, worker }) => {
+    // Vorher startete die Suche mit leerem Alarm-Schlüssel und lief neu an, sobald /me/prefs kam: 8 statt 4 Abrufe
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    worker.userPrefsGetDelayMs = 2500;
+    serveFixture(worker, NOW);
+    await seed(page, { favoritesEnabled: [DEMO_ID] });
+    const favoriteCalls = () => worker.callsTo('GET', /\/market\/.*\/rates$/).filter((c) => c.query.get('symbol') === 'EURUSD').length;
+    await page.goto(`${ALARM_URL}&symbol=XAUUSD`);
+    // Der Alarm vergleicht erst nach den persönlichen Feldern: danach ist der Durchlauf fertig
+    await remembered(page, 'EURUSD');
+    expect(favoriteCalls()).toBe(4);
+  });
+
+  test('Scheitert das Laden der persönlichen Einstellungen, sucht der Alarm die Favoriten trotzdem einmal (1116-A35)', { tag: '@FRM-30' }, async ({ page, worker }) => {
+    worker.state.favorites[DEMO_ID] = ['EURUSD'];
+    // Jede Abfrage von /me/prefs scheitert (auch die Wiederholungen): der Zustand wird „failed“, die Favoriten-Suche läuft trotzdem
+    worker.userPrefsGetFailures = 1_000;
+    serveFixture(worker, NOW);
+    await seed(page, { favoritesEnabled: [DEMO_ID] });
+    const favoriteCalls = () => worker.callsTo('GET', /\/market\/.*\/rates$/).filter((c) => c.query.get('symbol') === 'EURUSD').length;
+    await page.goto(`${ALARM_URL}&symbol=XAUUSD`);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-favorites-scan-ms', /^\d+$/, { timeout: 20_000 });
+    expect(favoriteCalls()).toBe(4);
+  });
+
+  test('Ein entferntes Alarm-Produkt wird bei der nächsten Kerze nicht mehr geladen (1116-A35)', { tag: '@FRM-30' }, async ({ page, worker }) => {
+    // Zwei Glocken-Produkte ohne Favorit; die Suche lädt sie in dieser Reihenfolge (sortiert), also EURUSD vor GBPUSD
+    serveFixture(worker, NOW);
+    await seed(page, { enabled: [`${DEMO_ID}|EURUSD`, `${DEMO_ID}|GBPUSD`] });
+    await page.clock.install();
+    await page.goto(`${ALARM_URL}&symbol=XAUUSD`);
+    await remembered(page, 'GBPUSD');
+    await openAlarmSettings(page);
+    await page.getByTestId('formation-alarm-extra-EURUSD').click();
+    await page.waitForFunction((key) => JSON.parse(localStorage.getItem(key) ?? '{}').enabled.length === 1, KEY);
+    await page.keyboard.press('Escape');
+    const before = worker.callsTo('GET', /\/market\/.*\/rates$/).length;
+    const since = () => worker.callsTo('GET', /\/market\/.*\/rates$/).slice(before).map((c) => c.query.get('symbol'));
+    await nextSlot(page, worker);
+    // GBPUSD kommt in einem Durchlauf nach EURUSD: ist GBPUSD geladen, wäre ein Abruf von EURUSD schon da
+    await expect.poll(() => since().includes('GBPUSD')).toBe(true);
+    expect(since()).not.toContain('EURUSD');
+  });
+
   test('Die Karte erscheint auch im zweiten Tab, der nicht sucht', { tag: '@FRM-30' }, async ({ page, worker }) => {
     worker.state.favorites[DEMO_ID] = ['EURUSD'];
     serveFixture(worker, FORMING_NOW);
