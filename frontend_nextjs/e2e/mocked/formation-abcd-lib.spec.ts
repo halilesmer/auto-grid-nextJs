@@ -1191,6 +1191,33 @@ frm('Büyük hedef: ohne erreichtes Level 1 gibt es kein großes Ziel und keine 
   expect(c.drawings.map((d) => d.id)).not.toContain('Z-ABCD-09');
 });
 
+// Büyük hedefin varlığı giriş mumunda belirlenir (Halil 2026-11-16): sonraki mumlar kararı değiştirmez
+test('Büyük hedef dondurulur: girişten sonra X altında kapanış (GAR-18) harmonik D denetimini bozsa da hedef ve ⅓ paylar kalır', { tag: ['@FRM-05', '@FRM-39'] }, () => {
+  const base = run({ H4: GARTLEY }, GARTLEY_AT, { sell: false }).trade!;
+  expect(base.tpBig).toBeDefined();
+  // Kerze 36: giriş (32) sonrası X'in (100) altında kapanış
+  const after = [...GARTLEY, plain(106, 95)];
+  const c = run({ H4: after }, GARTLEY_AT, { sell: false });
+  const t = c.trade!;
+  expect(t.tpBig).toBeCloseTo(base.tpBig!, 9);
+  expect(t.tpBigAtEntry).toBeCloseTo(base.tpBigAtEntry!, 9);
+  expect(t.tpBigActivation).toBeCloseTo(base.tpBigActivation!, 9);
+  expect(outcomesOf(t, 'buy')!.tp123).toBeDefined();
+  expect(c.drawings.map((d) => d.id)).toContain('Z-ABCD-09');
+  expect(c.drawings.map((d) => d.id)).toContain('Z-ABCD-10');
+});
+
+test('Büyük hedef dondurulur: girişte harmonik D yoksa sonradan da doğmaz', { tag: ['@FRM-05', '@FRM-39'] }, () => {
+  // X_NO_HARMONIC: girişte harmonik yok; sonraki mumlar hedef doğurmaz
+  const rows = [...X_NO_HARMONIC, plain(144, 150), plain(150, 160)];
+  expect(run({ H4: rows }, X_NO_HARMONIC_AT).trade!.tpBig).toBeUndefined();
+});
+
+test('Büyük hedef: giriş henüz olmadıysa karar son muma göre verilir (davranış aynen)', { tag: ['@FRM-05', '@FRM-39'] }, () => {
+  const forming = zig([100, 130, 111.46, 124.94], [18, 4, 4], 3);
+  expect(run({ H4: forming }, { a: 20, b: 24, c: 28 }, { sell: false }).trade!.tpBig).toBeUndefined();
+});
+
 // ---- Erken dönüş (1114-A4.5): D, Level 1'den önce (tolerans dahil) bölgede Engulf ile döner ----
 // Satış: A 100, B 130, C 114 → Level 1 144, −0.272 uzatma 138.16, tolerans 1.5 (0.05 × AB). Uç 140.5 (bölge 139–141), Engulf kapanışı 122.
 // Alış: tüm fiyatlar 100'e göre aynalanır (p → 200 − p), bölge tarafları yer değiştirir.
