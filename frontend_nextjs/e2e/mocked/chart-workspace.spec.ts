@@ -802,24 +802,29 @@ test.describe('ANA-27 Ältere Kerzen laden beim Scrollen nach links (leichte Sei
     expect(worker.ratesQueries.every((q) => Number(new URLSearchParams(q).get('from')) >= 0)).toBe(true);
   });
 
-  test('Ohne Indikator-Reihen und Ebenen bleibt die Ansicht beim Anfügen ebenfalls stehen', { tag: '@ANA-27' }, async ({ page, worker }) => {
-    worker.state.ratesAllDays = true;
-    const { chart, rangeOf, before, loaded, release } = await openNearLeftEdge(page, chartQueries(worker), { url: ALL_URL, initialBars: firstLoad(worker), extra: { drawings: '[]', indicators: [], images: {}, overlays: { rsi: false, wave: false } } });
-    release();
-    await expect(chart).toHaveAttribute('data-bars', String(loaded + PAGE));
-    await page.waitForTimeout(500);
-    const after = await rangeOf();
-    expect(Math.max(Math.abs(after[0] - before[0]), Math.abs(after[1] - before[1]))).toBeLessThanOrEqual(60);
-  });
+  test.describe('M1 mit fester Uhr', () => {
+    // Der Mock liefert Kerzen bis „jetzt“: eine neue Minute während des Tests brächte eine Kerze mehr (1116-A35)
+    test.use({ fakeNow: '2026-11-16T12:00:05Z' });
 
-  test('Ein Fehlschlag pausiert das Laden: keine Anfrage im Dauertakt', { tag: '@ANA-27' }, async ({ page, worker }) => {
-    worker.state.ratesAllDays = true;
-    const { chart, loaded, failures } = await openNearLeftEdge(page, chartQueries(worker), { url: ALL_URL, initialBars: firstLoad(worker), fail: true });
-    await expect.poll(failures).toBe(1);
-    // Der Chart steht weiter am linken Rand; ohne Pause käme sofort die nächste Anfrage, auch bei weiterer Bedienung
-    await dragLeft(page, 30);
-    await page.waitForTimeout(1500);
-    expect(failures()).toBe(1);
-    await expect(chart).toHaveAttribute('data-bars', String(loaded));
+    test('Ohne Indikator-Reihen und Ebenen bleibt die Ansicht beim Anfügen ebenfalls stehen', { tag: '@ANA-27' }, async ({ page, worker }) => {
+      worker.state.ratesAllDays = true;
+      const { chart, rangeOf, before, loaded, release } = await openNearLeftEdge(page, chartQueries(worker), { url: ALL_URL, initialBars: firstLoad(worker), extra: { drawings: '[]', indicators: [], images: {}, overlays: { rsi: false, wave: false } } });
+      release();
+      await expect(chart).toHaveAttribute('data-bars', String(loaded + PAGE));
+      await page.waitForTimeout(500);
+      const after = await rangeOf();
+      expect(Math.max(Math.abs(after[0] - before[0]), Math.abs(after[1] - before[1]))).toBeLessThanOrEqual(60);
+    });
+
+    test('Ein Fehlschlag pausiert das Laden: keine Anfrage im Dauertakt', { tag: '@ANA-27' }, async ({ page, worker }) => {
+      worker.state.ratesAllDays = true;
+      const { chart, loaded, failures } = await openNearLeftEdge(page, chartQueries(worker), { url: ALL_URL, initialBars: firstLoad(worker), fail: true });
+      await expect.poll(failures).toBe(1);
+      // Der Chart steht weiter am linken Rand; ohne Pause käme sofort die nächste Anfrage, auch bei weiterer Bedienung
+      await dragLeft(page, 30);
+      await page.waitForTimeout(1500);
+      expect(failures()).toBe(1);
+      await expect(chart).toHaveAttribute('data-bars', String(loaded));
+    });
   });
 });

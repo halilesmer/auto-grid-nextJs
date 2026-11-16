@@ -17,6 +17,11 @@ const openChart = async (page: Page, symbol = 'EURUSD') => {
   await page.goto(url(symbol));
   await expect(page.getByTestId('chart-workspace')).toBeVisible();
 };
+/**
+ * Kişisel tercihler (`GET /me/prefs`) uygulandı. Öncesinde uygulama standarttaki değişikliği reddeder ("yüklenmedi" bildirimi) ve kayıtlı mod
+ * sonra gelir; lejanttaki tıklama etkisiz kalır (1116-A35). Uygulama sahip anahtarını tercihlerle aynı görevde yazar.
+ */
+const prefsLoaded = (page: Page) => page.waitForFunction(() => localStorage.getItem('grid-robot-chart-prefs-owner') !== null);
 const openSettings = async (page: Page) => {
   await page.getByTestId('settings-open').click();
   await page.getByTestId('settings-nav-chart').click();
@@ -87,6 +92,7 @@ test.describe('USR-17 Osilatör standardı: Ayarlar ve grafik', () => {
     await openChart(page);
     const chart = page.getByTestId('analysis-chart');
     await expect(chart).toHaveAttribute('data-rsi-visible', 'true');
+    await prefsLoaded(page);
     await page.locator('[data-indicator-row="RSI"]').first().getByRole('button', { name: msg('cw.legend.visibility', { indicator: 'RSI' }) }).click({ force: true });
     await expect(chart).toHaveAttribute('data-rsi-visible', 'false');
     await expect.poll(() => (worker.userPrefs.admin?.chart_osc_standard as Pref)?.indicators?.find((i: Pref) => i.id === 'system-rsi')?.visible).toBe(false);
@@ -101,6 +107,7 @@ test.describe('USR-17 Osilatör standardı: Ayarlar ve grafik', () => {
   test('Ürün başına modda değişiklik yalnız o ürünü etkiler', { tag: '@USR-17' }, async ({ page, worker }) => {
     worker.userPrefs.admin = { chart_osc_scope: { mode: 'product' } };
     await openChart(page);
+    await prefsLoaded(page);
     await page.locator('[data-indicator-row="RSI"]').first().getByRole('button', { name: msg('cw.legend.visibility', { indicator: 'RSI' }) }).click({ force: true });
     await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-rsi-visible', 'false');
     await openChart(page, 'XAUUSD');

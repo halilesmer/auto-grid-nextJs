@@ -52,7 +52,6 @@ export async function openNearLeftEdge(
   await expect(chart).toHaveAttribute('data-bars', initialBars);
   // Zuerst ist der Zeitraum gekürzt: der Hinweis sagt, dass ältere Kerzen beim Scrollen kommen
   await expect(page.getByTestId('data-quality')).toContainText(msg('analysis.data.scroll.title'));
-  const loaded = Number(await chart.getAttribute('data-bars'));
   const loadedFrom = Math.min(...worker.ratesQueries.map((q) => Number(new URLSearchParams(q).get('from'))));
   const key = (await page.getByTestId('chart-workspace').getAttribute('data-context'))!;
   // Vor dem App-Code schreiben: die Seite speichert den Ausschnitt verzögert und würde ihn sonst überschreiben
@@ -71,6 +70,9 @@ export async function openNearLeftEdge(
   // Ohne Bedienung lädt der Chart nichts, auch wenn die Ansicht am linken Rand steht
   await page.waitForTimeout(800);
   expect(worker.ratesQueries.map((q) => new URLSearchParams(q).get('to')).every((to) => to !== String(loadedFrom))).toBe(true);
+  // Erst nach dem Neuladen lesen: wechselt die Minute zwischen den beiden Ladungen, bringt das Neuladen eine Kerze mehr (1116-A35)
+  await expect(chart).toHaveAttribute('data-bars', initialBars);
+  const loaded = Number(await chart.getAttribute('data-bars'));
   let release = () => {};
   let failures = 0;
   const gate = new Promise<void>((resolve) => { release = resolve; });
