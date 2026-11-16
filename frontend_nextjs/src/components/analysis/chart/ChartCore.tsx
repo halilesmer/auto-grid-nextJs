@@ -43,6 +43,7 @@ import {
 import { TrendLineMenuHost } from './TrendLineMenu';
 import { OlderEdgeMark } from './OlderEdgeMark';
 import { LatestBarButton } from './LatestBarButton';
+import { DrawingToolBridge, watchPointerPressed } from './drawingBusy';
 
 /** Höchstzahl der Schenkel in `data-trend-segments` */
 const MAX_TEST_SEGMENTS = 40;
@@ -400,17 +401,41 @@ export function ChartCore({
     return () => observer.disconnect();
   }, [binding, marginsFor]);
 
-  // Zonen und Level können außerhalb der Kerzen liegen: die Preisachse reicht bis zu ihnen
+  // Zonen und Level können außerhalb der Kerzen liegen: die Preisachse reicht bis zu ihnen.
+  // Die Achse springt dabei (die Formationssuche liefert die Seiten oft erst nach dem Öffnen): während ein Zeichenwerkzeug aktiv ist
+  // oder ein Zeiger auf dem Chart gedrückt ist, wartet die Änderung, damit ein gesetzter Punkt nicht von seinem Pixel wegwandert.
+  // Danach gilt der letzte Wert (auch `null`).
+  // Grenzen: bleibt ein Werkzeug dauerhaft gewählt, kommt die Ausweitung erst, wenn es endet. Die laufende Kerze der Suche verschiebt
+  // die Zeitachse um eine Kerze (Verhalten der Bibliothek bei einer neuen Kerze); das bleibt (Journal 2026-11-16-chart-drawing-tests-scan-race).
+  const toolRef = useRef<() => boolean>(() => false);
+  // Der Zeiger wird für den ganzen Chart verfolgt, nicht je Änderung: ein Zug, der vor der Änderung begann, zählt mit
+  const pressedRef = useRef<() => boolean>(() => false);
   useEffect(() => {
-    if (priceRange === undefined) return;
-    candlesRef.current?.applyOptions({
+    if (!binding) return;
+    const pointer = watchPointerPressed(binding.host);
+    pressedRef.current = pointer.pressed;
+    return () => { pointer.dispose(); pressedRef.current = () => false; };
+  }, [binding]);
+  useEffect(() => {
+    if (priceRange === undefined || !binding) return;
+    const { candles } = binding;
+    const apply = () => candles.applyOptions({
       autoscaleInfoProvider: (original: () => AutoscaleInfo | null) => {
         const base = original();
         if (!base?.priceRange || !priceRange) return base;
         return { ...base, priceRange: { minValue: Math.min(base.priceRange.minValue, priceRange.min), maxValue: Math.max(base.priceRange.maxValue, priceRange.max) } };
       },
     });
-  }, [priceRange]);
+    let frame = 0;
+    const tryApply = () => {
+      frame = 0;
+      if (binding.isDisposed()) return;
+      if (toolRef.current() || pressedRef.current()) { frame = requestAnimationFrame(tryApply); return; }
+      apply();
+    };
+    tryApply();
+    return () => cancelAnimationFrame(frame);
+  }, [priceRange, binding]);
 
   // The RSI is an indicator now: drawn = layer on and the eye open
   const rsiDrawn = useChartWorkspaceStore(s => {
@@ -770,6 +795,7 @@ export function ChartCore({
   };
   return (
     <ChartWorkspace context={workspace ?? { key: viewKey, symbol: '', view: 'analysis' }} binding={binding} interactionReady={followTail || data.points.length === 0 || alignedView === viewKey} bars={effectiveBars} missing={data.missing} timeframeSec={timeframeSec} digits={digits} until={until ?? clockNow ?? (effectiveBars.at(-1)?.time ?? 0) + timeframeSec} countdownNow={clockNow} overlays={workspaceOverlays} showRsi={showRsi} toolbarActions={toolbarActions} viewActions={viewActions} overlayLayout={overlayLayout} fullscreenOfPage={fullscreenOfPage} systemSeries={systemSeries}>
+    <DrawingToolBridge toolRef={toolRef} />
     {overlayLayout ? (
       // Eigener Stapelkontext: die Canvases des Charts tragen z-index
       <div ref={surfaceRef} {...surfaceProps} className="absolute top-0 bottom-[calc(var(--workspace-card,0px)+var(--floating-card,0px))] left-[52px] right-0 isolate overflow-hidden bg-card @min-[71rem]/formation-main:bottom-0">
