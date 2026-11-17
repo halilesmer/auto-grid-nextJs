@@ -206,9 +206,33 @@ const overshoot = (rows: Row[], low: number): Row[] => {
 const harmonicCases = [
   { code: 'GAR', check: checkGarCandidate, rows: GAR_ROWS, at: H_AT, low: 104, entryLevel: 111.46 - 0.272 * (130 - 111.46), dEnd: 106.41, entryAtLevel: true },
   { code: 'BAT', check: checkBatCandidate, rows: BAT_ROWS, at: H_AT, low: 101, entryLevel: 130 + 0.886 * (100 - 130), dEnd: 103.42, entryAtLevel: true },
-  { code: 'BUT', check: checkButCandidate, rows: BUT_ROWS, at: HARMONIC_AT_NO_D, low: 90, entryLevel: 0, dEnd: 91.8, entryAtLevel: false },
-  { code: 'CRB', check: checkCrbCandidate, rows: CRB_ROWS, at: HARMONIC_AT_NO_D, low: 80, entryLevel: 0, dEnd: 81.4, entryAtLevel: false },
+  { code: 'BUT', check: checkButCandidate, rows: BUT_ROWS, at: HARMONIC_AT_NO_D, low: 90, deep: 70, entryLevel: 0, dEnd: 91.8, entryAtLevel: false },
+  { code: 'CRB', check: checkCrbCandidate, rows: CRB_ROWS, at: HARMONIC_AT_NO_D, low: 80, deep: 55, entryLevel: 0, dEnd: 81.4, entryAtLevel: false },
 ] as const;
+
+// Butterfly und Crab: Einstieg friert wie der Stop an der ersten Berührungskerze ein (Docht der Berührungskerze) und läuft nicht mit dem D
+for (const hc of harmonicCases.filter((h) => !h.entryAtLevel)) {
+  for (const buy of [true, false]) {
+    t39(`${hc.code} (${buy ? 'Kauf' : 'Verkauf'}): Einstieg bleibt am Docht der ersten Berührung, auch wenn D weiterläuft; Einstieg liegt auf der richtigen Seite des Stops`, () => {
+      const run = makeRun(hc.check, hc.at as never);
+      const go = (rows: Row[]) => tradeOf(run({ H4: buy ? rows : mirror(rows) }, hc.at as never, { buy }));
+      const mir = (p: number) => (buy ? p : 200 - p);
+      const before = go(hc.rows);
+      const after = go(overshoot(hc.rows, hc.low));
+      expect(before.entry, 'Einstieg vorher').toBeCloseTo(mir(hc.dEnd), 6);
+      expect(after.entry, 'Einstieg nachher').toBeCloseTo(mir(hc.dEnd), 6);
+      expect(after.entry).toBe(before.entry);
+      // tiefer Docht jenseits des eingefrorenen Stops: früher rutschte der Einstieg auf die falsche Seite des Stops
+      const deep = go(overshoot(hc.rows, hc.deep));
+      expect(deep.stop, 'Stop bleibt').toBeCloseTo(before.stop!, 6);
+      expect(deep.entry, 'Einstieg tief').toBeCloseTo(before.entry!, 6);
+      for (const t of [before, after, deep]) {
+        if (buy) expect(t.entry!, 'Kauf: Einstieg über Stop').toBeGreaterThan(t.stop!);
+        else expect(t.entry!, 'Verkauf: Einstieg unter Stop').toBeLessThan(t.stop!);
+      }
+    });
+  }
+}
 
 for (const hc of harmonicCases) {
   for (const buy of [true, false]) {
