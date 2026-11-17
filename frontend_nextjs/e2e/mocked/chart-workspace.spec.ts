@@ -821,6 +821,21 @@ test.describe('ANA-27 Ältere Kerzen laden beim Scrollen nach links (leichte Sei
       expect(Math.max(Math.abs(after[0] - before[0]), Math.abs(after[1] - before[1]))).toBeLessThanOrEqual(60);
     });
 
+    test('Eine Seite pro Zug: nach der ersten Seite holt der Chart nicht gleich die nächste', { tag: '@ANA-27' }, async ({ page, worker }) => {
+      // 1117 Schritt 5: die Indikator-Reihen bekamen die Seite vor der Kerzenreihe; die Zeitachse meldete den verschobenen Bereich,
+      // und die Prüfung las barsBefore noch aus der alten Kerzenreihe (3 statt 20.003). Gleich danach kam eine zweite Seite.
+      // Die Freigabe folgt direkt auf den Zug, also innerhalb der Bedienungsfrist (1,5 s), in der eine zweite Anfrage möglich wäre
+      worker.state.ratesAllDays = true;
+      const queries = chartQueries(worker);
+      const { chart, loaded, loadedFrom, release } = await openNearLeftEdge(page, queries, { url: ALL_URL, initialBars: firstLoad(worker) });
+      release();
+      await expect.poll(async () => Number(await chart.getAttribute('data-bars'))).toBeGreaterThanOrEqual(loaded + PAGE);
+      await page.waitForTimeout(1500);
+      const older = queries.ratesQueries.filter((q) => Number(new URLSearchParams(q).get('to')) <= loadedFrom);
+      expect(older).toHaveLength(1);
+      await expect(chart).toHaveAttribute('data-bars', String(loaded + PAGE));
+    });
+
     test('Ein Fehlschlag pausiert das Laden: keine Anfrage im Dauertakt', { tag: '@ANA-27' }, async ({ page, worker }) => {
       worker.state.ratesAllDays = true;
       const { chart, loaded, failures } = await openNearLeftEdge(page, chartQueries(worker), { url: ALL_URL, initialBars: firstLoad(worker), fail: true });
