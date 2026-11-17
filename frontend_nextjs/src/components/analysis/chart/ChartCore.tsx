@@ -309,6 +309,14 @@ export function ChartCore({
   // träfe die Korrektur im nächsten Bild und verschöbe die Ansicht um die neuen Kerzen
   const viewShowsAll = useRef<() => boolean>(() => false);
   const pointsRef = useRef(data.points);
+  // Die Kerzen, die der Chart in diesem Render bekommt. Andere Reihen teilen die Zeitachse und bekommen eine Seite älterer Kerzen
+  // schon vor der Kerzenreihe (die Indikator-Reihen im Effekt von ChartWorkspace, einer Kindkomponente): die Zeitachse ist dann um
+  // die neuen Kerzen länger, die Kerzenreihe noch nicht. check() läse barsBefore aus der alten Kerzenreihe und holte gleich die
+  // nächste Seite (ANA-27, Journal 2026-11-17-chart-older-page-dock-scan-findings). Layout-Effekt: läuft vor allen Effekten des Commits
+  const incomingPoints = useRef(data.points);
+  useLayoutEffect(() => {
+    incomingPoints.current = data.points;
+  }, [data.points]);
   const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
   const [colors, setColors] = useState<ChartColors | null>(null);
   const [hover, setHover] = useState<{ bar: Bar | null; time: number } | null>(null);
@@ -589,6 +597,8 @@ export function ChartCore({
     host.addEventListener('pointermove', drag, { passive: true });
     const check = () => {
       if (!needOlder.current || viewFixPending.current || fittedKey.current !== currentViewKey.current) return;
+      // Die Kerzenreihe hat die neuen Kerzen noch nicht, die Zeitachse schon: barsBefore wäre zu klein
+      if (pointsRef.current !== incomingPoints.current) return;
       if (performance.now() - lastInput.current > USER_INPUT_WINDOW_MS) return;
       const range = chart.timeScale().getVisibleLogicalRange();
       const info = range ? candles.barsInLogicalRange(range) : null;
@@ -737,10 +747,11 @@ export function ChartCore({
     return () => trend.listenLayout(null);
   }, [scene]);
 
-  // Zu einem Trade springen (Klick in der Trade-Liste); nur bei neuem Klick, nicht nach jedem Nachladen
+  // Auch ohne Chart (der Kerzen-Effekt kehrt dann früh zurück): check() vergleicht pointsRef mit incomingPoints und bliebe sonst gesperrt
   useEffect(() => {
     pointsRef.current = data.points;
   }, [data.points]);
+  // Zu einem Trade springen (Klick in der Trade-Liste); nur bei neuem Klick, nicht nach jedem Nachladen
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart || !focus) return;
