@@ -35,7 +35,9 @@ test('Ältere Kerzen anfügen: Dauer je Seite bleibt unter der Grenze', { tag: '
     w.__older = { response: [], steps: [], longest: 0 };
     const open = XMLHttpRequest.prototype.open;
     XMLHttpRequest.prototype.open = function (this: XMLHttpRequest, method: string, url: string | URL, ...rest: unknown[]) {
-      if (String(url).includes('/rates')) this.addEventListener('loadend', () => w.__older.response.push(performance.now()));
+      // Nur die Kerzen des Charts (M1): die Formationssuche holt D1/H4/H1/M15 und antwortet oft nach der ersten Ladung. Ihre Antwort
+      // galt sonst als Antwort der ersten Seite, und die Dauer enthielt alle Züge bis zum Rand (1117, Journal 2026-11-17-chart-older-page-dock-scan-findings)
+      if (String(url).includes('/rates') && String(url).includes('timeframe=M1&')) this.addEventListener('loadend', () => w.__older.response.push(performance.now()));
       return (open as (...a: unknown[]) => void).call(this, method, url, ...rest);
     } as typeof XMLHttpRequest.prototype.open;
     try {

@@ -119,7 +119,23 @@ Design with three options sent to the coordinator: https://claude.ai/artifact/Un
 
 ## Verification
 
-VERIFICATION
+| Check | Command | Result |
+|---|---|---|
+| Type check, lint | `npx tsc --noEmit`, `npx eslint` on the changed files | no output |
+| Catalog | `update_checklist.py --check`, `run.sh render` | `features.yaml ok (284 Features)`, `FEATURES.md geschrieben: 251/284 abgehakt` (render failed before the FRM-39 correction below) |
+| New test, fix line removed (temporary), ×2 | `npx playwright test … -g "Eine Seite pro Zug"` | 2 of 2 failed: `Received length: 2` (two older-page requests) |
+| New test, fix, ×8 (run 2) and ×2 | same | 10 of 10 passed |
+| Full pre-PR check (one run, before the correction of `chart-older-heavy.spec.ts`) | `scripts/features/precheck.sh` | `PRECHECK FEHLER in 1489s (Sperre 0s gewartet) · katalog ok (0s) worker ok (152s) lint ok (19s) tsc ok (7s) e2e FEHLER (1311s) · e2e ran=3929 passed=3928 failed=1 flaky=0 skipped=0`; failed: `chart-older-heavy.spec.ts:29` (ANA-27), both tries, first page 17 007 ms and 21 238 ms (limit 8 000 ms) |
+| ANA-27 heavy test, two arms, ×2 each | fix / fix line removed | fix: 2 of 2 failed (first page 18 580 ms, 17 757 ms); without fix: 2 of 2 passed with only two steps (`140000→1801, 152640→1087`): the first drag brought two pages in one step |
+| ANA-27 heavy test with time stamps (temporary copy) | one run, fix | responses at 1 353–1 355 ms (formation search D1/H4/H1/M15), first page response at 11 571 ms, drawn at 12 270 ms (699 ms); the test took 1 353 ms as the answer of the first page |
+| After the test correction, ×2 | `npx playwright test e2e/mocked/chart-older-heavy.spec.ts e2e/mocked/chart-workspace.spec.ts -g 'ANA-27\|Dauer je Seite\|Ältere Kerzen' --repeat-each=2` | `14 passed (1.3m)`; pages `120000→970, 140000→1206, 152640→1179` and `120000→1059, 140000→1254, 152640→1001` |
+| Reviewer (subagent) | | no critical finding; applied: the red run of the new test with the fix line removed, a comment at the second `pointsRef` effect, this table |
+
+Test correction (`chart-older-heavy.spec.ts`, ANA-27): the test was wrong, not too strict. It took as the answer of a page the first `/rates` response after the previous drawing. The formation search sends four `/rates` requests (D1, H4, H1, M15) and its responses often come after the first load. Before the fix the first drag brought two pages in one step, so the step started at the commit of the first page and the error did not show. With one page per drag, the first step included all drags to the left edge. The test now records only the M1 responses of the chart. The limit (8 000 ms) did not change.
+
+FRM-39 (`features.yaml`, from PR 596): an item of `pruefung` had `: ` and YAML read it as a map; `run.sh render` failed. Changed to ` – ` (the same correction as in PR 584).
+
+Not covered: the full pre-PR check did not run again after the test correction (rule: one run per brief, §4.17). CI runs all mocked e2e tests.
 
 ## Open points
 - [ ] 1117-C1.1: decision on the dock package (design options A, B, C).
@@ -129,6 +145,7 @@ VERIFICATION
 - [ ] PR 584 guard: a path where `showsAll` is true inside the correction window is not known (item 3).
 
 ## Lessons
+- A timing test that matches a response by time ("the first response after the last drawing") can take a response of another request. Match the response by its request.
 - When two arms of a timing comparison run one after the other, the load of the Mac can change the result and its direction. Alternate the arms in one run, with a runtime switch in one build.
 - An interval that the change cannot affect is a control: when it differs as much as the measured interval, the difference is not from the change.
 - A log line with the logical range before and after `setData` shows the order of events; an inference from the code can put an event at the wrong place.

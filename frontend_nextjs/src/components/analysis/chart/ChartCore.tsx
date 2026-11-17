@@ -747,10 +747,11 @@ export function ChartCore({
     return () => trend.listenLayout(null);
   }, [scene]);
 
-  // Zu einem Trade springen (Klick in der Trade-Liste); nur bei neuem Klick, nicht nach jedem Nachladen
+  // Auch ohne Chart (der Kerzen-Effekt kehrt dann früh zurück): check() vergleicht pointsRef mit incomingPoints und bliebe sonst gesperrt
   useEffect(() => {
     pointsRef.current = data.points;
   }, [data.points]);
+  // Zu einem Trade springen (Klick in der Trade-Liste); nur bei neuem Klick, nicht nach jedem Nachladen
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart || !focus) return;
