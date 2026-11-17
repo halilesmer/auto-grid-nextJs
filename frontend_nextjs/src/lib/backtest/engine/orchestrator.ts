@@ -30,18 +30,32 @@ function zoneSymbols(zones: readonly ZoneDict[]): string[] {
   return symbols;
 }
 
-export function manageDynamicGrid(
+/** Ergebnis des Tur-Kopfs (BKT-31): `done` gesetzt = Durchlauf endet hier (Rückgabe des Gesamtaufrufs) */
+export interface TurnHead {
+  done: [boolean, ActiveZones] | null;
+  prices: Map<string, number>;
+  active: ActiveZones;
+  symbols: string[];
+}
+
+/**
+ * Kopf eines Durchlaufs: Zonenkommandos, Spread-Wächter, Lesung 1, Kurslesung, Zombie-Löschen, Lesung 2,
+ * Verschwundene, TP/SL (grid_orchestrator.py :60-111). Die Zonenschleife folgt in `turnZones`.
+ */
+export function turnHead(
   broker: Broker,
   zones: readonly ZoneDict[],
   activeZonesIn: ActiveZones,
   infos: SymbolInfos,
   state: EngineState,
   remotePaused = false,
-): [boolean, ActiveZones] {
+): TurnHead {
   processZoneCommands(zones, state);
   const activeZones: ActiveZones = { ...activeZonesIn };
+  const prices = new Map<string, number>();
+  const stop = (ok: boolean, symbols: string[] = []): TurnHead => ({ done: [ok, activeZones], prices, active: activeZones, symbols });
   refreshSpreadGuard(broker, zones, infos, state);
-  if (remotePaused) return [true, activeZones];
+  if (remotePaused) return stop(true);
 
   // Gelöschte / deaktivierte Zonen und Zonen mit geändertem Symbol vergessen
   for (const [key, sym] of Object.entries(activeZones)) {
@@ -53,31 +67,41 @@ export function manageDynamicGrid(
 
   let robotPositions = getAllRobotPositions(broker);
   let robotOrders = getAllRobotOrders(broker);
-  if (robotPositions === null || robotOrders === null) return [false, activeZones];
+  if (robotPositions === null || robotOrders === null) return stop(false);
 
   const symbols = zoneSymbols(zones);
-  if (symbols.length === 0) return [false, activeZones];
+  if (symbols.length === 0) return stop(false);
 
-  const prices = new Map<string, number>();
   for (const sym of symbols) {
     const buy = getCurrentMarketPrice(broker, sym, 'BUY');
     const sell = getCurrentMarketPrice(broker, sym, 'SELL');
     if (buy !== null && sell !== null) prices.set(sym, (buy + sell) / 2.0);
   }
-  if (prices.size === 0) return [false, activeZones];
+  if (prices.size === 0) return stop(false);
 
   cleanZombieOrders(broker, robotOrders, zones, state);
   robotOrders = getAllRobotOrders(broker);
   robotPositions = getAllRobotPositions(broker);
-  if (robotOrders === null || robotPositions === null) return [false, activeZones];
+  if (robotOrders === null || robotPositions === null) return stop(false);
 
   checkVanishedOrders(broker, zones, robotOrders, robotPositions, state);
   processPartialFillsAndTpsl(broker, robotPositions, robotOrders, zones, infos, state);
+  return { done: null, prices, active: activeZones, symbols };
+}
 
-  let ok = prices.size === symbols.length;
+/** Zonenschleife eines Durchlaufs mit den Kursen des Kopfs (grid_orchestrator.py :117-136) */
+export function turnZones(
+  broker: Broker,
+  zones: readonly ZoneDict[],
+  head: TurnHead,
+  infos: SymbolInfos,
+  state: EngineState,
+): [boolean, ActiveZones] {
+  const activeZones = head.active;
+  let ok = head.prices.size === head.symbols.length;
   zones.forEach((zone, idx) => {
     const sym = zoneSymbolOf(zone);
-    const price = prices.get(sym);
+    const price = head.prices.get(sym);
     if (price === undefined || !isEnabled(zone)) return;
     const [zoneOk, keep] = manageZone(broker, zone, idx, idx in activeZones, price, infos, state);
     ok = ok && zoneOk;
@@ -85,6 +109,19 @@ export function manageDynamicGrid(
     else delete activeZones[idx];
   });
   return [ok, activeZones];
+}
+
+export function manageDynamicGrid(
+  broker: Broker,
+  zones: readonly ZoneDict[],
+  activeZonesIn: ActiveZones,
+  infos: SymbolInfos,
+  state: EngineState,
+  remotePaused = false,
+): [boolean, ActiveZones] {
+  const head = turnHead(broker, zones, activeZonesIn, infos, state, remotePaused);
+  if (head.done) return head.done;
+  return turnZones(broker, zones, head, infos, state);
 }
 
 /**

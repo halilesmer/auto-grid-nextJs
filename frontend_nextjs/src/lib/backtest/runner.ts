@@ -16,7 +16,7 @@ import { PathBroker, type FillModel, type InitialOrder, type InitialPosition, ty
 import { tradeOpenAt } from '@/lib/backtest/broker/tradeSessions';
 import type { LoadedRates } from '@/lib/backtest/candles/loadRates';
 import { candleWaypoints, waypointTimes, type PathMode } from '@/lib/backtest/candles/pathModel';
-import { manageDynamicGrid, type ActiveZones } from '@/lib/backtest/engine/orchestrator';
+import { manageDynamicGrid, turnHead, turnZones, type ActiveZones, type TurnHead } from '@/lib/backtest/engine/orchestrator';
 import { EngineState } from '@/lib/backtest/engine/state';
 import { TF_SECONDS, TRADE_ACTION_PENDING, TRADE_ACTION_REMOVE, TRADE_RETCODE_DONE, type Timeframe, type ZoneDict } from '@/lib/backtest/engine/types';
 import { toTimeframe, zget, zoneLogId } from '@/lib/backtest/engine/helpers';
@@ -91,6 +91,16 @@ export interface RunModel {
   profile?: CalibrationProfile;
   /** BKT-31 (PR-4): Bot-Takt im Replay in Sekunden (Konto-LOOP); fehlt = REPLAY_BOT_INTERVAL (1 s) */
   botIntervalSec?: number;
+  /**
+   * BKT-31: nur mit `botTurns`. Eine Tur läuft in zwei Phasen: Kopf (Kurslesung, Zombie-Löschen, TP/SL) bei `snapAt`, Zonen
+   * bei `zoneAt`; dazwischen laufen die Ticks. Der Kopf sieht nur die Positionen bis dahin, TP/SL wirkt zur Op-Zeit, die
+   * Zonen lesen frisch. Ohne Angabe (Vorgabe TURN_PHASES_DEFAULT = false): bytegleich zum Ein-Zeitpunkt-Modell.
+   */
+  turnPhases?: boolean;
+  /** BKT-31 (S): nur mit `turnPhases`. Löschen ist für den Bot sofort fertig, wirkt im Broker zur Op-Zeit (Vorgabe true) */
+  removeAtOp?: boolean;
+  /** BKT-31: nur mit `turnPhases`. TP/SL des Kopfs wirken zur Op-Zeit (Vorgabe true); false = sofort wie vorher (nur zur Teilmessung) */
+  sltpAtOp?: boolean;
 }
 
 /** Fraktal, das vor `from` schon gehandelt wurde (Order gefüllt oder gelöscht): der Lauf legt dafür keine Order mehr */
@@ -155,7 +165,7 @@ export interface RunResult {
 // Alle aus: P8 entscheidet über das Einschalten (Journal 2026-11-12). Aus = Ergebnis wie vor BKT-26.
 export const SAME_TICK_BATCH_DEFAULT = false;
 export const FILL_SLTP_DELAY_DEFAULT = false;
-export const BOT_REACT_DEFAULT = false;
+export const BOT_REACT_DEFAULT = true;
 export const botReactOn = (model: Pick<RunModel, 'botReact'>): boolean => model.botReact ?? BOT_REACT_DEFAULT;
 export const sameTickBatchOn = (model: Pick<RunModel, 'sameTickBatch'>): boolean => model.sameTickBatch ?? SAME_TICK_BATCH_DEFAULT;
 export const fillSltpDelayOn = (model: Pick<RunModel, 'fillSltpDelay'>): boolean => model.fillSltpDelay ?? FILL_SLTP_DELAY_DEFAULT;
@@ -330,12 +340,24 @@ export function runBacktest(input: RunInput): RunResult {
   /** Order-Nummer → frühester Zeitpunkt, ab dem sie live wirksam ist (Op-Zeit) */
   const activeAt = new Map<number, number>();
   const sendTimes: number[] = [];
+  // BKT-31: zwei Phasen je Tur
+  const phases = !!turns && model.turnPhases === true;
+  const removeAtOn = phases && model.removeAtOp !== false;
+  /** Nennzeit des laufenden Ereignisses (Kopf bei snapAt, Zonen bei zoneAt); null außerhalb */
+  let eventTime: number | null = null;
+  let straddled = 0;
+  let zoneBeforeSnap = 0;
+  let headCount = 0;
   if (turns) {
     const send = broker.orderSend.bind(broker);
     broker.orderSend = (req) => {
+      const headClock = phases ? broker.sltpClock : null;
+      if (removeAtOn && req.action === TRADE_ACTION_REMOVE) broker.removeAt = headClock ? headClock.next : opClock;
       const result = send(req);
+      broker.removeAt = null;
+      if (result.retcode === TRADE_RETCODE_DONE && req.action === TRADE_ACTION_REMOVE && headClock) headClock.next += opCost.remove;
       if (result.retcode === TRADE_RETCODE_DONE && (req.action === TRADE_ACTION_PENDING || req.action === TRADE_ACTION_REMOVE)) {
-        if (req.action === TRADE_ACTION_PENDING) sendTimes.push(broker.now);
+        if (req.action === TRADE_ACTION_PENDING) sendTimes.push(phases ? (opClock ?? eventTime ?? broker.now) : broker.now);
         if (opClock !== null) {
           if (req.action === TRADE_ACTION_PENDING && result.order) activeAt.set(result.order, opClock);
           opClock += req.action === TRADE_ACTION_PENDING ? opCost.pending : opCost.remove;
@@ -356,6 +378,70 @@ export function runBacktest(input: RunInput): RunResult {
       count();
       runTurn();
       turnIndex += 1;
+    }
+  };
+  // BKT-31: Ereigniswarteschlange (Kopf H(k) bei snapAt[k], Zonen Z(k) bei zoneAt[k], nie vor snapAt)
+  const snapAt = turns && turns.snapAt && turns.snapAt.length === turns.starts.length ? turns.snapAt : (turns?.starts ?? []);
+  const zoneTime = (k: number) => Math.max(turns!.zoneAt[k], snapAt[k]);
+  const heads: (TurnHead | undefined)[] = [];
+  const headMinute: number[] = [];
+  let nextHead = 0;
+  let nextZone = 0;
+  let curMinute = 0;
+  const minuteOf = (time: number) => time - (((time % 60) + 60) % 60);
+  const runHead = (k: number) => {
+    headCount += 1;
+    eventTime = snapAt[k];
+    broker.sltpClock = { next: snapAt[k], cost: opCost.sltp, hold: model.sltpAtOp !== false };
+    const head = turnHead(broker, zones, active, infos, state);
+    broker.sltpClock = null;
+    eventTime = null;
+    if (head.done) active = head.done[1];
+    else active = head.active;
+    heads[k] = head;
+    headMinute[k] = curMinute;
+  };
+  const runZone = (k: number) => {
+    const head = heads[k];
+    heads[k] = undefined;
+    if (!head || head.done) return;
+    if (turns!.zoneAt[k] < snapAt[k]) zoneBeforeSnap += 1;
+    if (headMinute[k] !== curMinute) straddled += 1;
+    eventTime = zoneTime(k);
+    opClock = eventTime;
+    [, active] = turnZones(broker, zones, head, infos, state);
+    opClock = null;
+    eventTime = null;
+  };
+  /** Alle Ereignisse vor `until` in Zeitreihenfolge (Kopf vor Zonen bei Gleichstand) */
+  const runEventsBefore = (until: number, count: () => void) => {
+    if (!turns) return;
+    for (;;) {
+      const tH = nextHead < turns.starts.length ? snapAt[nextHead] : Infinity;
+      const tZ = nextZone < turns.starts.length ? zoneTime(nextZone) : Infinity;
+      if (Math.min(tH, tZ) >= until) break;
+      count();
+      if (tH <= tZ) {
+        runHead(nextHead);
+        nextHead += 1;
+      } else {
+        runZone(nextZone);
+        nextZone += 1;
+      }
+    }
+  };
+  /** Köpfe vor `until`, die in keiner Replay-Minute liefen, entfallen (wie bei der Ein-Zeitpunkt-Tur) */
+  const skipHeadsBefore = (until: number) => {
+    if (!turns) return;
+    while (nextHead < turns.starts.length && snapAt[nextHead] < until) nextHead += 1;
+  };
+  /** Zonen, deren Kopf lief, aber die in eine Nicht-Replay-Minute fallen, laufen am Minutenanfang vor dem Kerzenweg */
+  const flushZonesBefore = (until: number, atTime: number) => {
+    if (!turns) return;
+    while (nextZone < nextHead && zoneTime(nextZone) < until) {
+      if (heads[nextZone] && !heads[nextZone]!.done) broker.setMarket(prevClose, atTime);
+      runZone(nextZone);
+      nextZone += 1;
     }
   };
   /** Orders, deren Op-Zeit bis `upTo` erreicht ist, wählen ihre Art mit dem jetzigen Kurs */
@@ -437,6 +523,7 @@ export function runBacktest(input: RunInput): RunResult {
       }
     }
     broker.beginCandle(t0, rates.o[i], spreadPoints, barSpread, quotes);
+    curMinute = t0;
     const way = candleWaypoints(rates.o[i], rates.h[i], rates.l[i], rates.c[i], model.path);
     const times = waypointTimes(way, t0, tEnd);
     const wakes = wakeLevels(zone, info.point, info.digits, broker.spreadPrice);
@@ -495,11 +582,13 @@ export function runBacktest(input: RunInput): RunResult {
       replayMinutes += 1;
       replayTicks += replay.ms.length;
       broker.beginReplay();
-      if (turns) while (turnIndex < turns.starts.length && turns.starts[turnIndex] < t0) turnIndex += 1;
+      if (phases) skipHeadsBefore(t0);
+      else if (turns) while (turnIndex < turns.starts.length && turns.starts[turnIndex] < t0) turnIndex += 1;
       for (let k = 0; k < replay.ms.length; k++) {
         if (turns) {
           const tq = t0 + replay.ms[k] / 1000;
-          runTurnsBefore(tq, countEvent);
+          if (phases) runEventsBefore(tq, countEvent);
+          else runTurnsBefore(tq, countEvent);
           retypeDue(tq);
           broker.setQuote(replay.bid[k], replay.ask[k], tq);
           for (const trigger of broker.quoteTriggers()) {
@@ -539,10 +628,15 @@ export function runBacktest(input: RunInput): RunResult {
       const seen = broker.setBarOhlc(rates.o[i], rates.h[i], rates.l[i], rates.c[i]);
       const tolerance = REPLAY_BAR_TOLERANCE_POINTS * info.point;
       if (seen && (Math.abs(seen.high - rates.h[i]) > tolerance || Math.abs(seen.low - rates.l[i]) > tolerance)) replayMismatches += 1;
-      if (turns) runTurnsBefore(t0 + 60, countEvent);
+      if (phases) runEventsBefore(t0 + 60, countEvent);
+      else if (turns) runTurnsBefore(t0 + 60, countEvent);
       broker.endReplay();
       if (!turns) runBot();
     } else {
+      if (phases) {
+        flushZonesBefore(t0 + 60, t0);
+        skipHeadsBefore(t0 + 60);
+      }
       traverse(prevClose, way[0], t0, t0, true);
       for (let k = 1; k < way.length; k++) traverse(way[k - 1], way[k], times[k - 1], times[k], false);
       // BKT-21: der Weg endet vor dem Kerzenende (flache Kerze: am Anfang); Pausen nach 10018 enden trotzdem darin
@@ -563,6 +657,7 @@ export function runBacktest(input: RunInput): RunResult {
     log.add('INFO', 'run.tradeSessions', { candles: closedCandles, rejects: broker.closedRejects });
     if (partialCandles > 0) log.add('WARN', 'run.tradeSessionPartial', { candles: partialCandles });
   }
+  if (phases) log.add('INFO', 'run.turnPhases', { heads: headCount, straddled, zoneBeforeSnap, removeRaced: broker.removeRaced, removeAtOp: removeAtOn ? 1 : 0 });
   if (replayMinutes > 0) log.add('INFO', 'run.tickReplay', { minutes: replayMinutes, ticks: replayTicks });
   if (gridMinutes > 0) log.add('INFO', 'run.quoteGrid', { minutes: gridMinutes });
   if (quotesMissing > 0) log.add('WARN', 'run.askExtremesMissing', { candles: quotesMissing });

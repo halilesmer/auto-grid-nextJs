@@ -2,8 +2,8 @@
 date: 2026-11-16
 author: Claude
 type: fix
-status: open
-pr: [574, 579, 582]
+status: closed
+pr: [574, 579, 582, 592]
 features: [UI-27, UI-28, UI-29, ANA-17]
 areas: [tests, chart]
 ---
@@ -116,7 +116,7 @@ The app did not change in the first PR (574). The change of the view was fixed l
 - [x] UI-17 `chart-dock-formation.spec.ts:95` made `main` red after PR 579 (run 43876765164). In the first 4 CI runs with the change it failed in 3 of 6 attempts; in 9 runs without the change it passed on the first try. The layout was correct: the test measured at a fixed time (800 ms), and with PR 579 the result of the search came earlier, so the measurement was in the `margin-left` animation of the package. Corrected in PR 581 (journal `2026-11-16-dock-row2-gap-after-axis-defer`). The test was flaky in the first CI run of PR 579; the coordinator saw it and did not compare it with `main` (see Lessons).
 - [x] FRM-30 ("Zwei Tabs lösen nur eine Suche aus", `formation-page.spec.ts`) is flaky on the loaded Mac: it failed in a full `precheck.sh` (8 calls, 4 expected) and in 1 of 3 runs alone, on a branch that did not change application code (PR 576). It also failed on the first try and on the retry in a `precheck.sh` run of a branch with documents only. The cause is not known. 2 tabs share 1 search through a Web Lock (`FormationScanRunner.tsx`); 8 calls show that the second tab got the lock for a moment. No link to the price axis or the running candle was seen.
   - Measured in 1116-A35 (journal `2026-11-16-flaky-tests-ana27-ui26-ana20-frm30-usr17`): all 8 calls come from the first tab. Its search starts before the personal prefs are loaded and starts again when `alarmKey` changes. The second tab has no part in it. The fix is in the application and waits for the decision of the owner; open point there.
-- [ ] ANA-19 `chart-workspace.spec.ts:386` takes 23.5 to 28.0 s in CI (9 runs on `main`, 2026-11-15 and 2026-11-16, each on the first try); the limit is 30 s. It failed with a timeout on the loaded Mac, also with the code of `main`. It was this slow before PR 570 too (23.5 s and 25.8 s).
+- [x] ANA-19 `chart-workspace.spec.ts:386` takes 23.5 to 28.0 s in CI (9 runs on `main`, 2026-11-15 and 2026-11-16, each on the first try); the limit is 30 s. It failed with a timeout on the loaded Mac, also with the code of `main`. It was this slow before PR 570 too (23.5 s and 25.8 s). Closed by PR 592, squash `c7988f3b` (2026-11-17 06:04 UTC): a toast covered the buttons of the dialog; the test now runs without the formation search. In the CI of PR 592 (run 44026467962) the test took 7.3 s.
 - [x] ANA-19 `chart-workspace.spec.ts:103` fails on the Mac in some runs; in CI it passes on the first try (15.1 to 19.6 s). The failure is not a timeout: the range is different by 1 candle (3600 s). PR 579 is not the cause. Measurement (a temporary copy of lines 103 to 141 with a sampler for each animation frame, 10 runs for each arm, under the heavy lock, load average 16 to 7): `main` 2 of 10 failed, `ChartCore.tsx` from before PR 579 3 of 10 failed, each time in line 141.
   - Cause: in the 5 failed runs the running candle of the formation search came approx. 60 ms after the first fit of the chart (for example at 991 ms; first fit at 932 ms). The library then moved the view by 1 candle, and the first candle left the view (`…268800,…852000` became `…272400,…855600`). In the 15 passed runs the running candle was there at the first draw. The test reads `fitRange` from the moved view; the "fit" button then gives a different range.
   - `chartReady(page)` does not help: the move comes approx. 800 ms before `data-scan-ms`, and the view stays moved.

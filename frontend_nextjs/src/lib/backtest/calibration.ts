@@ -22,17 +22,21 @@ export const DEFAULT_PROFILE: CalibrationProfile = {
   id: 'default-2026-11',
   measured: null,
   vps: { headS: 0.105, zoneOverheadS: 0, clockShiftS: null },
-  broker: { opCost: { pending: 0.225, remove: 0.102, sltp: 0.1 }, fillLatencyMs: 1 },
+  broker: { opCost: { pending: 0.225, remove: 0.102, sltp: 0.1 }, fillLatencyMs: 5 },
   derived: { clusterGapS: 0.8, chainSlackS: 0.7 },
 };
 
 /**
- * BKT-31 (PR-4): Vorgaben (aus). Eingeschaltet berechnet der Lauf das Profil aus einem Kalibrierungsfenster W_c
- * (die 3 Handelstage vor dem Auswertungsfenster, nur GET) und schreibt es ins Protokoll (`run.calibration`).
- * Aus = die Seite liest nichts zusätzlich, der Lauf ist bytegleich wie vorher (Plan 1114-M1 §5.3, M1.5).
+ * BKT-31 (PR-4): Vorgabe ein (Messung 1117-K11: in vier Fenstern gleich der Vorgabe, P8 mit liveOrders 35,16 → 0,37). Der Lauf
+ * berechnet das Profil aus einem Kalibrierungsfenster W_c (die 3 Handelstage vor dem Auswertungsfenster, nur GET) und
+ * schreibt es ins Protokoll (`run.calibration`). Aus = die Seite liest nichts zusätzlich, der Lauf ist bytegleich wie
+ * vorher (Plan 1114-M1 §5.3, M1.5).
  */
-export const CALIBRATE_DEFAULT: boolean = false;
-/** BKT-31 (PR-4): Bot-Takt im Replay (`REPLAY_BOT_INTERVAL` 1 s) aus dem Konto-LOOP statt fest 1 s; nur reiner Backtest ohne Tur-Raster (M1.6) */
+export const CALIBRATE_DEFAULT: boolean = true;
+/**
+ * BKT-31 (PR-4): Bot-Takt im Replay (`REPLAY_BOT_INTERVAL` 1 s) aus dem Konto-LOOP statt fest 1 s; nur reiner Backtest ohne Tur-Raster (M1.6).
+ * Bleibt aus (Messung 1117-K11, „kein Gewinn“): mit Tur-Raster (`BOT_TURNS_DEFAULT`) liest der Runner `botIntervalSec` nie, der Takt kommt aus dem Raster.
+ */
 export const REPLAY_LOOP_FROM_ACCOUNT_DEFAULT: boolean = false;
 /** Länge von W_c in Handelstagen (Mo–Fr) */
 export const CALIBRATION_DAYS = 3;

@@ -7,6 +7,7 @@ import { dragLeft, openNearLeftEdge, panToFirstCandle } from '../fixtures/chart-
 import { dialogTab, openDrawings } from '../fixtures/chart-dialog';
 import { formationRequests } from '../../src/lib/formation/requests';
 import { openCardTab } from '../fixtures/card';
+import { chartReady } from '../fixtures/chart-ready';
 
 // These tests are about the chart itself. The side bar of the one chart starts open from 1024 px and takes 288 px (1107-A21, U4-4a): closed, the chart has its old width
 // `range=7d` was no preset: it fell back to the default range (30 days), which is "All" since 1107-A21. The tests mean seven days: `range=last7`.
@@ -383,38 +384,43 @@ test('Speicherfehler wird angezeigt und die aktuelle Sitzung bleibt bedienbar', 
   await expect(page.getByTestId('workspace-indicator-values')).toContainText('ATR');
 });
 
-test('Anzeige-Einstellung speichert erst beim Anwenden, auch nach hartem Neuladen', { tag: '@ANA-19' }, async ({ page, worker }) => {
-  void worker;
-  // Setup-Modus: „Namen anzeigen“ (Statuszeile) hat eine messbare Wirkung (Namen in `workspace-indicator-values`). Der Abschnitt „Ebenen“ des Dialogs gibt es nicht mehr (U3b); die Setup-Ebenen stehen im Menü „Ebenen“ und wirken sofort.
-  await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=H1`);
-  const values = page.getByTestId('workspace-indicator-values');
-  await expect(values).toContainText('EWO');
-  const savedNames = () => page.evaluate(() => JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').appearance?.names);
-  const toggleNames = async () => {
-    await page.getByTestId('workspace-settings').click();
-    const modal = page.getByTestId('chart-workspace-settings');
-    await modal.getByRole('button', { name: msg('cw.status'), exact: true }).click();
-    await modal.getByRole('checkbox', { name: msg('cw.names') }).click();
-  };
-  // Vorschau: schon vor „Anwenden“ sichtbar am Chart, gespeichert ist noch nichts
-  await toggleNames();
-  await expect(values).not.toContainText('EWO');
-  expect(await savedNames()).not.toBe(false);
-  // „Abbrechen“ stellt den Ausgangszustand wieder her
-  await page.getByRole('button', { name: msg('cw.cancel'), exact: true }).click();
-  await expect(values).toContainText('EWO');
-  // Hartes Neuladen ohne Anwenden: weiter der Ausgangszustand
-  await toggleNames();
-  await expect(values).not.toContainText('EWO');
-  await page.reload();
-  await expect(values).toContainText('EWO');
-  expect(await savedNames()).not.toBe(false);
-  // „Anwenden“ speichert, auch nach dem Neuladen
-  await toggleNames();
-  await page.getByRole('button', { name: msg('cw.apply'), exact: true }).click();
-  await expect.poll(savedNames).toBe(false);
-  await page.reload();
-  await expect(values).not.toContainText('EWO');
+test.describe('ohne Formationssuche', () => {
+  // The toast "formation search finished" (7 s) covers Cancel and Apply of the settings dialog; each click waited until it went away
+  // (7.6 to 8.5 s per click, 2 clicks in a 23 s test; journal 2026-11-17-ana20-legend-shift-ana19-toast). The test needs no search.
+  test.use({ formationAsk: 'manual' });
+  test('Anzeige-Einstellung speichert erst beim Anwenden, auch nach hartem Neuladen', { tag: '@ANA-19' }, async ({ page, worker }) => {
+    void worker;
+    // Setup-Modus: „Namen anzeigen“ (Statuszeile) hat eine messbare Wirkung (Namen in `workspace-indicator-values`). Der Abschnitt „Ebenen“ des Dialogs gibt es nicht mehr (U3b); die Setup-Ebenen stehen im Menü „Ebenen“ und wirken sofort.
+    await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=H1`);
+    const values = page.getByTestId('workspace-indicator-values');
+    await expect(values).toContainText('EWO');
+    const savedNames = () => page.evaluate(() => JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').appearance?.names);
+    const toggleNames = async () => {
+      await page.getByTestId('workspace-settings').click();
+      const modal = page.getByTestId('chart-workspace-settings');
+      await modal.getByRole('button', { name: msg('cw.status'), exact: true }).click();
+      await modal.getByRole('checkbox', { name: msg('cw.names') }).click();
+    };
+    // Vorschau: schon vor „Anwenden“ sichtbar am Chart, gespeichert ist noch nichts
+    await toggleNames();
+    await expect(values).not.toContainText('EWO');
+    expect(await savedNames()).not.toBe(false);
+    // „Abbrechen“ stellt den Ausgangszustand wieder her
+    await page.getByRole('button', { name: msg('cw.cancel'), exact: true }).click();
+    await expect(values).toContainText('EWO');
+    // Hartes Neuladen ohne Anwenden: weiter der Ausgangszustand
+    await toggleNames();
+    await expect(values).not.toContainText('EWO');
+    await page.reload();
+    await expect(values).toContainText('EWO');
+    expect(await savedNames()).not.toBe(false);
+    // „Anwenden“ speichert, auch nach dem Neuladen
+    await toggleNames();
+    await page.getByRole('button', { name: msg('cw.apply'), exact: true }).click();
+    await expect.poll(savedNames).toBe(false);
+    await page.reload();
+    await expect(values).not.toContainText('EWO');
+  });
 });
 
 test('Lokales Bild bleibt getrennt gespeichert und überlebt Löschen/Rückgängig und Neuladen', { tag: '@ANA-17' }, async ({ page, worker }) => {
@@ -616,6 +622,64 @@ test('Indikatormenü: Sichtbarkeit, Zeitrahmen, Skala, Bereichswechsel, Kopie, F
   await expect(page.getByRole('button', { name: msg('cw.indicatorUnfavorite') })).toBeVisible();
 });
 
+test('Lejant: imleç grafikten düğmeye geçince satırın düğmeleri yerinde kalır', { tag: ['@ANA-20'] }, async ({ page, worker }) => {
+  worker.userPrefs.admin = { ...worker.userPrefs.admin, chart_osc_scope: { mode: 'product' } }; // USR-17: openOscillatorChart writes a per-product record
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  const { controls } = await openOscillatorChart(page);
+  await chartReady(page);
+  const rows = ['RSI', 'EWO'] as const;
+  const value = (kind: string) => page.locator(`[data-indicator-value="${kind}"]`);
+  const trigger = (kind: string) => controls.getByRole('button', { name: msg('cw.indicatorActions', { indicator: kind }) });
+  const triggerX = async () => Promise.all(rows.map(async kind => (await trigger(kind).boundingBox())!.x));
+  // Off the chart the legend shows the latest values (a number after the parameters; the parameters have digits too)
+  await page.mouse.move(0, 0);
+  for (const kind of rows) await expect(value(kind)).toContainText(/\) -?\d/);
+  // The crosshair on the first candles: RSI(14) and EWO(5/35) have no value there yet, the legend shows "—" (journal 2026-11-17-ana20-legend-shift-ana19-toast)
+  const chart = (await page.getByTestId('analysis-chart').boundingBox())!;
+  await page.mouse.move(chart.x + 8, chart.y + chart.height * 0.3);
+  for (const kind of rows) await expect(value(kind)).toContainText('—');
+  const before = await triggerX();
+  // The mouse goes to the button: the crosshair goes away and the latest value comes back; the buttons must not move under the mouse
+  const box = (await trigger('RSI').boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  for (const kind of rows) await expect(value(kind)).toContainText(/\) -?\d/);
+  expect(await triggerX()).toEqual(before);
+});
+
+test('Lejant 375 px: imleç grafikteyken "—" kesilmez, düğmeler yerinde kalır', { tag: ['@ANA-20', '@UI-08'] }, async ({ page, worker }) => {
+  worker.userPrefs.admin = { ...worker.userPrefs.admin, chart_osc_scope: { mode: 'product' } }; // USR-17: the document below is a per-product record
+  await page.setViewportSize({ width: 375, height: 1000 });
+  await page.goto(CHART_URL);
+  const controls = page.getByTestId('oscillator-controls');
+  await expect(controls).toBeVisible();
+  const context = (await page.getByTestId('chart-workspace').getAttribute('data-context'))!;
+  // MACD and EWO: their rows with the latest value are wider than the legend at 375 px (measured 2 and 16 px, journal 2026-11-17-ana20-legend-shift-ana19-toast)
+  const rows = ['RSI', 'EWO', 'MACD'] as const;
+  await page.evaluate(([key, kinds]) => {
+    const state = JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{"version":2}');
+    state.version = 2;
+    state.documents = { ...state.documents, [key]: { drawings: '[]', images: {}, alarms: [], overlays: { rsi: false }, indicators: kinds.map(kind => ({ id: `user-${kind.toLowerCase()}`, kind })) } };
+    localStorage.setItem('grid-robot-chart-workspaces-v1', JSON.stringify(state));
+  }, [context, rows] as const);
+  await page.reload();
+  await expect(controls).toBeVisible();
+  await chartReady(page);
+  const value = (kind: string) => page.locator(`[data-indicator-value="${kind}"]`);
+  const trigger = (kind: string) => controls.getByRole('button', { name: msg('cw.indicatorActions', { indicator: kind }) });
+  const triggerX = async () => Promise.all(rows.map(async kind => (await trigger(kind).boundingBox())!.x));
+  // Width of the text that does not fit, for each row (the text element and its parts)
+  const cut = () => Promise.all(rows.map(kind => value(kind).evaluate(el => Math.max(0, ...[el, ...el.querySelectorAll('*')].map(e => e.scrollWidth - e.clientWidth)))));
+  await page.mouse.move(0, 0);
+  for (const kind of rows) await expect(value(kind)).toContainText(/\) -?\d/);
+  const latest = await triggerX();
+  const chart = (await page.getByTestId('analysis-chart').boundingBox())!;
+  await page.mouse.move(chart.x + 8, chart.y + chart.height * 0.3);
+  for (const kind of rows) await expect(value(kind)).toContainText('—');
+  // Name, parameters and "—" fit: nothing of the row is cut, and the buttons stay where they were with the latest value
+  expect(await cut()).toEqual([0, 0, 0]);
+  expect(await triggerX()).toEqual(latest);
+});
+
 test('Alarm: ein Zeitrahmenwechsel ist kein Übertritt, ein Live-Kurs löst ihn einmal aus', { tag: ['@ANA-20', '@UI-07'] }, async ({ page, worker }) => {
   worker.userPrefs.admin = { ...worker.userPrefs.admin, chart_osc_scope: { mode: 'product' } }; // USR-17: this test checks per-product records
   test.slow();
@@ -814,6 +878,21 @@ test.describe('ANA-27 Ältere Kerzen laden beim Scrollen nach links (leichte Sei
       await page.waitForTimeout(500);
       const after = await rangeOf();
       expect(Math.max(Math.abs(after[0] - before[0]), Math.abs(after[1] - before[1]))).toBeLessThanOrEqual(60);
+    });
+
+    test('Eine Seite pro Zug: nach der ersten Seite holt der Chart nicht gleich die nächste', { tag: '@ANA-27' }, async ({ page, worker }) => {
+      // 1117 Schritt 5: die Indikator-Reihen bekamen die Seite vor der Kerzenreihe; die Zeitachse meldete den verschobenen Bereich,
+      // und die Prüfung las barsBefore noch aus der alten Kerzenreihe (3 statt 20.003). Gleich danach kam eine zweite Seite.
+      // Die Freigabe folgt direkt auf den Zug, also innerhalb der Bedienungsfrist (1,5 s), in der eine zweite Anfrage möglich wäre
+      worker.state.ratesAllDays = true;
+      const queries = chartQueries(worker);
+      const { chart, loaded, loadedFrom, release } = await openNearLeftEdge(page, queries, { url: ALL_URL, initialBars: firstLoad(worker) });
+      release();
+      await expect.poll(async () => Number(await chart.getAttribute('data-bars'))).toBeGreaterThanOrEqual(loaded + PAGE);
+      await page.waitForTimeout(1500);
+      const older = queries.ratesQueries.filter((q) => Number(new URLSearchParams(q).get('to')) <= loadedFrom);
+      expect(older).toHaveLength(1);
+      await expect(chart).toHaveAttribute('data-bars', String(loaded + PAGE));
     });
 
     test('Ein Fehlschlag pausiert das Laden: keine Anfrage im Dauertakt', { tag: '@ANA-27' }, async ({ page, worker }) => {
