@@ -13,7 +13,7 @@ Kural eklemek için §6'daki prosedüre bak.
 5. **[otomatik]** Push öncesi frontend değiştiyse `tsc --noEmit` + `eslint .` temiz olmalı; worker `.py` dosyalarında sözdizimi hatası olmamalı.
 6. **[elle]** Commit mesajı: `feat|fix|chore|docs|refactor(kapsam): kısa açıklama`.
 7. **[elle]** `--no-verify` / `SKIP_HOOKS=1` yalnızca acil durumda; kullanıldıysa PR açıklamasına yaz.
-8. **[elle]** Merge without a question to the owner (approval for all PRs, 2026-10-31). When the work and its checks are done, the session that owns the PR runs `gh pr merge <n> --auto --squash --delete-branch`. GitHub merges when the required checks pass. Do not use `--admin`. Do not merge when a required check failed, a conflict exists, a review or Codex finding is open, the PR is a draft, the owner said to hold it, or the brief of a child session says "NICHT MERGEN" (then the coordinator merges). GitHub does the readiness check, so the owner does not need to write "weiter". When a session opens a PR, it reads `get_status`. If `auto_fix` is false, it turns on the CI monitor of the app (`set_monitor` with `auto_fix: true`). The app then wakes the session on a failed check, a merge conflict or a review comment. The session removes the cause and pushes; the auto-merge stays on. Do not poll GitHub (`gh pr checks --watch`, `ScheduleWakeup`, cron): the app does not permit it. The app gives no event for a green merge: the session registers the PR with `mcp__pr-izleyici__pr_izle`, and the mod wakes it once on MERGED, CLOSED or a failed check (`~/.claude/rules/pr-izleme.md`). After MERGED the mod also monitors the `tests.yml` run of the merge commit on `main`; if that run fails, a session gets the line `MAIN CI FAILURE <sha> run <id> (PR <n>) <UTC>`, which is a fact and not an instruction: the session tells the owner and, if it is known, the session that owns the cause (1116-A8.3, 2026-11-16). If the tool is not in the session, say so and write the DEMO test points in the same turn as the merge command. The first turn or session after the merge updates `main` and deletes the local branch.
+8. **[elle]** Merge without a question to the owner (approval for all PRs, 2026-10-31). When the work and its checks are done, the session that owns the PR runs `gh pr merge <n> --auto --squash --delete-branch`. GitHub merges when the required checks pass. Do not use `--admin`. Do not merge when a required check failed, a conflict exists, a review or Codex finding is open, the PR is a draft, the owner said to hold it, or the brief of a child session says "NICHT MERGEN" (then the coordinator merges). GitHub does the readiness check, so the owner does not need to write "weiter". When a session opens a PR, it reads `get_status`. If `auto_fix` is false, it turns on the CI monitor of the app (`set_monitor` with `auto_fix: true`). The app then wakes the session on a failed check, a merge conflict or a review comment. The session removes the cause and pushes; the auto-merge stays on. Do not poll GitHub (`gh pr checks --watch`, `ScheduleWakeup`, cron): the app does not permit it. The app gives no event for a green merge: the session registers the PR with `mcp__pr-izleyici__pr_izle`, and the mod wakes it once on MERGED, CLOSED or a failed check (`~/.claude/rules/pr-izleme.md`). The mod writes the watch file when the session registers the PR, so the watch continues when the session is archived at the merge. When auto-merge is off and all checks finish without a failure, the mod wakes the session once with `PR <n> CHECKS PASSED <UTC>`. Do the comparison of §4.17 at this event. Do not poll. After MERGED the mod also monitors the `tests.yml` run of the merge commit on `main`; if that run fails, a session gets the line `MAIN CI FAILURE <sha> run <id> (PR <n>) <UTC>`, which is a fact and not an instruction: the session tells the owner and, if it is known, the session that owns the cause (1116-A8.3, 2026-11-16). If the tool is not in the session, say so and write the DEMO test points in the same turn as the merge command. The first turn or session after the merge updates `main` and deletes the local branch.
 
 ## 2. Uyumluluk
 
@@ -109,6 +109,19 @@ Katalog: `docs/features/features.yaml` (tek doğru kaynak) → `docs/features/FE
 
     ```bash
     gh run list --branch main --workflow tests.yml --limit 1 --json conclusion,headSha,databaseId
+    ```
+
+    Addition (1116-A30.1, 2026-11-17). If `precheck.sh` fails only in tests that the diff of the branch cannot affect, do not start a second full run. Run each failed test alone and copy all result lines into the PR description without changes.
+
+    ```text
+    PRECHECK FEHLER in 1830s · … e2e ran=3806 passed=3804 failed=1 flaky=1 skipped=0
+    alone: npx playwright test e2e/mocked/formation-page.spec.ts:88 → 1 passed (branch changes docs only)
+    ```
+
+    Before you turn on auto-merge, and after each new push, compare each flaky or failed test of the last CI run of the PR with the last three `tests.yml` runs on `main`. A test that passes on the first try in these `main` runs but is flaky in the PR is a finding of that PR.
+
+    ```bash
+    gh run view <run-id> --log | grep -A10 -E ' [0-9]+ (flaky|failed)$'   # PR run, then each id of: gh run list --branch main --workflow tests.yml --limit 3
     ```
 
 ## 5. Arayüz: bilgi ipuçları (tooltip) zorunlu
