@@ -3,7 +3,7 @@ date: 2026-11-17
 author: Claude
 type: fix
 status: done
-pr: []
+pr: [602]
 features: [UI-15]
 areas: [tests, chart]
 ---
