@@ -355,7 +355,7 @@ export function runBacktest(input: RunInput): RunResult {
       if (removeAtOn && req.action === TRADE_ACTION_REMOVE) broker.removeAt = headClock ? headClock.next : opClock;
       const result = send(req);
       broker.removeAt = null;
-      if (result.retcode === TRADE_RETCODE_DONE && req.action === TRADE_ACTION_REMOVE && headClock) headClock.next += BOT_OP_COST_S.remove;
+      if (result.retcode === TRADE_RETCODE_DONE && req.action === TRADE_ACTION_REMOVE && headClock) headClock.next += opCost.remove;
       if (result.retcode === TRADE_RETCODE_DONE && (req.action === TRADE_ACTION_PENDING || req.action === TRADE_ACTION_REMOVE)) {
         if (req.action === TRADE_ACTION_PENDING) sendTimes.push(phases ? (opClock ?? eventTime ?? broker.now) : broker.now);
         if (opClock !== null) {
@@ -392,7 +392,7 @@ export function runBacktest(input: RunInput): RunResult {
   const runHead = (k: number) => {
     headCount += 1;
     eventTime = snapAt[k];
-    broker.sltpClock = { next: snapAt[k], cost: BOT_OP_COST_S.sltp, hold: model.sltpAtOp !== false };
+    broker.sltpClock = { next: snapAt[k], cost: opCost.sltp, hold: model.sltpAtOp !== false };
     const head = turnHead(broker, zones, active, infos, state);
     broker.sltpClock = null;
     eventTime = null;
