@@ -142,7 +142,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape): Candidate {
   add('CRB-16', lowerReversal(env, tf, s));
 
   const stateOf = (id: string) => checks.find((k) => k.id === id)!.state;
-  // Einstieg wie bisher am äußersten Docht, Stop ab der ersten Berührung des D-Levels eingefroren
+  // Einstieg und Stop ab der ersten Berührung des D-Levels eingefroren (Docht der Berührungskerze)
   const freeze = reached ? harmonicFreeze(bars, s, dTarget, 0, false) : null;
   const drawings = drawingsOf(env, tf, s, reached, freeze);
   const inactiveIds = otherVariantIds(stateOf);

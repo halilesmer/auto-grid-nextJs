@@ -90,7 +90,7 @@ export function frozenStopDrawings(ids: [string, string], bars: readonly Formati
 /**
  * Handel einer Harmonik: Ziel aus der Ziel-Fib `from → D` (Level in Notation Start = 1, Ende = 0); TP1 läuft mit dem äußersten Docht.
  * Der Stop ist eingefroren (`harmonicStop`). Gartley und Bat steigen am Preis des D-Levels ein, nicht am äußersten Docht;
- * `tp1AtEntry` (Fib `from → Level`) ist dann die Grundlage des CRV (1:1). Butterfly und Crab steigen wie bisher am äußersten Docht ein.
+ * `tp1AtEntry` (Fib `from → Level`) ist dann die Grundlage des CRV (1:1). Butterfly und Crab steigen am Docht der Berührungskerze ein (`touchEnd`, wie der Stop eingefroren) und laufen nicht mit dem äußersten Docht.
  * Solange D nicht erreicht ist, fehlen alle drei Werte; `reachedRule` ist die Bedingung, auf die sie warten.
  */
 export function harmonicTrade(
@@ -103,7 +103,7 @@ export function harmonicTrade(
 ): TradeInput {
   if (!from || !d || !reached || !freeze) return { entry: null, stop: null, tp1: null, reason: { entry: reachedRule, stop: reachedRule, tp1: reachedRule } };
   return {
-    entry: freeze.entryLevel ?? d.price,
+    entry: freeze.entryLevel ?? freeze.touchEnd,
     stop: harmonicStop(from, freeze, targets.stop),
     tp1: fibPrice(from.price, d.price, targets.tp1),
     ...(freeze.entryLevel === undefined ? {} : { tp1AtEntry: fibPrice(from.price, freeze.entryLevel, targets.tp1) }),
