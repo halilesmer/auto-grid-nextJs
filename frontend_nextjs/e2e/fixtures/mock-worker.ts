@@ -400,8 +400,14 @@ export class MockWorker {
     }
     this.calls.push({ method, path: url.pathname, query: url.searchParams, body });
 
-    this.rawBuffer = request.postDataBuffer() ?? Buffer.alloc(0);
-    this.rawBody = this.rawBuffer.toString('utf8');
+    // Rohkörper dieser Anfrage. In die Felder rawBuffer/rawBody erst direkt vor dem synchronen mediaRoute/dispatch:
+    // während eines await (Kopfzeilen, Verzögerungen) läuft eine andere Anfrage, und deren Körper stünde sonst hier
+    // (ein CSV-Teil las den leeren Körper einer GET-Anfrage, BKT-05, e2e/mocked/mock-worker-lib.spec.ts).
+    const raw = request.postDataBuffer() ?? Buffer.alloc(0);
+    const takeRaw = () => {
+      this.rawBuffer = raw;
+      this.rawBody = raw.toString('utf8');
+    };
     const headers = await request.allHeaders();
     const principal = this.principalOf(headers['x-api-key']);
     if (!principal) {
@@ -431,6 +437,7 @@ export class MockWorker {
       });
     }
 
+    takeRaw();
     const mediaReply = this.mediaRoute(method, url);
     if (mediaReply) {
       if ('file' in mediaReply) {
@@ -462,6 +469,7 @@ export class MockWorker {
         return this.reply(route, { status: 500, body: { detail: 'user prefs unavailable' } });
       }
     }
+    takeRaw();
     const reply = this.dispatch(method, url, body, principal);
     if (!reply) {
       this.unhandled.push(`${method} ${url.pathname}`);
