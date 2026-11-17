@@ -84,7 +84,9 @@ Root cause: a race in the test helper `openHistory`, which clicks right after `g
 
 Fix: `openHistory` first waits for `timeframe-H4` (only the account chart has the timeframe buttons), then clicks.
 
-Deterministic check (local, `/api/accounts` answered 3 s late with `page.route`): a click right after `goto` opens the panel of the page without an account (`aria-expanded` true, the note "hesap seçilmedi", 0 tabs); after the swap to the account chart the panel is closed (`aria-expanded` false, 0 tabs). Without the delay the panel stays open with 2 tabs. With the fixed helper and the delay: 4 of 4 green; the real FRM-30 block: 42 of 42. Not explained: a copy of the test with the old helper and the same delay also passed 4 of 4.
+Deterministic check (local, `/api/accounts` answered 3 s late with `page.route`): a click right after `goto` opens the panel of the page without an account (`aria-expanded` true, the note "hesap seçilmedi", 0 tabs); after the swap to the account chart the panel is closed (`aria-expanded` false, 0 tabs). Without the delay the panel stays open with 2 tabs. Two arms with the delay set in the test body: old helper (click right after `goto`) 3 of 3 red, new helper 3 of 3 green; the real FRM-30 block with the new helper: 42 of 42. (A first try set the delay in `beforeEach`; the route of the mock worker, installed later, took precedence, so no delay applied and both arms passed.)
+
+Does this PR make the time before the account chart longer? Measured from the load event to `timeframe-H4` (`--workers=1`, 3 runs each): this branch 110, 110, 120 ms; `main` (a84aa39a) 108, 111, 111 ms; first alarm button at 211 to 289 ms against 208 to 218 ms. No change that a user would see. Why the race showed only in this CI run (both tries) is not known.
 
 ## Open points
 - [ ] Phone layout of 1117-C1.1 and 1117-C1.2 is postponed (Halil, 2026-11-17). The phone keeps the toast and the old note.
