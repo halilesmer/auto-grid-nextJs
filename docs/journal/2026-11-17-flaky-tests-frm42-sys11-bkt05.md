@@ -82,13 +82,15 @@ Root cause (measured): `MockWorker.handle()` (`e2e/fixtures/mock-worker.ts`) wro
 | SYS-11 `:349` after the fix, `--repeat-each=200`, 4 workers, in parallel with the BKT-05 run, load average 26 → 65 | 200 of 200 passed |
 | `mock-worker-lib.spec.ts` after the fix, `--repeat-each=3` | 3 of 3 passed |
 | `npx eslint` (changed files), `npx tsc --noEmit`, `update_checklist.py --check` | clean; `features.yaml ok (284 Features)` |
+| BKT-05 after the fix: `csv-import.spec.ts` `--repeat-each=30`, 6 workers, own `--output`, load average 17 → 29 (after 2791 s wait for the lock) | 450 passed |
+| `scripts/features/precheck.sh` on the final commit, load average 29 → 15 | `PRECHECK OK in 1466s` · e2e ran=3907 passed=3906 failed=0 flaky=1; flaky: `chart-workspace.spec.ts:526` (ANA-20, known flaky, `2026-11-16-flaky-tests-ana27-ui26-ana20-frm30-usr17.md`; this branch does not change it) |
 
 ## Open points
-- [ ] Verification after the fix: `csv-import.spec.ts` `--repeat-each=30`, 6 workers; `scripts/features/precheck.sh`; CI of this PR and the `main` run after the merge.
+- [ ] CI of this PR and the `main` run after the merge.
 - The open point "BKT-05 `csv-import.spec.ts` … Cause not known" in `2026-11-16-flaky-tests-ana27-ui26-ana20-frm30-usr17.md` is solved by this entry.
 
 ## Lessons
-A module that reads a browser global when it loads keeps the value of the first test file that loaded it in the Playwright worker. A `-lib` test of such a module must bind it to its own fake (for zustand `persist`: `setOptions`), and not depend on the order of the files.
+A module that reads a browser global when it loads keeps the value of the first test file that loaded it in the Playwright worker. A `-lib` test of such a module must load the module again after it installs its own fake (delete it from the `require` cache), and not depend on the order of the files. `persist.setOptions` is not sufficient: a zustand store that loaded without storage has no `persist`.
 
 A mock that handles requests with `await` must not keep request data in object fields across the `await`. Two requests of one page can overlap.
 
