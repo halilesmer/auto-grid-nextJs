@@ -12,6 +12,7 @@
  * Ziel 1 = nächste Zone der Gegenseite in Handelsrichtung ab dem Einstieg (nahe Kante); Ziel 2 = Zone am Punkt C (nahe Kante).
  */
 import { extensionPrice, type AbcdShape } from './abcd';
+import { emitDiag } from './diag';
 import { outward, type Rect, type ZoneSide } from './frz';
 import { ABCD_PARAMS } from './params';
 import { touches } from './reasons';
@@ -51,7 +52,7 @@ export interface EarlyReversal {
   gap: number;
 }
 
-export function earlyReversalOf(o: {
+interface EarlyInput {
   bars: readonly FormationBar[];
   wide: readonly (boolean | null)[];
   s: AbcdShape;
@@ -59,7 +60,19 @@ export function earlyReversalOf(o: {
   reached: boolean;
   zones: readonly EarlyZone[];
   engulfZones: readonly EngulfZone[];
-}): EarlyReversal | null {
+}
+
+export function earlyReversalOf(o: EarlyInput): EarlyReversal | null {
+  // Tanı (diag.ts): tiefste erreichte Stufe 3–8 je Aufruf; ändert das Ergebnis nicht
+  let deep = 2;
+  const r = earlyReversalRun(o, (n) => {
+    if (n > deep) deep = n;
+  });
+  if (o.s.d && !o.reached) emitDiag({ fn: 'early', key: `${o.s.side}|${o.bars[o.s.a.idx]?.time}|${o.bars[o.s.b.idx]?.time}|${o.bars[o.s.c.idx]?.time}`, step: r ? 8 : deep });
+  return r;
+}
+
+function earlyReversalRun(o: EarlyInput, mark: (n: number) => void): EarlyReversal | null {
   const { bars, s } = o;
   const { d, es, side } = s;
   if (o.reached || !d || s.len === 0) return null;
@@ -67,6 +80,7 @@ export function earlyReversalOf(o: {
   const ext = extensionPrice(s, ABCD_PARAMS.minExtension);
   // Band −0.272 … Level 1 und Ausdehnung des D
   if (!(out(ext) < out(s.level1)) || out(d.price) < out(ext)) return null;
+  mark(3);
   const lo = Math.min(ext, s.level1);
   const hi = Math.max(ext, s.level1);
   const tipBar = bars[d.idx];
@@ -83,13 +97,17 @@ export function earlyReversalOf(o: {
     .filter((r) => r.bottom <= hi && r.top >= lo && touches(r, tipBar))
     .sort((p, q) => out(far(p)) - out(far(q)));
 
+  if (own.length > 0) mark(4);
   for (const zone of own) {
     for (let k = Math.max(d.idx, 1); k < bars.length; k++) {
       const e = engulfAt(bars, o.wide, k, side);
       if (!e) continue;
+      mark(5);
       // Wie ABCD-20: eine nicht volumenstarke Kerze verwirft den Engulf; unbekannte Stärke zählt nicht
       if ([e.prevWide, ...(e.count === 2 ? [e.engulfWide] : [])].some((w) => w !== true)) continue;
+      mark(6);
       if (!bars.slice(e.prevIdx, e.idx + 1).some((b) => touches(zone, b))) continue;
+      mark(7);
       const entry = bars[k].close;
       const stop = far(zone);
       if (!(out(stop) > out(entry))) continue;

@@ -18,6 +18,7 @@ import { barsOf, TIMEFRAME_SEC, type MissingRange } from '../../src/lib/analysis
 import type { RatesResponse } from '../../src/services/marketApi';
 import { FormationContext, type ContextInput } from '../../src/lib/formation/context';
 import { DEFAULT_TREND_SETTINGS, HISTORY_DAYS } from '../../src/lib/formation/params';
+import { setFormationDiag } from '../../src/lib/formation/diag';
 import { scanFormations, type ScanFormation, type ScanHit } from '../../src/lib/formation/scan';
 import { outcomesOf, realizedOutcomesOf } from '../../src/lib/formation/trade';
 import { weeklyFromDaily } from '../../src/lib/formation/weekly';
@@ -42,6 +43,16 @@ const HARMONICS = ['GAR', 'BAT', 'BUT', 'CRB'] as const;
 const FORMS: ScanFormation[] = ['ABCD', ...HARMONICS];
 type MainTf = 'H4' | 'H1';
 const MAIN_TFS: MainTf[] = (process.env.FORMATION_HISTORY_TFS ? process.env.FORMATION_HISTORY_TFS.split(',') : ['H4', 'H1']).filter((x): x is MainTf => x === 'H4' || x === 'H1');
+/** Özetteki bayrak ve sayaçların tek cümlelik tanımı */
+const FLAG_DEFS: Record<string, string> = {
+  tpBig: 'Bir AB=CD adayı taramanın herhangi bir durumunda büyük hedef (üçte bir üçte bir üçte bir) taşıdı.',
+  earlyReversal: 'Bir AB=CD adayı herhangi bir durumda erken dönüş işlemi (earlyReversalOf null değil) taşıdı.',
+  reentry: 'Bir AB=CD adayının ilk işlemi TP1 ve TP2 aldı ve fiyat sonra D’deki Engulf bölgesine döndü; yeniden giriş değerleri üretildi.',
+  reentryTarget2: 'Yeniden girişte ikinci hedef (reentry.target2, son dip/tepe bölgesi) dolu.',
+  reentryTp1Only: 'İlk işlem yalnız TP1 aldı (TP2 almadı) ve fiyat sonra D’deki Engulf bölgesine döndü; değer yok, yalnız uyarı.',
+  'diag.early.sN': 'Erken dönüş eleme basamağı N: s1 D var ve seviye 1 yok; s2 + geçersiz değil; s3 + D −0,272 bandında; s4 + D mumunun dokunduğu işlem yönlü bölge; s5 + D’den sonra Engulf; s6 + hacimce güçlü; s7 + Engulf bölgeye dokunuyor; s8 + stop girişin doğru tarafında (işlem oluştu). states = tarama durumu, keys = ayrı aday.',
+  'diag.reentryExits': 'reentryOf çağrısı (ilk işlemde TP1 alınmışken) hangi çıkışla bitti: noTpIdx = TP1/TP2 indeksi yok; noZoneAtD = D’ye dokunan, D’den önce oluşmuş Engulf bölgesi yok; allZonesConsumed = tüm bölgeler kapanışla tüketilmiş; noTouchAfterTp = bölge duruyor ama TP’den sonra dokunuş yok; tp1Only; reentry.',
+};
 const OUT_DIR = process.env.FORMATION_HISTORY_OUT || path.resolve(__dirname, '../../test-results/formation-history');
 
 /** [tf, geçmiş gün] */
@@ -171,6 +182,21 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
     exampleKinds.set(kind, n + 1);
     examples.push({ kind, symbol, tf, form: hit.form, at, atText: iso(at), side: hit.candidate.side, note });
   };
+  // Eleme sayaçları (diag.ts kancası): ad → tarama durumu sayısı ve ayrı aday anahtarları
+  const diagKeys = new Map<string, Set<string>>();
+  const countStage = (name: string, key: string) => {
+    tally.inc(`diag.${name}`);
+    let ks = diagKeys.get(name);
+    if (!ks) diagKeys.set(name, (ks = new Set()));
+    ks.add(key);
+  };
+  const events = new Map<string, number | string>();
+  setFormationDiag((e) => {
+    const k = `${e.fn}|${e.key}`;
+    const prev = events.get(k);
+    if (e.fn === 'early' && typeof prev === 'number' && typeof e.step === 'number' && prev >= e.step) return;
+    events.set(k, e.step);
+  });
   const first = Math.max(0, mainBars.length - BARS[tf]);
   const STEP = STEPS[tf];
   let scans = 0;
@@ -181,6 +207,16 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
     const hits = scanFormations(ctx, at).filter((h) => h.tf === tf && FORMS.includes(h.form));
     ms += performance.now() - started;
     scans++;
+    for (const [ek, step] of events) {
+      const [fn, ...rest] = ek.split('|');
+      const key = rest.join('|');
+      if (fn === 'early') for (let m = 3; m <= (step as number); m++) countStage(`early.s${m}`, key);
+      else {
+        countStage('reentry.called', key);
+        countStage(`reentry.exit.${step}`, key);
+      }
+    }
+    events.clear();
     for (const hit of hits) {
       const { candidate: c, form } = hit;
       const p = c.points;
@@ -199,6 +235,11 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
         if (!t) continue;
         k.lastTrade = t;
         const reached = c.checks.find((x) => x.id === 'ABCD-08')?.state === 'met';
+        // Erken dönüş, Stufe 1–2 (3–8 kommen aus der Kanca): D da und Level 1 nicht erreicht; Kandidat nicht ungültig
+        if (p.D && !reached) {
+          countStage('early.s1', key);
+          if ((c.invalidBy ?? []).length === 0) countStage('early.s2', key);
+        }
         if (t.cLeg && reached) tally.violate('cLegWhileReached', { symbol, tf, at: iso(at), key });
         if (t.cLeg) {
           const cl = t.cLeg;
@@ -326,6 +367,14 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
     if (k.evers.has('reentryTp1Only')) flags.reentryTp1Only++;
     if (k.cLegCTime !== undefined) cKeys.add(`${key.split('|')[0]}|${k.cLegCTime}`);
   }
+  setFormationDiag(null);
+  const stage = (name: string) => ({ states: tally.counts[`diag.${name}`] ?? 0, keys: diagKeys.get(name)?.size ?? 0 });
+  const names = [...diagKeys.keys()];
+  const diag = {
+    earlyFunnel: Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8].map((m) => [`s${m}`, stage(`early.s${m}`)])),
+    reentryCalled: stage('reentry.called'),
+    reentryExits: Object.fromEntries(names.filter((n) => n.startsWith('reentry.exit.')).map((n) => [n.slice('reentry.exit.'.length), stage(n)])),
+  };
   const delays = tally.lists['cleg.delayBars'] ?? [];
   const harmonics = Object.fromEntries(
     HARMONICS.map((h) => [
@@ -358,6 +407,7 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
     from: iso(mainBars[first].time),
     to: iso(mainBars[mainBars.length - 1].time),
     abcd: { candidates: abcd.size, entered, lastStatus: status, statusEver, ...flags },
+    diag,
     cleg,
     harmonics,
     violations: tally.violations,
@@ -386,7 +436,7 @@ test('Formasyon geçmiş taraması: işlem durumları canlı mumlarla (salt okun
   const result: Record<string, Record<string, ReturnType<typeof scanSeries>>> = {};
   const examples: Example[] = [];
   const tp12: unknown[] = [];
-  const info: Record<string, unknown> = { symbols, bars: BARS, step: STEPS, trend: 'DEFAULT_TREND_SETTINGS', loadMs: {}, scanMs: {} };
+  const info: Record<string, unknown> = { symbols, bars: BARS, step: STEPS, trend: 'DEFAULT_TREND_SETTINGS', flagDefs: FLAG_DEFS, loadMs: {}, scanMs: {} };
   mkdirSync(OUT_DIR, { recursive: true });
 
   for (const symbol of symbols) {

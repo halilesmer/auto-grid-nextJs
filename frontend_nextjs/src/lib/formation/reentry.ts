@@ -15,6 +15,7 @@
  * die Gegenzonen, die die Kerze dieses Extrems berührt, liefern ihre nahe Kante; bei mehreren gilt die vom Einstieg am weitesten entfernte (Annahme).
  * Ist es dieselbe Kante wie Ziel 1, keine Zone am Extrem oder kein Ziel 1, bleibt Ziel 2 leer.
  */
+import { emitDiag } from './diag';
 import { nearestEdgeFrom, type EarlyZone } from './earlyReversal';
 import { zoneSideOf, type EngulfZone } from './sig';
 import { touches } from './reasons';
@@ -25,7 +26,7 @@ export type ReentryResult =
   | { kind: 'reentry'; /** Kerze der ersten Berührung nach TP2 */ idx: number; entry: number; stop: number; target: number | null; /** Ziel 2 (letzte Tief-/Hochzone) */ target2: number | null }
   | { kind: 'tp1Only'; idx: number };
 
-export function reentryOf(o: {
+interface ReentryInput {
   bars: readonly FormationBar[];
   side: Side;
   /** Kerze des D (äußerster Docht) */
@@ -36,7 +37,21 @@ export function reentryOf(o: {
   engulfZones: readonly EngulfZone[];
   /** Fraktalzonen (auch gedrehte); die der Gegenseite liefern das Ziel */
   zones: readonly EarlyZone[];
-}): ReentryResult | null {
+  /** Nur Tanı (diag.ts): Aday-Schlüssel; ohne Wirkung auf das Ergebnis */
+  diagKey?: string;
+}
+
+export function reentryOf(o: ReentryInput): ReentryResult | null {
+  // Tanı (diag.ts): Ausgang je Aufruf; ändert das Ergebnis nicht
+  let exit = 'noDBar';
+  const r = reentryRun(o, (e) => {
+    exit = e;
+  });
+  if (o.diagKey !== undefined) emitDiag({ fn: 'reentry', key: o.diagKey, step: exit });
+  return r;
+}
+
+function reentryRun(o: ReentryInput, mark: (exit: string) => void): ReentryResult | null {
   const { bars, side, status } = o;
   const sell = side === 'sell';
   const dBar = bars[o.dIdx];
@@ -47,7 +62,10 @@ export function reentryOf(o: {
   let after: number | undefined;
   if (tp2Taken) after = status.tp2Idx;
   else if (tp1Taken) after = status.stopMovedIdx;
-  if (after === undefined) return null;
+  if (after === undefined) {
+    mark('noTpIdx');
+    return null;
+  }
 
   const far = (r: { top: number; bottom: number }) => (sell ? r.top : r.bottom);
   const out = (p: number) => (sell ? p : -p);
@@ -58,12 +76,18 @@ export function reentryOf(o: {
     .filter((z) => z.side === side && z.idx < o.dIdx && touches(z.rect, dBar))
     .sort((p, q) => out(far(p.rect)) - out(far(q.rect)));
 
+  mark(candidates.length === 0 ? 'noZoneAtD' : 'allZonesConsumed');
   for (const zone of candidates) {
     // Verbraucht: irgendeine Kerze seit der Zone hat jenseits der fernen Kante geschlossen
     if (bars.slice(zone.idx + 1).some((b) => closedBeyond(b, zone.rect))) continue;
+    mark('noTouchAfterTp');
     for (let k = after + 1; k < bars.length; k++) {
       if (!touches(zone.rect, bars[k])) continue;
-      if (!tp2Taken) return { kind: 'tp1Only', idx: k };
+      if (!tp2Taken) {
+        mark('tp1Only');
+        return { kind: 'tp1Only', idx: k };
+      }
+      mark('reentry');
       const entry = sell ? zone.rect.bottom : zone.rect.top;
       const opposing = o.zones.filter((z) => z.side === zoneSideOf(sell ? 'buy' : 'sell')).map((z) => z.rect);
       const target = nearestEdgeFrom(opposing, entry, side);
