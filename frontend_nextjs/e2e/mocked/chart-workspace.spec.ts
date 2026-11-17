@@ -383,38 +383,43 @@ test('Speicherfehler wird angezeigt und die aktuelle Sitzung bleibt bedienbar', 
   await expect(page.getByTestId('workspace-indicator-values')).toContainText('ATR');
 });
 
-test('Anzeige-Einstellung speichert erst beim Anwenden, auch nach hartem Neuladen', { tag: '@ANA-19' }, async ({ page, worker }) => {
-  void worker;
-  // Setup-Modus: „Namen anzeigen“ (Statuszeile) hat eine messbare Wirkung (Namen in `workspace-indicator-values`). Der Abschnitt „Ebenen“ des Dialogs gibt es nicht mehr (U3b); die Setup-Ebenen stehen im Menü „Ebenen“ und wirken sofort.
-  await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=H1`);
-  const values = page.getByTestId('workspace-indicator-values');
-  await expect(values).toContainText('EWO');
-  const savedNames = () => page.evaluate(() => JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').appearance?.names);
-  const toggleNames = async () => {
-    await page.getByTestId('workspace-settings').click();
-    const modal = page.getByTestId('chart-workspace-settings');
-    await modal.getByRole('button', { name: msg('cw.status'), exact: true }).click();
-    await modal.getByRole('checkbox', { name: msg('cw.names') }).click();
-  };
-  // Vorschau: schon vor „Anwenden“ sichtbar am Chart, gespeichert ist noch nichts
-  await toggleNames();
-  await expect(values).not.toContainText('EWO');
-  expect(await savedNames()).not.toBe(false);
-  // „Abbrechen“ stellt den Ausgangszustand wieder her
-  await page.getByRole('button', { name: msg('cw.cancel'), exact: true }).click();
-  await expect(values).toContainText('EWO');
-  // Hartes Neuladen ohne Anwenden: weiter der Ausgangszustand
-  await toggleNames();
-  await expect(values).not.toContainText('EWO');
-  await page.reload();
-  await expect(values).toContainText('EWO');
-  expect(await savedNames()).not.toBe(false);
-  // „Anwenden“ speichert, auch nach dem Neuladen
-  await toggleNames();
-  await page.getByRole('button', { name: msg('cw.apply'), exact: true }).click();
-  await expect.poll(savedNames).toBe(false);
-  await page.reload();
-  await expect(values).not.toContainText('EWO');
+test.describe('ohne Formationssuche', () => {
+  // The toast "formation search finished" (7 s) covers Cancel and Apply of the settings dialog; each click waited until it went away
+  // (7.6 to 8.5 s per click, 2 clicks in a 23 s test; journal 2026-11-17-ana20-legend-shift-ana19-toast). The test needs no search.
+  test.use({ formationAsk: 'manual' });
+  test('Anzeige-Einstellung speichert erst beim Anwenden, auch nach hartem Neuladen', { tag: '@ANA-19' }, async ({ page, worker }) => {
+    void worker;
+    // Setup-Modus: „Namen anzeigen“ (Statuszeile) hat eine messbare Wirkung (Namen in `workspace-indicator-values`). Der Abschnitt „Ebenen“ des Dialogs gibt es nicht mehr (U3b); die Setup-Ebenen stehen im Menü „Ebenen“ und wirken sofort.
+    await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}&tf=H1`);
+    const values = page.getByTestId('workspace-indicator-values');
+    await expect(values).toContainText('EWO');
+    const savedNames = () => page.evaluate(() => JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').appearance?.names);
+    const toggleNames = async () => {
+      await page.getByTestId('workspace-settings').click();
+      const modal = page.getByTestId('chart-workspace-settings');
+      await modal.getByRole('button', { name: msg('cw.status'), exact: true }).click();
+      await modal.getByRole('checkbox', { name: msg('cw.names') }).click();
+    };
+    // Vorschau: schon vor „Anwenden“ sichtbar am Chart, gespeichert ist noch nichts
+    await toggleNames();
+    await expect(values).not.toContainText('EWO');
+    expect(await savedNames()).not.toBe(false);
+    // „Abbrechen“ stellt den Ausgangszustand wieder her
+    await page.getByRole('button', { name: msg('cw.cancel'), exact: true }).click();
+    await expect(values).toContainText('EWO');
+    // Hartes Neuladen ohne Anwenden: weiter der Ausgangszustand
+    await toggleNames();
+    await expect(values).not.toContainText('EWO');
+    await page.reload();
+    await expect(values).toContainText('EWO');
+    expect(await savedNames()).not.toBe(false);
+    // „Anwenden“ speichert, auch nach dem Neuladen
+    await toggleNames();
+    await page.getByRole('button', { name: msg('cw.apply'), exact: true }).click();
+    await expect.poll(savedNames).toBe(false);
+    await page.reload();
+    await expect(values).not.toContainText('EWO');
+  });
 });
 
 test('Lokales Bild bleibt getrennt gespeichert und überlebt Löschen/Rückgängig und Neuladen', { tag: '@ANA-17' }, async ({ page, worker }) => {
