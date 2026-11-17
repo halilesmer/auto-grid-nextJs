@@ -8,7 +8,7 @@
 import type { Route } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 import { E2E_API_KEY, MOCK_API } from '../fixtures/env';
-import { DEMO_ID } from '../fixtures/test';
+import { DEMO_ID } from '../fixtures/data';
 import { MockWorker } from '../fixtures/mock-worker';
 
 interface Fulfilled { status: number; body: string }
