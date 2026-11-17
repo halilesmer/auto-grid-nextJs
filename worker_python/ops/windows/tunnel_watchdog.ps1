@@ -7,9 +7,18 @@
 #      (Neustart-Schleife/Auto-Update), danach Worker + ngrok ueber die Aufgabe AutoGrid-Start.
 #   3. Klappt das FailuresBeforeReboot-mal hintereinander nicht -> VPS neu starten. Bremse gegen
 #      Reboot-Schleifen: hoechstens MaxRebootsPerDay Reboots in 24 h und mindestens
-#      MinMinutesBetweenReboots Minuten Abstand. Kein Reboot, wenn er nicht helfen kann: kein
-#      Internet (Stoerung ausserhalb des VPS) oder ngrok meldet ERR_NGROK_334 (die Domain ist schon
-#      woanders online, z. B. auf einem zweiten VPS). Dann nur weiter ngrok neu starten.
+#      MinMinutesBetweenReboots Minuten Abstand. Kein Reboot, wenn er nicht helfen kann: der Worker
+#      antwortet lokal (nur der Tunnel ist weg; ein Reboot heilt ngrok nicht, stoppt aber die Bots
+#      und haengt am Auto-Login, 1117-A1.2), kein Internet (Stoerung ausserhalb des VPS) oder ngrok
+#      meldet ERR_NGROK_334 (die Domain ist schon woanders online, z. B. auf einem zweiten VPS).
+#      Dann nur weiter ngrok bzw. Worker + ngrok neu starten.
+#   4. Keine Sitzung des Benutzers (Auto-Login gescheitert, z. B. Passwort geaendert): Worker und
+#      MT5 koennen nicht laufen, Neustart und Reboot helfen nicht -> Fehlschlag zaehlen, laut loggen
+#      (1117-A1.3), Alarm senden.
+#   Alarm (optional, 1117-A1.4): Benutzer-Variable HEALTHCHECK_URL (setx, z. B. ein Ping-Link von
+#   healthchecks.io). Nach jeder erfolgreichen Pruefung ein GET darauf; bei "keine Sitzung" oder ab
+#   FailuresBeforeReboot Fehlschlaegen ein POST auf <url>/fail. Bleiben die Pings aus (VPS tot),
+#   alarmiert der Dienst von aussen. Die URL steht nie im Log.
 #   Nichts unternehmen: in den ersten BootGraceMinutes nach dem Start (Auto-Login, start.bat) und
 #   solange ein Update laeuft (Aufgabe AutoGrid-Update oder git des Workers) - kein Reboot mitten
 #   im git pull.
@@ -23,8 +32,10 @@
 # ruft dieses Skript NIE git auf und startet Worker/ngrok NIE selbst: ngrok wird nur beendet (die
 # Neustart-Schleife ohne Adminrechte startet ihn neu), alles andere laeuft ueber AutoGrid-Start
 # (RunLevel Limited). Sonst entstuenden Admin-Prozesse (siehe VPS-07).
-# Grenze: Die Aufgabe laeuft nur in einer angemeldeten Sitzung (wie Worker und MT5). Scheitert
-# schon das Auto-Login, hilft nur ein Reboot von aussen (Seite "VPS" oder Hoster-Konsole).
+# Die Aufgabe laeuft als S4U ("unabhaengig von der Benutzeranmeldung", ohne gespeichertes
+# Passwort), also auch ohne Sitzung - sonst schwiege sie genau dann, wenn das Auto-Login scheitert
+# (2026-11-17: 4,5 h Ausfall nach einem eigenen Reboot). Worker und MT5 brauchen weiter die
+# Sitzung; die stellt nur das Auto-Login her (setup_vps.ps1).
 # Datei bewusst nur ASCII: Windows PowerShell 5.1 liest Skripte ohne BOM als ANSI.
 param(
     [int]$FailuresBeforeReboot = 3,
@@ -89,6 +100,38 @@ function Save-State($state) {
     $tmp = "$StateFile.tmp"
     $state | ConvertTo-Json -Depth 4 | Set-Content -Path $tmp -Encoding UTF8
     Move-Item -Force $tmp $StateFile
+}
+
+function Send-Heartbeat([bool]$ok, [string]$text) {
+    # Alarm von aussen (1117-A1.4): ohne HEALTHCHECK_URL nichts. Fehler hier stoeren die Pruefung nie.
+    if ($DryRun) { return }
+    $url = Get-UserEnv 'HEALTHCHECK_URL'
+    if (-not $url) { return }
+    $url = $url.Trim().TrimEnd('/')
+    try {
+        if ($ok) {
+            Invoke-WebRequest -Uri $url -Method Get -TimeoutSec 10 -UseBasicParsing | Out-Null
+        } else {
+            Invoke-WebRequest -Uri "$url/fail" -Method Post -Body $text -ContentType 'text/plain; charset=utf-8' `
+                -TimeoutSec 10 -UseBasicParsing | Out-Null
+        }
+    } catch {
+        Write-Log "Alarm-Ping fehlgeschlagen: $($_.Exception.Message)"
+    }
+}
+
+function Test-UserSession {
+    # Hat der Benutzer dieser Aufgabe eine Desktop-Sitzung (Konsole/Auto-Login oder RDP)? Ohne sie
+    # startet AutoGrid-Start nicht, Worker und MT5 laufen nicht. Erkennungsmerkmal: explorer.exe
+    # dieses Benutzers in einer Sitzung > 0.
+    foreach ($p in @(Get-CimInstance Win32_Process -Filter "Name='explorer.exe'")) {
+        if ($p.SessionId -eq 0) { continue }
+        try {
+            $owner = Invoke-CimMethod -InputObject $p -MethodName GetOwner
+            if ("$($owner.User)" -eq [Environment]::UserName) { return $true }
+        } catch {}
+    }
+    return $false
 }
 
 function Get-UserEnv($name) {
@@ -187,8 +230,13 @@ function Restart-Ngrok {
     return "ngrok beendet ($($procs.Count) Prozess(e)), run_ngrok_watchdog.bat startet ihn neu"
 }
 
-function Get-RebootBlocker($state, $now) {
+function Get-RebootBlocker($state, $now, $localError) {
     # $null = Reboot erlaubt, sonst der Grund dagegen
+    if (-not $localError) {
+        # Nur der Tunnel ist weg, die Bots handeln weiter. Ein Reboot heilt ngrok nicht, stoppt aber
+        # alles und haengt am Auto-Login (2026-11-17: Reboot -> Auto-Login scheitert -> 4,5 h Ausfall).
+        return 'Worker antwortet lokal - nur der Tunnel ist weg, ein Reboot wuerde die Bots stoppen'
+    }
     $recent = @($state.reboots | ForEach-Object { [datetime]$_ } | Where-Object { ($now - $_).TotalHours -lt 24 })
     if ($recent.Count -ge $MaxRebootsPerDay) {
         return "schon $($recent.Count) Reboot(s) in 24 h (Grenze $MaxRebootsPerDay)"
@@ -208,7 +256,7 @@ function Get-RebootBlocker($state, $now) {
 
 function Invoke-Heal($state, $localError, $now) {
     if ($state.failures -ge $FailuresBeforeReboot) {
-        $blocked = Get-RebootBlocker $state $now
+        $blocked = Get-RebootBlocker $state $now $localError
         if (-not $blocked) {
             Write-Log "AKTION: VPS-Neustart nach $($state.failures) Fehlschlaegen hintereinander."
             $state.last_action = 'reboot'
@@ -271,10 +319,26 @@ try {
         $state.last_result = 'ok'
         $state.last_action = ''
         Save-State $state
+        Send-Heartbeat $true ''
         exit 0
     }
 
     $localError = Test-Platform 'http://127.0.0.1:8000'
+    if ($localError -and -not (Test-UserSession)) {
+        # Auto-Login gescheitert: AutoGrid-Start, Neustart und Reboot helfen nicht (1117-A1.3)
+        $state.failures = $state.failures + 1
+        $state.last_result = 'no-session'
+        $state.last_action = 'none'
+        # Beim ersten Mal und danach stuendlich loggen, sonst fuellt sich das Log alle 5 min
+        if ($state.failures -eq 1 -or $state.failures % 12 -eq 0) {
+            Write-Log ("KEINE SITZUNG ($($state.failures)x): $([Environment]::UserName) ist nicht angemeldet, " +
+                'Worker und MT5 laufen nicht. Auto-Login gescheitert (Passwort geaendert?) -> per RDP anmelden ' +
+                'und in einer Administrator-PowerShell setup_vps.ps1 -SkipRepoOwnership ausfuehren.')
+        }
+        Save-State $state
+        Send-Heartbeat $false "Keine Sitzung: Auto-Login gescheitert, Worker laeuft nicht ($($state.failures)x)"
+        exit 0
+    }
     if (Test-UpdateRunning) {
         # Waehrend git pull/pip weder neu starten noch rebooten; der Zaehler bleibt stehen
         $state.last_result = 'update-running'
@@ -291,6 +355,10 @@ try {
     Write-Log ("FEHLER $($state.failures)/${FailuresBeforeReboot}: https://$domain -> $publicError" +
         $(if ($localError) { " | lokal 127.0.0.1:8000 -> $localError" } else { ' | Worker lokal OK' }))
     Save-State $state
+
+    if ($state.failures -ge $FailuresBeforeReboot) {
+        Send-Heartbeat $false "$($state.failures) Fehlschlaege: https://$domain -> $publicError"
+    }
 
     try {
         Invoke-Heal $state $localError $now

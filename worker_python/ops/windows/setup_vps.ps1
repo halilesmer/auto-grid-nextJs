@@ -14,7 +14,10 @@
 #   2. Den Mac-Schluessel (-PublicKey) eintragen
 #   3. Besitzer des Repo-Ordners auf den normalen Benutzer setzen (repariert Dateien, die
 #      frueher per "git pull als Administrator" dem Administrator gehoerten)
-#   4. Auto-Login nach Neustart (Passwort als LSA-Secret, nicht im Klartext in der Registry)
+#   4. Auto-Login nach Neustart (Passwort als LSA-Secret, nicht im Klartext in der Registry).
+#      Das Passwort laeuft danach nicht mehr ab: Windows verlangt sonst alle 42 Tage ein neues, das
+#      gespeicherte passt nicht mehr, und nach dem naechsten Reboot startet nichts (2026-11-17).
+#      Wer das Windows-Passwort selbst aendert, fuehrt dieses Skript danach erneut aus.
 #   5. Bei MT5-Terminals den Haken "Programm als Administrator ausfuehren" entfernen (sonst kann
 #      der Worker ohne Adminrechte MT5 nicht starten: -10003 "Process create failed")
 #   6. Geplante Aufgaben (normaler Benutzer, OHNE hoechste Rechte):
@@ -22,7 +25,8 @@
 #        AutoGrid-Update  nur auf Abruf -> vps.ps1 update-local (git pull + pip + start.bat)
 #   7. Tunnel-Watchdog AutoGrid-Tunnel alle 5 Minuten -> tunnel_watchdog.ps1 (prueft die oeffentliche
 #      ngrok-URL, startet ngrok neu und rebootet den VPS nach mehreren Fehlschlaegen). Laeuft mit
-#      hoechsten Rechten (fuer den Reboot), ruft aber nie git auf; -SkipTunnelWatchdog laesst ihn weg.
+#      hoechsten Rechten (fuer den Reboot) und als S4U auch ohne Sitzung (meldet ein gescheitertes
+#      Auto-Login), ruft aber nie git auf; -SkipTunnelWatchdog laesst ihn weg.
 #
 # Danach: git auf dem VPS NIE als Administrator ausfuehren. Updates nur ueber das Dashboard
 # bzw. die VPS-Seite im Mac-Frontend (oder automatisch, AUTO_UPDATE_MINUTES).
@@ -184,6 +188,9 @@ public static class AutoGridLsa {
     # Klartext-Passwort und Anmelde-Zaehler (beendet Auto-Login nach n Starts) entfernen
     Remove-ItemProperty $winlogon -Name DefaultPassword -ErrorAction SilentlyContinue
     Remove-ItemProperty $winlogon -Name AutoLogonCount -ErrorAction SilentlyContinue
+    # Ablaufendes Passwort = Auto-Login bricht still nach dem naechsten Passwortwechsel (1117-A1.1)
+    Set-LocalUser -Name $User -PasswordNeverExpires $true
+    Ok "Passwort von $User laeuft nicht mehr ab (sonst passt das gespeicherte nach 42 Tagen nicht mehr)"
     Ok 'Auto-Login aktiv. RDP-Fenster kuenftig nur schliessen, NICHT abmelden (sonst stoppen MT5/Worker).'
 }
 
@@ -259,7 +266,9 @@ if ($SkipTunnelWatchdog) {
 } else {
     # Hoechste Rechte nur fuer shutdown /r. Das Skript startet Worker/ngrok nie selbst (nur ueber
     # AutoGrid-Start, RunLevel Limited) und ruft nie git auf - es entstehen keine Admin-Prozesse.
-    $tunnelPrincipal = New-ScheduledTaskPrincipal -UserId $Account -LogonType Interactive -RunLevel Highest
+    # S4U: laeuft auch ohne angemeldete Sitzung und ohne gespeichertes Passwort. Mit Interactive
+    # schwieg der Watchdog genau dann, wenn das Auto-Login scheiterte (2026-11-17, 1117-A1.3).
+    $tunnelPrincipal = New-ScheduledTaskPrincipal -UserId $Account -LogonType S4U -RunLevel Highest
     $tunnelSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
         -ExecutionTimeLimit (New-TimeSpan -Minutes 4) -MultipleInstances IgnoreNew -StartWhenAvailable
     $tunnel = Join-Path $PSScriptRoot 'tunnel_watchdog.ps1'
@@ -269,7 +278,10 @@ if ($SkipTunnelWatchdog) {
     $tunnelTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 5)
     Register-ScheduledTask -TaskName 'AutoGrid-Tunnel' -Action $tunnelAction -Trigger $tunnelTrigger `
         -Principal $tunnelPrincipal -Settings $tunnelSettings -Force | Out-Null
-    Ok 'AutoGrid-Tunnel: alle 5 min oeffentliche ngrok-URL pruefen, ngrok neu starten, notfalls Reboot'
+    Ok 'AutoGrid-Tunnel: alle 5 min oeffentliche ngrok-URL pruefen, ngrok neu starten, notfalls Reboot (auch ohne Sitzung)'
+    if (-not [Environment]::GetEnvironmentVariable('HEALTHCHECK_URL', 'User')) {
+        Warn 'Kein Alarm von aussen: HEALTHCHECK_URL fehlt (z. B. Ping-Link von healthchecks.io, setx HEALTHCHECK_URL "<link>").'
+    }
     Ok "Log: $WorkerDir\logs\tunnel_watchdog.log"
 }
 

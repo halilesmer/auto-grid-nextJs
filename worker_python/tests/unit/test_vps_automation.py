@@ -728,7 +728,8 @@ def test_tunnel_watchdog_bremst_reboots_und_bleibt_ohne_adminprozesse():
     # kein Reboot, wenn er nicht helfen kann (kein Internet, Domain woanders online) oder ein Update läuft
     assert "Test-Internet" in code and "ERR_NGROK_334" in code and "Test-UpdateRunning" in code
     # Fehlschlag wird vor der Aktion gesichert, Zustand atomar geschrieben
-    assert "Save-State $state\n\n    try {\n        Invoke-Heal $state $localError $now" in code
+    save = code.index("Write-Log (\"FEHLER $($state.failures)")
+    assert code.index("Save-State $state", save) < code.index("Invoke-Heal $state $localError $now", save)
     assert "Move-Item -Force $tmp $StateFile" in code
     # Läuft mit höchsten Rechten: nie git, Worker/ngrok nie selbst starten (sonst Admin-Prozesse, VPS-07)
     import re
@@ -740,11 +741,57 @@ def test_tunnel_watchdog_bremst_reboots_und_bleibt_ohne_adminprozesse():
 
 
 @pytest.mark.feature("VPS-10")
+def test_tunnel_watchdog_rebootet_nicht_wenn_worker_lokal_laeuft():
+    """1117-A1.2: Nur der Tunnel weg, Worker lokal ok -> kein Reboot (stoppt sonst die Bots und haengt
+    am Auto-Login; 2026-11-17 wurden daraus 4,5 h Ausfall)."""
+    code = _ps_code("ops/windows/tunnel_watchdog.ps1")
+    body = code[code.index("function Get-RebootBlocker"):code.index("function Invoke-Heal")]
+    assert "function Get-RebootBlocker($state, $now, $localError)" in body
+    # Der Worker-Check steht vor allen anderen Bremsen
+    assert body.index("if (-not $localError)") < body.index("$MaxRebootsPerDay")
+    assert "Get-RebootBlocker $state $now $localError" in code
+
+
+@pytest.mark.feature("VPS-10")
+def test_tunnel_watchdog_meldet_fehlende_sitzung_ohne_reboot():
+    """1117-A1.3: Auto-Login gescheitert -> zaehlen, loggen, Alarm; kein AutoGrid-Start, kein Reboot."""
+    code = _ps_code("ops/windows/tunnel_watchdog.ps1")
+    assert "function Test-UserSession" in code and "Name='explorer.exe'" in code and "GetOwner" in code
+    main = code[code.index("$localError = Test-Platform 'http://127.0.0.1:8000'"):]
+    branch = main[main.index("if ($localError -and -not (Test-UserSession))"):main.index("if (Test-UpdateRunning)")]
+    assert "$state.last_result = 'no-session'" in branch and "$state.failures = $state.failures + 1" in branch
+    assert "Save-State $state" in branch and "exit 0" in branch
+    assert "Invoke-Heal" not in branch and "Start-AutoGrid" not in branch and "shutdown" not in branch
+    # Log hoechstens stuendlich (alle 12 Pruefungen)
+    assert "$state.failures -eq 1 -or $state.failures % 12 -eq 0" in branch
+
+
+@pytest.mark.feature("VPS-10")
+def test_tunnel_watchdog_sendet_alarm_ping_ohne_url_im_log():
+    """1117-A1.4: HEALTHCHECK_URL optional; ok -> GET, keine Sitzung / ab Reboot-Grenze -> POST /fail."""
+    code = _ps_code("ops/windows/tunnel_watchdog.ps1")
+    body = code[code.index("function Send-Heartbeat"):code.index("function Test-UserSession")]
+    assert "Get-UserEnv 'HEALTHCHECK_URL'" in body and "if (-not $url) { return }" in body
+    assert "if ($DryRun) { return }" in body and '"$url/fail"' in body
+    # Die URL ist ein Geheimnis: nie ins Log
+    for line in body.splitlines():
+        if "Write-Log" in line:
+            assert "$url" not in line
+    assert "Send-Heartbeat $true ''" in code
+    assert code.count("Send-Heartbeat $false") == 2
+
+
+@pytest.mark.feature("VPS-10")
 def test_setup_legt_tunnel_aufgabe_an_und_vps_status_meldet_sie():
     setup = _ps_code("ops/windows/setup_vps.ps1")
     assert "'AutoGrid-Tunnel'" in setup and "tunnel_watchdog.ps1" in setup
     assert "-RepetitionInterval (New-TimeSpan -Minutes 5)" in setup
     assert "-RunLevel Highest" in setup and "SkipTunnelWatchdog" in setup
+    # 1117-A1.3: Watchdog auch ohne Sitzung (S4U); AutoGrid-Start braucht die Sitzung (Interactive)
+    assert "-LogonType S4U -RunLevel Highest" in setup
+    assert "-LogonType Interactive -RunLevel Limited" in setup
+    # 1117-A1.1: ablaufendes Passwort bricht das Auto-Login still
+    assert "Set-LocalUser -Name $User -PasswordNeverExpires $true" in setup
     # AutoGrid-Start/-Update bleiben ohne höchste Rechte
     assert "-RunLevel Limited" in setup
     vps = _ps_code("ops/windows/vps.ps1")
