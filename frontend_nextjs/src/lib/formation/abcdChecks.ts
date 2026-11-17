@@ -150,7 +150,13 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: n
   return evaluateFull(env, p, dInput, pip, atEntry).candidate;
 }
 
-function evaluateFull(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: number, atEntry?: AtEntry): { candidate: Candidate; big: BigTarget | null } {
+function evaluateFull(
+  env: Env,
+  p: AbcdPoints,
+  dInput: AbcdPoint | undefined,
+  pip: number,
+  atEntry?: AtEntry,
+): { candidate: Candidate; big: BigTarget | null; frozenFrom: AbcdPoint | null } {
   const { tf } = env;
   const view = env.views.get(tf)!;
   const trend = env.trends.get(tf)!;
@@ -323,6 +329,22 @@ function evaluateFull(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pi
     const harmonicK = !divHolds && near !== null && harmonicD(env, p, dk, pip, [Math.min(...zonePrices), Math.max(...zonePrices)]) === 'met';
     frozenFrom = divHolds || harmonicK ? s.a : s.c;
   }
+  // Eingefroren am Einstieg (Halil 2026-11-16): Ob es das große Ziel gibt und von wo der Stop gemessen wird (A oder C),
+  // entscheiden nur die Daten bis zur Einstiegskerze. Spätere Kerzen ändern X-Schluss (GAR-18), Zonen, innere Wendepunkte
+  // und Wave-Werte der Divergenz; das darf einen offenen Handel nicht umdeuten. Eine Rechnung in der Einstiegsumgebung für beides.
+  let entryRun: { big: BigTarget | null } | null = null;
+  if (atEntry && reached && d && freezeIdx < last) {
+    const entryEnv = atEntry(bars[freezeIdx].time);
+    const entryBars = entryEnv?.views.get(tf)?.bars;
+    if (entryEnv && entryBars && entryBars.length > freezeIdx) {
+      const dk: AbcdPoint = { idx: freezeIdx, price: wickEnd(bars[freezeIdx], es) };
+      const probeD = dInput && dInput.idx <= freezeIdx ? dInput : undefined;
+      const entryD = dInput && !probeD ? dk : probeD;
+      const atK = evaluateFull(entryEnv, p, entryD, pip);
+      entryRun = { big: atK.big };
+      if (atK.frozenFrom) frozenFrom = atK.frozenFrom;
+    }
+  }
   // ABCD-26 nach der Einstiegskerze: ein Bruch von C ab dem Einstieg ist der Weg zum Ziel
   add('ABCD-26', flag(trendBreaksC(trend, s, reached && d ? freezeIdx : null)));
   const stateOf = (id: string) => checks.find((c) => c.id === id)!.state;
@@ -355,18 +377,7 @@ function evaluateFull(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pi
   // 1114-A4.3: großes AB=CD-Ziel nur bei harmonischem D mit bekanntem X; Versatz = A − X (Kauf: nach oben, Verkauf: nach unten)
   const xPrice = harmonic === 'met' ? harmonicXOf(env, p) : null;
   let big: BigTarget | null = xPrice === null ? null : { offset: s.a.price - xPrice, activation: s.a.price };
-  // Eingefroren am Einstieg (Halil 2026-11-16): Ob es das große Ziel gibt, entscheiden nur die Daten bis zur Einstiegskerze.
-  // Spätere Kerzen ändern X-Schluss (GAR-18), Zonen und innere Wendepunkte; das darf einen offenen Handel nicht umdeuten.
-  if (atEntry && reached && d && freezeIdx < last) {
-    const entryEnv = atEntry(bars[freezeIdx].time);
-    const entryBars = entryEnv?.views.get(tf)?.bars;
-    if (entryEnv && entryBars && entryBars.length > freezeIdx) {
-      const dk: AbcdPoint = { idx: freezeIdx, price: wickEnd(bars[freezeIdx], es) };
-      const probeD = dInput && dInput.idx <= freezeIdx ? dInput : undefined;
-      const entryD = dInput && !probeD ? dk : probeD;
-      big = evaluateFull(entryEnv, p, entryD, pip).big;
-    }
-  }
+  if (entryRun) big = entryRun.big;
   const input = abcdTrade({
     from,
     frozenFrom,
@@ -450,7 +461,7 @@ function evaluateFull(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pi
   };
   if (d) points.D = { time: bars[d.idx].time, price: d.price };
   const candidate: Candidate = { code: 'ABCD', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
-  return { candidate: withTrade(candidate, env, tf, input, false), big };
+  return { candidate: withTrade(candidate, env, tf, input, false), big, frozenFrom };
 }
 
 function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolean, harmonic: boolean, second: number | undefined, stop: number | null, freezeIdx: number, status: TradeStatus | null, early: EarlyReversal | null, bigTarget: number | null): Drawing[] {
