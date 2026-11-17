@@ -1588,7 +1588,7 @@ kategorien:
         pruefung:
           - "Playwright-Test e2e/mocked/chart-topbar.spec.ts (@UI-12) ausführen."
           - "/chart frei, /chart Setup und /chart (Modus Formation) bei 375 × 812 öffnen und bei 1440 px vergleichen."
-        erwartet: "Bei 375 × 812 liegt die Unterkante der Kopfleiste nicht über dem Kursbereich, der Kursbereich ist mindestens 150 px hoch, die zugeklappte Setup-Karte liegt unter dem untersten Bereich, nichts läuft waagerecht über. Bei 1440 px bleibt die Kopfleiste über dem Chart."
+        erwartet: "Bei 375 × 812 liegt die Unterkante der Kopfleiste nicht über dem Kursbereich, der Kursbereich ist mindestens 150 px hoch, die zugeklappte Setup-Karte liegt unter dem untersten Bereich, nichts läuft waagerecht über: kein Bedienelement der Kopfleiste ragt aus dem Bildschirm, und auch die Chartseite selbst (fixed, overflow-hidden) ist nicht breiter als der Bildschirm. Bei 1440 px bleibt die Kopfleiste über dem Chart."
 
       - id: UI-13
         titel: "Menü „Ebenen“ auf jedem Chart"

@@ -83,7 +83,8 @@ export function ChartTopBar({ account, target, timeframes, forms, range, tools, 
         </div>
         {/* The DOM follows the order on the phone (tab order = visual order, UI-15): range and tools, then timeframes and formations */}
         <div className={cn('pointer-events-auto flex min-w-0 flex-wrap items-center gap-1 short:flex-nowrap short:px-2 short:py-0', '@max-[30rem]/formation-main:contents')}>
-          <Slot className="@max-[30rem]/formation-main:order-4 @max-[30rem]/formation-main:flex-1">{range}</Slot>
+          {/* Inhaltsbreite statt flex-1 (Basis 0): sonst bleibt der Zeitraum in Zeile 1 und ragt rechts aus dem Bildschirm (1117, Entwurf B) */}
+          <Slot className="@max-[30rem]/formation-main:order-4 @max-[30rem]/formation-main:flex-none">{range}</Slot>
           <Slot className="@max-[30rem]/formation-main:order-5 @max-[30rem]/formation-main:flex @max-[30rem]/formation-main:gap-1">{tools}</Slot>
         </div>
         <div className={cn('pointer-events-auto flex min-w-0 max-w-full items-center gap-1 short:px-2 short:py-0', '@max-[30rem]/formation-main:contents')}>
