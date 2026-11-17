@@ -419,7 +419,7 @@ function evaluateFull(
   // 1114-A4.4: Wiedereinstieg in die Engulf-Zone am D nach TP1 und TP2 (oder nur der Hinweis nach TP1); der erste Handel bleibt unberührt
   const reentry =
     status && d && status.tp1Fill !== undefined
-      ? reentryOf({ bars, side, dIdx: d.idx, entryIdx: freezeIdx, status, engulfZones: engulfZones(bars, view.wide), zones: [...env.frz.zones, ...env.frz.reversed] })
+      ? reentryOf({ bars, side, dIdx: d.idx, entryIdx: freezeIdx, status, diagKey: `${s.side}|${bars[s.a.idx]?.time}|${bars[s.b.idx]?.time}|${bars[s.c.idx]?.time}`, engulfZones: engulfZones(bars, view.wide), zones: [...env.frz.zones, ...env.frz.reversed] })
       : null;
   if (reentry?.kind === 'reentry') {
     input.reentry = { entry: reentry.entry, stop: reentry.stop, emergencyStop: emergencyStopOf(reentry.stop, side, atrNow), target: reentry.target, target2: reentry.target2 };
