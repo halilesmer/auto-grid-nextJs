@@ -3,7 +3,18 @@ import { DEMO_ID, test, expect } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 
 // UI-26: after scrolling left, a round arrow button brings the chart back to the latest candle.
+// The mock candles and the formation lines on them follow the clock. From 21:00 UTC on 2026-11-17 a formation line sat where the drag
+// started; its hit area took the press, so the chart did not scroll (main run 44175274756). A fixed clock gives the same chart on every run.
+test.use({ fakeNow: '2026-11-17T15:20:00Z' });
 test.beforeEach(({ page }) => page.addInitScript(() => localStorage.setItem('grid-robot-formation-sidebar', JSON.stringify({ open: false, tab: 'conditions' }))));
+
+/** A y where the topmost element at three x values is a chart canvas (no overlay such as a formation line hit area takes the press). */
+const freeY = (page: Page, x: number, fromY: number, toY: number) => page.evaluate(([px, a, b]) => {
+  for (let y = a; y < b; y += 4) {
+    if ([-10, 0, 10].every(dx => document.elementFromPoint(px + dx, y) instanceof HTMLCanvasElement)) return y;
+  }
+  return null;
+}, [x, fromY, toY]);
 
 /** Opens the chart and drags it to older candles until the button shows. */
 async function scrollAway(page: Page) {
@@ -19,11 +30,13 @@ async function scrollAway(page: Page) {
 
   // Drag the chart to the right = scroll to older candles (left)
   const box = (await chart.boundingBox())!;
-  const y = box.y + box.height * 0.3;
-  await page.mouse.move(box.x + box.width * 0.3, y);
+  const x = box.x + box.width * 0.3;
+  const y = await freeY(page, x, box.y + box.height * 0.2, box.y + box.height * 0.6);
+  expect(y, 'no free point on the candles for the drag').not.toBeNull();
+  await page.mouse.move(x, y!);
   await page.mouse.down();
-  await page.mouse.move(box.x + box.width * 0.6, y, { steps: 8 });
-  await page.mouse.move(box.x + box.width * 0.85, y, { steps: 8 });
+  await page.mouse.move(box.x + box.width * 0.6, y!, { steps: 8 });
+  await page.mouse.move(box.x + box.width * 0.85, y!, { steps: 8 });
   await page.mouse.up();
   await expect(button).toHaveAttribute('aria-hidden', 'false');
   return button;
