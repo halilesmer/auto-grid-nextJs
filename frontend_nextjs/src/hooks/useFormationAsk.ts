@@ -6,6 +6,13 @@ import { t } from '@/i18n';
 import type { ContextTimeframe } from '@/lib/formation/params';
 import { hitsCount, type ScanHit } from '@/lib/formation/scan';
 
+/** Ergebnis der ersten Suche seit der Freigabe: alle Kandidaten und die auf der Zeiteinheit der Meldung */
+export interface AskResult {
+  count: number;
+  tf: ContextTimeframe;
+  tfCount: number;
+}
+
 export type AskPhase = 'ask' | 'running' | 'failed' | 'declined' | 'idle';
 
 interface AskInput {
@@ -66,21 +73,22 @@ export type FormationAsk = ReturnType<typeof useFormationAsk>;
 interface StatusInput {
   symbol: string | null;
   scan: { loading: boolean; error: string | null; scanAt: number | null; hits: readonly ScanHit[] };
-  /** Zeiteinheit für die Meldung (Zeiteinheit des Chart, sonst H4) */
+  /** Zeiteinheit für das Ergebnis (Zeiteinheit des Chart, sonst H4) */
   tf: ContextTimeframe;
-  /** „Göster“ der Meldung: öffnet die Formations-Karte */
-  onShow: () => void;
+  /** Die erste Suche seit der Freigabe ist fertig: die Seite zeigt das Ergebnis (breit: Abzeichen in der Formationsreihe, 1117-C1.2 A; Telefon vorerst die Meldung) */
+  onDone: (result: AskResult) => void;
 }
 
 /**
- * Zweiter Teil: Zustand der Leiste und die Meldung. Sie kommt nur nach der ersten Suche seit der Freigabe (A1.6);
- * die stille Neusuche bei M15-Schluss meldet nichts. Ein Fehler meldet rot, die Leiste bietet „Tekrar dene“.
+ * Zweiter Teil: Zustand der Leiste und das Ergebnis. Es kommt nur nach der ersten Suche seit der Freigabe (A1.6);
+ * die stille Neusuche bei M15-Schluss meldet nichts. Wie das Ergebnis erscheint, entscheidet die Seite (`onDone`): die Meldung unten
+ * verdeckte auf breiten Ansichten Bedienelemente des Charts (1117-C1.2 A). Ein Fehler meldet weiter rot, die Leiste bietet „Tekrar dene“.
  */
-export function useFormationAskStatus(ask: FormationAsk, { symbol, scan, tf, onShow }: StatusInput): AskPhase {
+export function useFormationAskStatus(ask: FormationAsk, { symbol, scan, tf, onDone }: StatusInput): AskPhase {
   const { key, enabled, announced, setAnnounced, failedFor, setFailedFor, attempt } = ask;
-  const show = useRef(onShow);
+  const done = useRef(onDone);
   useEffect(() => {
-    show.current = onShow;
+    done.current = onDone;
   });
   const first = announced !== key;
   useEffect(() => {
@@ -94,11 +102,7 @@ export function useFormationAskStatus(ask: FormationAsk, { symbol, scan, tf, onS
     }
     if (scan.scanAt === null) return;
     setAnnounced(key);
-    toast.success(t('formation.ask.doneCount', { count: hitsCount(scan.hits, {}), tf, tfCount: hitsCount(scan.hits, { tf }) }), {
-      title: t('formation.ask.done', { symbol }),
-      duration: 8000,
-      action: { label: t('formation.ask.show'), hint: t('formation.ask.show.hint'), onClick: () => show.current() },
-    });
+    done.current({ count: hitsCount(scan.hits, {}), tf, tfCount: hitsCount(scan.hits, { tf }) });
   }, [enabled, key, symbol, first, scan.loading, scan.error, scan.scanAt, scan.hits, tf, attempt, failedFor, setAnnounced, setFailedFor]);
 
   if (!key || !ask.chartReady) return 'idle';

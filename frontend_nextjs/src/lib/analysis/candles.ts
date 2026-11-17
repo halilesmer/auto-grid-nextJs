@@ -219,6 +219,15 @@ export function mergeHead(
 }
 
 /**
+ * Darf jetzt eine Seite älterer Kerzen losgehen (ANA-27)? `loadedFrom` ist der linke Rand im Stand, den der Aufrufer sieht;
+ * `pageDoneFor` der linke Rand, für den die Seite schon geladen, aber noch nicht im Stand ist (zwischen Antwort und Commit).
+ * Ohne diese Sperre ginge dieselbe Seite in dieser Lücke ein zweites Mal los (CI-Trace PR 602, Journal 2026-11-17-formation-scan-status-badge).
+ */
+export function mayRequestOlder(s: { busy: boolean; paused: boolean; older: string; loadedFrom: number; pageDoneFor: number | null }): boolean {
+  return !s.busy && !s.paused && s.older === 'more' && s.loadedFrom !== s.pageDoneFor;
+}
+
+/**
  * Die nächste Seite älterer Kerzen als halb offener Bereich [from, to) oder der Grund, warum es keine gibt.
  * `rangeFrom`: ausgerichteter Beginn des gewählten Zeitraums (null bei „alles“: bis zum Beginn der Historie).
  * `have`: Zahl der geladenen Kerzen. Der Zeitraumbeginn gewinnt vor der Gesamtgrenze.

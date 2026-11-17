@@ -708,6 +708,7 @@ const existingHints = defineArea(
     "formation.ask.no.hint": "Bu sembolde arama yapılmaz. Başlıktaki “Formasyon ara” ile sonradan başlatılır.",
     "formation.ask.search.hint": "Bu sembolde formasyon taramasını başlatır.",
     "formation.ask.show.hint": "Formasyon kartını açar.",
+    "chart.formation.found.hint": "Son formasyon taramasının sonucu: tüm zaman dilimlerinde bulunan aday sayısı ve bu zaman dilimindeki aday sayısı. 8 saniye sonra kaybolur. Telefonda sonuç bildirim olarak gelir.",
     "formation.ask.retry.hint": "Taramayı yeniden başlatır.",
   },
   {
@@ -1409,6 +1410,7 @@ const existingHints = defineArea(
     "formation.ask.no.hint": "No search runs for this symbol. Start it later with “Search formations” in the header.",
     "formation.ask.search.hint": "Starts the formation search for this symbol.",
     "formation.ask.show.hint": "Opens the formation card.",
+    "chart.formation.found.hint": "Result of the last formation search: candidates found on all timeframes and on this timeframe. Disappears after 8 seconds. On the phone the result comes as a notification.",
     "formation.ask.retry.hint": "Starts the search again.",
   },
   {
@@ -2110,6 +2112,7 @@ const existingHints = defineArea(
     "formation.ask.no.hint": "Für dieses Symbol wird nicht gesucht. Später mit „Formationen suchen“ in der Kopfzeile starten.",
     "formation.ask.search.hint": "Startet die Formationssuche für dieses Symbol.",
     "formation.ask.show.hint": "Öffnet die Formationskarte.",
+    "chart.formation.found.hint": "Ergebnis der letzten Formationssuche: gefundene Kandidaten auf allen Zeiteinheiten und auf dieser Zeiteinheit. Verschwindet nach 8 Sekunden. Auf dem Telefon kommt das Ergebnis als Meldung.",
     "formation.ask.retry.hint": "Startet die Suche erneut.",
   },
 );
