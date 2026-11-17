@@ -1207,6 +1207,25 @@ test('Büyük hedef dondurulur: girişten sonra X altında kapanış (GAR-18) ha
   expect(c.drawings.map((d) => d.id)).toContain('Z-ABCD-10');
 });
 
+// Stop'un dayandığı `frozenFrom` (A ya da C) giriş mumunun ortamında belirlenir: sonraki mumlar giriş, stop ve TP1'i oynatmaz
+test('Stop dondurulur: girişten sonra X altında kapanış (GAR-18) harmonik D denetimini bozsa da stop ve tp1AtEntry kalır', { tag: ['@FRM-05', '@FRM-39'] }, () => {
+  const base = run({ H4: GARTLEY }, GARTLEY_AT, { sell: false }).trade!;
+  expect(base.stop).not.toBeNull();
+  const t = run({ H4: [...GARTLEY, plain(106, 95)] }, GARTLEY_AT, { sell: false }).trade!;
+  expect(t.entry).toBeCloseTo(base.entry!, 9);
+  expect(t.stop).toBeCloseTo(base.stop!, 9);
+  expect(t.tp1AtEntry).toBeCloseTo(base.tp1AtEntry!, 9);
+});
+
+test('Stop dondurulur: aday aynı kaldıkça sonraki her mumda giriş, stop ve büyük hedefin varlığı aynı', { tag: ['@FRM-05', '@FRM-39'] }, () => {
+  const base = run({ H4: GARTLEY }, GARTLEY_AT, { sell: false }).trade!;
+  const tails = [plain(106, 95), plain(108, 104), plain(112, 106), plain(130, 110), plain(104, 90)];
+  for (let n = 1; n <= tails.length; n++) {
+    const t = run({ H4: [...GARTLEY, ...tails.slice(0, n)] }, GARTLEY_AT, { sell: false }).trade!;
+    expect([n, t.entry, t.stop, t.tp1AtEntry, t.tpBig !== undefined]).toEqual([n, base.entry, base.stop, base.tp1AtEntry, base.tpBig !== undefined]);
+  }
+});
+
 test('Büyük hedef dondurulur: girişte harmonik D yoksa sonradan da doğmaz', { tag: ['@FRM-05', '@FRM-39'] }, () => {
   // X_NO_HARMONIC: girişte harmonik yok; sonraki mumlar hedef doğurmaz
   const rows = [...X_NO_HARMONIC, plain(144, 150), plain(150, 160)];
