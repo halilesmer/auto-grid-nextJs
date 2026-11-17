@@ -3,7 +3,7 @@ date: 2026-11-17
 author: Claude
 type: fix
 status: open
-pr: []
+pr: [591]
 features: [VPS-10]
 areas: [worker, vps]
 ---
