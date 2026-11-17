@@ -676,10 +676,9 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
         >
           <StateIcon state={checkRowState(sig29)} />
           <span className="min-w-0 text-xs">{ruleText(locale, sig29.id) ?? sig29.id}</span>
-          <span className="flex flex-col items-end text-[11px] tabular-nums text-muted-foreground">
-            <span>{sig29.id}</span>
-            {sig29.value !== undefined && <span className="text-xs text-foreground/80">{number(sig29.value, { maximumFractionDigits: 2 })}</span>}
-          </span>
+          {sig29.value !== undefined && (
+            <span className="text-xs tabular-nums text-foreground/80">{number(sig29.value, { maximumFractionDigits: 2 })}</span>
+          )}
         </div>
       )}
     </section>
