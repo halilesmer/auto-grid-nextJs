@@ -343,7 +343,6 @@ test.describe('UI-15 Formation mit Ergebniszeile im Querformat', () => {
 /** Handy 375 px: das Ziel (Symbol bzw. Setup) hat Inhaltsbreite (höchstens 42 %), das Konto bekommt den Rest (Entwurf C, 2026-11-04) */
 test.describe('UI-15 Konto und Ziel in Zeile 1 auf dem Handy', () => {
   const LONG_NAME = 'Beispielkonto Demo Hedge Handy';
-  const width = (page: Page, locator: ReturnType<Page['getByTestId']>) => locator.evaluate(e => e.getBoundingClientRect().width);
 
   async function open(page: Page, worker: MockWorker, url: string) {
     worker.state.accounts[0].account_name = LONG_NAME;
@@ -361,10 +360,16 @@ test.describe('UI-15 Konto und Ziel in Zeile 1 auf dem Handy', () => {
       await open(page, worker, url);
       const account = page.getByRole('combobox', { name: msg('account.select.aria') });
       await expect(account).toBeVisible();
+      // Bis die Kontoliste da ist, zeigt /chart eine Kopfleiste ohne Ziel (NoAccountChart) mit derselben Kontoauswahl; danach ersetzt
+      // OneChart sie. Gemessen wird die Leiste mit dem Ziel, alle Breiten in einem Aufruf: eine Messung am ersetzten Knoten ergibt 0 (1117, UI-15)
+      await expect(page.getByTestId(target).first()).toBeVisible();
+      const { barWidth, targetWidth, accountWidth } = await page.getByTestId(bar).filter({ has: page.getByTestId(target) }).evaluate((e, [t, label]) => ({
+        barWidth: e.getBoundingClientRect().width,
+        targetWidth: e.querySelector(`[data-testid="${t}"]`)!.getBoundingClientRect().width,
+        accountWidth: e.querySelector(`[role="combobox"][aria-label="${label}"]`)!.getBoundingClientRect().width,
+      }), [target, msg('account.select.aria')] as const);
       // Innenbreite der Leiste: 8 px Rand je Seite
-      const row = (await page.getByTestId(bar).first().evaluate(e => e.getBoundingClientRect().width)) - 16;
-      const targetWidth = await width(page, page.getByTestId(target).first());
-      const accountWidth = await width(page, account);
+      const row = barWidth - 16;
       expect(targetWidth, 'Ziel ≤ 42 % der Zeile').toBeLessThanOrEqual(row * 0.42 + 1);
       expect(accountWidth, 'Konto breiter als das Ziel').toBeGreaterThan(targetWidth);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
