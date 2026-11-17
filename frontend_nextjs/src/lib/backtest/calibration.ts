@@ -22,7 +22,7 @@ export const DEFAULT_PROFILE: CalibrationProfile = {
   id: 'default-2026-11',
   measured: null,
   vps: { headS: 0.105, zoneOverheadS: 0, clockShiftS: null },
-  broker: { opCost: { pending: 0.225, remove: 0.102, sltp: 0.1 }, fillLatencyMs: 1 },
+  broker: { opCost: { pending: 0.225, remove: 0.102, sltp: 0.1 }, fillLatencyMs: 5 },
   derived: { clusterGapS: 0.8, chainSlackS: 0.7 },
 };
 

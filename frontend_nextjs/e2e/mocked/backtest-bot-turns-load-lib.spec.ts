@@ -38,14 +38,42 @@ function input(over: Partial<BotTurnsLoadInput>, calls: string[]): BotTurnsLoadI
 }
 
 test.describe('BKT-30 loadBotTurns', () => {
-  test('Vorgabe ist aus: kein Abruf, kein Raster, kein Protokolleintrag', { tag: '@BKT-30' }, async () => {
-    expect(BOT_TURNS_DEFAULT).toBe(false);
+  test('Vorgabe ist an (P8): ohne enabled wird abgerufen, Schalter aus = kein Abruf', { tag: '@BKT-30' }, async () => {
+    expect(BOT_TURNS_DEFAULT).toBe(true);
     const calls: string[] = [];
     const { enabled: _enabled, ...rest } = input({}, calls);
     void _enabled;
-    const out = await loadBotTurns(rest);
-    expect(out).toEqual({ schedule: null, info: null });
-    expect(calls).toEqual([]);
+    const on = await loadBotTurns(rest);
+    expect(on.info?.source).toBe('telemetry');
+    const offCalls: string[] = [];
+    const off = await loadBotTurns(input({ enabled: false }, offCalls));
+    expect(off).toEqual({ schedule: null, info: null });
+    expect(offCalls).toEqual([]);
+  });
+
+  test('Fenster beginnt mit m-Turen (Wochenende): Telemetrie gilt, Kalender nur aus t-Turen', { tag: '@BKT-30' }, async () => {
+    // 60 s Rhythmus `m` ab Fensteranfang, erste `t`-Tur erst 1 h später (Marktöffnung)
+    const tel = telemetry();
+    const mCount = 60;
+    const t0 = (T - TZ) * 1000;
+    const full: TelemetryTurns = {
+      t0,
+      dt: [...Array(mCount - 1).fill(60_000), 60_000, ...(tel.dt as number[])],
+      dur: [...Array(mCount).fill(5), ...tel.dur],
+      kind: [...Array(mCount).fill('m'), ...tel.kind],
+      pre: [...Array(mCount).fill(0), ...tel.pre],
+    };
+    const to = T + mCount * 60 + 60;
+    const out = await loadBotTurns(input({ to, fetchTurns: async () => full }, []));
+    expect(out.info?.source).toBe('telemetry');
+    expect(out.info?.turns).toBe(28);
+  });
+
+  test('Echte Lücke (keine Tur am Fensteranfang, auch keine m-Tur): liveOrders', { tag: '@BKT-30' }, async () => {
+    const late = telemetry();
+    late.t0 = (late.t0 as number) + 3_600_000;
+    const out = await loadBotTurns(input({ to: T + 7200, fetchTurns: async () => late }, []));
+    expect(out.info?.source).toBe('liveOrders');
   });
 
   test('Telemetrie vorhanden: Quelle telemetry', { tag: '@BKT-30' }, async () => {

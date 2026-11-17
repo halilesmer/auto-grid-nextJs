@@ -35,7 +35,7 @@ export const botTurnsActive = (turns: BotTurns | undefined | null): turns is Bot
  * BKT-30 (PR-3): Vorgabe für das Tur-Raster im Live-Vergleich. Aus = die Seite liest nichts zusätzlich und der Lauf ist
  * bytegleich wie vorher. Das Einschalten entscheidet P8 (Journal); eine Oberfläche gibt es bewusst nicht.
  */
-export const BOT_TURNS_DEFAULT: boolean = false;
+export const BOT_TURNS_DEFAULT: boolean = true;
 
 /** Eintrag `run.botTurns` im Laufprotokoll: woher das Raster kam und wie gut es zu den Live-Orders passt */
 export interface BotTurnsInfo {

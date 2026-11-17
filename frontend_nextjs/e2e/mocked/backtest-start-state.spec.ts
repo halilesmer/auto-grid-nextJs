@@ -63,7 +63,9 @@ test('Archiv deckt den Fensterbeginn nicht ab: Lauf ohne Startzustand und WARN s
   await runTest(page);
   await expect(code(page, 'run.startStateMissing').first()).toBeVisible();
   await expect(code(page, 'run.startPositions')).toHaveCount(0);
-  expect(worker.callsTo('GET', `/api/history/${DEMO_ID}/orders`)).toHaveLength(0);
+  // Kein Start-Orders-Abruf im Lauf. Den Orderverlauf liest seit P8 (BOT_TURNS_DEFAULT) die Seite für das Tur-Raster: das ist kein Startzustand.
+  await expect(code(page, 'run.startOrders')).toHaveCount(0);
+  await expect(code(page, 'run.startOrdersMissing')).toHaveCount(0);
 });
 
 test('CSV-Quelle: kein Startzustand, keine Startzeile, kein Orders-Abruf', { tag: '@BKT-25' }, async ({ page, worker }) => {
