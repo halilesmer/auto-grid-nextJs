@@ -226,7 +226,7 @@ export const RULE_TEXTS: Record<string, Text> = {
   'CDT-16': ['H1 ve H2 tamamlanmış fraktal', 'H1 and H2 are finished fractals', 'H1 und H2 sind fertige Fraktale'],
   'SIG-15': ['Son iki tepede Wave uyumsuzluğu → alış yok', 'Wave divergence at the last two highs → no buy', 'Wave-Divergenz an den letzten zwei Hochs → kein Kauf'],
   'SIG-16': ['Son iki dipte Wave uyumsuzluğu → satış yok', 'Wave divergence at the last two lows → no sell', 'Wave-Divergenz an den letzten zwei Tiefs → kein Verkauf'],
-  'SIG-29': ['Geniş bölge (CRV ≤ 1): alt zaman diliminde dönüş mumu beklenir', 'Wide zone (CRV ≤ 1): wait for a reversal candle in the lower timeframe', 'Breite Zone (CRV ≤ 1): auf die Umkehrkerze der tieferen Zeiteinheit warten'],
+  'SIG-29': ['Geniş bölge (kâr/zarar oranı ≤ 1): alt zaman diliminde dönüş mumu beklenir', 'Wide zone (reward-to-risk ratio ≤ 1): wait for a reversal candle in the lower timeframe', 'Breite Zone (CRV ≤ 1): auf die Umkehrkerze der tieferen Zeiteinheit warten'],
 };
 
 const INDEX: Record<Locale, 0 | 1 | 2> = { tr: 0, en: 1, de: 2 };
