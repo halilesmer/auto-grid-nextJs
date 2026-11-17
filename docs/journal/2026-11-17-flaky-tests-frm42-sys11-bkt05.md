@@ -78,6 +78,7 @@ Root cause (measured): `MockWorker.handle()` (`e2e/fixtures/mock-worker.ts`) wro
 | First fix: the 20 specs of the failed worker plus `chart-rsi-review-lib`, 1 worker, load average 229 → 240 | 946 passed |
 | First fix with `NODE_OPTIONS=--no-experimental-webstorage` (no `localStorage`, as Node 22) | 3 of 3 failed: `Cannot read properties of undefined (reading 'setOptions')` |
 | Final fix (new load of the module), `--repeat-each=3`, 1 worker, Node 26 and with `--no-experimental-webstorage` | 9 of 9 passed in each mode |
+| Final fix: the 20 specs of the failed worker plus `chart-rsi-review-lib`, 1 worker, Node 26 and with `--no-experimental-webstorage`, load average 23 → 54 | 946 passed in each mode |
 | SYS-11 `:349` after the fix, `--repeat-each=200`, 4 workers, in parallel with the BKT-05 run, load average 26 → 65 | 200 of 200 passed |
 | `mock-worker-lib.spec.ts` after the fix, `--repeat-each=3` | 3 of 3 passed |
 | `npx eslint` (changed files), `npx tsc --noEmit`, `update_checklist.py --check` | clean; `features.yaml ok (284 Features)` |
