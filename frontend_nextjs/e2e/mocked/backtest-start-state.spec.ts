@@ -82,5 +82,15 @@ test('CSV-Quelle: kein Startzustand, keine Startzeile, kein Orders-Abruf', { tag
   await runTest(page);
   await expect(code(page, 'run.startPositions')).toHaveCount(0);
   await expect(code(page, 'run.startStateMissing')).toHaveCount(0);
-  expect(worker.callsTo('GET', `/api/history/${DEMO_ID}/orders`)).toHaveLength(0);
+  await expect(code(page, 'run.startOrders')).toHaveCount(0);
+  // Seit BKT-31 (CALIBRATE_DEFAULT) liest die Seite genau einmal den Orderverlauf von W_c (3 Handelstage vor dem Fenster) für das Profil.
+  // Es ist kein Start-Orders-Abruf: der Bereich endet vor dem Fensterbeginn (letzte 7 Tage, 1 Tag Rundungsspielraum) und ist mehr als 1 Tag lang;
+  // ein Start-Orders-Abruf wäre `from`..`from + 1` s am Fensterbeginn.
+  const calls = worker.callsTo('GET', `/api/history/${DEMO_ID}/orders`);
+  expect(calls).toHaveLength(1);
+  const now = Math.floor(Date.now() / 1000) + worker.state.brokerOffset;
+  const from = Number(calls[0].query.get('from'));
+  const to = Number(calls[0].query.get('to'));
+  expect(to).toBeLessThanOrEqual(now - 6 * DAY);
+  expect(to - from).toBeGreaterThan(DAY);
 });

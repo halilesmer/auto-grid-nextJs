@@ -33,8 +33,8 @@ function orders(base: number, clusters: number, pending: number, remove: number)
 }
 
 test.describe('BKT-31 deriveProfile', () => {
-  test('Vorgaben aus, derivedFor(Vorgabekosten) = Vorgabe-Schwellen', { tag: '@BKT-31' }, () => {
-    expect(CALIBRATE_DEFAULT).toBe(false);
+  test('Kalibrierung ein, Bot-Takt aus, derivedFor(Vorgabekosten) = Vorgabe-Schwellen', { tag: '@BKT-31' }, () => {
+    expect(CALIBRATE_DEFAULT).toBe(true);
     expect(REPLAY_LOOP_FROM_ACCOUNT_DEFAULT).toBe(false);
     expect(derivedFor(DEFAULT_PROFILE.broker.opCost)).toEqual(DEFAULT_PROFILE.derived);
   });
