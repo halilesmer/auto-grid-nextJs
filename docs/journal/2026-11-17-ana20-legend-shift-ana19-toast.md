@@ -3,7 +3,7 @@ date: 2026-11-17
 author: Claude
 type: fix
 status: open
-pr: [592]
+pr: [592, 599]
 features: [ANA-19, ANA-20]
 areas: [tests, chart]
 ---
