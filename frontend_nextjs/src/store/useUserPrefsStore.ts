@@ -58,6 +58,8 @@ interface UserPrefsState {
   status: Partial<Record<PrefKey, PrefStatus>>;
   /** USR-13: ayar penceresi `ready` olmadan kişisel alanları kilitler; `change()` de bu durumda yazmaz. */
   loadState: PrefLoadState;
+  /** İlk okuma bitti (`ready`, `failed` ya da `offline`; değerler uygulandıktan sonra) ve bir daha `false` olmaz. Favori taraması bunu bekler: tercihlerden önce başlarsa alarm anahtarı gelince baştan koşar (1116-A35, FRM-30). */
+  settled: boolean;
   load: () => Promise<void>;
   /** Değeri iyimser uygular, worker'a yazar; hatada eski değere döner. `silent`: başarı toast'ı yok; `quiet`: hata toast'ı da yok. `label` (değişiklikten sonra çağrılır, yeni dilde okunur) toast metnine girer ("Tema: Koyu"). */
   change: (key: PrefKey, value: Record<string, unknown>, label: () => PrefLabel, opts?: { silent?: boolean; quiet?: boolean }) => Promise<void>;
@@ -254,9 +256,16 @@ function applyLoaded(prefs: Record<string, unknown>, userId: string | null): voi
   else removeLegacyPinned();
 }
 
+/** Okuma bitti: `settled` (kalıcı) ve `loadedPromise` */
+const finishLoad = () => {
+  useUserPrefsStore.setState({ settled: true });
+  markLoaded();
+};
+
 export const useUserPrefsStore = create<UserPrefsState>()(() => ({
   status: {},
   loadState: 'idle',
+  settled: false,
 
   load: async () => {
     const run = ++loadRun;
@@ -275,7 +284,7 @@ export const useUserPrefsStore = create<UserPrefsState>()(() => ({
         if (run !== loadRun) return;
         if (err instanceof NotConnectedError) {
           useUserPrefsStore.setState({ loadState: 'offline' });
-          markLoaded();
+          finishLoad();
           return;
         }
         // Tünel kapalıyken ngrok da 404 döner: bu eski worker değil, hata sayılır (yeniden denenir)
@@ -283,7 +292,7 @@ export const useUserPrefsStore = create<UserPrefsState>()(() => ({
         if (axios.isAxiosError(err) && err.response?.status === 404 && !tunnelDown) {
           // Eski worker (uç yok): değerler yalnız bu oturumda kalır; yazma 404 ile yerelde biter
           useUserPrefsStore.setState({ loadState: 'ready' });
-          markLoaded();
+          finishLoad();
           return;
         }
         const delay = LOAD_RETRY_DELAYS_MS[attempt];
@@ -295,13 +304,17 @@ export const useUserPrefsStore = create<UserPrefsState>()(() => ({
     if (loaded) {
       // Önce `ready`: değerler uygulanırken başlayan göç (yerel renkler) `change()` ile yazabilsin
       useUserPrefsStore.setState({ loadState: 'ready' });
-      applyLoaded(loaded, loadedUserId);
-      markLoaded();
+      try {
+        applyLoaded(loaded, loadedUserId);
+      } finally {
+        // Bir değer uygulanamasa da okuma bitti: `settled` beklenen taramayı bırakır
+        finishLoad();
+      }
       return;
     }
     // Denemeler tükendi: önbellekteki değerler görünür kalır, alanlar kilitli; „Tekrar dene“ yeniden okur
     useUserPrefsStore.setState({ loadState: 'failed' });
-    markLoaded();
+    finishLoad();
   },
 
   importFromAccount: async (accountId) => {

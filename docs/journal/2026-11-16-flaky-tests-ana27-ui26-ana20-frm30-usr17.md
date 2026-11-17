@@ -3,7 +3,7 @@ date: 2026-11-16
 author: Claude
 type: fix
 status: open
-pr: [586]
+pr: [586, 587, 588]
 features: [ANA-27, UI-26, ANA-20, FRM-30, USR-17]
 areas: [tests, chart]
 ---
@@ -94,7 +94,11 @@ Symptom: "Zwei Tabs lösen nur eine Suche aus" expects 4 calls of `/rates` for t
 
 Root cause (measured): `alarmKey` is empty until the personal prefs (`GET /me/prefs`, `personalLoaded`) are loaded. When the favorites search starts before that, the change of `alarmKey` starts the effect again: it stops the running search and starts a new one, which loads the 4 timeframes again. On a fast runner the prefs come first, and the test passes. The second tab has no part in it. The effect for the user: when the prefs come late, the favorites search runs twice after the page opens (4 more calls to the worker).
 
-Not fixed in this session: the fix is in the application (`FormationScanRunner.tsx`). The proposal went to the coordinator (1116-A35): start the search only after `personalLoaded` when the alarm is on.
+Fixed in PR C (the coordinator approved it): the favorites search waits until the first read of the personal prefs is finished (`settled` in `useUserPrefsStore.ts`: `ready`, `failed` or `offline`, also the 404 of an old worker). When the read does not start (for example `/auth/me` fails, so `load()` is not called), the search starts after `PREFS_WAIT_MS` (15 s) anyway.
+
+How `/auth/me` is tried (code): `ConnectionSync` runs the connection check when the page opens, every 30 s and on focus, only while the tab is visible; after a good probe it calls `loadMe()` when `me` is empty. A 404 of the worker gives `LEGACY_ADMIN`; another error leaves `me` empty until the next check. Without `me`, `load()` is not called.
+
+Delay of the search when the read fails: with an immediate error, about 4.2 s (retries after 600, 1200 and 2400 ms) plus the time of 4 requests; with requests that hang, the read would take up to 4 × 15 s + 4.2 s, but the search starts after 15 s at the latest.
 
 ## Solution
 
@@ -113,7 +117,8 @@ PR B (application, UI-26): `LatestBarButton.tsx` writes the end position (`scrol
 - ANA-27: the fixture now reads the value that the test compares, at the time when it is correct. The fixed clock also removes a new candle from the refresh of the tail (`REFRESH_MS`, 60 s) during the test. The first-load check of the block (`firstLoad`, ±1) stays: the other tests of the block use the real clock. A hold of the second page in the test was tried and removed: without a measured failure it is a guess, and it hides the finding. The finding gets no `test.fail()` test (`hooks/RULES.md` §7.5): it occurs only when the release comes within 1.5 s of the drag, so such a test would pass on a slow runner and fail as "expected to fail".
 - USR-17: the app refuses the change before the prefs are loaded on purpose (toast). The test must click after the load. A wait for the `GET /me/prefs` response was rejected: the app applies the response in a later task, and an input event can come first. A retry of the click was rejected: it hides a click without effect.
 - UI-26: the fix is in the application, because the view really stops before the last candle (measured −1.03 candles in a normal run, −42 with a busy thread). A larger limit than 3 candles in the test was rejected: it hides the defect. `scrollToPosition` without animation after the animation keeps the animation for the user and only corrects the end.
-- ANA-20 and FRM-30: no fix without the decision of the owner (application change).
+- ANA-20: no fix without the decision of the owner (visible UI).
+- FRM-30: the gate uses `settled`, not `personalLoaded` (the first proposal). `personalLoaded` stays `false` when the read fails, the client is offline or an old worker answers 404; the search would then never start. Rejected: remove `alarmKey` from the dependencies of the effect (the run reads `alarmKeyRef`), because the start set of the alarm products (`alarm.symbols`) is also built from it. Reviewer findings applied: `finishLoad()` in `finally` after `applyLoaded`, and the wait limit for a read that never starts.
 
 ## Verification
 
@@ -130,13 +135,21 @@ All on the Mac under the heavy lock, mocked e2e, own `next start` with `E2E_REUS
 | PR B: reviewer | no critical finding; applied: a key does not cancel the end position |
 | PR A: `scripts/features/precheck.sh` | `PRECHECK OK in 1409s (Sperre 390s gewartet) · … e2e ran=3900 passed=3898 failed=0 flaky=2`; flaky: `formation-prefs-draft-lib.spec.ts:8`, `heavy-lock-lib.spec.ts:349` |
 | PR A: CI of PR 586 (run 43969018431) | green; on the retry: UI-26 `chart-latest-bar.spec.ts:7` (flaky on `main` too: runs 43948738746, 43910686873; fixed by PR B) and BKT-05 `csv-import.spec.ts:175` (open point) |
+| PR C: new test "prefs 2.5 s late" (`formation-page.spec.ts`), code of `main`, 5 runs | 5 of 5 failed (8 calls, expected 4); the tests "prefs fail" and "removed alarm product" passed 5 of 5 (they keep the old behavior) |
+| PR C: test "`/auth/me` fails", code before the wait limit (`54715ff6`), 3 runs | 3 of 3 failed (0 calls: the search did not start); the 404 test passed 3 of 3 |
+| PR C: FRM-30 block of `formation-page.spec.ts` and `settings-formation-alarm.spec.ts` (USR-15), final code, `--repeat-each=10` | 480 of 480 passed (9.0 min, load average 12 → 11) |
+| PR C: `scripts/features/precheck.sh` | `PRECHECK OK in 1275s (Sperre 0s gewartet) · katalog ok (0s) worker ok (150s) lint ok (17s) tsc ok (5s) e2e ok (1103s) · e2e ran=3905 passed=3904 failed=0 flaky=1 skipped=0`; flaky: `formation-prefs-draft-lib.spec.ts:8` |
+| PR B: CI of PR 587 (run 43974583218) | green; on the retry: `chart-toolbar.spec.ts:170` (open point) |
+| PR A: `tests.yml` on `main` after the merge (run 43974390314, `9d2c2304`) | success; UI-26 `chart-latest-bar.spec.ts:7` passed on the retry (before PR B) |
 | Reviewer (subagent) | no critical finding; applied: the Turkish comment in `settings-osc-scope.spec.ts`, the `initialBars` check after the reload, a fixed clock with more time to the next minute (12:00:05), no hold of the second page, the temporary specs deleted |
 
 ## Open points
 - [x] PR A merged: PR 586, squash `9d2c2304` (2026-11-16 22:54 UTC).
-- [ ] PR B and PR C merged, and the runs on `main` after the merges reported.
+- [x] PR B merged: PR 587, squash `9ed9d841` (2026-11-16 23:23 UTC).
+- [ ] PR C merged, and the runs on `main` after the merges of PR B and PR C reported.
+- [ ] `chart-toolbar.spec.ts:170` ("Werkzeugleiste 1440px dark"): failed on the first try in the CI of PR 587 (line 179, the Fibonacci menu did not open after Enter) and passed on the retry; it passed on the first try in the 4 `main` runs before. Locally, `--repeat-each=30`, 6 workers, both arms failed 5 of 120 in line 185 (`bounds.x` of the menu after full screen): code of PR 587 and code of `main`. Not caused by PR 587; cause not known.
 - [ ] BKT-05 `csv-import.spec.ts`: `:175` failed on the first try in the CI of PR 586 (run 43969018431, "Frontend e2e (2/4)", `csv-series` count 0 after the first import) and passed on the retry; `:210` failed on the first try in the CI of PR 576 (run 43855095207, timeout of a click). Both branches did not change the CSV code. `:175` passed on the first try in the 3 `main` runs before (43957424126, 43948738746, 43910686873). Locally `:175` passed 24 of 24 (6 workers). Cause not known.
-- [ ] FRM-30: fix in `FormationScanRunner.tsx` (the search starts again when the personal prefs come). Waits for the decision of the owner; red test first (a copy of the test with a slow `GET /me/prefs`).
+- [x] FRM-30: fix in `FormationScanRunner.tsx` and `useUserPrefsStore.ts` (PR C of 1116-A35, PR 588).
 - [ ] ANA-20: find which element of the legend row changes its width between the press and the release, then decide on a stable position of the buttons (visible UI, design first).
 - [ ] ANA-27 finding: after the first older page, the chart requests a second page at once when the last input is less than 1.5 s old (the check inside `candles.setData()` reads `barsBefore` from the old bars). The application is not changed.
 - [x] UI-26: the same end-position defect can be in other calls of an animated scroll. Examined (`git grep` in `frontend_nextjs/src` and `e2e`): `scrollToRealTime`, `scrollToPosition` and `scrollPosition(` occur only in `LatestBarButton.tsx`.

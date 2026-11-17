@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAccounts } from '@/components/account/hooks/useAccounts';
 import { useAlarmAccount } from '@/hooks/useAlarmAccount';
@@ -23,6 +23,7 @@ import { brokerNow, brokerToday, DAY_SEC, dayStart } from '@/lib/serverTime';
 import { useAccountStore } from '@/store/useAccountStore';
 import { ANALYSIS_PREFS_KEY, useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 import { useFavoritesScanStore, type ScanGap } from '@/store/useFavoritesScanStore';
+import { useUserPrefsStore } from '@/store/useUserPrefsStore';
 
 const LOCK_NAME = 'grid-favorites-scan';
 const CHANNEL_NAME = 'grid-favorites-scan';
@@ -31,6 +32,8 @@ const CHECK_MS = 30_000;
 const SLOT_SEC = TIMEFRAME_SEC.M15;
 /** Neuer Versuch, wenn die Kontoliste nicht kam */
 const ACCOUNTS_RETRY_MS = 10_000;
+/** So lange wartet die Suche höchstens auf das erste Lesen der persönlichen Einstellungen (eine Abfrage hat 15 s Zeitlimit) */
+const PREFS_WAIT_MS = 15_000;
 
 type Message =
   | { type: 'put'; accountId: string; symbol: string; formed: FormedHit[]; at: number; gap: ScanGap | null }
@@ -281,7 +284,17 @@ export default function FormationScanRunner() {
   // Die Trend-Einstellungen ändern Linie und Treffer: ein Wechsel startet die Suche neu (Dependency des Laufs unten)
   const trendKey = useAnalysisPrefsStore((s) => trendFingerprint(s.trend));
   const searchedTrend = useRef<string | null>(null);
-  const active = accountId !== null && favorites.ready && !clock.loading;
+  // Vor dem ersten Lesen der persönlichen Einstellungen (/me/prefs) ist der Alarm-Schlüssel leer: eine früher gestartete Suche bricht ab,
+  // sobald sie kommen, und lädt die vier Zeiteinheiten neu (1116-A35, FRM-30). Darum wartet die Suche, bis das Lesen einmal fertig ist
+  // (auch gescheitert, ohne Verbindung oder 404 beim alten Worker). Startet das Lesen nie (z. B. /auth/me scheitert), sucht sie nach PREFS_WAIT_MS trotzdem
+  const prefsSettled = useUserPrefsStore((s) => s.settled);
+  const [prefsWaitOver, setPrefsWaitOver] = useState(false);
+  useEffect(() => {
+    if (prefsSettled) return;
+    const timer = setTimeout(() => setPrefsWaitOver(true), PREFS_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, [prefsSettled]);
+  const active = accountId !== null && favorites.ready && !clock.loading && (prefsSettled || prefsWaitOver);
 
   useEffect(() => {
     const store = useFavoritesScanStore.getState();
