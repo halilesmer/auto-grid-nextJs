@@ -348,19 +348,28 @@ test.describe('Sperre für schwere Läufe', { tag: '@SYS-11' }, () => {
 
   test('kill -0 mit „Operation not permitted“ zählt als lebender Halter (R3-10)', () => {
     test.skip(process.getuid?.() === 0, 'als root gibt es kein EPERM');
-    // Ein Prozess ohne Kinder, der root gehört: kill -0 antwortet dem normalen Benutzer mit EPERM
-    const ps = spawnSync('ps', ['-axo', 'pid=,user='], { encoding: 'utf8' }).stdout.trim().split('\n');
+    // Ein Prozess ohne Kinder, der root gehört: kill -0 antwortet dem normalen Benutzer mit EPERM.
+    // Der am längsten laufende, nicht der mit der kleinsten pid: nach einem pid-Umlauf hat ein kurzlebiger
+    // root-Prozess eine kleine pid und endet während des Tests; dann ist die Sperre zu Recht veraltet
+    // (Messung 2026-11-17: 1 von 200 unter Last, pid 124 „lebt nicht mehr“).
+    const ps = spawnSync('ps', ['-axo', 'pid=,user=,etime='], { encoding: 'utf8' }).stdout.trim().split('\n');
+    const seconds = (etime: string) => {
+      const [days, rest] = etime.includes('-') ? etime.split('-') : ['0', etime];
+      return Number(days) * 86400 + rest.split(':').reduce((sum, part) => sum * 60 + Number(part), 0);
+    };
     const rootPid = ps
       .map((l) => l.trim().split(/\s+/))
       .filter(([pid, user]) => user === 'root' && Number(pid) > 1)
+      .sort((a, b) => seconds(b[2]) - seconds(a[2]))
       .map(([pid]) => pid)
       .find((pid) => spawnSync('pgrep', ['-P', pid]).stdout.length === 0);
     test.skip(!rootPid, 'kein root-Prozess ohne Kinder gefunden');
-    expect(spawnSync('kill', ['-0', rootPid as string]).status).not.toBe(0); // EPERM wie erwartet
+    // EPERM, nicht ESRCH: beide geben einen Status ungleich 0, nur EPERM heißt „lebt“
+    expect(spawnSync('bash', ['-c', `LC_ALL=C kill -0 ${rootPid}`], { encoding: 'utf8' }).stderr).toContain('not permitted');
     mkdirSync(lockDir);
     writeFileSync(path.join(lockDir, 'owner'), `${rootPid} other-worktree 12:00:00\n`);
     const r = run(['echo', 'nie'], { HEAVY_LOCK_TIMEOUT: '1' });
-    expect(r.status).toBe(75);
+    expect(r.status, `pid ${rootPid}, stderr: ${r.stderr}`).toBe(75);
     expect(r.stderr).not.toContain('veraltete Sperre');
     expect(readFileSync(path.join(lockDir, 'owner'), 'utf8')).toContain(`${rootPid} other-worktree`);
   });

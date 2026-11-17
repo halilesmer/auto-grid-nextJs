@@ -3,22 +3,29 @@
  * behält das Objekt der angewendeten Einstellung, wenn sich nichts geändert hat (R1-05).
  */
 import { expect, test } from '@playwright/test';
+import { createJSONStorage } from 'zustand/middleware';
 import { DEFAULT_TREND_SETTINGS } from '../../src/lib/formation/params';
+// Lädt den Store vor installStorage (ohne localStorage), wie es eine frühere Datei im selben Worker tut:
+// formation-alarm-history-lib → alarmStore → useUserPrefsStore → useAnalysisPrefsStore
+import '../../src/store/useAnalysisPrefsStore';
 
 const frm = (name: string, fn: () => void | Promise<void>) => test(name, { tag: '@FRM-42' }, fn);
 
-/** Speicher ohne Browser: `useAnalysisPrefsStore` liest und schreibt `localStorage`. Der Store hält die erste Instanz fest, darum gibt es nur eine, die jeder Test leert. */
-const data = new Map<string, string>();
+/**
+ * Speicher ohne Browser: `useAnalysisPrefsStore` liest und schreibt `localStorage`. Jeder Test setzt einen eigenen,
+ * leeren Speicher ein, auch wenn eine frühere Datei im selben Worker schon einen anderen eingesetzt hat (chart-rsi-review-lib).
+ */
 function installStorage() {
-  data.clear();
-  (globalThis as unknown as { localStorage: Storage }).localStorage ??= {
+  const data = new Map<string, string>();
+  const storage = {
     getItem: (k: string) => data.get(k) ?? null,
-    setItem: (k: string, v: string) => void data.set(k, v),
+    setItem: (k: string, v: string) => void data.set(k, String(v)),
     removeItem: (k: string) => void data.delete(k),
     clear: () => data.clear(),
-    key: () => null,
-    length: 0,
+    key: (i: number) => [...data.keys()][i] ?? null,
+    get length() { return data.size; },
   } as Storage;
+  Object.defineProperty(globalThis, 'localStorage', { value: storage, configurable: true, writable: true });
 }
 
 async function freshStore() {
@@ -26,7 +33,10 @@ async function freshStore() {
   // `require` statt `import()`: der Store nutzt den Alias `@/`, den Playwright nur für `require` auflöst (Node 22 in CI löst ihn bei `import()` nicht auf)
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { useAnalysisPrefsStore } = require('../../src/store/useAnalysisPrefsStore') as typeof import('../../src/store/useAnalysisPrefsStore');
-  // Das Modul bleibt zwischen den Tests im Speicher: jeder Test beginnt mit den Vorgaben
+  // Das Modul bleibt im Worker im Speicher und hält den Speicher seiner ersten Ladung fest. Lud es eine frühere Datei
+  // ohne localStorage, schrieb der Store ins Leere (TypeError bei setItem): darum bindet jeder Test den Store an seinen Speicher.
+  useAnalysisPrefsStore.persist.setOptions({ storage: createJSONStorage(() => localStorage) });
+  // Jeder Test beginnt mit den Vorgaben
   useAnalysisPrefsStore.setState({ trend: DEFAULT_TREND_SETTINGS, trendDraft: DEFAULT_TREND_SETTINGS });
   await useAnalysisPrefsStore.persist.rehydrate();
   return useAnalysisPrefsStore;
