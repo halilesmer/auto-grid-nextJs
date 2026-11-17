@@ -7,6 +7,7 @@ import { dragLeft, openNearLeftEdge, panToFirstCandle } from '../fixtures/chart-
 import { dialogTab, openDrawings } from '../fixtures/chart-dialog';
 import { formationRequests } from '../../src/lib/formation/requests';
 import { openCardTab } from '../fixtures/card';
+import { chartReady } from '../fixtures/chart-ready';
 
 // These tests are about the chart itself. The side bar of the one chart starts open from 1024 px and takes 288 px (1107-A21, U4-4a): closed, the chart has its old width
 // `range=7d` was no preset: it fell back to the default range (30 days), which is "All" since 1107-A21. The tests mean seven days: `range=last7`.
@@ -619,6 +620,30 @@ test('Indikatormenü: Sichtbarkeit, Zeitrahmen, Skala, Bereichswechsel, Kopie, F
   await expect(controls.getByRole('button', { name: msg('cw.indicatorActions', { indicator: 'RSI 3' }) })).toBeVisible();
   await menu('RSI 1');
   await expect(page.getByRole('button', { name: msg('cw.indicatorUnfavorite') })).toBeVisible();
+});
+
+test('Lejant: imleç grafikten düğmeye geçince satırın düğmeleri yerinde kalır', { tag: ['@ANA-20'] }, async ({ page, worker }) => {
+  worker.userPrefs.admin = { ...worker.userPrefs.admin, chart_osc_scope: { mode: 'product' } }; // USR-17: openOscillatorChart writes a per-product record
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  const { controls } = await openOscillatorChart(page);
+  await chartReady(page);
+  const rows = ['RSI', 'EWO'] as const;
+  const value = (kind: string) => page.locator(`[data-indicator-value="${kind}"]`);
+  const trigger = (kind: string) => controls.getByRole('button', { name: msg('cw.indicatorActions', { indicator: kind }) });
+  const triggerX = async () => Promise.all(rows.map(async kind => (await trigger(kind).boundingBox())!.x));
+  // Off the chart the legend shows the latest values
+  await page.mouse.move(0, 0);
+  for (const kind of rows) await expect(value(kind)).not.toContainText('—');
+  // The crosshair on the first candles: RSI(14) and EWO(5/35) have no value there yet, the legend shows "—" (journal 2026-11-17-ana20-legend-shift-ana19-toast)
+  const chart = (await page.getByTestId('analysis-chart').boundingBox())!;
+  await page.mouse.move(chart.x + 8, chart.y + chart.height * 0.3);
+  for (const kind of rows) await expect(value(kind)).toContainText('—');
+  const before = await triggerX();
+  // The mouse goes to the button: the crosshair goes away and the latest value comes back; the buttons must not move under the mouse
+  const box = (await trigger('RSI').boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  for (const kind of rows) await expect(value(kind)).not.toContainText('—');
+  expect(await triggerX()).toEqual(before);
 });
 
 test('Alarm: ein Zeitrahmenwechsel ist kein Übertritt, ein Live-Kurs löst ihn einmal aus', { tag: ['@ANA-20', '@UI-07'] }, async ({ page, worker }) => {

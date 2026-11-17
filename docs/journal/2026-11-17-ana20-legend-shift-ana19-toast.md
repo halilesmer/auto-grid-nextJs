@@ -3,12 +3,12 @@ date: 2026-11-17
 author: Claude
 type: fix
 status: open
-pr: []
+pr: [592]
 features: [ANA-19, ANA-20]
 areas: [tests, chart]
 ---
 
-# ANA-19 slow test and ANA-20 legend shift: causes measured
+# ANA-19 slow test and ANA-20 legend shift: causes measured and fixed
 
 ## Request
 Step 4, part A of the coordinator "K- Test altyapısı: kalan açık noktalar" (2026-11-17). Two open points of `frontend_nextjs/e2e/mocked/chart-workspace.spec.ts`:
@@ -47,14 +47,22 @@ Root cause (measured): the legend row puts the buttons after the value text (`In
 
 ## Solution
 
-ANA-19 (this PR, test only): the test runs in a block "ohne Formationssuche" with `test.use({ formationAsk: 'manual' })`. The test is about the chart settings dialog and needs no search. The same option is used in `chart-dock-s5.spec.ts` for the same toast.
+ANA-19 (PR 592, test only): the test runs in a block "ohne Formationssuche" with `test.use({ formationAsk: 'manual' })`. The test is about the chart settings dialog and needs no search. The same option is used in `chart-dock-s5.spec.ts` for the same toast.
 
-ANA-20: not fixed in this PR. A stable position of the legend buttons is a change of the visible legend. A design with three options was sent to the coordinator for the owner (artifact "Lejant düğmeleri kaymasın"). Recommendation: a fixed width for the value (the width of the longest value seen for this indicator; it does not get smaller).
+ANA-20 (second PR): a stable position of the legend buttons is a change of the visible legend. A design with three options was sent to the coordinator for the owner (artifact "Lejant düğmeleri kaymasın"). The owner approved option B on 2026-11-17 ("İkisinde de B"): the value keeps the width of the longest value seen for this indicator, and it does not get smaller. The order of the row (name, parameters, value, buttons) does not change.
+
+| File | Change |
+|---|---|
+| `frontend_nextjs/src/components/chart-workspace/IndicatorLegend.tsx` | The value of each legend row is in its own `inline-block` span with `width: <n>ch`. `n` is the length of the longest value text shown for this indicator in this legend; it is kept in state and only grows (state update during render, no effect). |
+| `frontend_nextjs/e2e/mocked/chart-workspace.spec.ts` | New test "Lejant: imleç grafikten düğmeye geçince satırın düğmeleri yerinde kalır" (ANA-20): crosshair on the first candles (RSI and EWO show "—"), read the x position of both "…" buttons, move the mouse to the RSI button, wait for the latest values, the x positions must be equal. |
+| `docs/features/features.yaml` | ANA-20: description and expected result. |
 
 ## Why
 
 - ANA-19: the assertions do not change. Only the unrelated toast is gone. Rejected: a split of the test into two tests. The time was not in the work of the test; each half would still wait for the toast. Rejected: close the toast in the test. It would add a step that depends on the toast and its timing.
 - ANA-20: a change of the test (for example, move the mouse away from the chart before each click) would hide a defect that the user has too.
+- ANA-20, `width` and not `min-width`: with `min-width: 8ch` the new test failed 10 of 10. The RSI button stayed (234.42 px), the EWO button moved by 0.0156 px (1/64 px, one layout unit of Chromium): the text "-1,77903" was 1/64 px wider than 8ch, so the box grew with the text. With `width` the box depends only on the number of characters. The text can be up to 1/64 px wider than the box; no character is cut (measured below).
+- ANA-20, the state lives in the component: a value seen in one chart context does not change the width in another one (the legend has a `key` per context).
 
 ## Verification
 
@@ -62,8 +70,17 @@ ANA-20: not fixed in this PR. A stable position of the legend buttons is a chang
 |---|---|
 | `:386` with the change, `--repeat-each=10`, 3 workers, under the heavy lock (113 s wait), load average 15 | 10 passed in 28.1 s |
 | `:386` with the change, `--repeat-each=3`, 1 worker, load average 18 to 28 | 3 passed, 11.9 s and 12.2 s per test (Playwright list reporter) |
+| PR 592, CI run 44026467962 | green; `:386` took 7.3 s. Flaky: `chart-toolbar.spec.ts:170` (1440px dark), not caused by the PR (coordinator decision) |
+| ANA-20 new test, code of `main` (`47cc88c3`), `--repeat-each=3`, under the heavy lock (227 s wait) | 3 of 3 failed: x of the "…" buttons `[208.0, 221.2]` before, `[234.4, 267.4]` after (26 px and 46 px) |
+| ANA-20 new test, fix with `min-width`, `--repeat-each=10` (lock wait 3602 s) | 10 of 10 failed: RSI equal, EWO 267.4219 → 267.4375 (1/64 px) |
+| ANA-20 new test, fix with `width`, `--repeat-each=10`, 3 workers, load average 112 | 10 passed |
+| ANA-20 `:526` ("Indikatormenü"), fix with `width`, `--repeat-each=20`, 6 workers (before: 6 of 20 failed) | 20 passed |
+| `chart-workspace.spec.ts`, `chart-hover.spec.ts`, `chart-indicator-dialog.spec.ts`, `chart-indicator-menu.spec.ts`, `chart-single-rsi.spec.ts`, fix with `width` | 68 passed |
+| Width probe (temporary spec, not committed): 7 indicators (SMA, EMA, BB, RSI, EWO, MACD, ATR), mock prices near 97 and near 97 000 (the mock rates multiplied by 1000), viewport 1280 and 375 px, states: latest value, crosshair at the left edge ("—"), crosshair at 3 positions; same probe with the legend of `main` | Text wider than its box: at most 0.0156 px. Latest value: the width of each row and the truncation are the same as on `main` in all 4 setups. At 375 px, EWO, MACD and ATR are truncated with "…" on `main` too (2 to 43 px). New: in the "—" state these rows keep their width, so at 375 px they are truncated in this state too (on `main` the short "—" fitted). Space after "—": RSI 26.4 px (as in the design), 8 characters 46.2 px, 12 characters (SMA near 97 000) 72.6 px |
+| `npx tsc --noEmit`, `npx eslint` (changed files), `update_checklist.py --check` | clean; `features.yaml ok (284 Features)` |
 
 ## Open points
-- [ ] ANA-20: the owner decides on the design; then a failing test (the x position of the "…" button must not change when the mouse goes from the chart to the button) and the fix in a second PR.
+- [x] ANA-20: design B approved by the owner (2026-11-17), failing test and fix in the second PR.
+- [ ] ANA-20: the owner examines the legend on a phone (375 px): rows that are truncated with the latest value now stay truncated in the "—" state too.
 - [ ] ANA-20 `:526`: 1 of 20 runs failed because the legend did not come within 7 s after the reload in `openOscillatorChart`. Cause not known; keep the trace of the next failure.
 - [ ] The toast "formasyon taraması bitti" covers the footer buttons of the chart settings dialog for 7 s (visible UI, design first).
