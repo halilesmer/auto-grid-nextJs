@@ -91,6 +91,7 @@ Option S: the value gets the width of the longest value seen for this indicator 
 | ANA-20 `:526` ("Indikatormenü"), code S, `--repeat-each=20`, 6 workers | 20 passed |
 | `chart-workspace.spec.ts`, `chart-hover.spec.ts`, `chart-indicator-dialog.spec.ts`, `chart-indicator-menu.spec.ts`, `chart-single-rsi.spec.ts`, code S | 69 passed |
 | `npx tsc --noEmit`, `npx eslint` (changed files), `update_checklist.py --check`, code S | clean; `features.yaml ok (284 Features)` |
+| `scripts/features/precheck.sh`, code S on `5bcea779` (lock wait 2562 s) | OK in 2069 s; e2e 3929 passed, 0 failed, 1 flaky: `formation-page.spec.ts:1031` (FRM-28, not in the legend) |
 
 ## Open points
 - [x] ANA-20: design B approved, then rejected for 375 px; design S approved by the owner (2026-11-17); failing tests and fix in the second PR.
