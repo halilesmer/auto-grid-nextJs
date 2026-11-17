@@ -3,7 +3,7 @@ date: 2026-11-17
 author: Claude
 type: fix
 status: open
-pr: []
+pr: [598]
 features: [ANA-27, ANA-19, ANA-17, UI-17]
 areas: [chart, frontend]
 ---
