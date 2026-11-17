@@ -149,6 +149,10 @@ export function useMarketRates(request: RatesRequest | null, nowSec: () => numbe
     const q = { symbol: request.symbol, timeframe: request.timeframe, from: win.from, to: win.to };
     let busy = false;
     let retryAt = 0;
+    // Linker Rand der Daten, für den die ältere Seite schon geladen, aber noch nicht im Stand ist. Zwischen Antwort (busy wird frei)
+    // und Commit ruft der Chart beim Ziehen weiter loadOlder; latest hat dann noch den alten Rand und dieselbe Seite ginge
+    // noch einmal los (CI-Trace PR 602: jede Seite zweimal, 180 bis 200 ms auseinander; Journal 2026-11-17-formation-scan-status-badge)
+    let pageDoneFor: number | null = null;
     // Beginn des gewählten Zeitraums, auf den Zeitrahmen ausgerichtet; „alles“ hat keinen (null)
     const rangeFrom = request.from === null ? null : Math.floor(request.from / tfSec) * tfSec;
 
@@ -217,7 +221,7 @@ export function useMarketRates(request: RatesRequest | null, nowSec: () => numbe
     // Seite für Seite nach links bis zum Zeitraumbeginn bzw. zum Beginn der Historie (1107-A4.3), insgesamt höchstens MAX_TOTAL_BARS (1107-A4.4)
     olderRef.current = () => {
       const cur = latest.current;
-      if (busy || performance.now() < retryAt || cur.key !== key || !cur.data || cur.data.older !== 'more') return;
+      if (busy || performance.now() < retryAt || cur.key !== key || !cur.data || cur.data.older !== 'more' || cur.data.from === pageDoneFor) return;
       const plan = olderPage(cur.data.from, rangeFrom, tfSec, cur.data.bars.length);
       if ('edge' in plan) {
         setState((s) => {
@@ -256,6 +260,7 @@ export function useMarketRates(request: RatesRequest | null, nowSec: () => numbe
             return;
           }
           const head = columns(page, tfSec);
+          pageDoneFor = plan.to;
           setState((s) => {
             if (s.key !== key || !s.data) return s;
             const merged = mergeHead(s.data, head, plan.to);

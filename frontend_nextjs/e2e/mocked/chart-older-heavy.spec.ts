@@ -78,6 +78,10 @@ test('Ältere Kerzen anfügen: Dauer je Seite bleibt unter der Grenze', { tag: '
     const answered = response.find((t) => t > previousCommitted && t <= step.committed) ?? step.committed;
     pages.push({ bars: step.bars, ms: Math.round(step.drawn - answered) });
   }
+  // Jede Seite geht einmal los. Im CI (PR 602) ging jede ältere Seite zweimal los; die späte Antwort der Kopie galt dann als Antwort
+  // der nächsten Seite, und deren Dauer stieg auf über 8 s (Journal 2026-11-17-formation-scan-status-badge)
+  const windows = chartOnly(worker).ratesQueries.map((q) => { const p = new URLSearchParams(q); return `${p.get('from')}-${p.get('to')}`; });
+  expect(windows.filter((w, i) => windows.indexOf(w) !== i)).toEqual([]);
   const { longest } = await read();
   const report = `Seiten (Kerzen im Chart nach der Seite → ms bis gezeichnet): ${pages.map((p) => `${p.bars}→${p.ms}`).join(', ')}; längster Long Task ${Math.round(longest)} ms`;
   console.log(report);
