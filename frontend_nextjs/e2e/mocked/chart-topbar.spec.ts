@@ -62,9 +62,13 @@ test.describe('UI-12 Kopfleiste bei schmaler Breite', () => {
       await page.goto(url);
       await expect(page.getByTestId(bar)).toBeVisible();
       await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+      // Einzige Ausnahme: die Formationszeile scrollt waagerecht (overflow-x-auto, so entworfen); für ihre Knöpfe zählt die Box der Zeile
       const outside = await page.getByTestId(bar).evaluate(el => [...el.querySelectorAll<HTMLElement>('button, input, [role=combobox]')]
-        .map(b => ({ name: b.getAttribute('aria-label') ?? b.textContent?.trim() ?? b.tagName, r: b.getBoundingClientRect() }))
-        .filter(({ r }) => r.width > 0 && (r.left < -0.5 || r.right > window.innerWidth + 0.5))
+        .map(b => {
+          const box = b.closest<HTMLElement>('[data-testid=formation-forms]') ?? b;
+          return { name: b.getAttribute('aria-label') ?? b.textContent?.trim() ?? b.tagName, r: box.getBoundingClientRect(), width: b.getBoundingClientRect().width };
+        })
+        .filter(({ r, width }) => width > 0 && (r.left < -0.5 || r.right > window.innerWidth + 0.5))
         .map(({ name, r }) => `${name}: ${Math.round(r.left)}–${Math.round(r.right)}`));
       expect(outside, 'Bedienelemente der Kopfleiste außerhalb von 0–375 px').toEqual([]);
       const page_ = await page.getByTestId('chart-page').evaluate(el => ({ scroll: el.scrollWidth, client: el.clientWidth }));

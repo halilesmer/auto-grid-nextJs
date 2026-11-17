@@ -79,3 +79,27 @@ Run 3 (build with the fix, heavy lock wait 1 s, load average 7 → 64):
 The 1 failure was "1440px dark", with a test timeout of 60 s. The trace shows that all checks of the test passed at 16.4 s, also the menu position. Then `page.screenshot` (full screen page) took 45.6 s, at load average 64. This is a third failure type. The fix does not apply at 1440 px. Cause unknown.
 
 `npx eslint` (changed files) and `npx tsc --noEmit`: exit 0.
+
+## Correction of the new test (CI of PR 595)
+
+The first CI run of PR 595 failed in the new UI-12 test for "free" and "setup" (run 44048055972, "Frontend e2e (2/4)", also on retry). The test reported 2 buttons of the formation row: "2618, yakın, zorunlu 4/6: 349–425" and "Diğer 7 aday: 427–461". The formation row (`formation-forms`) is `overflow-x-auto` by design: its buttons scroll, they are not cut off. Thus the test was wrong, not the app.
+
+Why the test passed on the Mac: the data of the mock worker depends on the clock. Measured with `E2E_FAKE_NOW` (free, setup, formation at 375 × 812):
+
+| Clock (UTC) | Formation candidates in the top bar |
+|---|---|
+| 07:25:30 (time of run 3), 07:30 | none |
+| 08:00, 08:39:40 (time of the CI failure) | 2 on free and setup, at x = 337–450 |
+
+The viewport was the same (375 × 812). The x values on Linux are 12 px larger than on the Mac (fonts, not measured).
+
+Correction: for a button in `[data-testid=formation-forms]` the test measures the box of the formation row, for all other buttons the box of the button. This is the only exception. The top bar has 2 scroll containers (`timeframe-select`, `formation-forms`); `timeframe-select` is not excluded. If the formation row itself goes outside the screen, the test fails.
+
+Measured with the corrected test (run 4, load average 84 → 37):
+
+| Build | Clock | New UI-12 test, 5 repeats |
+|---|---|---|
+| With the fix | 08:39:40 and real time | 15 of 15 passed (each clock) |
+| Without the fix (`flex-1` again, built) | 08:39:40 and real time | 15 of 15 failed (each clock): `Zaman aralığı: Tümü: 360–435` |
+
+In run 4 one test of `chart-topbar.spec.ts` failed one time (real time, load average 84); the result was overwritten before it was recorded. Run 5: `chart-topbar.spec.ts`, 3 repeats, 33 of 33 passed (load average 127–139). Cause of that failure: unknown.
