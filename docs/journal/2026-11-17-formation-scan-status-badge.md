@@ -4,7 +4,7 @@ author: Claude
 type: fix
 status: open
 pr: []
-features: [FRM-48, UI-22]
+features: [FRM-48, UI-22, ANA-27]
 areas: [chart, frontend]
 ---
 
@@ -31,7 +31,7 @@ Step 5 of the coordinator 1117-A2, after the findings in `2026-11-17-chart-older
 - i18n (tr/en/de): `chart.formation.searching`, `chart.formation.notSearched`, `chart.formation.found`, hint `chart.formation.found.hint`. The toast keys `formation.ask.done`, `formation.ask.doneCount`, `formation.ask.show` stay for the phone.
 
 ## Tests
-- `formation-ask.spec.ts` (@FRM-48): before the answer there is no note; after "Evet" the badge shows with "H4", there is no status with "EURUSD", and the badge goes away in 12 s and does not come back after the silent rescan; after "Hayır" the note is `off` with "Formasyonlar aranmadı."; a favorite shows the badge; a held M15 request shows `searching` and the note text is never "no formation" (MutationObserver records each text).
+- `formation-ask.spec.ts` (@FRM-48): before the answer there is no note; after "Evet" the badge shows with "H4", there is no status with "EURUSD", and the badge goes away in 12 s and does not come back after the silent rescan; after "Hayır" the note is `off` with "Formasyonlar aranmadı."; a favorite shows the badge; a held M15 request shows `searching` and the note text is never "no formation" (MutationObserver records each text); at 375 px (phone) the old toast with "Göster" comes and there is no badge.
 - `formation-page.spec.ts` (@FRM-23): below 480 px (phone layout) the test expects no badge and closes the toast as before; on the wider layouts there is no toast to close.
 
 Red run on the old code (same tests): `4 failed, 8 passed (34.5s)`. The four failures are the new expectations (note before the answer, `off`, badge, `searching`).
@@ -47,7 +47,33 @@ Red run on the old code (same tests): `4 failed, 8 passed (34.5s)`. The four fai
 - New observation: the badge comes 154 to 389 ms after the buttons (it is set in the effect that announces the first search). It makes the package 94 px wider (392 → 486), and the dock moves the package to the left again. After 8 s the badge goes and the package is 392 px again. This is the approved design A; the extra move is reported to the coordinator.
 - 375 px: not measured (cancelled by Halil's decision above).
 
+## ANA-27 heavy test: one older page is requested two times
+
+Report from the coordinator: in PR 602 (only tests and journals changed, code equal to `main` e209e752) the test `chart-older-heavy.spec.ts:29` failed in 3 of 4 tries. Only the last page was slow: 8695, 8252 and 8294 ms (limit 8000 ms); the other pages and the passing try took 1.2 to 2.2 s. The last three `main` runs: 1335, 1737 and 2048 ms.
+
+Evidence: the traces of run 44118189455, attempt 1 (artifact `playwright-report-1`, downloaded with Halil's approval, read from the JSON in `trace.zip`, then deleted). The M1 requests of the chart (UTC):
+
+| try | request | from → to | duration |
+|---|---|---|---|
+| first | 15:58:59.031 | page 1 | 96 ms |
+| first | 15:59:05.271 | page 2 (1758912000 → 1760112000) | 104 ms |
+| first | 15:59:05.455 | page 2 again, same window | 127 ms |
+| first | 15:59:12.325 | page 3 (1758153600 → 1758912000) | 72 ms |
+| retry | 15:59:47.853 and 48.057 | page 2, two times | 129 / 202 ms |
+| retry | 15:59:54.435 and 54.640 | page 3, two times | 108 / 96 ms |
+
+There were no other M1 requests (the range is in the past, so the 60 s tail refresh does not run; the formation search asks D1/H4/H1/M15; a page is one request). The failed retry delay (15 s) is not in the timeline.
+
+Root cause, two parts:
+1. Product (`useMarketRates`): `busy` becomes false when the page answer is there, before React commits the new candles. The test drags every 50 ms; the chart calls `loadOlder` again, `latest` still has the old left edge, and the same page goes out again 180 to 200 ms later. The copy writes the same bars again (`mergeHead` keeps the old bars from `plan.to` and puts the page before them), so nothing shows, but it is a second request per move. From the code, not seen in the traces: if the copy answered after the next page was merged, it would remove that page again (it keeps only bars from `plan.to`) and set the left edge back.
+2. Test measurement: the test takes "the first M1 answer after the last draw" as the answer of the next page. When the answer of the copy comes after the draw of page 2, it counts as the answer of page 3: 8.7 s instead of about 1.9 s (page 3: request 12.325, answer 12.397). When the copy answers before the draw, nothing shows. This is why `main` passed: same defect, other timing.
+
+Fix: `useMarketRates` remembers the left edge for which the older page is loaded but not committed (`pageDoneFor`) and does not request it again. The heavy test now also expects that no window (from, to) is requested two times; it fails on the duplicate before the timing check. The limit of 8000 ms is unchanged.
+
+Verification (local, `--workers=1`): without the fix the new check was never red: 0 of 2 at normal speed, 0 of 3 with the CPU slowed down 4 times (CDP `Emulation.setCPUThrottlingRate`). With the fix: 2 of 2 and 3 of 3 green; the ANA-27 tests in `chart-workspace.spec.ts` 10 of 10 green. The only evidence of the copy is the two CI traces. The fix rests on reading the code: in one effect, the same window can go out two times only between the answer and the commit, while `latest` still has the old left edge, and the guard closes exactly this gap. Confidence: medium. If CI shows a copy again, this cause is wrong.
+
 ## Open points
 - [ ] Phone layout of 1117-C1.1 and 1117-C1.2 is postponed (Halil, 2026-11-17). The phone keeps the toast and the old note.
+- [ ] ANA-27 copy request: confirm in CI that no window goes out two times (the local runs could not show it).
 - [ ] The badge widens the package after the buttons came (one more move of the package, and one more when it goes after 8 s).
-- [ ] At 375 px with `?symbol=EURUSD&tf=H4` and the question not answered by the fixture, the question strip did not come in 30 s (2 runs: one before and one after `DockPhone`). With the setup address (`?zone=`) and no fixture trend the search did not finish in the test time either. The phone guard is therefore in the FRM-23 phone case (fixture data). The change does not touch the inputs of the question phase; the cause is not known (not examined, the phone is postponed).
+- Not a defect (corrected): at 375 px the question strip did not come in two runs of a first phone test. Cause: that test did not request the `worker` fixture, so the mock worker was not installed and the page got no data (a probe without `worker` showed no chart at 1440 px either, 4 of 4). The phone test now requests `worker`.

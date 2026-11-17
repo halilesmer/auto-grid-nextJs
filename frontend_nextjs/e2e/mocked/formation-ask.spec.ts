@@ -103,4 +103,18 @@ test.describe('FRM-48 Formationssuche auf Nachfrage', () => {
     const notes = await page.evaluate(() => (window as unknown as { __notes: string[] }).__notes);
     expect(notes.filter((n) => n.includes(msg('chart.formation.noneTf')))).toEqual([]);
   });
+
+  test('Telefon bleibt vorerst wie vorher: Ergebnis als Meldung unten mit „Göster“, kein Abzeichen, alter Hinweis', { tag: '@FRM-48' }, async ({ page, worker }) => {
+    void worker;
+    // Halil 2026-11-17: „telefonlar icin UI tarafini simdi yapmayalim“ – 1117-C1.1/C1.2 gelten nur ab 30 rem Kopfbreite
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto(URL);
+    await page.getByTestId('formation-ask-yes').click();
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    const done = page.getByRole('status').filter({ hasText: msg('formation.ask.done', { symbol: 'EURUSD' }) });
+    await expect(done).toHaveCount(1);
+    await expect(done.getByRole('button', { name: msg('formation.ask.show') })).toBeVisible();
+    await expect(found(page)).toHaveCount(0);
+    expect(await noOverflow(page)).toBe(true);
+  });
 });
