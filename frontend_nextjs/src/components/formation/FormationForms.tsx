@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, ChevronDown, CircleDashed, Clock, Eye, EyeOff } from 'lucide-react';
+import { Check, ChevronDown, CircleDashed, Clock, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useT, type MessageKey } from '@/i18n';
@@ -32,6 +32,12 @@ export const idle = 'text-muted-foreground hover:bg-accent hover:text-foreground
  * (Badge) und die gewählte; Formationen mit nur ungültigen oder frühen Kandidaten stehen im Menü dahinter (UI-25).
  * Ohne Kandidat steht `emptyNote` statt der Knöpfe. Ohne `onlyWithHits` gelten alle Formationen wie bisher.
  */
+export type EmptyNote = {
+  text: string;
+  /** searching: die Suche läuft oder startet gleich (mit Drehsymbol); none: gesucht, kein Kandidat; off: nicht gesucht (1117-C1.1 A) */
+  state: 'searching' | 'none' | 'off';
+};
+
 export function FormationForms({
   hits,
   tf,
@@ -50,7 +56,7 @@ export function FormationForms({
   onForm: (form: ScanFormation) => void;
   onlyWithHits?: boolean;
   /** Kurzer Hinweis, wenn auf `tf` kein Treffer steht (nur mit `onlyWithHits`); der Aufrufer übersetzt ihn */
-  emptyNote?: string;
+  emptyNote?: EmptyNote;
   /** Eigener Hinweistext je Knopf (der Standard sagt „über alle Zeiteinheiten“, was mit `onlyWithHits` nicht gilt) */
   optionHint?: (params: { form: string; count: number }) => string;
   /** Aç/kapa (1112-A1): verilirse seçili düğmeye yeniden tık `onToggle` çağırır; `hidden` çizimin gizli olduğunu gösterir */
@@ -64,7 +70,13 @@ export function FormationForms({
   // A candidate is any analysis of the formation on `tf`, also an invalid or a forming one without badge: the conditions explain why it fails
   const candidates = SCAN_FORMATIONS.filter((x) => hits.some((h) => h.form === x && h.tf === tf));
   if (candidates.length === 0) {
-    return emptyNote ? <span className="px-1 text-xs text-muted-foreground" data-testid="formation-forms-empty">{emptyNote}</span> : null;
+    if (!emptyNote) return null;
+    return (
+      <span className="inline-flex items-center gap-1.5 px-1 text-xs text-muted-foreground" data-testid="formation-forms-empty" data-state={emptyNote.state} role="status">
+        {emptyNote.state === 'searching' && <Loader2 size={12} className="shrink-0 motion-safe:animate-spin" aria-hidden="true" />}
+        {emptyNote.text}
+      </span>
+    );
   }
   // Die Reihe zeigt gültige, im Aufbau befindliche und nahe Kandidaten (1113-A4) und die gewählte; die übrigen stehen im Menü dahinter (UI-25)
   const counted = candidates.filter((x) => x === form || formState(hits, x, tf)?.state !== 'other');

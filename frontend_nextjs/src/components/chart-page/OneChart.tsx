@@ -1,7 +1,7 @@
 'use client';
 
 import { systemRsiOf } from '@/lib/chart-workspace/oscStandard';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { PanelRight, ScanSearch } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -17,6 +17,7 @@ import { ChartTopBar, type ChartChrome } from '@/components/chart-page/ChartTopB
 import { ChartView } from '@/components/chart-page/ChartView';
 import { NoSetupNote, SetupOverview, SetupSwitches, SetupTrades } from '@/components/chart/SetupCardTabs';
 import { useChartOverlays } from '@/components/chart-workspace/ContextOverlays';
+import { useDock } from '@/components/chart-workspace/dock/DockProvider';
 import { FormationDrawingsToggle } from '@/components/chart-workspace/FormationDrawingsToggle';
 import { TrendToggle } from '@/components/chart-workspace/TrendToggle';
 import { FavoritesAddButton, FavoritesSidebar } from '@/components/formation/FavoritesSidebar';
@@ -25,18 +26,19 @@ import { FormationAskStrip } from '@/components/chart-page/FormationAskStrip';
 import { FormationAsOf, FormationAsOfSteps, useCompact } from '@/components/formation/FormationAsOf';
 import { FormationConditions } from '@/components/formation/FormationConditions';
 import { FavoritesForms, FavoritesTimeframes } from '@/components/formation/FormationFavoritesBar';
-import { FormationForms } from '@/components/formation/FormationForms';
+import { FormationForms, type EmptyNote } from '@/components/formation/FormationForms';
 import { FormationLayer } from '@/components/formation/FormationLayer';
 import { FormationLineTable } from '@/components/formation/FormationLineTable';
 import { FormationSymbolSelect } from '@/components/formation/FormationSelectors';
 import { Alert } from '@/components/ui/alert';
+import { toast } from '@/components/ui/animated-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useChartParams } from '@/hooks/useChartParams';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useFormationAlarm } from '@/hooks/useFormationAlarm';
-import { useFormationAsk, useFormationAskStatus } from '@/hooks/useFormationAsk';
+import { useFormationAsk, useFormationAskStatus, type AskResult } from '@/hooks/useFormationAsk';
 import { useFormationScan } from '@/hooks/useFormationScan';
 import { useFormationSidebar, type CardTab } from '@/hooks/useFormationSidebar';
 import { useMarketRates } from '@/hooks/useMarketRates';
@@ -44,7 +46,7 @@ import { useSetupLayers } from '@/hooks/useSetupLayers';
 import { useSignalBars } from '@/hooks/useSignalBars';
 import { useSymbolDetails } from '@/hooks/useSymbolDetails';
 import { contextTimeframe, useTrendPath } from '@/hooks/useTrendPath';
-import { useFormat, useLocale, useT, type MessageKey } from '@/i18n';
+import { t as translate, useFormat, useLocale, useT, type MessageKey } from '@/i18n';
 import { barEnd, calendarFromDaily, isCalendarTimeframe, liveCalendarBar, periodStart } from '@/lib/analysis/calendarBars';
 import { buildChartData, CHART_TIMEFRAME_SEC, CHART_TIMEFRAMES, dataTimeframeOf, type Bar, type ChartTimeframe } from '@/lib/analysis/candles';
 import { hasFormations } from '@/lib/chart/chartUrl';
@@ -89,6 +91,45 @@ interface OneChartProps {
   clockReady: boolean;
   /** Was die Seite beisteuert: Konto, Zeitraum, Chart/Statistik und ihre Hinweise */
   chrome: ChartChrome;
+}
+
+/** Liest den Telefon-Modus des Docks (nur unter dem DockProvider bekannt) und gibt ihn im Layout-Effekt, also vor dem Anstrich, an OneChart weiter */
+function DockPhone({ onChange }: { onChange: (phone: boolean) => void }) {
+  const phone = useDock()?.phone ?? false;
+  useLayoutEffect(() => onChange(phone), [phone, onChange]);
+  return null;
+}
+
+/** Wie lange das Ergebnis der Suche in der Formationsreihe steht (früher die Dauer der Meldung) */
+const FOUND_MS = 8000;
+const EMPTY_NOTE = { searching: 'chart.formation.searching', none: 'chart.formation.noneTf', off: 'chart.formation.notSearched' } as const satisfies Record<EmptyNote['state'], MessageKey>;
+
+/** Ergebnis als Meldung (8 s, „Göster“ öffnet die Formationskarte): nur noch auf dem Telefon, bis dessen Darstellung entschieden ist */
+function announceToast(symbol: string, result: AskResult, onShow: () => void) {
+  toast.success(translate('formation.ask.doneCount', { count: result.count, tf: result.tf, tfCount: result.tfCount }), {
+    title: translate('formation.ask.done', { symbol }),
+    duration: FOUND_MS,
+    action: { label: translate('formation.ask.show'), hint: translate('formation.ask.show.hint'), onClick: onShow },
+  });
+}
+
+/**
+ * 1117-C1.1 A: „keine Formation“ erst nach einer fertigen Suche. Davor „wird gesucht“, auch bevor die Anfragen starten
+ * (Freigabe da, Kerzen oder Uhr noch nicht); ohne Suche („Hayır“) „nicht gesucht“; vor der Antwort und bei Fehler nichts.
+ */
+function emptyNoteState(
+  scan: { error: string | null; scanAt: number | null; loading: boolean; hasGaps: boolean },
+  ask: { confirmed: boolean; answered: 'yes' | 'no' | null },
+  /** Telefon: wie vor 1117 („keine Formation“, sobald nicht geladen wird); dort ist noch nichts entschieden */
+  phone: boolean,
+): EmptyNote['state'] | null {
+  if (phone) return scan.loading ? null : 'none';
+  if (scan.error) return null;
+  if (scan.scanAt !== null && !scan.loading) return 'none';
+  if (scan.loading) return 'searching';
+  // Bestätigt, aber nichts zu suchen: ein Stand vor der ersten M15-Kerze (Lückenhinweis steht daneben)
+  if (ask.confirmed) return scan.hasGaps ? 'none' : 'searching';
+  return ask.answered === 'no' ? 'off' : null;
 }
 
 /**
@@ -169,7 +210,29 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
   const askKey = scanSymbol ? `${accountId}|${scanSymbol.toUpperCase()}` : null;
   const ask = useFormationAsk({ key: askKey, favoritesReady: favorites.ready, favorite: scanSymbol ? favorites.isFavorite(scanSymbol) : false, chartReady: d1.data !== null || (ready && !isLoading && request === null && clockReady) });
   const scan = useFormationScan(accountId, scanSymbol, offsetSec, clockReady, pastAt, ask.enabled);
-  const askPhase = useFormationAskStatus(ask, { symbol: scanSymbol, scan, tf: contextTf ?? 'H4', onShow: () => sidebar.show('conditions') });
+  // 1117-C1.2 A: das Ergebnis der ersten Suche steht 8 s als Abzeichen in der Formationsreihe, keine Meldung über den Bedienelementen
+  const [scanResult, setScanResult] = useState<(AskResult & { key: string }) | null>(null);
+  // Telefon (Dock-Kap unter 30 rem) bleibt vorerst wie vorher: Meldung unten statt Abzeichen, alter Hinweis (Halil 2026-11-17: „telefonlar icin UI tarafini simdi yapmayalim“).
+  // Der DockProvider liegt in ChartPage, also unter diesem Bauteil: DockPhone meldet den Wert von dort herauf (vor dem ersten Anstrich)
+  const [phone, setPhone] = useState(false);
+  const askPhase = useFormationAskStatus(ask, {
+    symbol: scanSymbol,
+    scan,
+    tf: contextTf ?? 'H4',
+    onDone: (result) => {
+      if (!askKey || !scanSymbol) return;
+      if (phone) announceToast(scanSymbol, result, () => sidebar.show('conditions'));
+      else setScanResult({ ...result, key: askKey });
+    },
+  });
+  useEffect(() => {
+    if (!scanResult) return;
+    const timer = setTimeout(() => setScanResult(null), FOUND_MS);
+    return () => clearTimeout(timer);
+  }, [scanResult]);
+  const foundNow = !phone && scanResult && scanResult.key === askKey ? scanResult : null;
+  // 1117-C1.1 A: „keine Formation“ erst nach einer fertigen Suche. Davor „wird gesucht“ (auch bevor die Anfragen starten), ohne Suche „nicht gesucht“
+  const emptyState = emptyNoteState(scan, ask, phone);
   const formsWithHits = useMemo(() => (contextTf ? SCAN_FORMATIONS.filter((x) => scan.hits.some((h) => h.form === x && h.tf === contextTf)) : []), [scan.hits, contextTf]);
   // A formation without a candidate on this timeframe has no button: the first one with a badge (else with any candidate) is shown instead
   const badged = contextTf ? formsWithHits.find((x) => hitsCount(scan.hits, { form: x, tf: contextTf }) > 0) : undefined;
@@ -373,29 +436,41 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
       onToggleConditions={() => sidebar.toggle('conditions')}
     />
   );
+  const foundBadge = foundNow && (
+    <Badge tone="success" role="status" hint={t('chart.formation.found.hint')} className="h-6 shrink-0 tabular-nums" data-testid="formation-found">
+      {t('chart.formation.found', { count: foundNow.count, tf: foundNow.tf, tfCount: foundNow.tfCount })}
+    </Badge>
+  );
   const forms = contextTf ? (
-    <FormationForms
-      hits={scan.hits}
-      tf={contextTf}
-      form={form}
-      onForm={(next) => {
-        setActive(null);
-        setPicked(null);
-        setView({ form: next });
-      }}
-      hidden={formHidden}
-      onToggle={() => setHide(!formHidden)}
-      toggleHint={({ form: name, count, hidden }) => t(hidden ? 'formation.form.hidden.hint' : 'formation.form.shown.hint', { form: name, count })}
-      onlyWithHits
-      emptyNote={scan.loading ? undefined : t('chart.formation.noneTf')}
-      optionHint={({ form: name, count }) => t('formation.form.optionTf.hint', { form: name, count })}
-    />
+    <>
+      {foundBadge}
+      <FormationForms
+        hits={scan.hits}
+        tf={contextTf}
+        form={form}
+        onForm={(next) => {
+          setActive(null);
+          setPicked(null);
+          setView({ form: next });
+        }}
+        hidden={formHidden}
+        onToggle={() => setHide(!formHidden)}
+        toggleHint={({ form: name, count, hidden }) => t(hidden ? 'formation.form.hidden.hint' : 'formation.form.shown.hint', { form: name, count })}
+        onlyWithHits
+        emptyNote={emptyState ? { state: emptyState, text: t(EMPTY_NOTE[emptyState]) } : undefined}
+        optionHint={({ form: name, count }) => t('formation.form.optionTf.hint', { form: name, count })}
+      />
+    </>
   ) : (
-    <span className="px-1 text-xs text-muted-foreground" data-testid="formation-forms-empty">{t('chart.formation.onlyTf')}</span>
+    <>
+      {foundBadge}
+      <span className="px-1 text-xs text-muted-foreground" data-testid="formation-forms-empty">{t('chart.formation.onlyTf')}</span>
+    </>
   );
 
   const notices = (
     <>
+      <DockPhone onChange={setPhone} />
       {offsetSec !== null && (
         <ChartNotice>
           <Badge tone="info" hint={t('analysis.clock.badge.hint')} data-testid="broker-clock">{t('analysis.clock.badge', { offset: formatOffset(offsetSec) })}</Badge>
