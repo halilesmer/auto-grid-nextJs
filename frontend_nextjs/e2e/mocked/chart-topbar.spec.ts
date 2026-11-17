@@ -53,6 +53,25 @@ test.describe('UI-12 Kopfleiste bei schmaler Breite', () => {
     });
   }
 
+  // chart-page ist fixed und overflow-hidden: ein zu breiter Teil der Kopfleiste ändert document.scrollWidth nicht, wird aber
+  // abgeschnitten, und scrollIntoView (Fokus, Playwright) schiebt die ganze Seite samt Werkzeugleiste nach links (1117, chart-toolbar.spec.ts:170)
+  for (const { name, url, bar } of PAGES) {
+    test(`375 × 812, ${name}: kein Teil der Kopfleiste ragt aus dem Bildschirm, die Chartseite läuft nicht waagerecht über`, { tag: '@UI-12' }, async ({ page, worker }) => {
+      void worker;
+      await page.setViewportSize({ width: 375, height: 812 });
+      await page.goto(url);
+      await expect(page.getByTestId(bar)).toBeVisible();
+      await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+      const outside = await page.getByTestId(bar).evaluate(el => [...el.querySelectorAll<HTMLElement>('button, input, [role=combobox]')]
+        .map(b => ({ name: b.getAttribute('aria-label') ?? b.textContent?.trim() ?? b.tagName, r: b.getBoundingClientRect() }))
+        .filter(({ r }) => r.width > 0 && (r.left < -0.5 || r.right > window.innerWidth + 0.5))
+        .map(({ name, r }) => `${name}: ${Math.round(r.left)}–${Math.round(r.right)}`));
+      expect(outside, 'Bedienelemente der Kopfleiste außerhalb von 0–375 px').toEqual([]);
+      const page_ = await page.getByTestId('chart-page').evaluate(el => ({ scroll: el.scrollWidth, client: el.clientWidth }));
+      expect(page_.scroll, 'scrollWidth der Chartseite').toBeLessThanOrEqual(page_.client);
+    });
+  }
+
   test('375 × 812, Setup: die zugeklappte Setup-Karte liegt unter dem untersten Bereich, nicht darüber', { tag: '@UI-12' }, async ({ page, worker }) => {
     void worker;
     await page.setViewportSize({ width: 375, height: 812 });
