@@ -37,6 +37,9 @@ export const botTurnsActive = (turns: BotTurns | undefined | null): turns is Bot
  */
 export const BOT_TURNS_DEFAULT: boolean = true;
 
+/** BKT-31: Vorgabe für die zwei Phasen je Tur (`RunModel.turnPhases`); aus = Lauf bytegleich. Das Einschalten entscheidet P8 plus ein Nachrichtenfenster mit Telemetrie. */
+export const TURN_PHASES_DEFAULT: boolean = false;
+
 /** Eintrag `run.botTurns` im Laufprotokoll: woher das Raster kam und wie gut es zu den Live-Orders passt */
 export interface BotTurnsInfo {
   source: 'telemetry' | 'liveOrders' | 'off';
@@ -47,4 +50,7 @@ export interface BotTurnsInfo {
   /** nur Telemetrie: feste Restverschiebung der Uhr in Sekunden */
   clockShiftSec?: number;
   clockReliable?: boolean;
+  /** BKT-31 (PR-3), nur Telemetrie mit z0: Zahl der Turen, deren Zone-Anfang aus z0 gebaut wurde, und auf snapAt gezogene Zone-Anfänge */
+  zoneFromZ0Turns?: number;
+  zoneBeforeSnap?: number;
 }

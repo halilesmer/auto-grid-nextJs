@@ -658,7 +658,7 @@
     "e2e": {
       "datum": "2026-11-15",
       "status": "passed",
-      "tests": 4
+      "tests": 21
     }
   },
   "BOT-01": {

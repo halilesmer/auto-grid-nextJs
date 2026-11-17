@@ -11,11 +11,12 @@ import {
   ORDER_TIME_GTC,
   ORDER_TYPE_BUY_LIMIT,
   TRADE_ACTION_PENDING,
+  TRADE_ACTION_REMOVE,
   TRADE_ACTION_SLTP,
   TRADE_RETCODE_DONE,
 } from '../../src/lib/backtest/engine/types';
 import type { LoadedRates } from '../../src/lib/backtest/candles/loadRates';
-import { BOT_TURNS_MAX_PASSES } from '../../src/lib/backtest/botTurns';
+import { BOT_TURNS_MAX_PASSES, TURN_PHASES_DEFAULT } from '../../src/lib/backtest/botTurns';
 import { runJob } from '../../src/lib/backtest/runJob';
 import type { RunRequest, WorkerMessage } from '../../src/lib/backtest/protocol';
 import { BOT_REACT_DEFAULT, FILL_SLTP_DELAY_DEFAULT, runBacktest, SAME_TICK_BATCH_DEFAULT, type RunInput, type RunModel } from '../../src/lib/backtest/runner';
@@ -388,5 +389,115 @@ test.describe('Canlı tur takvimi (BKT-30)', () => {
     expect(turned.calls.length).toBeGreaterThan(0);
     expect(turned.passes).toBeGreaterThan(1);
     expect(turned.passes).toBeLessThanOrEqual(BOT_TURNS_MAX_PASSES);
+  });
+});
+
+// ------------------------------------------------------------------ BKT-31: zwei Phasen je Tur
+const phaseStats = (r: ReturnType<typeof run>) => r.log.lines.find((l) => l.code === 'run.turnPhases')?.params as Record<string, number> | undefined;
+const placedLines = (r: ReturnType<typeof run>) => JSON.stringify(r.log.lines.filter((l) => l.code === 'grid.ordersPlaced').map((l) => l.params));
+
+function placeLimit(b: PathBroker, price: number) {
+  const result = b.orderSend({
+    action: TRADE_ACTION_PENDING, symbol: 'XAUUSD', volume: 0.1, type: ORDER_TYPE_BUY_LIMIT, price, magic: MAGIC,
+    comment: 't', type_time: ORDER_TIME_GTC, type_filling: ORDER_FILLING_RETURN, tp: 2650, sl: 2646, deviation: 20,
+  });
+  expect(result.retcode).toBe(TRADE_RETCODE_DONE);
+  return b.ordersGet()[b.ordersGet().length - 1].ticket;
+}
+
+test.describe('Zwei Phasen je Tur (BKT-31)', () => {
+  test('(i) Vorgabe aus: turnPhases false oder ohne Raster ist bytegleich zum Ein-Zeitpunkt-Weg', { tag: '@BKT-31' }, () => {
+    expect(TURN_PHASES_DEFAULT).toBe(false);
+    const rates = withReplay(candles(ROWS), { [M2]: TURN_TICKS });
+    const botTurns = { starts: [M2 + 12.5], zoneAt: [M2 + 13.5] };
+    const base = keyOf(run(rates, { botTurns }));
+    expect(keyOf(run(rates, { botTurns, turnPhases: false }))).toBe(base);
+    expect(keyOf(run(rates, { botTurns, removeAtOp: true }))).toBe(base);
+    expect(phaseStats(run(rates, { botTurns }))).toBeUndefined();
+    // ohne Raster ändert die Phasen-Schalter nichts
+    expect(keyOf(run(rates, { turnPhases: true }))).toBe(keyOf(run(rates)));
+  });
+
+  test('(ii) Was zwischen Kopf und Zonen füllt oder schließt, sieht der Zonenlauf frisch; der Kopf gibt ihm kein TP/SL', { tag: '@BKT-31' }, () => {
+    const rates = withReplay(candles(ROWS), { [M2]: TURN_TICKS });
+    // Füllung bei 10 s, TP bei 12 s. Kopf 9,0 s (die Position gibt es noch nicht), Zonen 13,5 s
+    const split = run(rates, { botTurns: { starts: [M2 + 9], zoneAt: [M2 + 13.5], snapAt: [M2 + 9] }, turnPhases: true });
+    expect(phaseStats(split)).toMatchObject({ heads: 1, straddled: 0, zoneBeforeSnap: 0 });
+    const after = (r: ReturnType<typeof run>) => r.log.lines.filter((l) => l.code === 'grid.ordersPlaced' && (l.time ?? 0) >= M2 + 10);
+    expect(after(split).length).toBeGreaterThan(0); // der Zonenlauf sieht die geschlossene Position und setzt neu
+    expect(split.log.lines.some((l) => l.code === 'position.tpslUpdate' && (l.time ?? 0) >= M2 && (l.time ?? 0) <= M2 + 9)).toBe(false);
+    // Beide Phasen auf demselben Zeitpunkt (9,0 s): der Zonenlauf sieht die spätere Füllung nicht
+    const same = run(rates, { botTurns: { starts: [M2 + 9], zoneAt: [M2 + 9], snapAt: [M2 + 9] }, turnPhases: true });
+    expect(after(same)).toHaveLength(0);
+  });
+
+  test('(iii) Kurs zwischen Kopf und Zonen ändert die Seviye-Entscheidung nicht', { tag: '@BKT-31' }, () => {
+    const botTurns = { starts: [M2 + 12.5], zoneAt: [M2 + 14.5], snapAt: [M2 + 12.5] };
+    const a = run(withReplay(candles(ROWS), { [M2]: TURN_TICKS }), { botTurns, turnPhases: true });
+    const moved: Tick[] = TURN_TICKS.map((t) => (t[0] >= 13000 && t[0] < 14400 ? [t[0], 2700.0, 2700.2] : t));
+    const b = run(withReplay(candles(ROWS), { [M2]: moved }), { botTurns, turnPhases: true });
+    // Die Stufen kommen aus dem Kurs des Kopfs: gleiche Orders; die Einstiegserkennung sieht den frischen Kurs
+    expect(placedLines(a)).toBe(placedLines(b));
+    expect(phaseStats(a)).toMatchObject({ heads: 1 });
+  });
+
+  test('(iv) Gelöschte Order kann vor der Op-Zeit füllen; der Bot sieht sie sofort als gelöscht', { tag: '@BKT-31' }, () => {
+    const b = broker(0);
+    b.beginCandle(T1, 2650, 20);
+    b.beginReplay();
+    b.setQuote(2650.0, 2650.2, T1);
+    const ticket = placeLimit(b, 2649);
+    b.removeAt = T1 + 1;
+    expect(b.orderSend({ action: TRADE_ACTION_REMOVE, order: ticket }).retcode).toBe(TRADE_RETCODE_DONE);
+    b.removeAt = null;
+    expect(b.ordersGet()).toEqual([]);
+    b.setQuote(2648.8, 2649.0, T1 + 0.5);
+    const t = b.quoteTriggers();
+    expect(t.map((x) => x.kind)).toEqual(['fill']);
+    b.fire(t[0], true);
+    expect(b.positionsGet()).toHaveLength(1);
+    expect(b.removeRaced).toBe(1);
+    // ohne Wettlauf: nach der Op-Zeit ist die Order wirklich weg und füllt nicht mehr
+    const c = broker(0);
+    c.beginCandle(T1, 2650, 20);
+    c.beginReplay();
+    c.setQuote(2650.0, 2650.2, T1);
+    const t2 = placeLimit(c, 2649);
+    c.removeAt = T1 + 1;
+    c.orderSend({ action: TRADE_ACTION_REMOVE, order: t2 });
+    c.removeAt = null;
+    c.setQuote(2650.0, 2650.2, T1 + 1.2);
+    c.setQuote(2648.8, 2649.0, T1 + 1.3);
+    expect(c.quoteTriggers()).toEqual([]);
+    expect(c.removeRaced).toBe(0);
+  });
+
+  test('(v) TP/SL wirkt zur Op-Zeit: davor schließt der alte SL (200043), der Bot sieht den neuen Wert sofort', { tag: '@BKT-31' }, () => {
+    const b = filled(0);
+    const ticket = b.positionsGet()[0].ticket;
+    b.sltpClock = { next: T1 + 2, cost: 0.1 };
+    expect(sltp(b, ticket, 2651, 2640).retcode).toBe(TRADE_RETCODE_DONE);
+    b.sltpClock = null;
+    expect(b.positionsGet()[0].sl).toBe(2640);
+    b.setQuote(2645.9, 2646.1, T1 + 2.05); // vor der Op-Zeit 2,1 s: der alte SL 2646 gilt
+    expect(b.quoteTriggers().map((x) => x.kind)).toEqual(['sl']);
+    // nach der Op-Zeit gilt der neue SL
+    const c = filled(0);
+    const t = c.positionsGet()[0].ticket;
+    c.sltpClock = { next: T1 + 2, cost: 0.1 };
+    sltp(c, t, 2651, 2640);
+    c.sltpClock = null;
+    c.setQuote(2645.9, 2646.1, T1 + 2.2);
+    expect(c.quoteTriggers()).toEqual([]);
+  });
+
+  test('(vi) Dakika taşması: Zonenlauf in der nächsten (Kerzenweg-)Minute läuft am Minutenanfang und zählt', { tag: '@BKT-31' }, () => {
+    const rows = [...ROWS, [T1 + 120, 2650.5, 2650.6, 2650.4, 2650.5, 20]];
+    const rates = withReplay(candles(rows), { [M2]: TURN_TICKS });
+    const r = run(rates, { botTurns: { starts: [M2 + 58], zoneAt: [M2 + 61], snapAt: [M2 + 58] }, turnPhases: true });
+    expect(phaseStats(r)).toMatchObject({ heads: 1, straddled: 1 });
+    // Zonenanfang vor dem Kopf: auf den Kopf angehoben und gezählt
+    const early = run(rates, { botTurns: { starts: [M2 + 12], zoneAt: [M2 + 11], snapAt: [M2 + 12.5] }, turnPhases: true });
+    expect(phaseStats(early)).toMatchObject({ zoneBeforeSnap: 1 });
   });
 });

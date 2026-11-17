@@ -14,6 +14,7 @@ import { TimeframeAggregator, type BaseBar } from '@/lib/backtest/candles/bars';
 import { parseFractalComment } from '@/lib/backtest/engine/orders';
 import {
   BUY_ORDER_TYPES,
+  ORDER_STATE_CANCELED,
   ORDER_STATE_FILLED,
   ORDER_STATE_PLACED,
   ORDER_TYPE_BUY_LIMIT,
@@ -22,9 +23,11 @@ import {
   ORDER_TYPE_SELL_STOP,
   POSITION_TYPE_BUY,
   POSITION_TYPE_SELL,
+  TRADE_ACTION_REMOVE,
   TRADE_ACTION_SLTP,
   TRADE_RETCODE_DONE,
   type Bar,
+  type Order,
   type Position,
   type SymbolInfo,
   type Timeframe,
@@ -197,6 +200,17 @@ export class PathBroker extends SimBroker {
   /** BKT-26: gefüllte Positionen mit Stufen-SL/TP bis `until`; tp/sl = zuletzt vom Bot gewünschte Werte */
   private readonly sltpHold = new Map<number, { until: number; tp?: number; sl?: number }>();
   private readonly fillSltpDelay: number;
+  /**
+   * BKT-31: SLTP-Anfragen werden zur Op-Zeit wirksam (der Bot sieht sie sofort, der Broker erst dann). Gesetzt vom Lauf für
+   * die Dauer des Tur-Kopfs: `next` = Zeit, zu der die nächste Anfrage fertig ist; jede Anfrage rückt sie um `cost` vor.
+   */
+  sltpClock: { next: number; cost: number; hold?: boolean } | null = null;
+  /** BKT-31 (S): Löschen ist für den Bot sofort fertig, wirkt im Broker erst zu dieser Zeit; null = sofort wie bisher */
+  removeAt: number | null = null;
+  /** BKT-31 (S): gelöschte, aber im Broker noch lebende Orders → Zeit, zu der das Löschen wirkt */
+  private readonly hiddenOrders = new Map<number, number>();
+  /** BKT-31: Orders, die nach dem „Löschen“ und vor der Op-Zeit gefüllt wurden */
+  removeRaced = 0;
   private readonly conversion: { pair: ConversionPair; series: RateSeries | null } | null;
   /** BKT-28: Anzahl Umrechnungen ohne Kurs (Lücke über 4 Tage): sie rechneten mit dem Schnappschuss */
   convFallbacks = 0;
@@ -507,6 +521,7 @@ export class PathBroker extends SimBroker {
         price = stop === buy ? Math.max(price, level) : Math.min(price, level);
       }
       this.orders = this.orders.filter((o) => o.ticket !== order.ticket);
+      if (this.hiddenOrders.delete(order.ticket)) this.removeRaced += 1;
       const position: Position = {
         ticket: order.ticket,
         identifier: order.ticket,
@@ -645,6 +660,17 @@ export class PathBroker extends SimBroker {
 
   /** BKT-26: abgelaufene Haltezeiten beenden und den zuletzt gewünschten TP/SL setzen */
   private applyDueSltp(): void {
+    if (this.hiddenOrders.size > 0) {
+      for (const [ticket, until] of this.hiddenOrders) {
+        if (until > this.now) continue;
+        this.hiddenOrders.delete(ticket);
+        const order = this.orders.find((o) => o.ticket === ticket);
+        if (!order) continue;
+        this.orders = this.orders.filter((o) => o.ticket !== ticket);
+        order.state = ORDER_STATE_CANCELED;
+        this.history.set(order.ticket, order);
+      }
+    }
     if (this.sltpHold.size === 0) return;
     for (const [ticket, hold] of this.sltpHold) {
       if (hold.until > this.now) continue;
@@ -754,7 +780,31 @@ export class PathBroker extends SimBroker {
     });
   }
 
+  override ordersGet(ticket?: number): Order[] {
+    const found = super.ordersGet(ticket);
+    return this.hiddenOrders.size === 0 ? found : found.filter((o) => !this.hiddenOrders.has(o.ticket));
+  }
+
   override orderSend(request: TradeRequest): TradeResult {
+    if (request.action === TRADE_ACTION_REMOVE && this.removeAt !== null && this.tradeOpen) {
+      // BKT-31 (S): live ist das Löschen eine synchrone Op; der Bot sieht „gelöscht“, die Order lebt bis zur Op-Zeit weiter
+      if (this.hiddenOrders.has(request.order ?? -1) || !this.orders.some((o) => o.ticket === request.order)) return super.orderSend(request);
+      this.hiddenOrders.set(request.order as number, this.removeAt);
+      return { retcode: TRADE_RETCODE_DONE, order: 0, comment: '' };
+    }
+    if (request.action === TRADE_ACTION_SLTP && this.tradeOpen && this.sltpClock && this.sltpClock.hold !== false) {
+      const clock = this.sltpClock;
+      const existing = this.sltpHold.get(request.position ?? -1);
+      if (existing || this.positions.some((p) => p.ticket === request.position)) {
+        clock.next += clock.cost;
+        const hold = existing ?? { until: clock.next };
+        hold.until = Math.max(hold.until, clock.next);
+        hold.tp = request.tp ?? 0;
+        hold.sl = request.sl ?? 0;
+        this.sltpHold.set(request.position as number, hold);
+        return { retcode: TRADE_RETCODE_DONE, order: 0, comment: '' };
+      }
+    }
     if (request.action === TRADE_ACTION_SLTP && this.tradeOpen) {
       const hold = this.sltpHold.get(request.position ?? -1);
       if (hold && this.now < hold.until) {
