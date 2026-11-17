@@ -72,6 +72,8 @@ Fix: `useMarketRates` remembers the left edge for which the older page is loaded
 
 Verification (local, `--workers=1`): without the fix the new check was never red: 0 of 2 at normal speed, 0 of 3 with the CPU slowed down 4 times (CDP `Emulation.setCPUThrottlingRate`). With the fix: 2 of 2 and 3 of 3 green; the ANA-27 tests in `chart-workspace.spec.ts` 10 of 10 green. The only evidence of the copy is the two CI traces. The fix rests on reading the code: in one effect, the same window can go out two times only between the answer and the commit, while `latest` still has the old left edge, and the guard closes exactly this gap. Confidence: medium. If CI shows a copy again, this cause is wrong.
 
+Deterministic red test (requested by the coordinator, `hooks/RULES.md` §8): the decision of the guard is now the pure function `mayRequestOlder()` in `candles.ts`, which `useMarketRates` calls. `chart-older-gate-lib.spec.ts` (@ANA-27) plays the steps of the hook without a browser and without timing: page planned, answer with candles (busy free, `pageDoneFor` set), the state still has the old left edge, then the commit. Without the condition `loadedFrom !== pageDoneFor`: `1 failed, 1 passed` (the gap test: Expected false, Received true). With it: the 2 lib tests, the 2 heavy tests and the 5 ANA-27 tests of `chart-workspace.spec.ts` pass (`9 passed`).
+
 ## Open points
 - [ ] Phone layout of 1117-C1.1 and 1117-C1.2 is postponed (Halil, 2026-11-17). The phone keeps the toast and the old note.
 - [ ] ANA-27 copy request: confirm in CI that no window goes out two times (the local runs could not show it).

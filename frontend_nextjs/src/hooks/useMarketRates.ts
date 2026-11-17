@@ -7,6 +7,7 @@ import {
   barsOf,
   MAX_CHART_BARS,
   MAX_TOTAL_BARS,
+  mayRequestOlder,
   mergeHead,
   mergeTail,
   olderPage,
@@ -221,7 +222,8 @@ export function useMarketRates(request: RatesRequest | null, nowSec: () => numbe
     // Seite für Seite nach links bis zum Zeitraumbeginn bzw. zum Beginn der Historie (1107-A4.3), insgesamt höchstens MAX_TOTAL_BARS (1107-A4.4)
     olderRef.current = () => {
       const cur = latest.current;
-      if (busy || performance.now() < retryAt || cur.key !== key || !cur.data || cur.data.older !== 'more' || cur.data.from === pageDoneFor) return;
+      if (cur.key !== key || !cur.data) return;
+      if (!mayRequestOlder({ busy, paused: performance.now() < retryAt, older: cur.data.older, loadedFrom: cur.data.from, pageDoneFor })) return;
       const plan = olderPage(cur.data.from, rangeFrom, tfSec, cur.data.bars.length);
       if ('edge' in plan) {
         setState((s) => {
