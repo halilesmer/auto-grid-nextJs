@@ -60,12 +60,12 @@ const same = (a: ReturnType<typeof run>, b: ReturnType<typeof run>) => {
   expect(a.summary).toEqual(b.summary);
 };
 
-/** Minute T1: der Bot setzt BUY_STOP 2651; Ask 2651,00 löst aus, im selben ms kommt 2650,96, 1 ms später 2650,94, 2 ms später 2650,90 */
-const PACK: Tick[] = [[0, 2650.0, 2650.2], [10000, 2650.8, 2651.0], [10000, 2650.76, 2650.96], [10001, 2650.74, 2650.94], [10002, 2650.7, 2650.9], [30000, 2650.7, 2650.9]];
+/** Minute T1: der Bot setzt BUY_STOP 2651; Ask 2651,00 löst aus, im selben ms kommt 2650,96, 1 ms später 2650,94, 6 ms später 2650,90 (Verzögerung 5 ms) */
+const PACK: Tick[] = [[0, 2650.0, 2650.2], [10000, 2650.8, 2651.0], [10000, 2650.76, 2650.96], [10001, 2650.74, 2650.94], [10006, 2650.7, 2650.9], [30000, 2650.7, 2650.9]];
 const FLAT = [[T1, 2650, 2650.9, 2650, 2650.8, 20]];
 
 test.describe('Ausführungsverzögerung im Replay', () => {
-  test('Kauf-Stop füllt zur letzten Quote bis 1 ms nach der Auslösung (aus 2651,00 wird 2650,94)', { tag: '@BKT-23' }, () => {
+  test('Kauf-Stop füllt zur letzten Quote bis 5 ms nach der Auslösung (aus 2651,00 wird 2650,94)', { tag: '@BKT-23' }, () => {
     const result = run(withReplay(candles(FLAT), { [T1]: PACK }), { triggerReplay: true });
     expect(result.trades[0].entryPrice).toBe(2650.94);
     expect(result.trades[0].exitPrice).toBe(2650.7); // closeAtEnd: Bid der letzten Quote
@@ -102,7 +102,7 @@ test.describe('Auftrag: Durchgänge, Abruf und Rückfall', () => {
   /** Ticks, die der Worker auf Abruf liefert: in T1 bleibt der Ask unter 2651 (kein Einstieg), in T1+60 steigt er darüber */
   const SERVED: Record<number, Tick[]> = {
     [T1]: [[0, 2650.0, 2650.2], [20000, 2650.3, 2650.5], [40000, 2650.3, 2650.5]],
-    [T1 + 60]: [[0, 2650.9, 2651.1], [1, 2650.9, 2651.06], [5, 2650.9, 2651.2], [30000, 2650.9, 2651.2]],
+    [T1 + 60]: [[0, 2650.9, 2651.1], [1, 2650.9, 2651.06], [6, 2650.9, 2651.2], [30000, 2650.9, 2651.2]],
   };
 
   function worker(rows: number[][], served: Record<number, Tick[]>, calls: string[], fail?: number, busy = false) {

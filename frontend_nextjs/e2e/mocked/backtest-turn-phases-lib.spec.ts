@@ -26,7 +26,7 @@ test.describe('BKT-31 snapAt / Profil', () => {
     expect(BOT_OP_COST_S).toEqual({ pending: 0.225, remove: 0.102, sltp: 0.1 });
     expect(TURN_HEAD_S).toBe(0.105);
     expect(OP_CLUSTER_GAP_S).toBe(0.8);
-    expect(REPLAY_FILL_LATENCY_MS).toBe(1);
+    expect(REPLAY_FILL_LATENCY_MS).toBe(5);
     expect(DEFAULT_PROFILE.derived.chainSlackS).toBe(0.7);
     expect(DEFAULT_PROFILE.measured).toBeNull();
   });

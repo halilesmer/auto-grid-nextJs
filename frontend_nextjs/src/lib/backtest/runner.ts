@@ -155,7 +155,7 @@ export interface RunResult {
 // Alle aus: P8 entscheidet über das Einschalten (Journal 2026-11-12). Aus = Ergebnis wie vor BKT-26.
 export const SAME_TICK_BATCH_DEFAULT = false;
 export const FILL_SLTP_DELAY_DEFAULT = false;
-export const BOT_REACT_DEFAULT = false;
+export const BOT_REACT_DEFAULT = true;
 export const botReactOn = (model: Pick<RunModel, 'botReact'>): boolean => model.botReact ?? BOT_REACT_DEFAULT;
 export const sameTickBatchOn = (model: Pick<RunModel, 'sameTickBatch'>): boolean => model.sameTickBatch ?? SAME_TICK_BATCH_DEFAULT;
 export const fillSltpDelayOn = (model: Pick<RunModel, 'fillSltpDelay'>): boolean => model.fillSltpDelay ?? FILL_SLTP_DELAY_DEFAULT;

@@ -192,17 +192,17 @@ test.describe('Tetik-Reihenfolge im selben Tick (A1)', () => {
 });
 
 test.describe('Bot-Reaktionsverzögerung (B) und Vorgaben', () => {
-  test('Alle Schalter sind aus; P8 entscheidet über das Einschalten', { tag: '@BKT-26' }, () => {
+  test('Nur botReact ist an (P8, 2026-11-17); die anderen bleiben aus', { tag: '@BKT-26' }, () => {
     expect(SAME_TICK_BATCH_DEFAULT).toBe(false);
     expect(FILL_SLTP_DELAY_DEFAULT).toBe(false);
-    expect(BOT_REACT_DEFAULT).toBe(false);
+    expect(BOT_REACT_DEFAULT).toBe(true);
     expect(BOT_REACT_DELAY_S).toBe(1);
   });
 
-  test('Ohne Schalter ist das Ergebnis gleich dem mit allen Schaltern ausdrücklich aus', { tag: '@BKT-26' }, () => {
+  test('Ohne Schalter ist das Ergebnis gleich dem mit den Vorgaben ausdrücklich gesetzt (botReact an)', { tag: '@BKT-26' }, () => {
     const rates = withReplay(candles(ROWS), { [T1 + 60]: GAP });
     const plain = run(rates);
-    const off = run(rates, { sameTickBatch: false, fillSltpDelay: false, botReact: false });
+    const off = run(rates, { sameTickBatch: false, fillSltpDelay: false, botReact: true });
     expect(JSON.stringify(plain.trades)).toBe(JSON.stringify(off.trades));
   });
 
@@ -221,7 +221,7 @@ test.describe('Bot-Reaktionsverzögerung (B) und Vorgaben', () => {
 
   test('Verzögerung 0 schaltet B ab, auch mit Schalter an', { tag: '@BKT-26' }, () => {
     const rates = withReplay(candles(ROWS), { [T1 + 60]: GAP });
-    expect(JSON.stringify(run(rates, { botReact: true, botReactDelay: 0 }).trades)).toBe(JSON.stringify(run(rates).trades));
+    expect(JSON.stringify(run(rates, { botReact: true, botReactDelay: 0 }).trades)).toBe(JSON.stringify(run(rates, { botReact: false }).trades));
   });
 });
 
@@ -241,11 +241,12 @@ test.describe('Tepki-Gecikmesi 1 s, ohne periodischen Lauf dazwischen (BKT-29)',
     expect(on.some((t) => t > 10 && t < 11)).toBe(false);
   });
 
-  test('Ohne botReact läuft der Bot sofort bei der Füllung (bytegleicher alter Weg)', { tag: '@BKT-29' }, () => {
+  test('Mit botReact: false läuft der Bot sofort bei der Füllung (bytegleicher alter Weg)', { tag: '@BKT-29' }, () => {
     const rates = withReplay(candles(ROWS), { [T1 + 60]: REACT });
-    const off = botTimes(run(rates)).filter((t) => t >= 0);
+    const off = botTimes(run(rates, { botReact: false })).filter((t) => t >= 0);
     expect(Math.min(...off)).toBeCloseTo(10, 6);
-    expect(JSON.stringify(run(rates).trades)).toBe(JSON.stringify(run(rates, { botReact: false }).trades));
+    // Vorgabe (P8, 2026-11-17) ist botReact an: kein Lauf bei der Füllung
+    expect(JSON.stringify(run(rates).trades)).toBe(JSON.stringify(run(rates, { botReact: true }).trades));
   });
 });
 
@@ -281,7 +282,7 @@ test.describe('Canlı tur takvimi (BKT-30)', () => {
   test('Nach dem Tetik läuft der Bot nicht vor dem Tur-Anfang; Tetik-, periodischer und Minutenend-Lauf entfallen', { tag: '@BKT-30' }, () => {
     const rates = withReplay(candles(ROWS), { [M2]: TURN_TICKS });
     // Alter Weg: Lauf bei der Füllung (10 s), beim Ausstieg (12 s), bei der Füllung 13,4 s und am Minutenende
-    expect(botTimesIn(run(rates))).toEqual(expect.arrayContaining([10, 12, 13.4, 20]));
+    expect(botTimesIn(run(rates, { botReact: false }))).toEqual(expect.arrayContaining([10, 12, 13.4, 20]));
     const r = run(rates, { botTurns: { starts: [M2 + 12.5], zoneAt: [M2 + 13.5] } });
     // Genau ein Lauf: der Tur-Anfang 12,5 s; er läuft vor dem Tick bei 13 s und trägt die Zeit des letzten Ticks (12 s)
     expect(botTimesIn(r)).toEqual([12]);

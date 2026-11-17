@@ -6,7 +6,6 @@ import { BOT_TURNS_DEFAULT, type BotTurnsInfo } from '@/lib/backtest/botTurns';
 import type { CalibrationProfile } from '@/lib/backtest/calibration';
 import type { LiveOrder } from '@/lib/backtest/startState';
 import {
-  decodeTurns,
   liveOpsFromOrders,
   scheduleFromLiveOrders,
   scheduleFromTelemetry,
@@ -87,6 +86,15 @@ export function mergeTelemetry(parts: readonly TelemetryTurns[]): TelemetryTurns
   return out;
 }
 
+/** Erste und letzte Tur-Startsekunde (UTC) über alle Turarten; null bei leerer Telemetrie */
+export function telemetrySpan(turns: TelemetryTurns): { first: number; last: number } | null {
+  if (turns.t0 === null || turns.kind.length === 0) return null;
+  let ms = turns.t0;
+  const first = ms / 1000;
+  for (let i = 1; i < turns.kind.length; i++) ms += turns.dt[i - 1] ?? 0;
+  return { first, last: ms / 1000 };
+}
+
 export async function loadBotTurns(input: BotTurnsLoadInput): Promise<BotTurnsLoaded> {
   if (!(input.enabled ?? BOT_TURNS_DEFAULT)) return { schedule: null, info: null };
   if (!input.live || input.magics.length === 0) return { schedule: null, info: OFF };
@@ -115,9 +123,11 @@ export async function loadBotTurns(input: BotTurnsLoadInput): Promise<BotTurnsLo
           parts.push(part);
         }
         const telemetry = mergeTelemetry(parts);
-        const decoded = decodeTurns(telemetry);
-        const first = decoded[0]?.start;
-        const last = decoded[decoded.length - 1]?.start;
+        // Abdeckung zählt alle Turarten (t/m/c/n: der Bot lebt); der Kalender entsteht weiter nur aus `t`-Turen.
+        // Sonst lehnt ein Fenster, das am Wochenende beginnt (nur `m`-Turen bis zur Marktöffnung), die Telemetrie ab.
+        const span = telemetrySpan(telemetry);
+        const first = span?.first;
+        const last = span?.last;
         const needEnd = Math.min(input.to, input.nowSec) - tz;
         // Abdeckung: die Telemetrie reicht vom Anfang bis zum Ende des Fensters (bzw. bis jetzt)
         if (first !== undefined && last !== undefined && first <= input.from - tz + TURNS_COVER_SLACK_S && last >= needEnd - TURNS_COVER_SLACK_S) {
