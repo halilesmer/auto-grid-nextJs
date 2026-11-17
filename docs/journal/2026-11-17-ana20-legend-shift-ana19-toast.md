@@ -49,20 +49,27 @@ Root cause (measured): the legend row puts the buttons after the value text (`In
 
 ANA-19 (PR 592, test only): the test runs in a block "ohne Formationssuche" with `test.use({ formationAsk: 'manual' })`. The test is about the chart settings dialog and needs no search. The same option is used in `chart-dock-s5.spec.ts` for the same toast.
 
-ANA-20 (second PR): a stable position of the legend buttons is a change of the visible legend. A design with three options was sent to the coordinator for the owner (artifact "Lejant düğmeleri kaymasın"). The owner approved option B on 2026-11-17 ("İkisinde de B"): the value keeps the width of the longest value seen for this indicator, and it does not get smaller. The order of the row (name, parameters, value, buttons) does not change.
+ANA-20 (second PR): a stable position of the legend buttons is a change of the visible legend, so it went through two design rounds with the owner.
+
+1. Artifact "Lejant düğmeleri kaymasın": three options. The owner approved option B on 2026-11-17 ("İkisinde de B"): the value keeps the width of the longest value seen for this indicator, and it does not get smaller.
+2. B was implemented and measured (below). At 375 px, B cut the rows: the value box could not be divided, so a row that did not fit showed "MACD (12/26) …" with the latest value and with "—". The owner rejected this ("Hayır, önce düzelt"). Artifact "Lejant telefonda kesilmesin": four options, each put into the application for the measurement (today, B, S, H). The owner approved option S on 2026-11-17 ("Üçü de öneri"; the recommendation was S).
+
+Option S: the value gets the width of the longest value seen for this indicator (as in B). When the row does not fit, this reserved space gets smaller first. The name and the parameters do not get smaller; a long value is cut at its end with "…". The order of the row (name, parameters, value, buttons) does not change.
 
 | File | Change |
 |---|---|
-| `frontend_nextjs/src/components/chart-workspace/IndicatorLegend.tsx` | The value of each legend row is in its own `inline-block` span with `width: <n>ch`. `n` is the length of the longest value text shown for this indicator in this legend; it is kept in state and only grows (state update during render, no effect). |
-| `frontend_nextjs/e2e/mocked/chart-workspace.spec.ts` | New test "Lejant: imleç grafikten düğmeye geçince satırın düğmeleri yerinde kalır" (ANA-20): crosshair on the first candles (RSI and EWO show "—"), read the x position of both "…" buttons, move the mouse to the RSI button, wait for the latest values, the x positions must be equal. |
+| `frontend_nextjs/src/components/chart-workspace/IndicatorLegend.tsx` | The text of each legend row is a flex row: the name and parameters (`shrink-0`) and the value in its own box with `width: calc(<n + 1>ch + 1px)`, `min-width: 0`, `text-overflow: ellipsis`. `n` is the length of the longest value text shown for this indicator in this legend; it is kept in state and only grows (state update during render, no effect). The `+ 1` is the space before the value. |
+| `frontend_nextjs/e2e/mocked/chart-workspace.spec.ts` | New test "Lejant: imleç grafikten düğmeye geçince satırın düğmeleri yerinde kalır" (ANA-20): crosshair on the first candles (RSI and EWO show "—"), read the x position of both "…" buttons, move the mouse to the RSI button, wait for the latest values, the x positions must be equal. New test "Lejant 375 px: imleç grafikteyken „—“ kesilmez, düğmeler yerinde kalır" (ANA-20, UI-08): RSI, EWO and MACD at 375 px; with the crosshair on the first candles no part of a row is cut, and the "…" buttons are where they were with the latest values. |
 | `docs/features/features.yaml` | ANA-20: description and expected result. |
 
 ## Why
 
 - ANA-19: the assertions do not change. Only the unrelated toast is gone. Rejected: a split of the test into two tests. The time was not in the work of the test; each half would still wait for the toast. Rejected: close the toast in the test. It would add a step that depends on the toast and its timing.
 - ANA-20: a change of the test (for example, move the mouse away from the chart before each click) would hide a defect that the user has too.
-- ANA-20, `width` and not `min-width`: with `min-width: 8ch` the new test failed 10 of 10. The RSI button stayed (234.42 px), the EWO button moved by 0.0156 px (1/64 px, one layout unit of Chromium): the text "-1,77903" was 1/64 px wider than 8ch, so the box grew with the text. With `width` the box depends only on the number of characters. The text can be up to 1/64 px wider than the box; no character is cut (measured below).
-- ANA-20, the state lives in the component: a value seen in one chart context does not change the width in another one (the legend has a `key` per context).
+- ANA-20, `width` and not `min-width`: with `min-width: 8ch` the new test failed 10 of 10. The RSI button stayed (234.42 px), the EWO button moved by 0.0156 px (1/64 px, one layout unit of Chromium): the text "-1,77903" was 1/64 px wider than 8ch, so the box grew with the text. With `width` the box depends only on the number of characters. In S the box is 1 px wider than the characters, so the text never fills it and the "…" does not come at full width.
+- ANA-20, S and not B: in B the value was an `inline-block` inside a text with `text-overflow: ellipsis`. An overflowing inline-block is not cut character by character; the browser hides it completely and shows "…" (measured: 2 px overflow hid the whole value). In S the value box is a flex item with its own ellipsis, so the text in it is cut at its end.
+- ANA-20, S and not H (reserved space only on devices with a mouse): a narrow desktop window has a mouse, so H cuts there as B does. In the touch emulation a tap on the chart did not show the crosshair, so the "—" state does not come from a tap on a phone.
+- ANA-20, the state lives in the component. The legend has a `key` per chart context (source, account, symbol; not the timeframe): a change of the timeframe keeps the width, another symbol starts again. A width also stays after a change of the precision until the page is opened again (the width never gets smaller).
 
 ## Verification
 
@@ -77,10 +84,16 @@ ANA-20 (second PR): a stable position of the legend buttons is a change of the v
 | ANA-20 `:526` ("Indikatormenü"), fix with `width`, `--repeat-each=20`, 6 workers (before: 6 of 20 failed) | 20 passed |
 | `chart-workspace.spec.ts`, `chart-hover.spec.ts`, `chart-indicator-dialog.spec.ts`, `chart-indicator-menu.spec.ts`, `chart-single-rsi.spec.ts`, fix with `width` | 68 passed |
 | Width probe (temporary spec, not committed): 7 indicators (SMA, EMA, BB, RSI, EWO, MACD, ATR), mock prices near 97 and near 97 000 (the mock rates multiplied by 1000), viewport 1280 and 375 px, states: latest value, crosshair at the left edge ("—"), crosshair at 3 positions; same probe with the legend of `main` | Text wider than its box: at most 0.0156 px. Latest value: the width of each row and the truncation are the same as on `main` in all 4 setups. At 375 px, EWO, MACD and ATR are truncated with "…" on `main` too (2 to 43 px). New: in the "—" state these rows keep their width, so at 375 px they are truncated in this state too (on `main` the short "—" fitted). Space after "—": RSI 26.4 px (as in the design), 8 characters 46.2 px, 12 characters (SMA near 97 000) 72.6 px |
-| `npx tsc --noEmit`, `npx eslint` (changed files), `update_checklist.py --check` | clean; `features.yaml ok (284 Features)` |
+| Reviewer (subagent) on B | no critical finding; finding applied in S: the ellipsis hides an `inline-block` value completely at 375 px; finding applied: the first check of the test now waits for a number (`/\) -?\d/`) and not only for "no —" |
+| Four options in the application (temporary code, value selected in `localStorage`, not committed): 7 indicators, prices near 97 and near 97 000, 1280 and 375 px, latest value and "—", same build | Largest move of a "…" button: today 72.6 px, B 0.0, S 0.0, H 0.0. Cut in the "—" state at 375 px: today 0, B 43 px (value hidden), S 0, H 43 px. Cut with the latest value at 375 px: 43 px in all four (MACD near 97 000; S shows "-6…" as today, B shows "…") |
+| New 375 px test, code B, `--repeat-each=3` | 3 of 3 failed: cut `[0, 2, 16]` px (RSI, EWO, MACD) |
+| Both legend tests, code S, `--repeat-each=10`, 3 workers | 20 passed |
+| ANA-20 `:526` ("Indikatormenü"), code S, `--repeat-each=20`, 6 workers | 20 passed |
+| `chart-workspace.spec.ts`, `chart-hover.spec.ts`, `chart-indicator-dialog.spec.ts`, `chart-indicator-menu.spec.ts`, `chart-single-rsi.spec.ts`, code S | 69 passed |
+| `npx tsc --noEmit`, `npx eslint` (changed files), `update_checklist.py --check`, code S | clean; `features.yaml ok (284 Features)` |
 
 ## Open points
-- [x] ANA-20: design B approved by the owner (2026-11-17), failing test and fix in the second PR.
-- [ ] ANA-20: the owner examines the legend on a phone (375 px): rows that are truncated with the latest value now stay truncated in the "—" state too.
+- [x] ANA-20: design B approved, then rejected for 375 px; design S approved by the owner (2026-11-17); failing tests and fix in the second PR.
+- [ ] ANA-20: the owner examines the legend on a real phone.
 - [ ] ANA-20 `:526`: 1 of 20 runs failed because the legend did not come within 7 s after the reload in `openOscillatorChart`. Cause not known; keep the trace of the next failure.
 - [ ] The toast "formasyon taraması bitti" covers the footer buttons of the chart settings dialog for 7 s (visible UI, design first).

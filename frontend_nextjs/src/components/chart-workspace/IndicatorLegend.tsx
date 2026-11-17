@@ -226,10 +226,9 @@ export function IndicatorLegend({ binding, renderer, manager, indicators, latest
     if (!showValues || !drawn || !indicator.values || value === undefined) return '';
     return value === null ? '—' : fmt.number(value, legendValueOptions(indicator));
   };
-  // ANA-20 (design B, 1117): the value keeps the width of the longest value seen for this indicator and never gets narrower.
+  // ANA-20 (design S, 1117): the value gets the width of the longest value seen for this indicator; the width never gets smaller.
   // The value under the crosshair (or "—") and the latest value have different lengths; without this the row buttons move under the
   // mouse when it goes from the chart to the legend (measured 26 to 46 px), and the click goes to the next button.
-  // A fixed `width`, not `min-width`: the text of 8 characters was 1/64 px wider than 8ch (layout unit), and the buttons moved by that.
   const [valueChars, setValueChars] = useState<Readonly<Record<string, number>>>({});
   const grown = indicators.filter(item => valueText(item).length > (valueChars[item.id] ?? 0));
   if (grown.length) setValueChars({ ...valueChars, ...Object.fromEntries(grown.map(item => [item.id, valueText(item).length])) });
@@ -258,12 +257,17 @@ export function IndicatorLegend({ binding, renderer, manager, indicators, latest
     const system = isSystemRsi(indicator);
     const value = valueText(indicator), drawn = latest.some(item => item.config.id === indicator.id);
     const valueWidth = Math.max(valueChars[indicator.id] ?? 0, value.length);
+    const prefix = `${showNames ? indicator.kind : ''}${showParams && drawn ? paramsText(indicator, t) : ''}`;
     // The formation page does not scroll and its chart ends at the bottom edge, so the menu opens upwards below the price pane there.
     const menuPanelClass = overlayLayout && paneIndex > 0 ? 'bottom-full top-auto mb-2 mt-0 max-h-[40dvh] w-64 overflow-y-auto' : 'w-64';
     return rowShell({
       key: indicator.id, attributes: { 'data-indicator-row': indicator.kind, ...(system ? { 'data-system-row': 'rsi' } : {}) }, hot: hover.pane === paneIndex, label, visible: indicator.visible, drawn, emphasis,
-      text: <span data-indicator-value={indicator.kind} style={textStyle} className={`min-w-0 truncate rounded px-1 font-mono text-[11px] ${drawn ? 'text-muted-foreground' : `text-muted-foreground/60 ${indicator.visible ? 'line-through' : ''}`}`}>
-        {showNames ? indicator.kind : ''}{showParams && drawn ? paramsText(indicator, t) : ''}{value ? <> <span className="inline-block" style={{ width: `${valueWidth}ch` }}>{value}</span></> : ''}
+      // When the row does not fit (phone), the reserved space of the value gets smaller first: name and parameters stay, "—" is not cut, and a
+      // long value is cut at its end with "…". The row is then as wide as the legend in both states, so the buttons do not move either.
+      // The value box has a fixed `width` (1 px more than the characters): a `min-width` followed the text, which was up to 1/64 px wider than its `ch`.
+      text: <span data-indicator-value={indicator.kind} style={textStyle} className={`flex min-w-0 overflow-hidden rounded px-1 font-mono text-[11px] ${drawn ? 'text-muted-foreground' : `text-muted-foreground/60 ${indicator.visible ? 'line-through' : ''}`}`}>
+        <span className="shrink-0 whitespace-pre">{prefix}</span>
+        {value && <span className="min-w-0 overflow-hidden text-ellipsis whitespace-pre" style={{ width: `calc(${valueWidth + (prefix ? 1 : 0)}ch + 1px)` }}>{prefix ? ` ${value}` : value}</span>}
       </span>,
       onToggleVisible: () => actions.toggleVisible(indicator), settings: () => actions.openSettings(indicator), remove: () => actions.remove(indicator),
       removeLabel: system ? t('cw.legend.hideLayer', { layer: label }) : t('cw.legend.remove', { indicator: label }), removeHint: system ? t('cw.legend.hideLayer.hint') : t('cw.legend.remove.hint'),
