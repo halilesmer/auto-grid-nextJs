@@ -3,7 +3,7 @@ date: 2026-11-17
 author: Claude
 type: fix
 status: open
-pr: []
+pr: [594]
 features: [FRM-42, SYS-11, BKT-05]
 areas: [tests]
 ---
