@@ -29,7 +29,7 @@ Symptom: in 3 kept pre-PR reports (`.feature-results/precheck-e2e.json` of 3 wor
 | Each of these specs in front of the file, 1 worker | `formation-alarm-history-lib.spec.ts` in front: the same failure. The 7 specs before it in the list: no failure. (The later rows of this loop are not valid: the file changed during the loop.) |
 | Temporary static import of the store at the top of the file (the store loads before a storage exists), code before the fix, `--repeat-each=3` | 9 of 9 failed with the same `TypeError` |
 
-Root cause (measured): `useAnalysisPrefsStore` takes its storage once, when the module loads (`createJSONStorage(() => localStorage)`). Node has no `localStorage` (Node 22 in CI; Node 26 on the Mac gives `undefined` without `--localstorage-file`). When an earlier spec in the same Playwright worker loads the module first (`formation-alarm-history-lib` → `alarmStore` → `useUserPrefsStore` → `useAnalysisPrefsStore`), the store has no storage. The test file installs its storage later and gets the cached module. The retry runs in a new worker and passes. The test also used `localStorage ??=`, so it kept the storage of `chart-rsi-review-lib` when that spec ran first.
+Root cause (measured): `useAnalysisPrefsStore` takes its storage once, when the module loads (`createJSONStorage(() => localStorage)`). Node has no `localStorage`: Node 26 on the Mac gives `undefined` without `--localstorage-file`, Node 22 in CI throws a `ReferenceError`. When an earlier spec in the same Playwright worker loads the module first (`formation-alarm-history-lib` → `alarmStore` → `useUserPrefsStore` → `useAnalysisPrefsStore`), the store has no storage. On Node 26 its writes go to an `undefined` storage (`TypeError … 'setItem'`). On Node 22 `createJSONStorage` gives `undefined`, and zustand `persist` returns without `api.persist`, so `store.persist` is `undefined` (code of zustand 5.0.15, `middleware.js`; not seen in CI, where the group did not fail in 40 runs). The test file installs its storage later and gets the cached module. The retry runs in a new worker and passes. The test also used `localStorage ??=`, so it kept the storage of `chart-rsi-review-lib` when that spec ran first.
 
 ### SYS-11 `heavy-lock-lib.spec.ts:349`
 
@@ -59,14 +59,14 @@ Root cause (measured): `MockWorker.handle()` (`e2e/fixtures/mock-worker.ts`) wro
 
 | File | Change |
 |---|---|
-| `frontend_nextjs/e2e/mocked/formation-prefs-draft-lib.spec.ts` | A static import of the store at the top of the file (the store now always loads before the storage, as in the failed workers). Each test installs its own empty `localStorage` (`Object.defineProperty`, not `??=`) and binds the store to it with `persist.setOptions({ storage: createJSONStorage(() => localStorage) })`. |
+| `frontend_nextjs/e2e/mocked/formation-prefs-draft-lib.spec.ts` | A static import of the store at the top of the file (the store now always loads before the storage, as in the failed workers). Each test installs its own empty `localStorage` (`Object.defineProperty`, not `??=`), deletes the store module from the `require` cache and loads it again, so the store takes the storage of the test. |
 | `frontend_nextjs/e2e/mocked/heavy-lock-lib.spec.ts` | `:349` takes the root process without children that runs longest (`ps -o etime`), not the one with the smallest pid. It requires `not permitted` in the stderr of `kill -0` (EPERM, not ESRCH). The status assertion shows pid and stderr of the script. |
 | `frontend_nextjs/e2e/fixtures/mock-worker.ts` | `handle()` keeps the raw body in a local value and writes it into `rawBuffer`/`rawBody` directly before the synchronous calls `mediaRoute()` and `dispatch()`. |
 | `frontend_nextjs/e2e/mocked/mock-worker-lib.spec.ts` | New test (`@BKT-05`): a chunk keeps its body when a GET request runs while the chunk waits for its headers; the commit then gives 200 and 2 bars. |
 | `docs/features/features.yaml` | BKT-05 lists the new spec file. |
 
 ## Why
-- FRM-42: the static import makes the order of the failed workers the normal case of the file, so the test is red without the fix on each run, not only in some workers. `setOptions` is the public API of zustand `persist` to change the storage. Rejected: delete the module from the `require` cache (it depends on how Playwright loads modules), and set `localStorage` in a global setup (it changes all `-lib` specs).
+- FRM-42: the static import makes the order of the failed workers the normal case of the file, so the test is red without the fix on each run, not only in some workers. The new load of the module gives the store the storage of the test on Node 22 and on Node 26. Rejected: `persist.setOptions` (the first version of this fix): on Node 22 the store loaded without storage has no `persist` (reviewer finding, measured below). Rejected: set `localStorage` in a global setup (it changes all `-lib` specs).
 - SYS-11: the test must name a process that lives during the test. The longest-running root process (on the Mac `logd` or a similar daemon) does not end in seconds. The EPERM check makes a wrong choice visible as a failed check before the script runs, not as a wrong result of the script. Rejected: a skip when the process ended (it hides the test).
 - BKT-05: the defect was in the mock, so the fix is in the mock. The tests of `csv-import.spec.ts` are unchanged. Rejected: a retry of the commit in the test, or a longer timeout (both hide the cause).
 
@@ -74,8 +74,10 @@ Root cause (measured): `MockWorker.handle()` (`e2e/fixtures/mock-worker.ts`) wro
 
 | Check | Result |
 |---|---|
-| FRM-42 after the fix, `--repeat-each=3`, 1 worker | 9 of 9 passed |
-| FRM-42 after the fix: the 20 specs of the failed worker plus `chart-rsi-review-lib`, 1 worker, load average 229 → 240 | 946 passed |
+| First fix (`setOptions`), `--repeat-each=3`, 1 worker, Node 26 | 9 of 9 passed |
+| First fix: the 20 specs of the failed worker plus `chart-rsi-review-lib`, 1 worker, load average 229 → 240 | 946 passed |
+| First fix with `NODE_OPTIONS=--no-experimental-webstorage` (no `localStorage`, as Node 22) | 3 of 3 failed: `Cannot read properties of undefined (reading 'setOptions')` |
+| Final fix (new load of the module), `--repeat-each=3`, 1 worker, Node 26 and with `--no-experimental-webstorage` | 9 of 9 passed in each mode |
 | SYS-11 `:349` after the fix, `--repeat-each=200`, 4 workers, in parallel with the BKT-05 run, load average 26 → 65 | 200 of 200 passed |
 | `mock-worker-lib.spec.ts` after the fix, `--repeat-each=3` | 3 of 3 passed |
 | `npx eslint` (changed files), `npx tsc --noEmit`, `update_checklist.py --check` | clean; `features.yaml ok (284 Features)` |
