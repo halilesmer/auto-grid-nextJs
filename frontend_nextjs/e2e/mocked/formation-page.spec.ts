@@ -1833,6 +1833,9 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
 
   const history = () => ({ id: 'h1', at: Date.UTC(2025, 10, 16, 9, 30), key: 'k1', symbol: 'EURUSD', form: 'GAR', tf: 'H4', side: 'buy', events: ['valid'], batch: 'single' });
   const openHistory = async (page: Page) => {
+    // Erst der Chart des Kontos: davor steht die Seite ohne Konto (NoAccountChart) mit eigenem Alarm-Knopf. Ein dort geöffnetes Panel
+    // hat keine Reiter und geht beim Wechsel zum Chart verloren (CI PR 603, Journal 2026-11-17-formation-scan-status-badge)
+    await expect(page.getByTestId('timeframe-H4')).toBeVisible();
     await page.getByTestId('formation-alarm').click();
     await page.getByRole('tab', { name: new RegExp(`^${msg('formation.alarm.tab.history')}`) }).click();
   };

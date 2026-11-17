@@ -74,6 +74,18 @@ Verification (local, `--workers=1`): without the fix the new check was never red
 
 Deterministic red test (requested by the coordinator, `hooks/RULES.md` §8): the decision of the guard is now the pure function `mayRequestOlder()` in `candles.ts`, which `useMarketRates` calls. `chart-older-gate-lib.spec.ts` (@ANA-27) plays the steps of the hook without a browser and without timing: page planned, answer with candles (busy free, `pageDoneFor` set), the state still has the old left edge, then the commit. Without the condition `loadedFrom !== pageDoneFor`: `1 failed, 1 passed` (the gap test: Expected false, Received true). With it: the 2 lib tests, the 2 heavy tests and the 5 ANA-27 tests of `chart-workspace.spec.ts` pass (`9 passed`).
 
+## FRM-30 history test in CI of PR 603: click on the alarm button before the account chart
+
+`formation-page.spec.ts:1880` ("Verlauf löschen …") failed in CI run 44179888722 (shard 3) in both tries: after the click on `formation-alarm` the tab "Geçmiş" did not come in 30 s. In the last 20 CI runs it failed only there. Local: 168 of 168 (load about 22), 126 of 126 with the CPU slowed down 4 times, 4 of 4 with the clock at the CI time (`E2E_FAKE_NOW=2026-11-17T21:33:21Z`).
+
+Evidence: the trace of the first try (artifact `playwright-report-3`, 15,835,730 bytes, downloaded with Halil's approval, deleted after the analysis). The click went to (373, 75) about 180 ms after the page load. The screencast frame at that time shows the page without an account ("-- Bir hesap seçin --"). The panel that opened is the one of `NoAccountChart` (`app/chart/page.tsx`): "Duruyor · hesap seçilmedi", with a note instead of the tabs. When the accounts came, `OneChart` replaced `NoAccountChart`; the alarm button is a new component there, so the open panel was gone (frame at +600 ms). The test then waited for a tab that never came.
+
+Root cause: a race in the test helper `openHistory`, which clicks right after `goto`. It is not caused by the change of this PR (the chart page without an account and its swap are on `main` unchanged); why CI was slow at this point in this run is not known.
+
+Fix: `openHistory` first waits for `timeframe-H4` (only the account chart has the timeframe buttons), then clicks.
+
+Deterministic check (local, `/api/accounts` answered 3 s late with `page.route`): a click right after `goto` opens the panel of the page without an account (`aria-expanded` true, the note "hesap seçilmedi", 0 tabs); after the swap to the account chart the panel is closed (`aria-expanded` false, 0 tabs). Without the delay the panel stays open with 2 tabs. With the fixed helper and the delay: 4 of 4 green; the real FRM-30 block: 42 of 42. Not explained: a copy of the test with the old helper and the same delay also passed 4 of 4.
+
 ## Open points
 - [ ] Phone layout of 1117-C1.1 and 1117-C1.2 is postponed (Halil, 2026-11-17). The phone keeps the toast and the old note.
 - [ ] ANA-27 copy request: confirm in CI that no window goes out two times (the local runs could not show it).
