@@ -2,8 +2,8 @@
 date: 2026-11-16
 author: Claude
 type: fix
-status: open
-pr: [586, 587, 588]
+status: closed
+pr: [586, 587, 588, 592, 594, 595, 598, 599]
 features: [ANA-27, UI-26, ANA-20, FRM-30, USR-17]
 areas: [tests, chart]
 ---
@@ -146,12 +146,12 @@ All on the Mac under the heavy lock, mocked e2e, own `next start` with `E2E_REUS
 ## Open points
 - [x] PR A merged: PR 586, squash `9d2c2304` (2026-11-16 22:54 UTC).
 - [x] PR B merged: PR 587, squash `9ed9d841` (2026-11-16 23:23 UTC).
-- [ ] PR C merged, and the runs on `main` after the merges of PR B and PR C reported.
-- [ ] `chart-toolbar.spec.ts:170` ("Werkzeugleiste 1440px dark"): failed on the first try in the CI of PR 587 (line 179, the Fibonacci menu did not open after Enter) and passed on the retry; it passed on the first try in the 4 `main` runs before. Locally, `--repeat-each=30`, 6 workers, both arms failed 5 of 120 in line 185 (`bounds.x` of the menu after full screen): code of PR 587 and code of `main`. Not caused by PR 587; cause not known.
-- [ ] BKT-05 `csv-import.spec.ts`: `:175` failed on the first try in the CI of PR 586 (run 43969018431, "Frontend e2e (2/4)", `csv-series` count 0 after the first import) and passed on the retry; `:210` failed on the first try in the CI of PR 576 (run 43855095207, timeout of a click). Both branches did not change the CSV code. `:175` passed on the first try in the 3 `main` runs before (43957424126, 43948738746, 43910686873). Locally `:175` passed 24 of 24 (6 workers). Cause not known.
+- [x] PR C merged, and the runs on `main` after the merges of PR B and PR C reported. PR C: PR 588, squash `37848e82` (2026-11-17 03:03 UTC). `main` run 43978865458 (`9ed9d841`, PR B) and run 44007385668 (`37848e82`, PR C): both success, 0 flaky.
+- [x] `chart-toolbar.spec.ts:170` ("Werkzeugleiste 1440px dark"): failed on the first try in the CI of PR 587 (line 179, the Fibonacci menu did not open after Enter) and passed on the retry; it passed on the first try in the 4 `main` runs before. Locally, `--repeat-each=30`, 6 workers, both arms failed 5 of 120 in line 185 (`bounds.x` of the menu after full screen): code of PR 587 and code of `main`. Not caused by PR 587; cause not known. Closed by PR 595, squash `d222c9a7` (2026-11-17 10:13 UTC): the 375 px type is fixed (the time range slot made the top bar wider than the phone; journal `2026-11-17-toolbar-menu-phone-topbar-overflow.md`). The 1440 px type did not occur in 120 of 120 local runs; cause not known.
+- [x] BKT-05 `csv-import.spec.ts`: `:175` failed on the first try in the CI of PR 586 (run 43969018431, "Frontend e2e (2/4)", `csv-series` count 0 after the first import) and passed on the retry; `:210` failed on the first try in the CI of PR 576 (run 43855095207, timeout of a click). Both branches did not change the CSV code. `:175` passed on the first try in the 3 `main` runs before (43957424126, 43948738746, 43910686873). Locally `:175` passed 24 of 24 (6 workers). Cause not known. Closed by PR 594, squash `bbb6bd92` (2026-11-17 07:11 UTC): the defect was in the mock worker. `MockWorker.handle()` kept the request body in shared fields while it waited for the headers; a parallel request replaced the body, the chunk was stored empty and the commit answered 422. The fix is in the mock; the CSV tests did not change (journal `2026-11-17-flaky-tests-frm42-sys11-bkt05.md`).
 - [x] FRM-30: fix in `FormationScanRunner.tsx` and `useUserPrefsStore.ts` (PR C of 1116-A35, PR 588).
-- [ ] ANA-20: find which element of the legend row changes its width between the press and the release, then decide on a stable position of the buttons (visible UI, design first).
-- [ ] ANA-27 finding: after the first older page, the chart requests a second page at once when the last input is less than 1.5 s old (the check inside `candles.setData()` reads `barsBefore` from the old bars). The application is not changed.
+- [x] ANA-20: find which element of the legend row changes its width between the press and the release, then decide on a stable position of the buttons (visible UI, design first). Closed by PR 599 (design S), squash `6b62568d` (2026-11-17 13:22 UTC).
+- [x] ANA-27 finding: after the first older page, the chart requests a second page at once when the last input is less than 1.5 s old (the check inside `candles.setData()` reads `barsBefore` from the old bars). The application is not changed. Closed by PR 598, squash `42943a9e` (2026-11-17 11:39 UTC).
 - [x] UI-26: the same end-position defect can be in other calls of an animated scroll. Examined (`git grep` in `frontend_nextjs/src` and `e2e`): `scrollToRealTime`, `scrollToPosition` and `scrollPosition(` occur only in `LatestBarButton.tsx`.
 
 ## Lessons
