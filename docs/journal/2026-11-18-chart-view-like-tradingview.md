@@ -3,7 +3,7 @@ date: 2026-11-18
 author: Claude
 type: decision
 status: open
-pr: []
+pr: [616]
 features: [ANA-19, ANA-27, FRM-20]
 areas: [frontend, chart, tests]
 ---
@@ -84,7 +84,7 @@ All e2e runs on the Mac under the heavy lock (SYS-11), mocked e2e, 3 Playwright 
 
 ## Open points
 - [ ] PR merged and the run of `tests.yml` on `main` is green.
-- [ ] Defect, not changed here (it is a visible change outside the three decisions): a formation line takes the pointer events in its 14 px hit area (`FormationLayer.tsx`, `line-hit`, `pointer-events: stroke`) also while a drawing tool is active. A user who draws on a formation line cannot set the point there. The documented priority (ANA-25: active tool > drawing below > SVG line of the formation) says the tool wins. The defect existed before; it is more frequent now, because the opening view spreads the formation over the chart. Decision for the owner.
+- [x] Defect "a formation line takes the press while a tool is active": fixed in the next PR (journal `2026-11-18-tool-over-formation-line`).
 - [ ] Observation: with the default right offset of the library (0), the last candle is at the right edge. The possible zone of a forming formation ahead of the last candle is then narrow (measured 16 px on FRM-20). TradingView has a right margin setting; the brief asked for the library default.
 - [ ] Observation from the review, not examined: `ChartCore` builds the chart again when `hasNotes` changes (`notes` exists only with a setup zone); the zoom of the user is then lost. Before, the stored zoom hid this.
 - [ ] Phone: the swipe window (1 s after `touchend`) is not checked on a real device.

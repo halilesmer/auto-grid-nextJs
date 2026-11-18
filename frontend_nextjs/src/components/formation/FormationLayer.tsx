@@ -14,6 +14,7 @@ import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 import { dashOf, type FormationLineRole, type FormationStyle } from '@/lib/formation/lineStyle';
 import { lineMenuAllows } from '@/lib/chart-workspace/lineMenu';
 import { FormationLineMenu } from './FormationLineMenu';
+import { useDrawingPriority } from '@/components/chart-workspace/drawingPriority';
 
 /** Öffnet das Linienmenü einer Rolle (Rechtsklick/Doppelklick); die Seite entscheidet, ob der Klick zählt */
 type OpenLineMenu = (kind: 'context' | 'double', event: React.MouseEvent, role: FormationLineRole) => void;
@@ -36,7 +37,7 @@ const SIDE_COLOR = { buy: 'var(--success)', sell: 'var(--danger)' } as const;
 
 const toneColor = (tone: Tone, side: 'buy' | 'sell'): string => (tone === 'side' ? SIDE_COLOR[side] : TONE_COLOR[tone]);
 
-function PrimView({ prim, side, style, onMenu }: { prim: Prim; side: 'buy' | 'sell'; style: FormationStyle; onMenu: OpenLineMenu }) {
+function PrimView({ prim, side, style, onMenu, toolActive }: { prim: Prim; side: 'buy' | 'sell'; style: FormationStyle; onMenu: OpenLineMenu; toolActive: boolean }) {
   const color = toneColor(prim.tone, side);
   switch (prim.kind) {
     case 'line': {
@@ -63,7 +64,7 @@ function PrimView({ prim, side, style, onMenu }: { prim: Prim; side: 'buy' | 'se
             y2={prim.y2}
             stroke="transparent"
             strokeWidth={14}
-            style={{ pointerEvents: 'stroke' }}
+            style={{ pointerEvents: toolActive ? 'none' : 'stroke' }}
             data-testid="line-hit"
             data-hit-role={prim.role}
             onContextMenu={e => onMenu('context', e, prim.role)}
@@ -164,6 +165,17 @@ export function FormationLayer({ scene, hit, bars, points, running, asOf, active
   const lineMenuMode = appearance.lineMenu;
   const [lineMenu, setLineMenu] = useState<{ x: number; y: number; role: FormationLineRole } | null>(null);
   const closeLineMenu = useCallback(() => setLineMenu(null), []);
+  // ANA-25: ein aktives Zeichenwerkzeug hat Vorrang vor der SVG-Linie. Der Treffbereich der Linie nimmt dann keinen Druck an, er geht an das Werkzeug.
+  // pointer-events entscheidet beim Druck; darum folgt der Zustand dem Zeiger und dem Klick (Werkzeug wählen, Punkt setzen), nicht erst dem Druck.
+  const priority = useDrawingPriority();
+  const [toolActive, setToolActive] = useState(false);
+  useEffect(() => {
+    const sync = () => setToolActive(priority().toolActive);
+    const events = ['pointermove', 'pointerdown', 'pointerup', 'click', 'keyup'] as const;
+    events.forEach((n) => window.addEventListener(n, sync));
+    sync();
+    return () => events.forEach((n) => window.removeEventListener(n, sync));
+  }, [priority]);
   // Einstellung „Çizgi menüsü“ (A7.7): Langdruck auf Android kommt als contextmenu und zählt als Rechtsklick; sonst bleibt das Browsermenü
   const openLineMenu = useCallback<OpenLineMenu>((kind, event, role) => {
     if (!lineMenuAllows(lineMenuMode, kind)) return;
@@ -326,7 +338,7 @@ export function FormationLayer({ scene, hit, bars, points, running, asOf, active
           onWheel={forwardWheel}
         >
           {g.prims.map((p, i) => (
-            <PrimView key={i} prim={p} side={hit.candidate.side} style={formationStyle} onMenu={openLineMenu} />
+            <PrimView key={i} prim={p} side={hit.candidate.side} style={formationStyle} onMenu={openLineMenu} toolActive={toolActive} />
           ))}
         </g>
       ))}
