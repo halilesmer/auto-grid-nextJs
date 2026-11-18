@@ -91,5 +91,5 @@ Does this PR make the time before the account chart longer? Measured from the lo
 ## Open points
 - [ ] Phone layout of 1117-C1.1 and 1117-C1.2 is postponed (Halil, 2026-11-17). The phone keeps the toast and the old note.
 - [ ] ANA-27 copy request: confirm in CI that no window goes out two times (the local runs could not show it).
-- [ ] The badge widens the package after the buttons came (one more move of the package, and one more when it goes after 8 s).
+- [x] The badge widens the package after the buttons came (one more move of the package, and one more when it goes after 8 s). Owner accepted it and asked for no change ("gerek yok", 2026-11-17).
 - Not a defect (corrected): at 375 px the question strip did not come in two runs of a first phone test. Cause: that test did not request the `worker` fixture, so the mock worker was not installed and the page got no data (a probe without `worker` showed no chart at 1440 px either, 4 of 4). The phone test now requests `worker`.

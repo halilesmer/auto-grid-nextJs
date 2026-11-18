@@ -3,7 +3,7 @@ date: 2026-11-18
 author: Claude
 type: diagnosis
 status: open
-pr: []
+pr: [606]
 features: [SYS-11]
 areas: [tests, scripts]
 ---
