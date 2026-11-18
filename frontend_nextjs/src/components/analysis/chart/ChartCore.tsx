@@ -10,7 +10,6 @@ import {
   createChart,
   createSeriesMarkers,
   LineStyle,
-  MismatchDirection,
   type AutoscaleInfo,
   type CandlestickData,
   type IChartApi,
@@ -28,7 +27,7 @@ import type { Appearance } from '@/lib/chart-workspace/settings';
 import { readChartColors, withAlpha, type ChartColors } from '@/lib/chartTheme';
 import { useThemeStore } from '@/store';
 import { ChartWorkspace, type WorkspaceContext } from '@/components/chart-workspace/ChartWorkspace';
-import { type ChartBinding, MIN_BAR_SPACING_PX, createChartBinding, appearanceColors, rememberChartView, restoreChartView, type SystemSeriesRef, type SystemSeriesRefs } from '@/components/chart-workspace/runtime';
+import { type ChartBinding, MIN_BAR_SPACING_PX, createChartBinding, appearanceColors, openingView, publishVisibleRange, type SystemSeriesRef, type SystemSeriesRefs } from '@/components/chart-workspace/runtime';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
 import { clipSegments, type TrendSegment } from '@/lib/formation/trdPath';
 import { canvasColor, dashArrayOf } from '@/lib/formation/lineStyle';
@@ -153,6 +152,13 @@ export interface ChartCoreProps {
   onNeedOlder?: () => void;
   /** Stand links: `loading` = Seite wird geladen, sonst der Grund, warum links Schluss ist; null = nichts anzeigen */
   olderEdge?: 'loading' | OlderEdge | null;
+  /**
+   * Einmal alle Kerzen einpassen (der Nutzer hat oben einen Zeitraum gewählt, 1118-A5.1): jede neue Zahl passt einmal ein, sobald
+   * die Ansicht dieser Auswahl steht; danach meldet `onFitted` die Zahl. null = nichts zu tun. Kein Modus: neue Kerzen und ein
+   * neues Öffnen zeigen danach wieder das Verhalten der Bibliothek und die Öffnungsansicht.
+   */
+  fitOnce?: number | null;
+  onFitted?: (seq: number) => void;
 }
 
 const EMPTY_MARKERS: TradeMarker[] = [];
@@ -171,8 +177,12 @@ const FIT_MAX_POINTS = 2000;
 const VISIBLE_BARS = 300;
 /** Bleiben links so wenige Kerzen übrig, werden ältere nachgeladen (Serbest kip, 1107-A4) */
 const OLDER_TRIGGER_BARS = 50;
-/** Ältere Kerzen laden nur, wenn der Nutzer den Chart gerade bedient hat (Rad, Ziehen, Tippen); eine Ansicht, die schon am Rand steht (alles passt, gespeicherter Zoom), lädt nichts von selbst */
-const USER_INPUT_WINDOW_MS = 1500;
+/**
+ * Ältere Kerzen laden nur durch eine Bewegung des Nutzers (1118-A3.1 = C): während er den Chart zieht, und so lange nach dem letzten
+ * Rad- oder Wischschritt. Ein Klick allein zählt nicht: eine Änderung des Bereichs von selbst (neue Kerze, Einpassen, setData,
+ * neue Breite) kurz nach einem Klick holte sonst eine Seite (Journal 2026-11-17-chart-older-page-dock-scan-findings §3)
+ */
+const GESTURE_WINDOW_MS = 400;
 
 function previousColor(up: boolean, body: boolean, positive: string, negative: string) { if (!body) return 'transparent'; return up ? positive : negative; }
 /** Farben einer Kerze, wenn sie sich nach dem Schluss der vorigen Kerze richten (Einstellung „previous“) */
@@ -190,19 +200,12 @@ function seriesPoints(points: readonly ChartPoint[], appearance: Appearance) {
 const LINE_STYLE = { solid: LineStyle.Solid, dashed: LineStyle.Dashed, dotted: LineStyle.Dotted } as const;
 
 /**
- * Schreibt die laufende Kerze. Eine neue Kerze rechts schiebt lightweight-charts die Ansicht um eine Kerze weiter, wenn die letzte
- * Kerze sichtbar ist (`shiftVisibleRangeOnNewBar`): aus einer Ansicht, die alle Kerzen zeigt, fiele die erste Kerze, und die nächste
- * Meldung des Bereichs gälte als Zoom des Nutzers. Zeigte die Ansicht alle Kerzen (`showsAll`), passt der Chart sie darum wieder ein
- * (1116-A28.1). Hat der Nutzer gezoomt, bleibt das Verhalten der Bibliothek. `onAppend` läuft vor update(), damit der Chart die neue
- * Punktzahl schon kennt, wenn er den verschobenen Bereich meldet.
+ * Schreibt die laufende Kerze (Formationssuche) oder die Live-Kerze (Stream). Eine neue Kerze rechts schiebt lightweight-charts die
+ * Ansicht um eine Kerze weiter, wenn die letzte Kerze sichtbar ist (`shiftVisibleRangeOnNewBar`); das bleibt so, auch wenn die
+ * Ansicht alle Kerzen zeigt: kein neues Einpassen (1118-A2.1 = B, wie TradingView).
  */
-function writeLastBar(chart: IChartApi | null, candles: ISeriesApi<'Candlestick'>, item: CandlestickData<UTCTimestamp>, showsAll: () => boolean, onAppend: () => void) {
-  const last = candles.dataByIndex(Number.MAX_SAFE_INTEGER, MismatchDirection.NearestLeft);
-  const appends = !last || item.time > Number(last.time);
-  const refit = appends && showsAll();
-  if (appends) onAppend();
+function writeLastBar(candles: ISeriesApi<'Candlestick'>, item: CandlestickData<UTCTimestamp>) {
   candles.update(item);
-  if (refit) chart?.timeScale().fitContent();
 }
 
 function toneColor(c: ChartColors, tone: LineTone) {
@@ -250,6 +253,8 @@ export function ChartCore({
   renderOverlay,
   onNeedOlder,
   olderEdge = null,
+  fitOnce = null,
+  onFitted,
 }: ChartCoreProps) {
   const t = useT();
   const fmt = useFormat();
@@ -264,9 +269,6 @@ export function ChartCore({
   const shownRunning = useRef<{ view: string; bar: Bar } | null>(null);
   // Laufende Kerze der Suche gezeigt (1) oder nicht (0)
   const runningCount = useRef(0);
-  // Für rememberChartView: Kerzen, die writeLastBar seit dem letzten setData angehängt hat (laufende Kerze, Live-Kerze), zählen mit,
-  // sonst gälte ihr Erscheinen als Zoom des Nutzers
-  const appendedBars = useRef(0);
   const [alignedView, setAlignedView] = useState<string | null>(null);
   const [workspaceTail, setWorkspaceTail] = useState<{ key: string; bar: Bar } | null>(null);
   const appearance = useChartWorkspaceStore(useShallow(s => s.preview ?? s.appearance));
@@ -291,7 +293,9 @@ export function ChartCore({
   const lastBar = useRef<Bar | null>(null);
   const fittedKey = useRef<string | null>(null);
   const checkOlder = useRef<(() => void) | null>(null);
-  const lastInput = useRef(-Infinity);
+  // Letzter Rad- oder Wischschritt des Nutzers und ob er gerade zieht (für das Laden älterer Kerzen)
+  const lastGesture = useRef(-Infinity);
+  const dragging = useRef(false);
   const keepViewFrame = useRef(0);
   // Bis zur Korrektur der Ansicht nach einer Seite älterer Kerzen sieht check() noch die verschobene Ansicht und holte sonst unnötig eine weitere Seite
   const viewFixPending = useRef(false);
@@ -304,10 +308,12 @@ export function ChartCore({
   const workspaceKey = workspace?.key;
   const workspaceView = workspace?.view;
   const forgetView = useRef<(() => void) | null>(null);
-  // Zeigt die gemerkte Ansicht alle Kerzen (kein Zoom des Nutzers)? Nur solange rememberChartView angemeldet ist. Solange nach einer
-  // Seite älterer Kerzen die Korrektur der Ansicht aussteht (viewFixPending), passt writeLastBar nicht neu ein: das Einpassen
-  // träfe die Korrektur im nächsten Bild und verschöbe die Ansicht um die neuen Kerzen
-  const viewShowsAll = useRef<() => boolean>(() => false);
+  // Einmal einpassen: die zuletzt erledigte Zahl, und die aktuelle Anfrage für align() (läuft in einem späteren Bild)
+  const fittedOnce = useRef<number | null>(null);
+  const fitRequest = useRef<{ seq: number | null; done?: (seq: number) => void }>({ seq: fitOnce, done: onFitted });
+  useEffect(() => {
+    fitRequest.current = { seq: fitOnce, done: onFitted };
+  });
   const pointsRef = useRef(data.points);
   // Die Kerzen, die der Chart in diesem Render bekommt. Andere Reihen teilen die Zeitachse und bekommen eine Seite älterer Kerzen
   // schon vor der Kerzenreihe (die Indikator-Reihen im Effekt von ChartWorkspace, einer Kindkomponente): die Zeitachse ist dann um
@@ -416,7 +422,6 @@ export function ChartCore({
       lastBar.current = null;
       shownRunning.current = null;
       runningCount.current = 0;
-      appendedBars.current = 0;
     };
   }, [hasCurves, hasNotes, overlayLayout, systemSeries]);
 
@@ -518,9 +523,7 @@ export function ChartCore({
     // merken und im nächsten Bild, wenn der Chart den Bereich übernommen hat, nur bei Abweichung zurückschieben
     const previousFirst = pointsRef.current[0]?.time;
     const previousTimes = fittedKey.current === viewKey ? chart.timeScale().getVisibleRange() : null;
-    // Vor setData, damit rememberChartView die neue Punktzahl kennt, wenn der Chart den Bereich meldet
     pointsRef.current = data.points;
-    appendedBars.current = 0;
     candles.setData(seriesPoints(data.points, appearance));
     if (previousTimes && previousFirst !== undefined && data.points.length > 0 && data.points[0].time < previousFirst) {
       const points = data.points;
@@ -568,15 +571,19 @@ export function ChartCore({
       setAlignedView(viewKey);
       forgetView.current?.();
       forgetView.current = null;
-      // Der Backtest zeigt die letzten VISIBLE_BARS, alle anderen alle Kerzen oder den gespeicherten Zoom
+      // Der Backtest zeigt die letzten VISIBLE_BARS (bis FIT_MAX_POINTS alle); alle anderen öffnen wie TradingView mit den letzten
+      // Kerzen im Standard-Kerzenabstand (1118-A5.1), außer der Nutzer hat oben gerade einen Zeitraum gewählt: dann einmal alle
       if (!workspaceKey || workspaceView === 'backtest') {
         chart.timeScale().setVisibleLogicalRange({ from: n <= FIT_MAX_POINTS ? -1 : n - VISIBLE_BARS, to: n + 3 });
         return;
       }
-      const fitAll = restoreChartView(chart, data.points.map(p => p.time), useChartWorkspaceStore.getState().documents[workspaceKey]?.visibleTime);
-      const memory = rememberChartView(chart, surfaceRef.current ? [el, surfaceRef.current] : [el], workspaceKey, () => pointsRef.current.length + appendedBars.current, fitAll);
-      viewShowsAll.current = memory.showsAll;
-      forgetView.current = () => { viewShowsAll.current = () => false; memory.dispose(); };
+      const request = fitRequest.current;
+      if (request.seq !== null && request.seq !== fittedOnce.current) {
+        fittedOnce.current = request.seq;
+        chart.timeScale().fitContent();
+        request.done?.(request.seq);
+      } else openingView(chart);
+      forgetView.current = publishVisibleRange(chart, surfaceRef.current ? [el, surfaceRef.current] : [el]);
     };
     // Erst nach dem ersten ResizeObserver-Lauf ausrichten; eine zu frühe Wiederherstellung
     // wird beim Wechsel zwischen Seitenbreiten sonst an den Chart-Rand geklemmt.
@@ -590,16 +597,29 @@ export function ChartCore({
     const { chart, candles } = binding;
     // Die Zeichenfläche und die Bedienung liegen über dem Chart, darum an der Fläche lauschen, nicht am Chart-Element
     const host = surfaceRef.current ?? binding.host;
-    const mark = () => { lastInput.current = performance.now(); };
-    const drag = (event: PointerEvent) => { if (event.buttons) mark(); };
-    const inputs = ['wheel', 'pointerdown', 'touchstart', 'touchmove', 'keydown'] as const;
-    inputs.forEach((name) => host.addEventListener(name, mark, { passive: true }));
+    // Bewegungen des Nutzers: Rad, Ziehen mit gedrückter Taste, Wischen (danach läuft der Schwung von touch noch kurz nach).
+    // pointerdown und touchstart allein (ein Klick, ein Tippen) zählen nicht
+    const mark = () => { lastGesture.current = performance.now(); };
+    let touchMoved = false;
+    const drag = (event: PointerEvent) => {
+      if (event.pointerType === 'touch') return;
+      dragging.current = event.buttons !== 0;
+      if (dragging.current) mark();
+    };
+    const release = () => { dragging.current = false; };
+    const touchMove = () => { touchMoved = true; mark(); };
+    const touchEnd = () => { if (touchMoved) mark(); touchMoved = false; };
+    host.addEventListener('wheel', mark, { passive: true });
     host.addEventListener('pointermove', drag, { passive: true });
+    host.addEventListener('touchmove', touchMove, { passive: true });
+    host.addEventListener('touchend', touchEnd, { passive: true });
+    window.addEventListener('pointerup', release);
+    window.addEventListener('pointercancel', release);
     const check = () => {
       if (!needOlder.current || viewFixPending.current || fittedKey.current !== currentViewKey.current) return;
       // Die Kerzenreihe hat die neuen Kerzen noch nicht, die Zeitachse schon: barsBefore wäre zu klein
       if (pointsRef.current !== incomingPoints.current) return;
-      if (performance.now() - lastInput.current > USER_INPUT_WINDOW_MS) return;
+      if (!dragging.current && performance.now() - lastGesture.current > GESTURE_WINDOW_MS) return;
       const range = chart.timeScale().getVisibleLogicalRange();
       const info = range ? candles.barsInLogicalRange(range) : null;
       if (info && info.barsBefore < OLDER_TRIGGER_BARS) needOlder.current();
@@ -608,17 +628,32 @@ export function ChartCore({
     chart.timeScale().subscribeVisibleLogicalRangeChange(check);
     return () => {
       checkOlder.current = null;
-      inputs.forEach((name) => host.removeEventListener(name, mark));
+      host.removeEventListener('wheel', mark);
       host.removeEventListener('pointermove', drag);
+      host.removeEventListener('touchmove', touchMove);
+      host.removeEventListener('touchend', touchEnd);
+      window.removeEventListener('pointerup', release);
+      window.removeEventListener('pointercancel', release);
+      dragging.current = false;
       try { chart.timeScale().unsubscribeVisibleLogicalRangeChange(check); } catch { /* Chart schon entfernt */ }
     };
   }, [binding]);
-  // Eine Seite ist angekommen: reicht die Ansicht noch an den linken Rand, gleich die nächste holen
+  // Eine Seite ist angekommen: zieht der Nutzer noch und reicht die Ansicht an den linken Rand, gleich die nächste holen
   useEffect(() => {
     if (olderEdge !== null) return;
     const frame = requestAnimationFrame(() => checkOlder.current?.());
     return () => cancelAnimationFrame(frame);
   }, [olderEdge, data.points]);
+
+  // Derselbe Zeitraum noch einmal gewählt (oder die Ansicht stand schon): gleich einpassen. Sonst passt align() ein, sobald die
+  // Kerzen der neuen Auswahl da sind
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || fitOnce === null || fitOnce === fittedOnce.current || fittedKey.current !== viewKey) return;
+    fittedOnce.current = fitOnce;
+    chart.timeScale().fitContent();
+    onFitted?.(fitOnce);
+  }, [fitOnce, onFitted, viewKey, alignedView]);
 
   // Fehlende Bereiche und Marktpausen (beide abschaltbar)
   useEffect(() => {
@@ -775,7 +810,7 @@ export function ChartCore({
     if (!bar || (lastPoint && bar.time < lastPoint.time)) return;
     const last = data.bars.at(-1), previous = last?.time === bar.time ? data.bars.at(-2) : last;
     const override = appearance.previous && previous ? previousStyle(bar.close >= previous.close, appearance.body, appearanceColors(appearance)) : {};
-    writeLastBar(chartRef.current, candlesRef.current, { ...bar, ...override, time: bar.time as UTCTimestamp }, () => viewShowsAll.current() && !viewFixPending.current, () => { appendedBars.current += 1; });
+    writeLastBar(candlesRef.current, { ...bar, ...override, time: bar.time as UTCTimestamp });
     lastBar.current = bar;
     const frame = requestAnimationFrame(() => setWorkspaceTail({ key: viewKey, bar }));
     // Stand der letzten Kerze am Element (Tests und Fehlersuche; der Chart zeichnet in <canvas>)
@@ -790,7 +825,6 @@ export function ChartCore({
     // Nie vor oder auf der letzten geschlossenen Kerze schreiben: update() würde die Kerze ersetzen oder werfen
     if (!closed || !runningBar || runningBar.time <= closed.time) {
       if (runningCount.current) {
-        appendedBars.current = 0;
         candles.setData(seriesPoints(data.points, appearance));
       }
       runningCount.current = 0;
@@ -806,7 +840,7 @@ export function ChartCore({
     const bar = prev ? { ...runningBar, high: Math.max(runningBar.high, prev.high), low: Math.min(runningBar.low, prev.low) } : runningBar;
     shownRunning.current = { view: viewKey, bar };
     const style = appearance.previous ? previousStyle(bar.close >= closed.close, appearance.body, appearanceColors(appearance)) : {};
-    writeLastBar(chartRef.current, candles, { ...bar, ...style, time: bar.time as UTCTimestamp }, () => viewShowsAll.current() && !viewFixPending.current, () => { appendedBars.current += 1; });
+    writeLastBar(candles, { ...bar, ...style, time: bar.time as UTCTimestamp });
     // Stand der letzten Kerze am Element (Tests und Fehlersuche; der Chart zeichnet in <canvas>)
     surfaceRef.current?.setAttribute('data-last-price', `${runningBar.time}:${runningBar.close}`);
     surfaceRef.current?.setAttribute('data-last-range', `${bar.low}:${bar.high}`);

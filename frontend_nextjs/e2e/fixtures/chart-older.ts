@@ -4,7 +4,7 @@ import { msg } from './i18n';
 
 /**
  * Hilfen für die ANA-27-Tests (ältere Kerzen laden beim Scrollen nach links): Ziehen mit der Maus (ein waagerechtes Rad scrollt
- * diesen Chart nicht), ein gespeicherter Zoom am linken Rand und das Anhalten der Antwort auf die Seite älterer Kerzen.
+ * diesen Chart nicht), der Weg an den linken Rand und das Anhalten der Antwort auf die Seite älterer Kerzen.
  */
 
 /**
@@ -37,9 +37,11 @@ export async function panToFirstCandle(page: Page) {
 }
 
 /**
- * Öffnet den Chart (`url`, erste Ladung `initialBars`) mit einem gespeicherten Zoom am linken Rand und schiebt ihn einmal leicht
- * nach links. Die Antwort auf die Seite älterer Kerzen hält der Test an, bis `release()` sie freigibt: so ist die Ansicht davor
- * lesbar. Mit `fail` antwortet der Test stattdessen mit 503 und zählt die Anfragen.
+ * Öffnet den Chart (`url`, erste Ladung `initialBars`) und bringt ihn mit Bedienung des Nutzers (Rad heraus, dann Ziehen) an den
+ * linken Rand, bis er die Seite älterer Kerzen anfragt. Seit 1118-A5.1 speichert der Chart keinen Zoom mehr: ein gespeicherter
+ * Ausschnitt am linken Rand ist kein Weg mehr dorthin. Die Antwort auf die Seite hält der Test an, bis `release()` sie freigibt:
+ * so ist die Ansicht davor lesbar. Mit `fail` antwortet der Test stattdessen mit 503 und zählt die Anfragen.
+ * `extra`: Felder des Chart-Dokuments, die vor einem Neuladen geschrieben werden (z. B. keine Indikatoren).
  */
 export async function openNearLeftEdge(
   page: Page,
@@ -53,31 +55,25 @@ export async function openNearLeftEdge(
   // Zuerst ist der Zeitraum gekürzt: der Hinweis sagt, dass ältere Kerzen beim Scrollen kommen
   await expect(page.getByTestId('data-quality')).toContainText(msg('analysis.data.scroll.title'));
   const loadedFrom = Math.min(...worker.ratesQueries.map((q) => Number(new URLSearchParams(q).get('from'))));
-  const key = (await page.getByTestId('chart-workspace').getAttribute('data-context'))!;
-  // Vor dem App-Code schreiben: die Seite speichert den Ausschnitt verzögert und würde ihn sonst überschreiben
-  const zoom = { from: loadedFrom + 10 * 60, to: loadedFrom + 6 * 3600 };
-  await page.addInitScript(({ contextKey, visibleTime, fields }) => {
-    const saved = JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}');
-    saved.documents = { ...saved.documents, [contextKey]: { ...saved.documents?.[contextKey], ...fields, visibleTime } };
-    localStorage.setItem('grid-robot-chart-workspaces-v1', JSON.stringify(saved));
-  }, { contextKey: key, visibleTime: zoom, fields: extra });
-  worker.ratesQueries.length = 0;
-  await page.reload();
-  const rangeOf = async () => ((await chart.getAttribute('data-visible-range')) ?? '').split(',').map(Number);
-  const near = (a: number[], b: { from: number; to: number }) => Math.max(Math.abs(a[0] - b.from), Math.abs(a[1] - b.to)) <= 60;
-  // Der Chart rundet beim Wiederherstellen um höchstens eine Kerze (60 s)
-  await expect.poll(async () => near(await rangeOf(), zoom)).toBe(true);
-  // Ohne Bedienung lädt der Chart nichts, auch wenn die Ansicht am linken Rand steht
-  await page.waitForTimeout(800);
-  expect(worker.ratesQueries.map((q) => new URLSearchParams(q).get('to')).every((to) => to !== String(loadedFrom))).toBe(true);
+  if (Object.keys(extra).length > 0) {
+    const key = (await page.getByTestId('chart-workspace').getAttribute('data-context'))!;
+    await page.addInitScript(({ contextKey, fields }) => {
+      const saved = JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}');
+      saved.documents = { ...saved.documents, [contextKey]: { ...saved.documents?.[contextKey], ...fields } };
+      localStorage.setItem('grid-robot-chart-workspaces-v1', JSON.stringify(saved));
+    }, { contextKey: key, fields: extra });
+    await page.reload();
+  }
   // Erst nach dem Neuladen lesen: wechselt die Minute zwischen den beiden Ladungen, bringt das Neuladen eine Kerze mehr (1116-A35)
   await expect(chart).toHaveAttribute('data-bars', initialBars);
   const loaded = Number(await chart.getAttribute('data-bars'));
+  const rangeOf = async () => ((await chart.getAttribute('data-visible-range')) ?? '').split(',').map(Number);
   let release = () => {};
-  let failures = 0;
+  let failures = 0, requests = 0;
   const gate = new Promise<void>((resolve) => { release = resolve; });
   await page.route('**/api/market/*/rates?*', async (route) => {
     if (new URL(route.request().url()).searchParams.get('to') !== String(loadedFrom)) return route.fallback();
+    requests++;
     // Die Seite älterer Kerzen: festhalten (Ansicht davor lesen) oder mit einem Fehler beantworten
     if (fail) {
       failures++;
@@ -86,7 +82,17 @@ export async function openNearLeftEdge(
     await gate;
     return route.fallback();
   });
-  await dragLeft(page, 30);
+  // Ohne Bedienung lädt der Chart nichts (1118-A3.1)
+  await page.waitForTimeout(800);
+  expect(requests).toBe(0);
+  const box = (await chart.boundingBox())!;
+  await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.6);
+  await page.mouse.wheel(0, 4000);
+  await expect.poll(async () => {
+    if (requests > 0) return true;
+    await dragLeft(page);
+    return requests > 0;
+  }, { timeout: 60_000, intervals: [50] }).toBe(true);
   if (!fail) {
     await expect(page.getByTestId('older-edge')).toHaveAttribute('data-state', 'loading');
     await expect(page.getByTestId('older-loading-strip')).toBeVisible();

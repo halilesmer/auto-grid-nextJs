@@ -6,11 +6,19 @@ import { useAccounts } from '@/components/account/hooks';
 import { useAccountSettings } from '@/hooks/useAccountSettings';
 import { useBrokerClock } from '@/hooks/useBrokerClock';
 import { useChartParams } from '@/hooks/useChartParams';
-import { brokerToday, DAY_SEC, dayStart, presetRange, rangeBounds } from '@/lib/serverTime';
+import { brokerToday, DAY_SEC, dayStart, presetRange, rangeBounds, type DayString } from '@/lib/serverTime';
+import type { ChartRange } from '@/lib/chart/chartUrl';
 import { selectAccount, useAccountStore, useSettingsStore } from '@/store';
 
 /** Neuer Versuch nach einem fehlgeschlagenen Laden der Konten */
 const ACCOUNTS_RETRY_MS = 10_000;
+
+/** Zeitraum in MT5-Sekunden, halb offen; „alles“ endet mit dem heutigen Brokertag */
+export function chartBounds(range: ChartRange, today: DayString): { from: number | null; to: number } {
+  const days = 'preset' in range ? presetRange(range.preset, today) : range.custom;
+  const b = rangeBounds(days);
+  return { from: b.from, to: b.to ?? dayStart(today) + DAY_SEC };
+}
 
 /**
  * Gemeinsamer Stand von /chart und /stats (UI-23): Konto aus der Adresse (sonst das gewählte), Zonen des Kontos, Brokeruhr und
@@ -70,11 +78,7 @@ export function useChartContext() {
   const offsetSec = clock.clock?.reliable ? clock.clock.offset_sec : null;
   const today = brokerToday(offsetSec ?? 0);
   // Zeitraum in MT5-Sekunden, halb offen; „alles“ endet mit dem heutigen Brokertag
-  const bounds = useMemo(() => {
-    const days = 'preset' in range ? presetRange(range.preset, today) : range.custom;
-    const b = rangeBounds(days);
-    return { from: b.from, to: b.to ?? dayStart(today) + DAY_SEC };
-  }, [range, today]);
+  const bounds = useMemo(() => chartBounds(range, today), [range, today]);
 
   return { params, accounts, accountId, accountKnown, zones, settingsError, clock, offsetSec, today, bounds };
 }

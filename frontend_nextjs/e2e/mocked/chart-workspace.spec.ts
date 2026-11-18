@@ -101,10 +101,11 @@ test('Vorlagenmenü speichert eine Vorlage, setzt zurück und lädt sie wieder',
   await expect(names).not.toBeChecked();
 });
 
-test('Zurückgesetzte Darstellung und Ansicht bleiben je Symbol gespeichert', { tag: '@ANA-19' }, async ({ page, worker }) => {
+test('Zurückgesetzte Darstellung bleibt je Symbol gespeichert, der Zoom nicht (1118-A5.1)', { tag: '@ANA-19' }, async ({ page, worker }) => {
   worker.userPrefs.admin = { ...worker.userPrefs.admin, chart_osc_scope: { mode: 'product' } }; // USR-17: this test checks per-product records
   const url = (symbol: string) => `/chart?account=${DEMO_ID}&symbol=${symbol}&tf=H1&range=last7`;
-  // S7.1: the look is one user preference for every symbol (local cache at the root); zoom stays in the symbol document
+  // S7.1: the look is one user preference for every symbol (local cache at the root). 1118-A5.1 = B: the zoom is not stored,
+  // each opening shows the latest candles at the default bar spacing (before: the zoom stayed in the symbol document)
   const look = () => page.evaluate(() => JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').appearance?.background);
   const readDocument = (key: string) => page.evaluate(contextKey => {
     const state = JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}');
@@ -128,22 +129,20 @@ test('Zurückgesetzte Darstellung und Ansicht bleiben je Symbol gespeichert', { 
   await expect.poll(look).toBe('');
 
   const rangeOf = () => page.getByTestId('analysis-chart').getAttribute('data-visible-range');
-  const savedZoom = async () => { const zoom = (await readDocument(eurKey!))?.visibleTime; return zoom ? `${zoom.from},${zoom.to}` : null; };
-  // Ohne eigenen Zoom zeigt der Chart alle Kerzen wie nach dem Zurücksetzen und speichert nichts
-  await expect.poll(rangeOf).toBeTruthy();
-  const fitRange = await rangeOf();
+  const storedZoom = async () => (await readDocument(eurKey!))?.visibleTime ?? null;
+  // The chart rounds a view by at most one candle (3600 s)
+  const near = async (want: string | null) => { const shown = await rangeOf(); if (!shown || !want) return false; const [from, to] = shown.split(',').map(Number), [wantFrom, wantTo] = want.split(',').map(Number); return Math.max(Math.abs(from - wantFrom), Math.abs(to - wantTo)) <= 3600; };
+  await chartReady(page);
+  const opened = await rangeOf();
+  expect(opened).toBeTruthy();
+  await zoomIn(page);
+  await expect.poll(rangeOf).not.toBe(opened);
   await page.waitForTimeout(500);
-  expect(await savedZoom()).toBeNull();
-  await zoomIn(page);
-  await expect.poll(rangeOf).not.toBe(fitRange);
-  const eurRange = await rangeOf();
-  await expect.poll(savedZoom).toBe(eurRange);
+  expect(await storedZoom()).toBeNull();
   await eurChart.getByRole('button', { name: msg('cw.fit'), exact: true }).click();
-  await expect.poll(rangeOf).toBe(fitRange);
-  await expect.poll(savedZoom).toBeNull();
+  await expect.poll(rangeOf).toBe(opened);
   await zoomIn(page);
-  await expect.poll(rangeOf).toBe(eurRange);
-  await expect.poll(savedZoom).toBe(eurRange);
+  await expect.poll(rangeOf).not.toBe(opened);
 
   await page.goto(url('XAUUSD'));
   const goldChart = page.getByTestId('chart-workspace');
@@ -152,71 +151,62 @@ test('Zurückgesetzte Darstellung und Ansicht bleiben je Symbol gespeichert', { 
   expect(goldKey).not.toBe(eurKey);
   await expect.poll(look).toBe('');
 
-  // Der Chart rundet beim Wiederherstellen um höchstens eine Kerze (3600 s)
-  const nearEurRange = async () => { const shown = await rangeOf(); if (!shown) return false; const [from, to] = shown.split(',').map(Number), [wantFrom, wantTo] = eurRange!.split(',').map(Number); return Math.max(Math.abs(from - wantFrom), Math.abs(to - wantTo)) <= 3600; };
+  // Back to EURUSD and after a reload: the opening view, not the zoom
   await page.goto(url('EURUSD'));
   await expect(page.getByTestId('chart-workspace')).toBeVisible();
-  await expect.poll(nearEurRange).toBe(true);
+  await chartReady(page);
+  await expect.poll(() => near(opened)).toBe(true);
   expect(await look()).toBe('');
-  await page.waitForTimeout(500);
-  await expect.poll(savedZoom).toBe(eurRange);
   await page.reload();
   await expect(page.getByTestId('chart-workspace')).toBeVisible();
-  await expect.poll(nearEurRange).toBe(true);
+  await chartReady(page);
+  await expect.poll(() => near(opened)).toBe(true);
+  expect(await storedZoom()).toBeNull();
 });
 
-test('Mit mehr als 2000 Kerzen zeigt der Chart alle Kerzen', { tag: '@ANA-19' }, async ({ page, worker }) => {
-  // Der Chart lässt höchstens 0,5 px je Kerze zu: 2100 Kerzen passen nur in eine breite Ansicht
+test('Ein gewählter Zeitraum passt auch mehr als 2000 Kerzen einmal ein (1118-A5.1)', { tag: '@ANA-19' }, async ({ page, worker }) => {
+  // Der Chart lässt höchstens 0,2 px je Kerze zu: 2100 Kerzen passen in eine breite Ansicht. Geöffnet zeigt er die letzten Kerzen
+  // (Standard-Kerzenabstand); erst die Wahl des Zeitraums oben passt alle ein
   await page.setViewportSize({ width: 1440, height: 900 });
   const latest = Math.floor((Date.now() / 1000 + worker.state.brokerOffset) / 3600) * 3600;
   const series = Array.from({ length: 2100 }, (_, i) => [latest - (2100 - i) * 3600, 1 + i * .0001, 1.002 + i * .0001, .999 + i * .0001, 1.001 + i * .0001]);
   worker.state.ratesSeries = { H1: series };
   await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=last7`);
-  await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-visible-range', `${series[0][0]},${series[2099][0]}`);
+  const chart = page.getByTestId('analysis-chart');
+  await chartReady(page);
+  const firstShown = async () => Number((await chart.getAttribute('data-visible-range'))?.split(',')[0]);
+  expect(await firstShown()).toBeGreaterThan(series[0][0]);
+  await page.getByTestId('range-trigger').click();
+  await page.getByTestId('range-preset-last7').click();
+  await expect.poll(firstShown).toBe(series[0][0]);
+  expect(Number((await chart.getAttribute('data-visible-range'))!.split(',')[1])).toBeGreaterThanOrEqual(series[2099][0]);
 });
 
-test('Mit mehr Kerzen, als die Breite fasst, löscht „Ansicht zurücksetzen“ den Zoom', { tag: '@ANA-19' }, async ({ page, worker }) => {
-  // 1500 Kerzen passen bei 600 px nicht in die Breite (höchstens 0,5 px je Kerze): die breiteste Ansicht ist die Standardansicht
-  await page.setViewportSize({ width: 600, height: 900 });
-  const latest = Math.floor((Date.now() / 1000 + worker.state.brokerOffset) / 3600) * 3600;
-  const series = Array.from({ length: 1500 }, (_, i) => [latest - (1500 - i) * 3600, 1 + i * .0001, 1.002 + i * .0001, .999 + i * .0001, 1.001 + i * .0001]);
-  worker.state.ratesSeries = { H1: series };
-  const lastTime = series[1499][0];
-  await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=last7`);
-  const chart = page.getByTestId('chart-workspace');
-  await expect(chart).toBeVisible();
-  const key = (await chart.getAttribute('data-context'))!;
-  const zoom = () => page.evaluate(contextKey => JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').documents?.[contextKey]?.visibleTime ?? null, key);
-  const rangeOf = () => page.getByTestId('analysis-chart').getAttribute('data-visible-range');
-  await expect.poll(rangeOf).toMatch(new RegExp(`,${lastTime}$`));
-  await page.waitForTimeout(500);
-  await zoomIn(page);
-  await expect.poll(zoom).not.toBeNull();
-  await chart.getByRole('button', { name: msg('cw.fit'), exact: true }).click();
-  await expect.poll(zoom).toBeNull();
-  await page.reload();
-  await expect(chart).toBeVisible();
-  await expect.poll(rangeOf).toMatch(new RegExp(`,${lastTime}$`));
-  expect(await zoom()).toBeNull();
-});
-
-test('Neue Kerze und Größenänderung speichern keinen Zoom, ein eigener Zoom überlebt den Zeitrahmenwechsel', { tag: '@ANA-19' }, async ({ page, worker }) => {
+test('Neue Kerze und Größenänderung speichern keinen Zoom, ein Zeitrahmenwechsel öffnet die Standardansicht (1118-A5.1)', { tag: '@ANA-19' }, async ({ page, worker }) => {
   void worker;
   await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=last7`);
   const chart = page.getByTestId('chart-workspace');
   await expect(chart).toBeVisible();
   const key = (await chart.getAttribute('data-context'))!;
   const zoom = () => page.evaluate(contextKey => JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').documents?.[contextKey]?.visibleTime ?? null, key);
-  await expect.poll(() => page.getByTestId('analysis-chart').getAttribute('data-visible-range')).toBeTruthy();
+  const rangeOf = () => page.getByTestId('analysis-chart').getAttribute('data-visible-range');
+  await expect.poll(rangeOf).toBeTruthy();
   await page.setViewportSize({ width: 900, height: 700 });
   await page.setViewportSize({ width: 1200, height: 700 });
   await page.waitForTimeout(600);
   expect(await zoom()).toBeNull();
   await zoomIn(page);
-  await expect.poll(zoom).not.toBeNull();
+  await page.waitForTimeout(600);
+  expect(await zoom()).toBeNull();
   await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H4&range=30d`);
-  await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-visible-range', /^\d+,\d+$/);
-  expect(await zoom()).not.toBeNull();
+  await chartReady(page);
+  const opened = await rangeOf();
+  expect(opened).toMatch(/^\d+,\d+$/);
+  // The view after the change is the opening view: "Reset view" does not change it
+  await page.getByTestId('chart-workspace').getByRole('button', { name: msg('cw.fit'), exact: true }).click();
+  await page.waitForTimeout(300);
+  expect(await rangeOf()).toBe(opened);
+  expect(await zoom()).toBeNull();
 });
 
 test('Indikatorinstanzen und Parameter bleiben je Symbol getrennt', { tag: '@ANA-18' }, async ({ page, worker }) => {
@@ -893,6 +883,36 @@ test.describe('ANA-27 Ältere Kerzen laden beim Scrollen nach links (leichte Sei
       const older = queries.ratesQueries.filter((q) => Number(new URLSearchParams(q).get('to')) <= loadedFrom);
       expect(older).toHaveLength(1);
       await expect(chart).toHaveAttribute('data-bars', String(loaded + PAGE));
+    });
+
+    test('Tıklama ve kendiliğinden gelen aralık değişikliği eski sayfa istemez, sağa sürükleme ister', { tag: '@ANA-27' }, async ({ page, worker }) => {
+      // 1118-A3.1 = C: only a drag or scroll of the user loads older candles. Before, a click marked the next 1.5 s as input,
+      // and an automatic change of the range in this time (a new candle, a fit, setData, a new width) requested a page
+      // (journal 2026-11-17-chart-older-page-dock-scan-findings §3, 40 of 40)
+      await page.setViewportSize({ width: 1920, height: 1000 });
+      worker.state.ratesAllDays = true;
+      const queries = chartQueries(worker);
+      await page.goto(ALL_URL);
+      const chart = page.getByTestId('analysis-chart');
+      await expect(chart).toHaveAttribute('data-bars', firstLoad(worker));
+      await expect(page.getByTestId('data-quality')).toContainText(msg('analysis.data.scroll.title'));
+      const loadedFrom = Math.min(...queries.ratesQueries.map((q) => Number(new URLSearchParams(q).get('from'))));
+      const older = () => queries.ratesQueries.filter((q) => Number(new URLSearchParams(q).get('to')) <= loadedFrom).length;
+      // "Tümü" fits all candles one time: the first candle is at the left edge of the view
+      await page.getByTestId('range-trigger').click();
+      await page.getByTestId('range-preset-all').click();
+      await expect.poll(async () => Number((await chart.getAttribute('data-visible-range'))?.split(',')[0])).toBeLessThanOrEqual(loadedFrom + 120);
+      await page.waitForTimeout(800);
+      expect(older()).toBe(0);
+      // (c) A click on the chart, then an automatic change of the range (a wider chart): no page
+      const box = (await chart.boundingBox())!;
+      await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.6);
+      await page.setViewportSize({ width: 2000, height: 1000 });
+      await page.waitForTimeout(1500);
+      expect(older()).toBe(0);
+      // A drag to the right (the view moves to the left edge) requests the page
+      await dragLeft(page, 30);
+      await expect.poll(older).toBe(1);
     });
 
     test('Ein Fehlschlag pausiert das Laden: keine Anfrage im Dauertakt', { tag: '@ANA-27' }, async ({ page, worker }) => {

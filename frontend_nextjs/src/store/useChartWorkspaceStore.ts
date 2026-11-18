@@ -16,10 +16,8 @@ import { encodeOscStandard, parseOscScope, parseOscStandard, type OscScope, type
 import { randomId } from '@/lib/randomId';
 import { encodeAppearance, encodeDrawingDefaults, encodeFibTemplates, encodeSimpleTemplates, encodeTemplates, writeChartPref } from '@/lib/chart-workspace/chartPrefs';
 
-/** Sichtbarer Zeitbereich als Kerzenzeit in Sekunden; fehlt er, zeigt der Chart alle Kerzen */
-export interface VisibleTime { from: number; to: number }
 export interface ChartAlarm { id: string; indicatorId: string; direction: 'above' | 'below'; value: number; armed: boolean }
-export interface ChartDocument { drawings: string; indicators: Indicator[]; images: Record<string, string>; overlays: Record<string, boolean>; alarms: ChartAlarm[]; appearance?: Appearance; visibleTime?: VisibleTime;
+export interface ChartDocument { drawings: string; indicators: Indicator[]; images: Record<string, string>; overlays: Record<string, boolean>; alarms: ChartAlarm[]; appearance?: Appearance;
   /** Bereiche von oben nach unten (System-Bereich `rsi` und die `paneId` der Nutzer-Oszillatoren); fehlt er, gilt die Standardreihenfolge (UI-11) */
   paneOrder?: string[];
   /** Ausgeblendet (Auge) und eingeklappt je System-Bereich */
@@ -65,13 +63,12 @@ export function parseStoredDocument(unknownDoc: unknown, version: unknown): Char
     if (typeof value === 'string' && /^data:image\/(png|jpeg|webp);base64,/.test(value) && value.length < 2_800_000) images[name] = value;
   }
   const overlays = Object.fromEntries(Object.entries(d.overlays ?? {}).filter(([, v]) => typeof v === 'boolean'));
-  // Alte Dokumente speichern `viewport` als Indexbereich; er passt zu keiner Zeit und wird nicht übernommen
-  const saved = d.visibleTime && typeof d.visibleTime === 'object' ? d.visibleTime as Partial<VisibleTime> : null;
-  const visibleTime = saved && typeof saved.from === 'number' && Number.isFinite(saved.from) && typeof saved.to === 'number' && Number.isFinite(saved.to) && saved.from < saved.to ? { from: saved.from, to: saved.to } : undefined;
+  // Alte Dokumente speichern den Zoom (`viewport` als Indexbereich, später `visibleTime`); seit 1118-A5.1 öffnet der Chart wie
+  // TradingView immer mit den letzten Kerzen: beide Felder werden nicht übernommen und fallen beim nächsten Speichern weg
   const alarms = Array.isArray(d.alarms) ? d.alarms.flatMap(item => item && typeof item === 'object' && typeof item.id === 'string' && typeof item.indicatorId === 'string' && (item.direction === 'above' || item.direction === 'below') && typeof item.value === 'number' && Number.isFinite(item.value) ? [{ id: item.id, indicatorId: item.indicatorId, direction: item.direction, value: item.value, armed: item.armed !== false }] : []).slice(0, 50) : [];
   const migrated = version === 1 ? migrateSystemRsi(parseIndicators(d.indicators), parsePaneOrder(d.paneOrder), d.systemPanes) : { indicators: parseIndicators(d.indicators), paneOrder: parsePaneOrder(d.paneOrder) };
   const paneOrder = migrated.paneOrder, systemPanes = parseSystemPanes(d.systemPanes), paneHeights = parsePaneHeights(d.paneHeights);
-  return { drawings: typeof d.drawings === 'string' ? d.drawings : '[]', indicators: migrated.indicators, images, overlays, alarms, ...(d.appearance === undefined ? {} : { appearance: parseAppearance(d.appearance) }), ...(visibleTime ? { visibleTime } : {}), ...(paneOrder ? { paneOrder } : {}), ...(systemPanes ? { systemPanes } : {}), ...(paneHeights ? { paneHeights } : {}) };
+  return { drawings: typeof d.drawings === 'string' ? d.drawings : '[]', indicators: migrated.indicators, images, overlays, alarms, ...(d.appearance === undefined ? {} : { appearance: parseAppearance(d.appearance) }), ...(paneOrder ? { paneOrder } : {}), ...(systemPanes ? { systemPanes } : {}), ...(paneHeights ? { paneHeights } : {}) };
 }
 export const emptyChartDocument = (): ChartDocument => ({ ...EMPTY, indicators: [], images: {}, overlays: {}, alarms: [] });
 interface State {

@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useMemo, type ReactNode } from 'react';
+import { Suspense, useCallback, useMemo, useState, type ReactNode } from 'react';
 
 import { ChartPage } from '@/components/chart-page/ChartPage';
 import { OneChart } from '@/components/chart-page/OneChart';
@@ -11,7 +11,8 @@ import { FormationAccountSelect } from '@/components/formation/FormationSelector
 import { BrokerClockNotice } from '@/components/analysis/BrokerClockNotice';
 import { DateRangePicker } from '@/components/analysis/DateRangePicker';
 import { Alert } from '@/components/ui/alert';
-import { useChartContext } from '@/hooks/useChartContext';
+import { chartBounds, useChartContext } from '@/hooks/useChartContext';
+import type { ChartRange } from '@/lib/chart/chartUrl';
 import { useFormationAlarm } from '@/hooks/useFormationAlarm';
 import { useT } from '@/i18n';
 
@@ -47,6 +48,16 @@ function ChartRoot() {
   const t = useT();
   const { params, accounts, accountId, accountKnown, zones, settingsError, clock, offsetSec, today, bounds } = useChartContext();
   const { symbol: urlSymbol, zoneId, range, setAccount, setRange } = params;
+  // Ein Zeitraum aus der Kopfleiste passt ihn einmal ein, auch derselbe noch einmal (1118-A5.1, wie TradingView); kein Modus.
+  // Die Anfrage gilt, sobald die Adresse diesen Zeitraum hat, und endet, wenn der Chart eingepasst hat
+  const [fit, setFit] = useState<{ seq: number; range: ChartRange } | null>(null);
+  const chooseRange = useCallback((value: ChartRange) => {
+    setRange(value);
+    setFit((f) => ({ seq: (f?.seq ?? 0) + 1, range: value }));
+  }, [setRange]);
+  const onFitted = useCallback((seq: number) => setFit((f) => (f?.seq === seq ? null : f)), []);
+  const fitBounds = fit ? chartBounds(fit.range, today) : null;
+  const fitOnce = fit && fitBounds!.from === bounds.from && fitBounds!.to === bounds.to ? fit.seq : null;
 
   // Das Symbol des Charts: ?symbol=, sonst das Symbol der Zone aus ?zone= (alte Links), sonst das erste Setup des Kontos
   const symbol = useMemo(() => {
@@ -65,7 +76,7 @@ function ChartRoot() {
         }}
       />
     ),
-    range: <DateRangePicker value={range} today={today} onChange={setRange} />,
+    range: <DateRangePicker value={range} today={today} onChange={chooseRange} />,
     notices: (
       <>
         <ChartNotice>
@@ -83,7 +94,7 @@ function ChartRoot() {
   };
 
   if (accountKnown && accountId) {
-    return <OneChart key={accountId} accountId={accountId} symbol={symbol} zones={zones} range={bounds} offsetSec={offsetSec} clockReady={!clock.loading} chrome={chrome} />;
+    return <OneChart key={accountId} accountId={accountId} symbol={symbol} zones={zones} range={bounds} offsetSec={offsetSec} clockReady={!clock.loading} chrome={chrome} fitOnce={fitOnce} onFitted={onFitted} />;
   }
   // Chart ohne Konto (keins gewählt oder unbekannt): wie früher die Formationsseite, mit Kopfleiste und Alarm
   return <NoAccountChart accountId={accountId} accountsKnown={accounts.length > 0} chrome={chrome} />;

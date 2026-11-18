@@ -91,6 +91,9 @@ interface OneChartProps {
   clockReady: boolean;
   /** Was die Seite beisteuert: Konto, Zeitraum, Chart/Statistik und ihre Hinweise */
   chrome: ChartChrome;
+  /** Einmal alle Kerzen einpassen (Zeitraum in der Kopfleiste gewählt, ChartCore `fitOnce`) */
+  fitOnce?: number | null;
+  onFitted?: (seq: number) => void;
 }
 
 /** Liest den Telefon-Modus des Docks (nur unter dem DockProvider bekannt) und gibt ihn im Layout-Effekt, also vor dem Anstrich, an OneChart weiter */
@@ -137,7 +140,7 @@ function emptyNoteState(
  * stehen immer da, auf D1/H4/H1/M15 liegt die Formationsebene (Suche über alle Formationen, `useFormationScan`) auf den Kerzen, und die
  * Setup-Ebenen des Symbols (`useSetupLayers`) liegen auf demselben Chart. Die Karte (Bedingungen, Genel bakış, İşlemler) und die Favoriten stehen ab lg in der rechten Leiste mit Seitenpanel (`ChartSideRail`, 1107-A21.22); darunter schwebt die eine Karte.
  */
-export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec, clockReady, chrome }: OneChartProps) {
+export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec, clockReady, chrome, fitOnce = null, onFitted }: OneChartProps) {
   const t = useT();
   const locale = useLocale();
   const format = useFormat();
@@ -617,6 +620,8 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
               until={pastAt ?? (calendar ? barEnd(calendar, shownData.bars.at(-1)?.time ?? 0) : undefined)}
               digits={ratesData?.digits ?? null}
               viewKey={viewKey}
+              fitOnce={fitOnce}
+              onFitted={onFitted}
               band={zone ? layers.band : null}
               lines={zone && pastAt === null ? layers.lines : []}
               markers={zone ? layers.markers : []}
