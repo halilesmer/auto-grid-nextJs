@@ -19,9 +19,9 @@ The hint "Kural: {id}" of a checklist row opened below the row and covered the t
 - Test `e2e/mocked/formation-page.spec.ts` (@FRM-19), 1440 px, hover and keyboard focus: the hint box (a) touches no row box, (b) ends at or before the left edge of the row, (c) lies inside the viewport.
 
 ## Evidence
-Screenshots (mocked data, 1440 px, hover on GAR-03; light theme forced through `localStorage`, `html` class checked): ![light](images/2026-11-18-checklist-tooltip-left-light.png) ![dark](images/2026-11-18-checklist-tooltip-left-dark.png)
+Screenshots (mocked data, 1440 px, crop shows the checklist rows, the hint and the price axis; light theme forced through `localStorage`, `html` class checked). Hover on the row "D, AB'nin uzantı hedefine ulaşır" (hint GAR-05), then on the row above it (hint GAR-03): ![light](images/2026-11-18-checklist-tooltip-left-light.png) ![dark](images/2026-11-18-checklist-tooltip-left-dark.png) ![light, between labels](images/2026-11-18-checklist-tooltip-left-between-light.png) ![dark, between labels](images/2026-11-18-checklist-tooltip-left-between-dark.png)
 
-Observation: the hint is readable in both themes. It covers the price-axis column of the chart at the height of the row, so it can hide an axis label at that height. In the screenshot it sits between two labels and hides none.
+Observation: the hint is readable in both themes (own background, border, shadow). It opens over the price-axis column of the chart, because the panel is next to it. Whether it covers an axis label depends on the row height. For GAR-05 it covers the "0.00" label and the "EWO 0.14" tag of the lower pane. For GAR-03 it sits between the "20.00" and "0.50" labels and covers none. So the hint can hide one axis label while it is open; it never covers a checklist row.
 
 ## Open
 - Phone width (375 px) is not designed (Halil, 2026-11-17); there the hint falls back to the bottom.
