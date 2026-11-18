@@ -3,7 +3,7 @@ import { DEMO_ID, LIVE_ID, ZONE_ID, test, expect } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 import { nowMs } from '../fixtures/mock-worker';
 import { OLDER_PAGE_BARS, OPEN_RANGE_BARS } from '../../src/lib/analysis/candles';
-import { dragLeft, openNearLeftEdge, panToFirstCandle } from '../fixtures/chart-older';
+import { dragLeft, fitChosenRange, openNearLeftEdge, panToFirstCandle } from '../fixtures/chart-older';
 import { dialogTab, openDrawings } from '../fixtures/chart-dialog';
 import { formationRequests } from '../../src/lib/formation/requests';
 import { openCardTab } from '../fixtures/card';
@@ -624,7 +624,10 @@ test('Lejant: imleç grafikten düğmeye geçince satırın düğmeleri yerinde 
   // Off the chart the legend shows the latest values (a number after the parameters; the parameters have digits too)
   await page.mouse.move(0, 0);
   for (const kind of rows) await expect(value(kind)).toContainText(/\) -?\d/);
-  // The crosshair on the first candles: RSI(14) and EWO(5/35) have no value there yet, the legend shows "—" (journal 2026-11-17-ana20-legend-shift-ana19-toast)
+  // The crosshair on the first candles: RSI(14) and EWO(5/35) have no value there yet, the legend shows "—" (journal 2026-11-17-ana20-legend-shift-ana19-toast).
+  // The chart opens with the latest candles (1118-A5.1): the chosen range again fits all candles, the first one at the left edge
+  await fitChosenRange(page);
+  await page.mouse.move(0, 0);
   const chart = (await page.getByTestId('analysis-chart').boundingBox())!;
   await page.mouse.move(chart.x + 8, chart.y + chart.height * 0.3);
   for (const kind of rows) await expect(value(kind)).toContainText('—');
@@ -662,6 +665,9 @@ test('Lejant 375 px: imleç grafikteyken "—" kesilmez, düğmeler yerinde kal�
   await page.mouse.move(0, 0);
   for (const kind of rows) await expect(value(kind)).toContainText(/\) -?\d/);
   const latest = await triggerX();
+  // The chart opens with the latest candles (1118-A5.1): the chosen range again fits all candles, the first one at the left edge
+  await fitChosenRange(page);
+  await page.mouse.move(0, 0);
   const chart = (await page.getByTestId('analysis-chart').boundingBox())!;
   await page.mouse.move(chart.x + 8, chart.y + chart.height * 0.3);
   for (const kind of rows) await expect(value(kind)).toContainText('—');
@@ -901,7 +907,11 @@ test.describe('ANA-27 Ältere Kerzen laden beim Scrollen nach links (leichte Sei
       // "Tümü" fits all candles one time: the first candle is at the left edge of the view
       await page.getByTestId('range-trigger').click();
       await page.getByTestId('range-preset-all').click();
-      await expect.poll(async () => Number((await chart.getAttribute('data-visible-range'))?.split(',')[0])).toBeLessThanOrEqual(loadedFrom + 120);
+      // The view reaches the first candles (M1 without gaps: the span in minutes is the number of candles). Fewer than 50 candles
+      // before the view, so a range change would request a page if it counted; measured: after the fit a few pixels of the width go
+      // to the price axis, and the left edge moves by about 10 candles
+      const bars = Number(await chart.getAttribute('data-bars'));
+      await expect.poll(async () => { const [from, to] = ((await chart.getAttribute('data-visible-range')) ?? '0,0').split(',').map(Number); return (to - from) / 60 + 1; }).toBeGreaterThan(bars - 40);
       await page.waitForTimeout(800);
       expect(older()).toBe(0);
       // (c) A click on the chart, then an automatic change of the range (a wider chart): no page

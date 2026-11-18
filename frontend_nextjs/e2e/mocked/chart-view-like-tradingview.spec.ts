@@ -43,17 +43,21 @@ async function zoomIn(page: Page) {
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 3);
   await page.mouse.wheel(0, -400);
 }
-/** H1 candles up to the hour before the current hour; the current hour is the running candle of the search */
-function hourSeries(worker: { state: { brokerOffset: number; ratesSeries?: unknown } }, length: number) {
+/**
+ * `closed` H1 candles up to the hour before the current hour, then the candle of the current hour (`latest`). The mock sends it as
+ * the running one (`live_from`): the chart leaves it out of its series; the formation search adds it as its running candle, or the
+ * stream adds a live candle at `latest`.
+ */
+function hourSeries(worker: { state: { brokerOffset: number; ratesSeries?: unknown; ratesLive?: unknown } }, closed: number) {
   const latest = Math.floor((nowMs() / 1000 + worker.state.brokerOffset) / 3600) * 3600;
-  const series = Array.from({ length }, (_, i) => [latest - (length - i) * 3600, 1 + i * .0001, 1.002 + i * .0001, .999 + i * .0001, 1.001 + i * .0001]);
+  const series = Array.from({ length: closed + 1 }, (_, i) => [latest - (closed - i) * 3600, 1 + i * .0001, 1.002 + i * .0001, .999 + i * .0001, 1.001 + i * .0001]);
   worker.state.ratesSeries = { H1: series };
-  return { latest, series };
+  worker.state.ratesLive = { H1: latest };
+  return { latest, series, lastClosed: series[closed - 1] };
 }
 
 test('Açılışta son mumlar varsayılan genişlikte görünür, zoom saklanmaz ve yeniden yüklemede geri gelmez', { tag: '@ANA-19' }, async ({ page, worker }) => {
-  const { series } = hourSeries(worker, 1000);
-  const lastClosed = series[series.length - 1][0];
+  const { latest, series, lastClosed: [lastClosed] } = hourSeries(worker, 1000);
   const release = await holdRunningCandle(page);
   await page.goto(URL);
   // (a) The last candle is in the view, the first candle is not (1000 candles do not fit at 6 px)
@@ -66,9 +70,12 @@ test('Açılışta son mumlar varsayılan genişlikte görünür, zoom saklanmaz
   await expect(page.locator('[data-last-price]')).toHaveCount(1);
   await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
   const running = Number((await page.locator('[data-last-price]').getAttribute('data-last-price'))!.split(':')[0]);
+  expect(running).toBe(latest);
   await expect.poll(async () => (await rangeOf(page))?.[1]).toBe(running);
   const shown = (await rangeOf(page))!;
-  expect(slots(shown)).toBe(slots(opened));
+  // Same width: at the end of the search the price axis gets a few pixels wider (journal 2026-11-16-chart-refit-on-running-candle,
+  // 2 px), the time scale keeps the bar spacing and shows one candle less at most
+  expect(Math.abs(slots(shown) - slots(opened))).toBeLessThanOrEqual(1);
   // Zoom in: the view changes, nothing is stored
   await page.waitForTimeout(300);
   await zoomIn(page);
@@ -99,11 +106,9 @@ test('Bir zaman aralığı seçmek onu bir kez sığdırır; yeni canlı mum gö
   // 600 candles: they do not fit at 6 px, but they fit when the range is chosen (about 2 px each).
   // The candle of the current hour is the running one (`live_from`): the chart shows the closed candles, the first live
   // price adds the running candle on the right.
-  const { latest, series } = hourSeries(worker, 601);
-  worker.state.ratesLive = { H1: latest };
+  const { latest, series, lastClosed: [lastClosed, , , , close] } = hourSeries(worker, 600);
   await holdRunningCandle(page); // the running candle of the search stays out: the new candle comes only from the stream
   await page.goto(URL);
-  const lastClosed = series[599][0];
   await expect.poll(async () => (await rangeOf(page))?.[1]).toBe(lastClosed);
   expect((await rangeOf(page))![0]).toBeGreaterThan(series[0][0]);
   // The same range again in the top bar: it fits all candles one time
@@ -111,7 +116,6 @@ test('Bir zaman aralığı seçmek onu bir kez sığdırır; yeni canlı mum gö
   await page.getByTestId('range-preset-last7').click();
   await expect.poll(() => rangeOf(page)).toEqual([series[0][0], lastClosed]);
   await expect.poll(() => worker.openSockets).toBeGreaterThan(0);
-  const close = series[599][4];
   await expect.poll(async () => {
     worker.pushMetrics({ account_id: DEMO_ID, symbol: 'EURUSD', price: close, market_open: true });
     return page.getByTestId('analysis-chart').getAttribute('data-last-bar');

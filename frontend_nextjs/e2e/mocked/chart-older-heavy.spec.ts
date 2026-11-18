@@ -1,6 +1,6 @@
 import { MAX_TOTAL_BARS, OLDER_PAGE_BARS } from '../../src/lib/analysis/candles';
 import { DEMO_ID, expect, test, type MockWorker } from '../fixtures/test';
-import { dragLeft, openNearLeftEdge, panToFirstCandle } from '../fixtures/chart-older';
+import { dragLeft, openNearLeftEdge, panToFirstCandle, zoomOutFully } from '../fixtures/chart-older';
 
 // These tests are about the chart itself. The side bar of the one chart starts open from 1024 px and takes 288 px (1107-A21, U4-4a): closed, the chart has its old width
 test.beforeEach(({ page }) => page.addInitScript(() => localStorage.setItem('grid-robot-formation-sidebar', JSON.stringify({ open: false, tab: 'conditions' }))));
@@ -60,6 +60,8 @@ test('Ältere Kerzen anfügen: Dauer je Seite bleibt unter der Grenze', { tag: '
   await expect(chart).toHaveAttribute('data-bars', '100000', { timeout: 120_000 });
   const read = () => page.evaluate(() => (window as unknown as { __older: { response: number[]; steps: { bars: number; committed: number; drawn: number }[]; longest: number } }).__older);
   const pages: { bars: number; ms: number }[] = [];
+  // Die Öffnungsansicht zeigt die letzten Kerzen im Standard-Kerzenabstand (1118-A5.1): erst herauszoomen, sonst bringt ein Zug nur rund 150 Kerzen
+  await zoomOutFully(page);
   for (let guard = 0; guard < 12; guard++) {
     const before = Number(await chart.getAttribute('data-bars'));
     if (before >= TARGET) break;

@@ -2,7 +2,7 @@
 date: 2026-11-16
 author: Claude
 type: fix
-status: open
+status: done
 pr: [584]
 features: [ANA-19]
 areas: [frontend, chart]
@@ -83,7 +83,10 @@ All runs on the Mac under the heavy lock (SYS-11), mocked e2e, 3 Playwright work
   - Examined in 1116-A35 (journal `2026-11-16-flaky-tests-ana27-ui26-ana20-frm30-usr17`): the legend row moves between the press and the release of the mouse, so the browser sends no click to the menu button. Which element changes its width is not measured. Not fixed; open point there.
 - [x] UI-26 `chart-latest-bar.spec.ts:7` failed on the first try and on the retry in the first CI run of this PR (run 43940040316); on `main` it failed on the first try in run 43910686873 (same line 30), and it passed on the first try in the 2 runs before. Locally, alternating arms (code of `main`, fix, 2 × 10 each, load average 5.7 to 10.4): 40 of 40 passed. Measured in the trace of the CI run: the toast "formation search finished" covered the button for 7 s (Playwright retried the click), then the click scrolled the view back, and the view stopped 3 candles before the last candle (`data-visible-range` ended at `1794855600`, the running candle is `1794866400`); the button stays while `scrollPosition() < -3`. Library code (`lightweight-charts` 5.2.1, `TimeScaleInvalidationType.Animation`): each frame sets the right offset only while the animation of `scrollToRealTime` (400 ms) is not finished, so the end position is not applied, and the view stays at the position of the last frame. Inference: the error depends on the time of the last frame, so the test fails at random on `main` too. Not changed in this PR (not caused by it); a possible fix is in `LatestBarButton.tsx` (set the end position after the animation).
   - Measured in 1116-A35 (journal `2026-11-16-flaky-tests-ana27-ui26-ana20-frm30-usr17`): the end position is not applied also in a normal run (−1.03 candles); with a busy main thread the view stays at −42 candles. The fix is in `LatestBarButton.tsx`, in a separate PR (PR B of 1116-A35).
-- [ ] Not verified by a test: the `viewFixPending` guard (finding 1116-A28.1.1 of the review, from the code). Two attempts to get a page of older candles while the view shows all candles (H1, range "all", 5000 candles, 1600 px) did not send the request for the page: (a) zoom out with the wheel, the library did not change an "all" view; (b) a click on the chart, then the running candle (0 of 3 runs). The cause was not examined. The scenario is an inference from the code.
+- [x] Not verified by a test: the `viewFixPending` guard (finding 1116-A28.1.1 of the review, from the code). Two attempts to get a page of older candles while the view shows all candles (H1, range "all", 5000 candles, 1600 px) did not send the request for the page: (a) zoom out with the wheel, the library did not change an "all" view; (b) a click on the chart, then the running candle (0 of 3 runs). The cause was not examined. The scenario is an inference from the code.
+
+  - Closed by 1118-A2.1 = B (journal `2026-11-18-chart-view-like-tradingview`): `writeLastBar` no longer fits again, so the guard is gone with the refit.
+- [x] Superseded on 2026-11-18: Halil decided 1118-A2.1 = B (like TradingView, the library moves the view by one candle) and 1118-A5.1 = B (no stored zoom, the chart opens with the latest candles). The refit of this PR and the zoom memory are removed (journal `2026-11-18-chart-view-like-tradingview`).
 
 ## Lessons
 A move of the chart by one candle can come from the library, not from our code. Read the time scale code of `lightweight-charts` for the event (`shiftVisibleRangeOnNewBar`) before you add a guard in the test.

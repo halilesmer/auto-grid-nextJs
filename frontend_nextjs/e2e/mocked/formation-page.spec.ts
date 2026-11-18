@@ -436,7 +436,10 @@ test.describe('FRM-20 Chart-Overlay und Hover', () => {
     await expect(overlay.locator('circle[fill="none"]')).toHaveCount(1);
     await expect(overlay.locator('text', { hasText: 'D?' })).toHaveCount(1);
     await expect(overlay.locator('text', { hasText: msg('formation.draw.zonePossible', { tf: 'H4', up: 'D1' }) })).toHaveCount(1);
-    await expect(overlay.locator('[data-drawing] rect[rx="3"]')).toHaveCount(0);
+    // The reversal-candle mark is a small rect without fill (FormationLayer: tone `mark`, width ≤ 20 px, fill-opacity 0). Since the chart
+    // opens with the latest candles (1118-A5.1), the possible zone ahead of the last candle can be 20 px or narrower too (measured 16 px,
+    // fill-opacity 0.16): it has rounded corners as well, but it is no mark
+    await expect(overlay.locator('[data-drawing] rect[rx="3"][fill-opacity="0"]')).toHaveCount(0);
   });
 
   for (const theme of ['light', 'dark']) {

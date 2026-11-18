@@ -23,12 +23,64 @@ export async function dragLeft(page: Page, dx = Number.POSITIVE_INFINITY) {
   await page.mouse.up();
 }
 
+/**
+ * Zoomt mit dem Rad ganz heraus (der Nutzer bedient den Chart). Ein Radschritt ändert den Kerzenabstand nur um 10 %, auch bei
+ * großem deltaY (lightweight-charts `zoom`); von der Öffnungsansicht (6 px, 1118-A5.1) bis 0,2 px sind es rund 32 Schritte.
+ */
+export async function zoomOutFully(page: Page) {
+  const box = (await page.getByTestId('analysis-chart').boundingBox())!;
+  await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.6);
+  for (let i = 0; i < 40; i++) await page.mouse.wheel(0, 200);
+}
+
+/**
+ * Bringt die Ansicht mit Rad und Ziehen bis etwa 25 Kerzen vor die erste Kerze (`firstTime`), bis `requested()` die Anfrage der
+ * Seite meldet. Die Ansicht bleibt dabei in den Kerzen: zieht der Test über die erste Kerze hinaus, zeigt die Ansicht links eine
+ * leere Fläche, die die neue Seite füllt, und die erste sichtbare Zeit ändert sich, ohne dass die Ansicht springt.
+ * `barSec`: Kerzenlänge in s (M1 = 60); die Kerzen müssen lückenlos sein (`ratesAllDays`).
+ */
+export async function approachLeftEdge(page: Page, firstTime: number, requested: () => boolean, barSec = 60) {
+  const chart = page.getByTestId('analysis-chart');
+  const box = (await chart.boundingBox())!;
+  const view = async () => {
+    const [from, to] = ((await chart.getAttribute('data-visible-range')) ?? '0,0').split(',').map(Number);
+    return { span: (to - from) / barSec + 1, gap: (from - firstTime) / barSec };
+  };
+  // Herauszoomen, solange der Weg zur ersten Kerze mehr als vier Ansichtsbreiten ist (ein Radschritt: 10 %)
+  await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.6);
+  for (let i = 0; i < 40 && !requested(); i++) {
+    const { span, gap } = await view();
+    if (gap <= span * 4) break;
+    await page.mouse.wheel(0, 200);
+  }
+  await expect.poll(async () => {
+    if (requested()) return true;
+    const { span, gap } = await view();
+    // Pixel je Kerze aus der sichtbaren Spanne; die Preisachse nimmt etwas Breite, darum die Breite knapp schätzen
+    const spacing = (box.width * 0.9) / span;
+    const want = (gap - 25) * spacing;
+    // Ein Zug von wenigen Pixeln ist für den Chart kein Zug (gemessen: bei 0,2 px je Kerze blieb die Ansicht bei 6 px stehen).
+    // Nahe am Rand darum erst hineinzoomen, bis 20 px höchstens 10 Kerzen sind
+    if (want < 20 && spacing < 2) {
+      await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.6);
+      await page.mouse.wheel(0, -200);
+      return requested();
+    }
+    await dragLeft(page, Math.max(20, want));
+    return requested();
+  }, { timeout: 90_000, intervals: [50] }).toBe(true);
+}
+
+/** Wählt den aktiven Zeitraum oben noch einmal: der Chart passt ihn einmal ganz ein (1118-A5.1, wie TradingView) */
+export async function fitChosenRange(page: Page) {
+  await page.getByTestId('range-trigger').click();
+  await page.locator('[data-testid^="range-preset-"][aria-pressed="true"]').click();
+}
+
 /** Zieht, bis die erste Kerze mit der Anzeige „Beginn“ zu sehen ist (die Seiten kommen dabei nach) */
 export async function panToFirstCandle(page: Page) {
   // Erst herauszoomen: bei engem Zoom wären es Dutzende Züge bis zur ersten Kerze
-  const box = (await page.getByTestId('analysis-chart').boundingBox())!;
-  await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.6);
-  await page.mouse.wheel(0, 4000);
+  await zoomOutFully(page);
   await expect.poll(async () => {
     if (await page.getByTestId('older-edge-line').count()) return true;
     await dragLeft(page);
@@ -85,14 +137,7 @@ export async function openNearLeftEdge(
   // Ohne Bedienung lädt der Chart nichts (1118-A3.1)
   await page.waitForTimeout(800);
   expect(requests).toBe(0);
-  const box = (await chart.boundingBox())!;
-  await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.6);
-  await page.mouse.wheel(0, 4000);
-  await expect.poll(async () => {
-    if (requests > 0) return true;
-    await dragLeft(page);
-    return requests > 0;
-  }, { timeout: 60_000, intervals: [50] }).toBe(true);
+  await approachLeftEdge(page, loadedFrom, () => requests > 0);
   if (!fail) {
     await expect(page.getByTestId('older-edge')).toHaveAttribute('data-state', 'loading');
     await expect(page.getByTestId('older-loading-strip')).toBeVisible();
