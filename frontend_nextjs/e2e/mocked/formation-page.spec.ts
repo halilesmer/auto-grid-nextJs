@@ -267,6 +267,36 @@ test.describe('FRM-19 Kandidaten-Liste und Checkliste', () => {
     await expect(page.getByRole('tooltip')).toHaveText(msg('formation.rule.id.hint', { id: 'GAR-03' }));
   });
 
+  test('Jede Zeile füllt die Breite der Liste und die Werte stehen bündig am rechten Rand (auch bei kurzem und langem Text)', { tag: '@FRM-19' }, async ({ page, worker }) => {
+    await openPage(page, worker, `${URL}&form=GAR`);
+    const list = page.getByTestId('formation-checklist');
+    const rows = list.getByTestId('check-row');
+    const count = await rows.count();
+    // Zeilen mit Wert; der Wert ist die letzte Spalte der Zeile
+    const measured: { textLen: number; valueRight: number; rowWidth: number; sectionWidth: number; rowRight: number; sectionRight: number }[] = [];
+    for (let i = 0; i < count; i++) {
+      const row = rows.nth(i);
+      const value = row.locator(':scope > span').last().locator('span');
+      if ((await value.count()) === 0) continue;
+      const [rb, vb, text, sb] = await Promise.all([
+        row.boundingBox(),
+        value.first().boundingBox(),
+        row.locator(':scope > span').nth(1).innerText(),
+        row.locator('xpath=ancestor::section[1]').boundingBox(),
+      ]);
+      measured.push({ textLen: text.length, valueRight: vb!.x + vb!.width, rowWidth: rb!.width, sectionWidth: sb!.width, rowRight: rb!.x + rb!.width, sectionRight: sb!.x + sb!.width });
+    }
+    expect(measured.length).toBeGreaterThanOrEqual(2);
+    // Zeilen mit unterschiedlicher Textbreite
+    expect(Math.max(...measured.map((m) => m.textLen)) - Math.min(...measured.map((m) => m.textLen))).toBeGreaterThan(20);
+    const first = measured[0];
+    for (const m of measured) {
+      expect(Math.abs(m.rowWidth - m.sectionWidth)).toBeLessThanOrEqual(1);
+      expect(Math.abs(m.valueRight - first.valueRight)).toBeLessThanOrEqual(1);
+      expect(Math.abs(m.rowRight - m.sectionRight)).toBeLessThanOrEqual(1);
+    }
+  });
+
   test('Bat im Aufbau trägt das Urteil der Bibliothek, D ist bereits erreicht', { tag: '@FRM-19' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=BAT`);
     await expect(page.getByTestId('candidate-item').getByTestId('verdict-pill')).toHaveAttribute('data-verdict', 'forming');

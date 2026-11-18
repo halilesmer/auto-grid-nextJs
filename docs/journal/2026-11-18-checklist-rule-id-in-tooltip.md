@@ -32,3 +32,17 @@ Percent tolerances ("5 % of AB"), reward-to-risk values, RSI/ATR/candle counts a
 
 ## Verification
 Run `tsc`, lint, FRM-19 (59 tests) and `precheck.sh` (4099 e2e tests, 0 failed). Screenshots: `images/checklist-light.png`, `images/checklist-dark.png`.
+
+## Follow-up: row width regression (fix)
+
+### Defect
+PR 609 put the row `div` inside a `Tooltip`. The tooltip wrapper is `inline-flex`. The `div` became a flex item without `w-full`, so it shrank to its content. Rows with a short text were narrower than the list. The value stood next to the text, and the hover background ended in the middle of the row. Before the change, all values were on the right edge.
+
+### Fix
+`FormationChecklist.tsx`: the row `div` has `w-full min-w-0`. Tooltip, `data-*` attributes and badge hints are the same.
+
+### Test
+`formation-page.spec.ts` (FRM-19): in rows with texts of different length, the row width equals the section width, and the right edge of the value column is on the same x (1 px tolerance). The test failed before the fix (row 41.6 px narrower than the section) and passes after it.
+
+### Lesson
+A wrapper element around a layout child changes the layout of the child. When a wrapper is added, check the width of the child with a measurement test, not only with the text content. The screenshots `images/checklist-light.png` and `images/checklist-dark.png` are renewed (mocked data, 1440 px, tooltip open).

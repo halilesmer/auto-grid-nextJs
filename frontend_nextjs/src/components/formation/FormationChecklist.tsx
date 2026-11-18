@@ -162,7 +162,7 @@ export function FormationChecklist({
                     onFocus={() => onActive(c.drawings)}
                     onMouseLeave={() => onActive(null)}
                     onBlur={() => onActive(null)}
-                    className={cn('grid grid-cols-[22px_minmax(0,1fr)_auto] items-start gap-2 px-3 py-1 outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary', highlighted && 'bg-muted')}
+                    className={cn('grid w-full min-w-0 grid-cols-[22px_minmax(0,1fr)_auto] items-start gap-2 px-3 py-1 outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary', highlighted && 'bg-muted')}
                   >
                     <StateIcon state={state} />
                     <span className={cn('min-w-0 text-xs', (state === 'unmeasurable' || state === 'inactive') && 'text-muted-foreground')}>
