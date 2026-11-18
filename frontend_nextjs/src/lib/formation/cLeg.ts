@@ -35,6 +35,8 @@ export interface LowerCandle {
   close?: number;
   tip?: number;
   tf?: string;
+  /** Öffnungszeit der Umkehrkerze (tiefere Zeiteinheit) */
+  time?: number;
 }
 
 /**
@@ -59,7 +61,7 @@ export function lowerCandleAt(env: Env, tf: ContextTimeframe, s: AbcdShape): Low
   if (view.bars.length === 0 || view.bars[0].time > from) return { state: 'unmeasurable' };
   const side: Side = s.side === 'sell' ? 'buy' : 'sell';
   const r = reversalCandleAt(env, tf, side, s.c, [lower]);
-  return { state: r.state, ...(r.close === undefined ? {} : { close: r.close }), ...(r.tip === undefined ? {} : { tip: r.tip }), ...(r.tf ? { tf: r.tf } : {}) };
+  return { state: r.state, ...(r.close === undefined ? {} : { close: r.close }), ...(r.tip === undefined ? {} : { tip: r.tip }), ...(r.tf ? { tf: r.tf } : {}), ...(r.time === undefined ? {} : { time: r.time }) };
 }
 
 /** AB=CD in der tieferen Zeiteinheit (Zustand, bei ☑ die Zeiteinheit) */
@@ -157,14 +159,22 @@ export function cLegOf(o: {
   ];
   const ok = rows.every((r) => r.kind !== 'required' || r.state === 'met');
   const none: CLeg = { side, rows, variant: null, entry: null, stop: null, emergencyStop: null, target: null };
+  // Anzeige „vor N Kerzen“: Index der Kerze (Zeiteinheit des Kandidaten), in der der Einstieg liegt, und der Schluss der letzten Kerze; keine Rechnung ändert sich
+  const lastIdx = bars.length - 1;
+  const age = (idx: number) => ({ entryIdx: idx, barsSince: Math.max(0, lastIdx - idx), lastClose: bars[lastIdx].close });
+  const candleIdx = () => {
+    let k = s.c.idx;
+    while (k + 1 <= lastIdx && candle.time !== undefined && bars[k + 1].time <= candle.time) k++;
+    return k;
+  };
   if (!ok) return none;
   if (zone) {
     const stop = far(zone.rect);
-    return { side, rows, variant: 'zone', entry: near(zone.rect), stop, emergencyStop: emergencyStopOf(stop, side, o.atr), target: s.level1 };
+    return { side, rows, variant: 'zone', entry: near(zone.rect), stop, emergencyStop: emergencyStopOf(stop, side, o.atr), target: s.level1, ...age(s.c.idx) };
   }
   if (candleUsable) {
     const stop = candle.tip!;
-    return { side, rows, variant: 'candle', entry: candle.close!, stop, emergencyStop: emergencyStopOf(stop, side, o.atr), target: s.level1 };
+    return { side, rows, variant: 'candle', entry: candle.close!, stop, emergencyStop: emergencyStopOf(stop, side, o.atr), target: s.level1, ...age(candleIdx()) };
   }
   return none;
 }

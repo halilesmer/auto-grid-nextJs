@@ -137,6 +137,8 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
   const clCrvText = clMetrics ? number(clMetrics.crv, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : dash;
   const clAway = (v: number, sign: '+' | '−') =>
     cl && cl.entry !== null ? t(pipSize === null ? 'formation.trade.away.price' : 'formation.trade.away.pips', { n: `${sign}${dist(Math.abs(v - cl.entry))}` }) : null;
+  // Der Einstieg liegt in der Vergangenheit: C wird erst nach zwei Kerzen rechts erkannt. „Jetzt“ = Schluss der letzten Kerze; jenseits = in Handelsrichtung über den Einstieg hinaus
+  const clAge = cl && cl.entry !== null && cl.barsSince !== undefined && cl.lastClose !== undefined && cl.barsSince > 0 ? { n: cl.barsSince, beyond: (cl.lastClose - cl.entry) * (clBuy ? 1 : -1) > 0, gap: Math.abs(cl.lastClose - cl.entry) } : null;
   const clRowValue = (key: string, value: number | string | undefined): string | null => {
     if (value === undefined) return null;
     if (typeof value === 'number') return number(value, { minimumFractionDigits: 3, maximumFractionDigits: 3 });
@@ -622,6 +624,13 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
                   <span data-testid="trade-cleg-entry" className="text-[13px] font-medium tabular-nums">
                     {fmt(cl.entry)}
                   </span>
+                  {clAge && (
+                    <Tooltip content={t('formation.trade.cleg.past.hint')} className="self-start">
+                      <span data-testid="trade-cleg-past" tabIndex={0} className="w-fit rounded-md bg-muted px-1.5 py-px text-[10.5px] font-medium text-muted-foreground">
+                        {t(clAge.n === 1 ? 'formation.trade.cleg.past.one' : 'formation.trade.cleg.past.many', { n: String(clAge.n) })}
+                      </span>
+                    </Tooltip>
+                  )}
                   <span className="text-[10.5px] text-muted-foreground">
                     {t(cl.variant === 'candle' ? 'formation.trade.cleg.entry.candle' : (`formation.trade.cleg.entry.zone.${clBuy ? 'buy' : 'sell'}` as MessageKey))}
                   </span>
@@ -640,6 +649,13 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
                     {cl.emergencyStop !== null && ` · ${t('formation.trade.emergency', { price: fmt(cl.emergencyStop) })}`}
                   </span>
                 </div>
+                {clAge && (
+                  <p data-testid="trade-cleg-past-gap" data-side={clAge.beyond ? 'beyond' : 'behind'} className="col-span-2 text-[10.5px] tabular-nums text-muted-foreground/80">
+                    {t(clAge.beyond ? 'formation.trade.cleg.past.beyond' : 'formation.trade.cleg.past.behind', {
+                      d: t(pipSize === null ? 'formation.trade.away.price' : 'formation.trade.away.pips', { n: dist(clAge.gap) }),
+                    })}
+                  </p>
+                )}
                 <div className="col-span-2 flex min-w-0 flex-col gap-px">
                   <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
                     {t('formation.trade.reentry.target')}
