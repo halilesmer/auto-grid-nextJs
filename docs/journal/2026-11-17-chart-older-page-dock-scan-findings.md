@@ -3,7 +3,7 @@ date: 2026-11-17
 author: Claude
 type: fix
 status: open
-pr: [598]
+pr: [598, 603]
 features: [ANA-27, ANA-19, ANA-17, UI-17]
 areas: [chart, frontend]
 ---
@@ -138,9 +138,9 @@ FRM-39 (`features.yaml`, from PR 596): an item of `pruefung` had `: ` and YAML r
 Not covered: the full pre-PR check did not run again after the test correction (rule: one run per brief, §4.17). CI runs all mocked e2e tests.
 
 ## Open points
-- [ ] 1117-C1.1: decision on the dock package (design options A, B, C).
-- [ ] 1117-C1.2: decision on the toast (design options A, B, C).
-- [ ] 375 px: measure the formations row on the phone after the decision (the layout of `ChartTopBar` changed in PR 595).
+- [x] 1117-C1.1: decision on the dock package (design options A, B, C). Owner chose design A ("Üçü de öneri"). Done in PR 603 (`9300a1d3`), desktop only.
+- [x] 1117-C1.2: decision on the toast (design options A, B, C). Owner chose design A ("Üçü de öneri"). Done in PR 603 (`9300a1d3`), desktop only.
+- [x] 375 px: measure the formations row on the phone after the decision (the layout of `ChartTopBar` changed in PR 595). Not needed now: the phone layout is postponed (Halil, 2026-11-17).
 - [ ] `rememberChartView` stores a zoom after an older page from a view that showed all candles (item 3, finding). Decide whether "All" must stay "All" in this case.
 - [ ] PR 584 guard: a path where `showsAll` is true inside the correction window is not known (item 3).
 

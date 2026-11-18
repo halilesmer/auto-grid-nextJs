@@ -97,4 +97,4 @@ Option S: the value gets the width of the longest value seen for this indicator 
 - [x] ANA-20: design B approved, then rejected for 375 px; design S approved by the owner (2026-11-17); failing tests and fix in the second PR.
 - [ ] ANA-20: the owner examines the legend on a real phone.
 - [ ] ANA-20 `:526`: 1 of 20 runs failed because the legend did not come within 7 s after the reload in `openOscillatorChart`. Cause not known; keep the trace of the next failure.
-- [ ] The toast "formasyon taraması bitti" covers the footer buttons of the chart settings dialog for 7 s (visible UI, design first).
+- [x] The toast "formasyon taraması bitti" covers the footer buttons of the chart settings dialog for 7 s (visible UI, design first). PR 603 removed the success toast on desktop (badge). The phone keeps the toast; the phone layout is postponed (Halil, 2026-11-17).

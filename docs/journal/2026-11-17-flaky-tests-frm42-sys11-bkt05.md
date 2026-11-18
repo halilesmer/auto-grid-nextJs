@@ -2,7 +2,7 @@
 date: 2026-11-17
 author: Claude
 type: fix
-status: open
+status: done
 pr: [594]
 features: [FRM-42, SYS-11, BKT-05]
 areas: [tests]
@@ -86,7 +86,7 @@ Root cause (measured): `MockWorker.handle()` (`e2e/fixtures/mock-worker.ts`) wro
 | `scripts/features/precheck.sh` on the final commit, load average 29 → 15 | `PRECHECK OK in 1466s` · e2e ran=3907 passed=3906 failed=0 flaky=1; flaky: `chart-workspace.spec.ts:526` (ANA-20, known flaky, `2026-11-16-flaky-tests-ana27-ui26-ana20-frm30-usr17.md`; this branch does not change it) |
 
 ## Open points
-- [ ] CI of this PR and the `main` run after the merge.
+- [x] CI of this PR and the `main` run after the merge. PR 594 CI passed; `main` run after the merge (`bbb6bd92`): success.
 - The open point "BKT-05 `csv-import.spec.ts` … Cause not known" in `2026-11-16-flaky-tests-ana27-ui26-ana20-frm30-usr17.md` is solved by this entry.
 
 ## Lessons
