@@ -17,9 +17,17 @@ import path from 'node:path';
 import { barsOf, TIMEFRAME_SEC, type MissingRange } from '../../src/lib/analysis/candles';
 import type { RatesResponse } from '../../src/services/marketApi';
 import { FormationContext, type ContextInput } from '../../src/lib/formation/context';
-import { DEFAULT_TREND_SETTINGS, HISTORY_DAYS } from '../../src/lib/formation/params';
+import { ABCD_PARAMS, DEFAULT_TREND_SETTINGS, HISTORY_DAYS } from '../../src/lib/formation/params';
 import { setFormationDiag } from '../../src/lib/formation/diag';
 import { scanFormations, type ScanFormation, type ScanHit } from '../../src/lib/formation/scan';
+import { analyzeAbcd } from '../../src/lib/formation/abcdChecks';
+import { dReached, shapeOf } from '../../src/lib/formation/abcd';
+import { cLegOf, lowerAbcdAt, lowerCandleAt, noPeakDivergence } from '../../src/lib/formation/cLeg';
+import { closesBeyond, outward, probeFractal, wickEnd, otherSide } from '../../src/lib/formation/frz';
+import { buildEnv, dirSide, envFor, neighborTf, shareEnv } from '../../src/lib/formation/reasons';
+import { reversalCandleAt } from '../../src/lib/formation/reversal';
+import { engulfZones } from '../../src/lib/formation/sig';
+import { pipOf } from '../../src/lib/formation/xabcd';
 import { outcomesOf, realizedOutcomesOf } from '../../src/lib/formation/trade';
 import { weeklyFromDaily } from '../../src/lib/formation/weekly';
 import type { FormationBar, Side, Trade } from '../../src/lib/formation/types';
@@ -51,8 +59,18 @@ const FLAG_DEFS: Record<string, string> = {
   reentryTarget2: 'Yeniden girişte ikinci hedef (reentry.target2, son dip/tepe bölgesi) dolu.',
   reentryTp1Only: 'İlk işlem yalnız TP1 aldı (TP2 almadı) ve fiyat sonra D’deki Engulf bölgesine döndü; değer yok, yalnız uyarı.',
   'diag.early.sN': 'Erken dönüş eleme basamağı N: s1 D var ve seviye 1 yok; s2 + geçersiz değil; s3 + D −0,272 bandında; s4 + D mumunun dokunduğu işlem yönlü bölge; s5 + D’den sonra Engulf; s6 + hacimce güçlü; s7 + Engulf bölgeye dokunuyor; s8 + stop girişin doğru tarafında (işlem oluştu). states = tarama durumu, keys = ayrı aday.',
+  'probableC.k1': 'Olası C, katman K1: AB=CD adayının son iki dönüm noktası A, B (B en son dönüm noktası); kapanan t mumu C yönünde fraktalin sol yarısı (solda iki komşu, hiçbiri C ucunun ötesinde kapanmamış, sağ komşu yok) ve düzeltme derinliği ABCD-04..06 sınırlarında.',
+  'probableC.k2': 'Olası C, katman K2: K1 ve kütüphanenin cLegOf fonksiyonu o anki veriyle (C = t mumu, D yok) null olmayan sonuç verir (aynı koşullar, aynı çağrı).',
+  'probableC.outcome': 'verified = t+2 mumu kapanınca aynı C ile (aynı A, B, C zamanı ve yön) C ayağı bölümü doğmuş; falseAlarm = doğmamış (neden ayrı); bornLater = t+2de doğmadı ama t+3..t+12 içinde doğdu; neverBorn = t+12 içinde doğmadı.',
+  'probableC.missed': 'Kaçırılan mesafe = (t+2 kapanışı − olası C anındaki giriş) C ayağı yönünde; pozitif = fiyat girişi kâr yönünde geçti; R = giriş–stop mesafesi; buyable = kaçırılan ≤ 0 (fiyat girişin alınabilir tarafında). Giriş yalnız olası anda cLeg.entry doluysa vardır.',
   'diag.reentryExits': 'reentryOf çağrısı (ilk işlemde TP1 alınmışken) hangi çıkışla bitti: noTpIdx = TP1/TP2 indeksi yok; noZoneAtD = D’ye dokunan, D’den önce oluşmuş Engulf bölgesi yok; allZonesConsumed = tüm bölgeler kapanışla tüketilmiş; noTouchAfterTp = bölge duruyor ama TP’den sonra dokunuş yok; tp1Only; reentry.',
 };
+/**
+ * FORMATION_HISTORY_PROBABLE=1: "olası C" ölçümü (yalnız ölçer, kütüphaneyi değiştirmez). Yalnız AB=CD hesaplanır
+ * (FORMATION_HISTORY_ABCD_ONLY=1 ile aynı yol: `analyzeAbcd`, `scanFormations`in AB=CD kolunun kendisi); harmonikler sıfır kalır.
+ */
+const PROBABLE = process.env.FORMATION_HISTORY_PROBABLE === '1';
+const ABCD_ONLY = PROBABLE || process.env.FORMATION_HISTORY_ABCD_ONLY === '1';
 const OUT_DIR = process.env.FORMATION_HISTORY_OUT || path.resolve(__dirname, '../../test-results/formation-history');
 
 /** [tf, geçmiş gün] */
@@ -170,6 +188,323 @@ function median(xs: number[]) {
   return s[Math.floor(s.length / 2)];
 }
 
+// ---------- olası C (FORMATION_HISTORY_PROBABLE=1) ----------
+
+/** Doğrulama penceresi: t+2 (zamanında) ve t+3..t+12 (geç) */
+const PC_LATE_BARS = 12;
+
+type PcVariant = 'base' | 'v1' | 'v2' | 'v3';
+
+interface PcRec {
+  v: PcVariant;
+  /** Son dönüm noktası aynı yöndeki bir C'ydi ve olası C onun yerini alır (eski tanım bunu dışarıda bırakıyordu) */
+  viaReplace: boolean;
+  /** AB=CD yönü (satış: B tepe, C dip) */
+  side: Side;
+  /** C ayağının yönü (AB=CD'nin tersi) */
+  legSide: Side;
+  j: number;
+  cTime: number;
+  cPrice: number;
+  aIdx: number;
+  bIdx: number;
+  depth: number;
+  k2: boolean;
+  variant: string | null;
+  entry: number | null;
+  stop: number | null;
+  /** İlan anının C mumunun kapanışından gecikmesi (saat) */
+  delayHours: number;
+  /** İlan anındaki fiyat (V1: t+1 kapanışı; V3: ilan anında kapanan son H1; diğerleri t kapanışı) */
+  announceClose: number;
+  buyableAtAnnounce?: boolean;
+  outcome?: 'verified' | 'falseAlarm';
+  cause?: string;
+  lateAfter?: number;
+  missed?: number;
+  missedR?: number | null;
+  missedPip?: number;
+  buyable?: boolean;
+}
+
+type PcHit = { candidate: ScanHit['candidate'] };
+
+const quant = (xs: number[], q: number) => {
+  if (xs.length === 0) return null;
+  const s = [...xs].sort((a, b) => a - b);
+  return s[Math.floor(q * (s.length - 1))];
+};
+const dist = (xs: number[]) => (xs.length ? { n: xs.length, p25: quant(xs, 0.25), median: quant(xs, 0.5), p75: quant(xs, 0.75), max: Math.max(...xs) } : { n: 0 });
+
+class ProbableC {
+  readonly recs: PcRec[] = [];
+  private readonly pending: PcRec[] = [];
+  private readonly pip: number;
+  /** `AB=CD yönü|C zamanı` → neden K1 (eski tanım) dışı kaldı */
+  private readonly why = new Map<string, string>();
+  h1Missing = 0;
+  constructor(
+    private readonly ctx: FormationContext,
+    symbol: string,
+    private readonly tf: MainTf,
+  ) {
+    this.pip = pipOf(symbol);
+  }
+
+  /**
+   * t anında kapanan son mumu (rightN = 1: bir önceki mumu) olası C olarak dene. Yalnız ölçer; kütüphane sonuçlarına dokunmaz.
+   * Son dönüm noktası B ise (eski tanım) A, B onunla ve bir öncesidir; son dönüm noktası aynı yöndeki bir C' ise ve aday ondan daha uçtaysa,
+   * aday C'nin yerini alır (kütüphanenin çizgisi de öyle yapar), B ve A bir ve iki dönüm noktası geridedir.
+   */
+  private probe(at: number, rightN: 0 | 1): PcRec[] {
+    const tfs = this.ctx.timeframes();
+    const base = tfs.length > 0 ? buildEnv(this.ctx, at, tfs[0]) : null;
+    if (!base) return [];
+    const env = envFor(base, this.ctx, at, this.tf);
+    const view = env.views.get(this.tf);
+    const trend = env.trends.get(this.tf);
+    if (!view || !trend) return [];
+    const bars = view.bars;
+    const cur = bars.length - 1;
+    const j = cur - rightN;
+    const pv = trend.pivots;
+    const n = pv.length;
+    if (j < 3 || n < 2) return [];
+    const out: PcRec[] = [];
+    const Lp = pv[n - 1];
+    for (const viaReplace of [false, true]) {
+      const cs = viaReplace ? Lp.side : otherSide(Lp.side);
+      const sideKey = `${cs === 'support' ? 'sell' : 'buy'}|${bars[j].time}`;
+      const reject = (code: string) => {
+        if (rightN === 0 && !viaReplace) this.why.set(sideKey, code);
+        else if (rightN === 0 && !this.why.has(sideKey)) this.why.set(sideKey, `replace:${code}`);
+        return null;
+      };
+      const B = viaReplace ? pv[n - 2] : Lp;
+      const A = viaReplace ? pv[n - 3] : pv[n - 2];
+      if (!B || !A) {
+        reject('tooFewPivots');
+        continue;
+      }
+      if (A.side !== cs || B.side === cs) {
+        reject('sideMismatch');
+        continue;
+      }
+      if (j <= B.idx) {
+        reject('notAfterB');
+        continue;
+      }
+      if (viaReplace && !(j > Lp.idx && outward(cs, wickEnd(bars[j], cs)) > outward(cs, Lp.price))) {
+        reject('notBeyondLastPivot');
+        continue;
+      }
+      const probe = probeFractal(bars, j, cs);
+      if (probe.leftBars !== 2 || probe.rightBars !== rightN || probe.beyond !== 0) {
+        reject('leftFractalFails');
+        continue;
+      }
+      const s = shapeOf(bars, { a: { idx: A.idx, price: A.price }, b: { idx: B.idx, price: B.price }, c: { idx: j, price: wickEnd(bars[j], cs) } });
+      if (s.depth === null) {
+        reject('lenZero');
+        continue;
+      }
+      if (s.depth < ABCD_PARAMS.minCorrection) {
+        reject('depthBelowMin');
+        continue;
+      }
+      if (s.depth > ABCD_PARAMS.maxCorrection) {
+        reject(`depthAboveMax${s.depth > 1 ? '>1' : '<=1'}`);
+        continue;
+      }
+      const higherTf = neighborTf(env, this.tf, -1);
+      const higherDir = higherTf ? (env.trends.get(higherTf)?.dir ?? null) : null;
+      const leg = cLegOf({
+        bars,
+        s,
+        reached: dReached(s),
+        early: false,
+        withTrend: higherDir ? dirSide(higherDir) === s.side : null,
+        noDivergence: noPeakDivergence(trend, s),
+        engulfZones: engulfZones(bars, view.wide),
+        zones: [...env.frz.zones, ...env.frz.reversed],
+        candle: lowerCandleAt(env, this.tf, s),
+        lowerAbcd: lowerAbcdAt(env, this.tf, s),
+        atr: view.atr[cur] ?? null,
+      });
+      out.push({
+        v: rightN === 1 ? 'v1' : 'base',
+        viaReplace,
+        side: s.side,
+        legSide: s.side === 'sell' ? 'buy' : 'sell',
+        j,
+        cTime: bars[j].time,
+        cPrice: s.c.price,
+        aIdx: A.idx,
+        bIdx: B.idx,
+        depth: s.depth,
+        k2: leg !== null && leg.variant !== null,
+        variant: leg?.variant ?? null,
+        entry: leg?.entry ?? null,
+        stop: leg?.stop ?? null,
+        delayHours: (rightN * TIMEFRAME_SEC[this.tf]) / 3600,
+        announceClose: bars[cur].close,
+      });
+    }
+    return out;
+  }
+
+  /** V2: C mumunda biten işlem yönlü dönüş mumu/Engulf (kütüphanenin `reversalCandleAt`'i, aynı zaman dilimi) */
+  private reversalMet(at: number, r: PcRec): boolean {
+    const tfs = this.ctx.timeframes();
+    const base = tfs.length > 0 ? buildEnv(this.ctx, at, tfs[0]) : null;
+    if (!base) return false;
+    const env = envFor(base, this.ctx, at, this.tf);
+    return reversalCandleAt(env, this.tf, r.legSide, { idx: r.j, price: r.cPrice }, [this.tf]).state === 'met';
+  }
+
+  /** V3: C ucunun H1 mumu tamamlanmış 2+2 fraktal; ilan anı = max(C mumu kapanışı, H1 fraktalının tamamlandığı an). null = H1 fraktal yok */
+  private h1Announce(at: number, r: PcRec): { delayHours: number; close: number } | null {
+    const tfSec = TIMEFRAME_SEC[this.tf];
+    const cs = r.side === 'sell' ? 'support' : 'resistance';
+    const h1 = this.ctx.view('H1', at + 3 * 3600)?.bars;
+    if (!h1) {
+      this.h1Missing++;
+      return null;
+    }
+    const e = h1.findIndex((b) => b.time >= r.cTime && b.time < r.cTime + tfSec && Math.abs(wickEnd(b, cs) - r.cPrice) <= 1e-9 * Math.max(1, Math.abs(r.cPrice)));
+    if (e < 0 || e + 2 >= h1.length) return null;
+    const probe = probeFractal(h1.slice(0, e + 3), e, cs);
+    if (probe.leftBars !== 2 || probe.rightBars !== 2 || probe.beyond !== 0) return null;
+    const done = h1[e + 2].time + 3600;
+    const announce = Math.max(done, at);
+    const lastH1 = h1.find((b) => b.time + 3600 === announce);
+    return { delayHours: (announce - at) / 3600, close: lastH1?.close ?? r.announceClose };
+  }
+
+  /** Bir tarama adımı: önce bekleyenleri çöz, sonra yeni olası C'leri dene. `hits` bu `at` anındaki AB=CD kandidatları */
+  step(at: number, hits: readonly PcHit[]) {
+    const tfs = this.ctx.timeframes();
+    const base = tfs.length > 0 ? buildEnv(this.ctx, at, tfs[0]) : null;
+    const env = base ? envFor(base, this.ctx, at, this.tf) : null;
+    const bars = env?.views.get(this.tf)?.bars ?? [];
+    const cur = bars.length - 1;
+    const found = (r: PcRec) =>
+      hits.find((h) => h.candidate.points.C?.time === r.cTime && h.candidate.side === r.side && h.candidate.points.A !== undefined && h.candidate.points.A.time === bars[r.aIdx]?.time && h.candidate.points.B?.time === bars[r.bIdx]?.time);
+    for (const r of [...this.pending]) {
+      const age = cur - r.j;
+      const hit = found(r);
+      const born = hit?.candidate.trade?.cLeg ? hit.candidate.trade.cLeg : null;
+      if (age === 2) {
+        if (born) {
+          r.outcome = 'verified';
+          if (r.entry !== null && r.stop !== null) {
+            const gain = (p: number) => (r.legSide === 'buy' ? p : -p);
+            const missed = gain(bars[cur].close) - gain(r.entry);
+            const risk = Math.abs(r.entry - r.stop);
+            r.missed = missed;
+            r.missedR = risk > 0 ? missed / risk : null;
+            r.missedPip = missed / this.pip;
+            r.buyable = missed <= 0;
+          }
+        } else {
+          r.outcome = 'falseAlarm';
+          const cs = r.side === 'sell' ? 'support' : 'resistance';
+          const pivots = env?.trends.get(this.tf)?.pivots ?? [];
+          if (bars.slice(r.j + 1, cur + 1).some((b) => closesBeyond(b, r.cPrice, cs))) r.cause = 'moreExtremeBar';
+          else if (!pivots.some((p) => p.idx === r.bIdx) || !pivots.some((p) => p.idx === r.aIdx)) r.cause = 'candidateGone';
+          else if (!pivots.some((p) => p.idx === r.j && p.side === cs)) r.cause = 'pivotNotDrawn';
+          else if (hit) r.cause = 'cLegNull';
+          else r.cause = 'otherPoints';
+        }
+      } else if (age > 2 && r.outcome === 'falseAlarm' && r.lateAfter === undefined && born) {
+        r.lateAfter = age;
+      }
+      if (age >= PC_LATE_BARS) this.pending.splice(this.pending.indexOf(r), 1);
+    }
+    const add = (r: PcRec) => {
+      if (r.entry !== null) {
+        const gain = (p: number) => (r.legSide === 'buy' ? p : -p);
+        r.buyableAtAnnounce = gain(r.announceClose) <= gain(r.entry);
+      }
+      this.recs.push(r);
+      this.pending.push(r);
+    };
+    for (const r of this.probe(at, 0)) {
+      add(r);
+      if (!r.k2) continue;
+      if (this.reversalMet(at, r)) add({ ...r, v: 'v2' });
+      const h = this.h1Announce(at, r);
+      if (h) add({ ...r, v: 'v3', delayHours: h.delayHours, announceClose: h.close });
+    }
+    for (const r of this.probe(at, 1)) if (r.k2) add(r);
+  }
+
+  summary(bornKeys: ReadonlySet<string>) {
+    const keyOf = (r: PcRec) => `${r.side}|${r.cTime}`;
+    const layer = (pick: (r: PcRec) => boolean) => {
+      const rs = this.recs.filter(pick);
+      const done = rs.filter((r) => r.outcome !== undefined);
+      const verified = done.filter((r) => r.outcome === 'verified');
+      const fa = done.filter((r) => r.outcome === 'falseAlarm');
+      const causes: Record<string, number> = {};
+      for (const r of fa) causes[r.cause ?? 'other'] = (causes[r.cause ?? 'other'] ?? 0) + 1;
+      const withEntry = verified.filter((r) => r.missed !== undefined);
+      const announced = new Set(rs.map(keyOf));
+      const hasEntry = rs.filter((r) => r.entry !== null);
+      return {
+        probable: rs.length,
+        resolved: done.length,
+        open: rs.length - done.length,
+        verified: verified.length,
+        verifiedPct: done.length ? Math.round((1000 * verified.length) / done.length) / 10 : null,
+        falseAlarm: fa.length,
+        falseAlarmCauses: causes,
+        bornLater: fa.filter((r) => r.lateAfter !== undefined).length,
+        neverBorn: fa.filter((r) => r.lateAfter === undefined).length,
+        coverage: { bornCaught: [...bornKeys].filter((k) => announced.has(k)).length, bornTotal: bornKeys.size },
+        delayHours: dist(rs.map((r) => r.delayHours)),
+        buyableAtAnnounce: { withEntry: hasEntry.length, buyable: hasEntry.filter((r) => r.buyableAtAnnounce).length },
+        missed: {
+          verifiedWithEntry: withEntry.length,
+          verifiedNoEntry: verified.length - withEntry.length,
+          buyable: withEntry.filter((r) => r.buyable).length,
+          pip: dist(withEntry.map((r) => r.missedPip!)),
+          r: dist(withEntry.flatMap((r) => (r.missedR === null || r.missedR === undefined ? [] : [r.missedR]))),
+        },
+      };
+    };
+    const keysOf = (pick: (r: PcRec) => boolean) => new Set(this.recs.filter(pick).map(keyOf));
+    const k1Old = keysOf((r) => r.v === 'base' && !r.viaReplace);
+    const k1Fix = keysOf((r) => r.v === 'base');
+    const k2Fix = keysOf((r) => r.v === 'base' && r.k2);
+    const k2Old = keysOf((r) => r.v === 'base' && !r.viaReplace && r.k2);
+    const born = [...bornKeys];
+    const why = (miss: (k: string) => boolean) => born.filter(miss).reduce<Record<string, number>>((acc, k) => ({ ...acc, [this.why.get(k) || 'noProbe']: (acc[this.why.get(k) || 'noProbe'] ?? 0) + 1 }), {});
+    return {
+      k1: layer((r) => r.v === 'base' && !r.viaReplace),
+      k2: layer((r) => r.v === 'base' && !r.viaReplace && r.k2),
+      k1Fixed: layer((r) => r.v === 'base'),
+      k2Fixed: layer((r) => r.v === 'base' && r.k2),
+      v1: layer((r) => r.v === 'v1'),
+      v2: layer((r) => r.v === 'v2'),
+      v3: layer((r) => r.v === 'v3'),
+      born: {
+        distinctC: bornKeys.size,
+        withoutK1: born.filter((k) => !k1Old.has(k)).length,
+        withoutK2: born.filter((k) => !k2Old.has(k)).length,
+        withoutK1Fixed: born.filter((k) => !k1Fix.has(k)).length,
+        withoutK2Fixed: born.filter((k) => !k2Fix.has(k)).length,
+      },
+      bornWithoutK1Why: why((k) => !k1Old.has(k)),
+      bornWithoutK1FixedWhy: why((k) => !k1Fix.has(k)),
+      viaReplace: { k1: this.recs.filter((r) => r.v === 'base' && r.viaReplace).length, k2: this.recs.filter((r) => r.v === 'base' && r.viaReplace && r.k2).length },
+      variants: Object.fromEntries(['zone', 'candle', 'null'].map((x) => [x, this.recs.filter((r) => r.v === 'base' && r.k2 && (r.variant ?? 'null') === x).length])),
+      h1Missing: this.h1Missing,
+      records: this.recs.map((r) => ({ v: r.v, viaReplace: r.viaReplace, cAt: iso(r.cTime), side: r.legSide, depth: Math.round(r.depth * 1000) / 1000, k2: r.k2, variant: r.variant, outcome: r.outcome ?? 'open', cause: r.cause, lateAfter: r.lateAfter, delayHours: r.delayHours, buyableAtAnnounce: r.buyableAtAnnounce, missedPip: r.missedPip, missedR: r.missedR, buyable: r.buyable })),
+    };
+  }
+}
+
 function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars: FormationBar[], examples: Example[], tp12: unknown[]) {
   const tfSec = TIMEFRAME_SEC[tf];
   const tally = new Tally();
@@ -197,14 +532,27 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
     if (e.fn === 'early' && typeof prev === 'number' && typeof e.step === 'number' && prev >= e.step) return;
     events.set(k, e.step);
   });
+  const pc = PROBABLE ? new ProbableC(ctx, symbol, tf) : null;
   const first = Math.max(0, mainBars.length - BARS[tf]);
   const STEP = STEPS[tf];
+  if (PROBABLE && STEP !== 1) throw new Error('FORMATION_HISTORY_PROBABLE=1 needs step 1 (olası C t+2 sonucunu mum mum izler)');
   let scans = 0;
   let ms = 0;
   for (let i = first; i < mainBars.length; i += STEP) {
     const at = mainBars[i].time + tfSec;
     const started = performance.now();
-    const hits = scanFormations(ctx, at).filter((h) => h.tf === tf && FORMS.includes(h.form));
+    // ABCD_ONLY: `scanFormations`in AB=CD kolu (ANALYZERS.ABCD) tek başına; aynı hitler, harmonikler hesaplanmaz
+    const hits = (
+      ABCD_ONLY
+        ? shareEnv(ctx, () => {
+            const found = analyzeAbcd(ctx, at)
+              .filter((a) => Object.keys(a.candidate.points).length > 0)
+              .map((a): ScanHit => ({ form: 'ABCD', tf: a.tf, candidate: a.candidate }));
+            pc?.step(at, found.filter((h) => h.tf === tf));
+            return found;
+          })
+        : scanFormations(ctx, at)
+    ).filter((h) => h.tf === tf && FORMS.includes(h.form));
     ms += performance.now() - started;
     scans++;
     for (const [ek, step] of events) {
@@ -376,6 +724,7 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
     reentryExits: Object.fromEntries(names.filter((n) => n.startsWith('reentry.exit.')).map((n) => [n.slice('reentry.exit.'.length), stage(n)])),
   };
   const delays = tally.lists['cleg.delayBars'] ?? [];
+  const probableC = pc ? pc.summary(cKeys) : undefined;
   const harmonics = Object.fromEntries(
     HARMONICS.map((h) => [
       h,
@@ -409,6 +758,7 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
     abcd: { candidates: abcd.size, entered, lastStatus: status, statusEver, ...flags },
     diag,
     cleg,
+    ...(probableC ? { probableC } : {}),
     harmonics,
     violations: tally.violations,
   };
