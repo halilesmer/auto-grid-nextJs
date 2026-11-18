@@ -244,6 +244,29 @@ test.describe('FRM-19 Kandidaten-Liste und Checkliste', () => {
     await expect(list.getByTestId('check-row').getByText(msg('formation.mark.assumption'), { exact: true }).first()).toBeVisible();
   });
 
+  test('Die Regel-ID steht nicht in der Zeile, sondern im Hinweis der Zeile (Hover und Tastaturfokus)', { tag: '@FRM-19' }, async ({ page, worker }) => {
+    await openPage(page, worker, `${URL}&form=GAR`);
+    const list = page.getByTestId('formation-checklist');
+    const rows = list.getByTestId('check-row');
+    const count = await rows.count();
+    expect(count).toBeGreaterThan(10);
+    for (let i = 0; i < count; i++) {
+      const row = rows.nth(i);
+      const id = (await row.getAttribute('data-rule-id'))!;
+      // Sichtbarer Text der Zeile ohne die Kennung (ohne ID-Muster am Ende wie „GAR-07“)
+      expect(await row.innerText()).not.toContain(id);
+    }
+    const row = list.locator('[data-testid="check-row"][data-rule-id="GAR-03"]');
+    await row.hover();
+    await expect(page.getByRole('tooltip')).toHaveText(msg('formation.rule.id.hint', { id: 'GAR-03' }));
+    await page.mouse.move(0, 0);
+    await expect(page.getByRole('tooltip')).toHaveCount(0);
+    await row.focus();
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('tooltip')).toHaveText(msg('formation.rule.id.hint', { id: 'GAR-03' }));
+  });
+
   test('Bat im Aufbau trägt das Urteil der Bibliothek, D ist bereits erreicht', { tag: '@FRM-19' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=BAT`);
     await expect(page.getByTestId('candidate-item').getByTestId('verdict-pill')).toHaveAttribute('data-verdict', 'forming');

@@ -145,12 +145,12 @@ test.describe('Trendbasierte Fib-Extension (fibExt)', () => {
 
 test.describe('Texte der Checkliste stimmen mit der Messung überein', () => {
   frm('FRM-19', 'GAR-04 nennt 0,618 (nicht 0,382), BAT-05 nennt 0,5 (nicht 0,45)', () => {
-    expect(ruleText('de', 'GAR-04')).toBe('C erreicht 0,618 Korrektur von AB');
-    expect(ruleText('en', 'GAR-04')).toBe('C reaches the 0.618 correction of AB');
-    expect(ruleText('tr', 'GAR-04')).toBe('C, AB’nin 0,618 düzeltmesine ulaşır');
-    expect(ruleText('de', 'BAT-05')).toBe('B erreicht 0,5 von XA');
-    expect(ruleText('en', 'BAT-05')).toBe('B reaches 0.5 of XA');
-    expect(ruleText('tr', 'BAT-05')).toBe('B, XA’nın 0,5’ine ulaşır');
+    expect(ruleText('de', 'GAR-04')).toBe('C erreicht Fib 0,618 Korrektur von AB');
+    expect(ruleText('en', 'GAR-04')).toBe('C reaches the Fib 0.618 correction of AB');
+    expect(ruleText('tr', 'GAR-04')).toBe('C, AB’nin Fib 0,618 düzeltmesine ulaşır');
+    expect(ruleText('de', 'BAT-05')).toBe('B erreicht Fib 0,5 von XA');
+    expect(ruleText('en', 'BAT-05')).toBe('B reaches Fib 0.5 of XA');
+    expect(ruleText('tr', 'BAT-05')).toBe('B, XA’nın Fib 0,5’ine ulaşır');
   });
 
   frm('FRM-19', 'CDT-06 nennt den Trend beim Anlauf zu H2, nicht die Reihenfolge der Punkte', () => {
@@ -162,9 +162,9 @@ test.describe('Texte der Checkliste stimmen mit der Messung überein', () => {
   frm('FRM-19', 'Jede Libra-Bedingung hat einen Kurztext in tr, en und de; LIB-12 nennt die Einstiegskante', () => {
     const missing = LIB_CHECK_IDS.flatMap((id) => (['tr', 'en', 'de'] as const).filter((locale) => ruleText(locale, id) === null).map((locale) => `${id} ${locale}`));
     expect(missing).toEqual([]);
-    expect(ruleText('de', 'LIB-12')).toBe('Preis berührt die Einstiegskante (Zone oder 0,786)');
-    expect(ruleText('en', 'LIB-12')).toBe('Price touches the entry edge (zone or 0.786)');
-    expect(ruleText('tr', 'LIB-12')).toBe('Fiyat giriş kenarına dokunur (bölge veya 0,786)');
+    expect(ruleText('de', 'LIB-12')).toBe('Preis berührt die Einstiegskante (Zone oder Fib 0,786)');
+    expect(ruleText('en', 'LIB-12')).toBe('Price touches the entry edge (zone or Fib 0.786)');
+    expect(ruleText('tr', 'LIB-12')).toBe('Fiyat giriş kenarına dokunur (bölge veya Fib 0,786)');
   });
 
   frm('FRM-19', 'Jede Kopf-Schulter-Bedingung hat einen Kurztext in tr, en und de', () => {
