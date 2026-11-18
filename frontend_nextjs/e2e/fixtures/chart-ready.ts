@@ -30,6 +30,8 @@ export async function chartReady(page: Page) {
  */
 export async function hideFormationDrawings(page: Page) {
   const toggle = page.getByTestId('formation-drawings-toggle');
+  // Only the formation timeframes (D1, H4, H1, M15) have the switch; W1 and MN draw no formation
+  if ((await toggle.count()) === 0) return;
   if ((await toggle.getAttribute('aria-pressed')) === 'true') await toggle.click();
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
 }
