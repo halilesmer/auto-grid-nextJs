@@ -3,7 +3,7 @@ date: 2026-11-18
 author: Claude
 type: feature
 status: open
-pr: []
+pr: [614]
 features: [FRM-39]
 areas: [frontend]
 ---
