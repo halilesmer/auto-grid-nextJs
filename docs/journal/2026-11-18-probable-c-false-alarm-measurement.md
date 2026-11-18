@@ -3,7 +3,7 @@ date: 2026-11-18
 author: Claude
 type: diagnosis
 status: done
-pr: []
+pr: [617]
 features: [FRM-39]
 areas: [frontend]
 ---
