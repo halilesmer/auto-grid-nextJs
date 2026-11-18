@@ -117,4 +117,40 @@ test.describe('FRM-48 Formationssuche auf Nachfrage', () => {
     await expect(found(page)).toHaveCount(0);
     expect(await noOverflow(page)).toBe(true);
   });
+  test('Adreste bilinen formasyon (form=): soru yok, grafikten sonra arka planda aranır, bitişte rozet gelir', { tag: '@FRM-48' }, async ({ page, worker }) => {
+    await page.goto(`${URL}&form=ABCD`);
+    await expect(page.getByTestId('formation-ask')).toHaveCount(0);
+    await expect(page.getByTestId('analysis-chart')).toBeVisible();
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    expect(new Set(scanTfs(worker))).toEqual(new Set(['D1', 'H4', 'H1', 'M15']));
+    await expect(found(page)).toBeVisible();
+    await expect(page.getByTestId('formation-form-ABCD')).toBeVisible();
+    expect(new globalThis.URL(page.url()).searchParams.get('form')).toBe('ABCD');
+  });
+
+  test('form= ohne Wert oder unbekannt: die Frage kommt wie sonst, keine Suche', { tag: '@FRM-48' }, async ({ page, worker }) => {
+    await page.goto(`${URL}&form=NOPE`);
+    await expect(page.getByTestId('formation-ask')).toBeVisible();
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', '');
+    expect([...new Set(scanTfs(worker))]).toEqual(['H4']);
+  });
+
+  test('Ohne form= fragt die Seite wie bisher; nach „Hayır“ startet ein später in die Adresse geschriebenes form= keine Suche', { tag: '@FRM-48' }, async ({ page, worker }) => {
+    await page.goto(URL);
+    await expect(page.getByTestId('formation-ask')).toBeVisible();
+    await page.getByTestId('formation-ask-no').click();
+    await page.evaluate(() => { history.pushState(null, '', `${location.pathname}${location.search}&form=ABCD`); });
+    await expect(page.getByTestId('formation-ask-search')).toBeVisible();
+    await page.waitForTimeout(1500);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', '');
+    expect([...new Set(scanTfs(worker))]).toEqual(['H4']);
+  });
+
+  test('Link-Freigabe gilt nur für das Symbol beim Öffnen: ein anderes Symbol fragt neu', { tag: '@FRM-48' }, async ({ page, worker }) => {
+    void worker;
+    await page.goto(`${URL}&form=ABCD`);
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await page.evaluate(() => { history.pushState(null, '', `/chart${location.search.replace('EURUSD', 'XAUUSD')}`); });
+    await expect(page.getByTestId('formation-ask')).toContainText(msg('formation.ask.question', { symbol: 'XAUUSD' }));
+  });
 });

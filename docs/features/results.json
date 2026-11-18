@@ -1323,9 +1323,9 @@
   },
   "FRM-48": {
     "e2e": {
-      "datum": "2026-11-15",
+      "datum": "2026-11-18",
       "status": "passed",
-      "tests": 3
+      "tests": 9
     }
   },
   "LOG-01": {

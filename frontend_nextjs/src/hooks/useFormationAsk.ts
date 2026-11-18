@@ -24,13 +24,15 @@ interface AskInput {
   favorite: boolean;
   /** Die eigenen Kerzen des Charts sind da (1114-A1.4) */
   chartReady: boolean;
+  /** Die Adresse trägt eine bekannte Formation (`form=`): gilt als „Evet“ für den Schlüssel, der beim Öffnen der Seite galt (1118) */
+  linkForm?: boolean;
 }
 
 /**
  * Frage „Formasyonlar aransın mı?“ (1114-A1), erster Teil: Antwort und Freigabe. `enabled` geht an `useFormationScan`:
  * die Suchanfragen starten erst nach der Antwort und nach den Kerzen des Charts (A1.4).
  */
-export function useFormationAsk({ key, favoritesReady, favorite, chartReady: chartHere }: AskInput) {
+export function useFormationAsk({ key, favoritesReady, favorite, chartReady: chartHere, linkForm = false }: AskInput) {
   // Latch per symbol: the first candles are enough. A later reload of the chart (other timeframe, range) must not stop the search and start it again
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   // State adjustment during render (React docs: "storing information from previous renders"), no effect
@@ -38,7 +40,11 @@ export function useFormationAsk({ key, favoritesReady, favorite, chartReady: cha
   const chartReady = key !== null && loadedKey === key;
   const [answer, setAnswer] = useState<{ key: string; value: 'yes' | 'no' } | null>(null);
   const answered = answer && answer.key === key ? answer.value : null;
-  const confirmed = key !== null && (answered === 'yes' || (favorite && favoritesReady));
+  // Link consent (1118): decided once, for the first key of the page. `form=` written later (by the UI, or kept when the symbol changes) is no consent,
+  // and a new key asks again. `null` = not decided yet. State adjustment during render, no effect.
+  const [linkKey, setLinkKey] = useState<string | null | undefined>(undefined);
+  if (linkKey === undefined && key) setLinkKey(linkForm ? key : null);
+  const confirmed = key !== null && (answered === 'yes' || (favorite && favoritesReady) || (answered === null && linkKey === key));
   const [retrying, setRetrying] = useState(false);
   // Der Schlüssel, für den die erste Suche nach der Freigabe schon gemeldet wurde, und die Meldung des letzten Fehlers
   const [announced, setAnnounced] = useState<string | null>(null);

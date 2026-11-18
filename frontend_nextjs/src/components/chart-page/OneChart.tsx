@@ -208,7 +208,7 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
   const sidebar = useFormationSidebar();
   const favorites = useFavorites(accountId);
   const askKey = scanSymbol ? `${accountId}|${scanSymbol.toUpperCase()}` : null;
-  const ask = useFormationAsk({ key: askKey, favoritesReady: favorites.ready, favorite: scanSymbol ? favorites.isFavorite(scanSymbol) : false, chartReady: d1.data !== null || (ready && !isLoading && request === null && clockReady) });
+  const ask = useFormationAsk({ key: askKey, favoritesReady: favorites.ready, favorite: scanSymbol ? favorites.isFavorite(scanSymbol) : false, linkForm: urlForm !== null, chartReady: d1.data !== null || (ready && !isLoading && request === null && clockReady) });
   const scan = useFormationScan(accountId, scanSymbol, offsetSec, clockReady, pastAt, ask.enabled);
   // 1117-C1.2 A: das Ergebnis der ersten Suche steht 8 s als Abzeichen in der Formationsreihe, keine Meldung über den Bedienelementen
   const [scanResult, setScanResult] = useState<(AskResult & { key: string }) | null>(null);
