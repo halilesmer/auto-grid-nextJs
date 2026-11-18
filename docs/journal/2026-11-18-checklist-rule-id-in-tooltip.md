@@ -45,4 +45,4 @@ PR 609 put the row `div` inside a `Tooltip`. The tooltip wrapper is `inline-flex
 `formation-page.spec.ts` (FRM-19): in rows with texts of different length, the row width equals the section width, and the right edge of the value column is on the same x (1 px tolerance). The test failed before the fix (row 41.6 px narrower than the section) and passes after it.
 
 ### Lesson
-A wrapper element around a layout child changes the layout of the child. When a wrapper is added, check the width of the child with a measurement test, not only with the text content. The screenshots `images/checklist-light.png` and `images/checklist-dark.png` are renewed (mocked data, 1440 px, tooltip open).
+A wrapper element around a layout child changes the layout of the child. When a wrapper is added, check the width of the child with a measurement test, not only with the text content. The screenshots `images/checklist-light.png` and `images/checklist-dark.png` are renewed (mocked data, 1440 px, tooltip open). The app default theme is dark, so the light image needs the stored theme `light` (`grid-robot-theme` in `localStorage`); the `<html>` class was checked for each image.
