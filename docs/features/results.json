@@ -1061,16 +1061,16 @@
   },
   "FRM-09": {
     "e2e": {
-      "datum": "2026-11-15",
+      "datum": "2026-11-18",
       "status": "passed",
-      "tests": 58
+      "tests": 3
     }
   },
   "FRM-10": {
     "e2e": {
-      "datum": "2026-11-15",
+      "datum": "2026-11-18",
       "status": "passed",
-      "tests": 57
+      "tests": 1
     }
   },
   "FRM-11": {
@@ -1131,9 +1131,9 @@
   },
   "FRM-19": {
     "e2e": {
-      "datum": "2026-11-15",
+      "datum": "2026-11-18",
       "status": "passed",
-      "tests": 58
+      "tests": 61
     }
   },
   "FRM-20": {
@@ -1239,9 +1239,9 @@
   },
   "FRM-34": {
     "e2e": {
-      "datum": "2026-11-15",
+      "datum": "2026-11-18",
       "status": "passed",
-      "tests": 8
+      "tests": 1
     }
   },
   "FRM-37": {

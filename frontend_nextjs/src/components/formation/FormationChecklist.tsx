@@ -174,7 +174,7 @@ export function FormationChecklist({
                       )}
                       {c.status !== 'confirmed' && (
                         <Tooltip content={t(`formation.mark.${c.status}.hint` as MessageKey)} role="presentation">
-                          <span className="ml-1 cursor-help rounded-[5px] border border-border px-1 text-[10px] text-muted-foreground">{t(`formation.mark.${c.status}` as MessageKey)}</span>
+                          <span className="ml-1 cursor-help whitespace-nowrap rounded-[5px] border border-border px-1 text-[10px] text-muted-foreground">{t(`formation.mark.${c.status}` as MessageKey)}</span>
                         </Tooltip>
                       )}
                       {state === 'inactive' && (

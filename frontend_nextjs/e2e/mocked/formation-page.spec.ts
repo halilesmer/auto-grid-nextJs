@@ -244,6 +244,22 @@ test.describe('FRM-19 Kandidaten-Liste und Checkliste', () => {
     await expect(list.getByTestId('check-row').getByText(msg('formation.mark.assumption'), { exact: true }).first()).toBeVisible();
   });
 
+  test('Marken der Checkliste sind ausgeschriebene Wörter (mindestens 4 Zeichen), der Hinweis der Annahme nennt keine Datei', { tag: '@FRM-19' }, async ({ page, worker }) => {
+    await openPage(page, worker, `${URL}&form=GAR`);
+    const list = page.getByTestId('formation-checklist');
+    const marks = list.getByTestId('check-row').locator('span.cursor-help').filter({ hasText: /\S/ });
+    const count = await marks.count();
+    expect(count).toBeGreaterThan(0);
+    for (let i = 0; i < count; i++) {
+      expect((await marks.nth(i).innerText()).trim().length).toBeGreaterThanOrEqual(4);
+    }
+    const assumption = list.getByTestId('check-row').getByText(msg('formation.mark.assumption'), { exact: true }).first();
+    await assumption.hover();
+    const tip = page.getByRole('tooltip').filter({ hasText: msg('formation.mark.assumption.hint') });
+    await expect(tip).toBeVisible();
+    expect(await tip.innerText()).not.toContain('.ts');
+  });
+
   test('Die Regel-ID steht nicht in der Zeile, sondern im Hinweis der Zeile (Hover und Tastaturfokus)', { tag: '@FRM-19' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
     const list = page.getByTestId('formation-checklist');

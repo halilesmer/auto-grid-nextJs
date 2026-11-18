@@ -2585,6 +2585,7 @@ kategorien:
         tiers: [e2e]
         pruefung:
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-19) ausführen (Gartley gültig mit drei Gruppen und allen Zeilenzuständen, Bat im Aufbau mit Hinweis auf D).
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-19) ausführen (Marken secondary und assumption sind ausgeschriebene Wörter mit mindestens 4 Zeichen, der Hinweis der Annahme nennt keine Datei).
           - Playwright-Test e2e/mocked/formation-page-lib.spec.ts (@FRM-19) ausführen (Kurztexte stimmen mit der Messung überein).
           - "Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-19) ausführen (kein Zeilentext enthält die Regel-ID; Hover und Tastaturfokus zeigen im Hinweis „Kural: ID“)."
           - Playwright-Test e2e/mocked/formation-crb-lib.spec.ts (@FRM-19) ausführen (Bedingungen der anderen Crab-Variante, Zählung im Bild).
