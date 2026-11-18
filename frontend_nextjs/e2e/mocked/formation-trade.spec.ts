@@ -166,12 +166,45 @@ test.describe('FRM-39 Handelsblock AB=CD (TP2, Ergebnisse in R)', () => {
     await expect(block.getByTestId('trade-outcome-tp1')).toContainText(msg('formation.trade.outcome.sofar'));
     await expect(block.getByTestId('trade-outcome-tp12')).toContainText(msg('formation.trade.outcome.ifTp2'));
     // Gleiche Werte wie am Einstieg (+0,50 / +1,31) wären das Fehlerbild: das mitlaufende Ziel liegt bei Erreichen anders als am Einstieg
-    await expect(block.getByTestId('trade-outcome-tp1')).not.toContainText('+0,50');
-    await expect(block.getByTestId('trade-outcome-tp12')).not.toContainText('+1,31');
+    // Die Plan-Zeile trägt die Einstiegswerte (+0,50 / +1,31); die große Zahl ist der tatsächliche Wert
+    await expect(block.getByTestId('trade-outcome-tp1')).toHaveText(`${msg('formation.trade.outcome.sofar')}+0,43${msg('formation.trade.outcome.plan', { value: '+0,50' })}`);
+    await expect(block.getByTestId('trade-outcome-tp12')).toHaveText(`${msg('formation.trade.outcome.ifTp2')}+1,19${msg('formation.trade.outcome.plan', { value: '+1,31' })}`);
     // Von Hand: Werte aus dem Zählpreis von TP1 und dem aktuellen TP2
     await expect(block.getByTestId('trade-outcome-tp1')).toContainText('+0,43');
     await expect(block.getByTestId('trade-outcome-tp12')).toContainText('+1,19');
     await expect(block.getByTestId('trade-outcome-stop')).toContainText('-1,00');
+  });
+
+  test('Status TP1 alındı: unter dem tatsächlichen Wert steht der Plan-Wert, der Hinweis nennt beide', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'abcd-double-h4-01', 1763452800, 'ABCD');
+    const block = page.getByTestId('trade-block');
+    const sofar = block.getByTestId('trade-outcome-tp1');
+    const ifTp2 = block.getByTestId('trade-outcome-tp12');
+    // Groß der tatsächliche Wert, klein darunter der Wert vom Einstieg
+    await expect(sofar).toContainText('+0,43');
+    await expect(block.getByTestId('trade-outcome-plan-tp1')).toHaveText(msg('formation.trade.outcome.plan', { value: '+0,50' }));
+    await expect(block.getByTestId('trade-outcome-plan-tp12')).toHaveText(msg('formation.trade.outcome.plan', { value: '+1,31' }));
+    // Der Stop-Kasten hat keine Plan-Zeile
+    await expect(block.getByTestId('trade-outcome-plan-stop')).toHaveCount(0);
+    // Hover: beide Werte im Hinweis
+    await sofar.hover();
+    const tip = page.getByRole('tooltip');
+    await expect(tip).toContainText(msg('formation.trade.outcome.diff.actual', { value: '+0,43' }));
+    await expect(tip).toContainText(msg('formation.trade.outcome.diff.plan', { value: '+0,50' }));
+    await expect(tip).toContainText(msg('formation.trade.outcome.diff.drift'));
+    await page.mouse.move(0, 0);
+    await expect(tip).toHaveCount(0);
+    // Tastaturfokus am bedingten Kasten: erste Zeile ist die „wenn TP2 kommt“-Fassung
+    await page.keyboard.press('Tab');
+    await ifTp2.focus();
+    await expect(ifTp2).toBeFocused();
+    await expect(page.getByRole('tooltip')).toContainText(msg('formation.trade.outcome.diff.ifTp2', { value: '+1,19' }));
+    await expect(page.getByRole('tooltip')).toContainText(msg('formation.trade.outcome.diff.plan', { value: '+1,31' }));
+  });
+
+  test('Status açık: keine Plan-Zeile, solange noch kein Ziel erreicht ist', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'abcd-buy-h4-02', 1752624000 - 30 * 14400, 'ABCD');
+    await expect(page.getByTestId('trade-block').locator('[data-testid^="trade-outcome-plan-"]')).toHaveCount(0);
   });
 
   test('Status açık: kein Treffer, Stop bleibt, kein Ergebnis-Kasten hervorgehoben', { tag: '@FRM-39' }, async ({ page, worker }) => {

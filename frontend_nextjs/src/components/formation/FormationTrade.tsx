@@ -1,5 +1,6 @@
 'use client';
 
+import { Fragment } from 'react';
 import { ArrowDown, ArrowUp, Check, Clock, Info, Minus, RotateCcw, TriangleAlert, Undo2, X } from 'lucide-react';
 import { StateIcon, checkRowState } from '@/components/formation/FormationChecklist';
 import { InfoHint, Tooltip } from '@/components/ui/tooltip';
@@ -408,13 +409,20 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
               // Tatsächliches Ergebnis: der Kasten wird hervorgehoben, die übrigen blass und durchgestrichen (nicht nur Farbe)
               const { active, dim, label, actual } = outcomeView(key);
               const shown = actual && realized ? (realized[key] ?? v) : v;
-              return (
+              // Plan-Zeile (nur Kästen mit tatsächlichem Wert; der Stop bleibt immer −1): das Ziel kann sich nach dem Einstieg verschoben haben
+              const showPlan = actual && realized !== null && key !== 'stop';
+              const conditional = actual && !active;
+              const conditionalKind = key === 'tp123' ? 'ifBig' : 'ifTp2';
+              const hintKind = conditional ? conditionalKind : 'actual';
+              const box = (
                 <div
-                  key={key}
                   data-testid={`trade-outcome-${key}`}
                   data-active={active ? 'true' : 'false'}
+                  tabIndex={showPlan ? 0 : undefined}
+                  role={showPlan ? 'group' : undefined}
                   className={cn(
                     'flex min-w-0 flex-col gap-px rounded-lg border px-1.5 py-1',
+                    showPlan && 'w-full flex-1 outline-none focus-visible:ring-2 focus-visible:ring-ring',
                     active && key === 'stop' && 'border-danger/50',
                     active && key !== 'stop' && 'border-success/50',
                     !active && 'border-border',
@@ -423,7 +431,23 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
                 >
                   <span className="text-[10.5px] leading-tight text-muted-foreground">{label}</span>
                   <span className={cn('text-[13px] font-medium tabular-nums', tone, dim && 'line-through')}>{rText(shown)}</span>
+                  {showPlan && (
+                    <span data-testid={`trade-outcome-plan-${key}`} className="text-[10.5px] leading-tight tabular-nums text-muted-foreground/80">
+                      {t('formation.trade.outcome.plan', { value: rText(v) })}
+                    </span>
+                  )}
                 </div>
+              );
+              if (!showPlan) return <Fragment key={key}>{box}</Fragment>;
+              const hint = [
+                t(`formation.trade.outcome.diff.${hintKind}` as MessageKey, { value: rText(shown) }),
+                t('formation.trade.outcome.diff.plan', { value: rText(v) }),
+                t('formation.trade.outcome.diff.drift'),
+              ].join('\n');
+              return (
+                <Tooltip key={key} content={hint} className="min-w-0 shrink">
+                  {box}
+                </Tooltip>
               );
             })}
           </div>
