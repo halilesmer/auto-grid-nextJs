@@ -151,43 +151,43 @@ export function FormationChecklist({
               const state = checkRowState(c);
               const highlighted = activeSet !== null && c.drawings.some((d) => activeSet.has(d));
               return (
-                <div
-                  key={c.id}
-                  tabIndex={0}
-                  data-testid={c.veto ? 'veto-row' : 'check-row'}
-                  data-rule-id={c.id}
-                  data-state={state}
-                  data-on={highlighted ? 'true' : 'false'}
-                  onMouseEnter={() => onActive(c.drawings)}
-                  onFocus={() => onActive(c.drawings)}
-                  onMouseLeave={() => onActive(null)}
-                  onBlur={() => onActive(null)}
-                  className={cn('grid grid-cols-[22px_minmax(0,1fr)_auto] items-start gap-2 px-3 py-1 outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary', highlighted && 'bg-muted')}
-                >
-                  <StateIcon state={state} />
-                  <span className={cn('min-w-0 text-xs', (state === 'unmeasurable' || state === 'inactive') && 'text-muted-foreground')}>
-                    {ruleText(locale, c.id) ?? c.id}
-                    {c.veto && (
-                      <Tooltip content={t('formation.mark.veto.hint')} role="presentation">
-                        <span className="ml-1 cursor-help rounded-[5px] border border-danger/40 px-1 text-[10px] text-danger">{t('formation.mark.veto')}</span>
-                      </Tooltip>
-                    )}
-                    {c.status !== 'confirmed' && (
-                      <Tooltip content={t(`formation.mark.${c.status}.hint` as MessageKey)} role="presentation">
-                        <span className="ml-1 cursor-help rounded-[5px] border border-border px-1 text-[10px] text-muted-foreground">{t(`formation.mark.${c.status}` as MessageKey)}</span>
-                      </Tooltip>
-                    )}
-                    {state === 'inactive' && (
-                      <Tooltip content={t('formation.mark.inactive.hint')} role="presentation">
-                        <span className="ml-1 cursor-help whitespace-nowrap rounded-[5px] bg-muted px-1 text-[10px] text-muted-foreground">{t('formation.mark.inactive')}</span>
-                      </Tooltip>
-                    )}
-                  </span>
-                  <span className="flex flex-col items-end text-[11px] tabular-nums text-muted-foreground">
-                    <span>{c.id}</span>
-                    {c.value !== undefined && <span className="text-xs text-foreground/80">{number(c.value, { maximumFractionDigits: 3 })}</span>}
-                  </span>
-                </div>
+                <Tooltip key={c.id} content={t('formation.rule.id.hint', { id: c.id })} side="bottom" role="presentation" className="flex w-full shrink">
+                  <div
+                    tabIndex={0}
+                    data-testid={c.veto ? 'veto-row' : 'check-row'}
+                    data-rule-id={c.id}
+                    data-state={state}
+                    data-on={highlighted ? 'true' : 'false'}
+                    onMouseEnter={() => onActive(c.drawings)}
+                    onFocus={() => onActive(c.drawings)}
+                    onMouseLeave={() => onActive(null)}
+                    onBlur={() => onActive(null)}
+                    className={cn('grid grid-cols-[22px_minmax(0,1fr)_auto] items-start gap-2 px-3 py-1 outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary', highlighted && 'bg-muted')}
+                  >
+                    <StateIcon state={state} />
+                    <span className={cn('min-w-0 text-xs', (state === 'unmeasurable' || state === 'inactive') && 'text-muted-foreground')}>
+                      {ruleText(locale, c.id) ?? c.id}
+                      {c.veto && (
+                        <Tooltip content={t('formation.mark.veto.hint')} role="presentation">
+                          <span className="ml-1 cursor-help rounded-[5px] border border-danger/40 px-1 text-[10px] text-danger">{t('formation.mark.veto')}</span>
+                        </Tooltip>
+                      )}
+                      {c.status !== 'confirmed' && (
+                        <Tooltip content={t(`formation.mark.${c.status}.hint` as MessageKey)} role="presentation">
+                          <span className="ml-1 cursor-help rounded-[5px] border border-border px-1 text-[10px] text-muted-foreground">{t(`formation.mark.${c.status}` as MessageKey)}</span>
+                        </Tooltip>
+                      )}
+                      {state === 'inactive' && (
+                        <Tooltip content={t('formation.mark.inactive.hint')} role="presentation">
+                          <span className="ml-1 cursor-help whitespace-nowrap rounded-[5px] bg-muted px-1 text-[10px] text-muted-foreground">{t('formation.mark.inactive')}</span>
+                        </Tooltip>
+                      )}
+                    </span>
+                    <span className="flex flex-col items-end text-[11px] tabular-nums text-muted-foreground">
+                      {c.value !== undefined && <span className="text-xs text-foreground/80">{number(c.value, { maximumFractionDigits: 3 })}</span>}
+                    </span>
+                  </div>
+                </Tooltip>
               );
             })}
           </section>
