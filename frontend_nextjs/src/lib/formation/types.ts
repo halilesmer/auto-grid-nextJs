@@ -143,6 +143,10 @@ export interface CLeg {
   emergencyStop: number | null;
   /** Level 1 des AB=CD */
   target: number | null;
+  /** Nur bei Werten: Kerze des Einstiegs (Index in den Kerzen des Kandidaten; Zone: die C-Kerze, Umkehrkerze: die Kerze, in der sie öffnet), Kerzen bis zur letzten und deren Schluss */
+  entryIdx?: number;
+  barsSince?: number;
+  lastClose?: number;
 }
 
 export interface Candidate {

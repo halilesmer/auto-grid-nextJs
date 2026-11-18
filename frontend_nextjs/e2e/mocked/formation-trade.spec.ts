@@ -456,13 +456,13 @@ const d1Of = (file: string, now: number): number[][] => {
 // abcd-breakc-h4-01: Satış-AB=CD (alış C ayağı), C = 1785240000 ve 1,32729. C'de bölge yok. Saatlik dolgu kerzeleri C'den 60 saat öncesinden başlar;
 // `engulf` ile C'den 8 saat sonra düşen (ayı) ve onu saran (boğa) iki saatlik kerze eklenir (sentetik).
 const BREAKC = { file: 'abcd-breakc-h4-01', now: 1785744000, c: { time: 1785240000, price: 1.32729 }, range: 0.0031716667 };
-const h1Of = (engulf: boolean): number[][] => {
+const h1Of = (engulf: boolean, hours = 8): number[][] => {
   const { c, range: r } = BREAKC;
   const rows: number[][] = [];
-  for (let ts = c.time - 60 * 3600; ts < c.time + 8 * 3600; ts += 3600) rows.push([ts, c.price, c.price + 0.01 * r, c.price, c.price + 0.005 * r]);
+  for (let ts = c.time - 60 * 3600; ts < c.time + hours * 3600; ts += 3600) rows.push([ts, c.price, c.price + 0.01 * r, c.price, c.price + 0.005 * r]);
   if (engulf) {
-    rows.push([c.time + 8 * 3600, c.price + 0.3 * r, c.price + 0.32 * r, c.price, c.price + 0.05 * r]);
-    rows.push([c.time + 9 * 3600, c.price + 0.04 * r, c.price + 0.45 * r, c.price, c.price + 0.4 * r]);
+    rows.push([c.time + hours * 3600, c.price + 0.3 * r, c.price + 0.32 * r, c.price, c.price + 0.05 * r]);
+    rows.push([c.time + (hours + 1) * 3600, c.price + 0.04 * r, c.price + 0.45 * r, c.price, c.price + 0.4 * r]);
   }
   return rows;
 };
@@ -559,6 +559,87 @@ test.describe('FRM-39 Handelsblock AB=CD (C ayağı)', () => {
     await expect(cl.getByTestId('trade-cleg-row-candle')).toHaveAttribute('data-state', 'unmeasurable');
     await expect(cl.getByTestId('trade-cleg-waiting')).toHaveCount(0);
     await expect(cl.getByTestId('trade-cleg-entry')).toHaveCount(0);
+  });
+
+  // Geçmişe ait giriş: C ancak sağındaki iki mum kapandıktan sonra tanınır; giriş N mum önce, fiyat şimdi girişten uzakta
+  test('Geçmişe ait not: bölge girişi (satış, fiyat girişin üstünde) → “2 mum önce” ve girişin gerisinde', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openCLeg(page, worker, ZONE_CASE);
+    const cl = page.getByTestId('trade-cleg');
+    // C ayağı girişi C mumunda (temas); görünümde C’den sonra 2 mum var. Son kapanış 177,053, giriş 176,763: satışta giriş alınabilir tarafın gerisinde, fark 29,0 pip
+    await expect(cl.getByTestId('trade-cleg-past')).toHaveText(msg('formation.trade.cleg.past.many', { n: '2' }));
+    const gap = cl.getByTestId('trade-cleg-past-gap');
+    await expect(gap).toHaveAttribute('data-side', 'behind');
+    await expect(gap).toHaveText(msg('formation.trade.cleg.past.behind', { d: msg('formation.trade.away.pips', { n: '29,0' }) }));
+  });
+
+  test('Geçmişe ait not: mum girişi (alış, fiyat girişin üstünde) → “20 mum önce” ve girişin ötesinde', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openCLeg(page, worker, BREAKC, h1Of(true));
+    const cl = page.getByTestId('trade-cleg');
+    // Dönüş mumu C’den 9 saat sonra açılır = H4 kerzesi C + 2; görünümde 272 kerze, C = 249 → 271 − 251 = 20
+    await expect(cl.getByTestId('trade-cleg-past')).toHaveText(msg('formation.trade.cleg.past.many', { n: '20' }));
+    const gap = cl.getByTestId('trade-cleg-past-gap');
+    await expect(gap).toHaveAttribute('data-side', 'beyond');
+    await expect(gap).toHaveText(msg('formation.trade.cleg.past.beyond', { d: msg('formation.trade.away.pips', { n: '1,9' }) }));
+    await expect(gap).not.toContainText(/ABCD-\d|HDL-\d|SIG-\d/);
+  });
+
+  test('Geçmişe ait not: giriş son mumda (N = 0) ve bekleme hâlinde rozet ve satır yok', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    // Dönüş mumu (saatlik) görünümün son H4 kerzesinde açılır (C + 22): 0 mum önce
+    await openCLeg(page, worker, BREAKC, h1Of(true, 136));
+    const cl = page.getByTestId('trade-cleg');
+    await expect(cl).toHaveAttribute('data-variant', 'candle');
+    await expect(cl.getByTestId('trade-cleg-entry')).toBeVisible();
+    await expect(cl.getByTestId('trade-cleg-past')).toHaveCount(0);
+    await expect(cl.getByTestId('trade-cleg-past-gap')).toHaveCount(0);
+  });
+
+  test('Geçmişe ait not: tek mum önce → tekil metin', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    // Dönüş mumu sondan bir önceki H4 kerzesinde açılır (C + 21): 1 mum önce
+    await openCLeg(page, worker, BREAKC, h1Of(true, 132));
+    await expect(page.getByTestId('trade-cleg-past')).toHaveText(msg('formation.trade.cleg.past.one', { n: '1' }));
+  });
+
+  test('Geçmişe ait not: bekleme hâlinde (giriş yok) rozet ve satır yok', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openCLeg(page, worker, BREAKC, h1Of(false));
+    const cl = page.getByTestId('trade-cleg');
+    await expect(cl.getByTestId('trade-cleg-waiting')).toBeVisible();
+    await expect(cl.getByTestId('trade-cleg-past')).toHaveCount(0);
+    await expect(cl.getByTestId('trade-cleg-past-gap')).toHaveCount(0);
+  });
+
+  test('Geçmişe ait rozet: fareyle ve klavye odağıyla ipucu açılır', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openCLeg(page, worker, ZONE_CASE);
+    const badge = page.getByTestId('trade-cleg').getByTestId('trade-cleg-past');
+    await badge.hover();
+    await expect(page.getByRole('tooltip')).toContainText(msg('formation.trade.cleg.past.hint'));
+    await page.mouse.move(0, 0);
+    await expect(page.getByRole('tooltip')).toHaveCount(0);
+    await badge.focus({ timeout: 5000 });
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Shift+Tab');
+    await expect(badge).toBeFocused();
+    await expect(page.getByRole('tooltip')).toContainText(msg('formation.trade.cleg.past.hint'));
+  });
+
+  test('Geçmişe ait rozet sütun hizasını bozmaz: ipucu sarmalayıcısı rozetle aynı genişlikte, girişin sol kenarında', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openCLeg(page, worker, ZONE_CASE);
+    const cl = page.getByTestId('trade-cleg');
+    const badge = cl.getByTestId('trade-cleg-past');
+    const wrapper = badge.locator('xpath=..');
+    const [b, w, entry, stop, cell] = await Promise.all([
+      badge.boundingBox(),
+      wrapper.boundingBox(),
+      cl.getByTestId('trade-cleg-entry').boundingBox(),
+      cl.getByTestId('trade-cleg-stop').boundingBox(),
+      cl.getByTestId('trade-cleg-entry').locator('xpath=..').boundingBox(),
+    ]);
+    expect(b && w && entry && stop && cell).toBeTruthy();
+    expect(Math.abs(w!.width - b!.width)).toBeLessThanOrEqual(0.5);
+    expect(b!.width).toBeLessThan(cell!.width * 0.7);
+    expect(Math.abs(b!.x - entry!.x)).toBeLessThanOrEqual(0.5);
+    // Stop-Spalte beginnt rechts der Giriş-Zelle, auf derselben Zeile wie der Stop-Wert über dem Hinweis
+    expect(stop!.x).toBeGreaterThan(cell!.x + cell!.width - 0.5);
+    expect(Math.abs(stop!.y - entry!.y)).toBeLessThanOrEqual(1);
   });
 
   test('Seviye 1’e ulaşılmışsa bölüm yok', { tag: '@FRM-39' }, async ({ page, worker }) => {

@@ -32,6 +32,8 @@ export interface ReversalCandle {
   tf?: ContextTimeframe;
   close?: number;
   tip?: number;
+  /** Öffnungszeit der Engulf-Kerze (Zeiteinheit `tf`) */
+  time?: number;
 }
 
 /** Wie `reversalAt`, liefert bei ☑ zusätzlich die Kerze selbst; `reversalAt` gibt nur den Zustand zurück */
@@ -60,7 +62,7 @@ export function reversalCandleAt(env: Env, tf: ContextTimeframe, side: Side, anc
       else {
         const own = view.bars.slice(e.prevIdx + 1, e.idx + 1);
         const tip = side === 'buy' ? Math.min(...own.map((b) => b.low)) : Math.max(...own.map((b) => b.high));
-        return { state: 'met', tf: x, close: view.bars[e.idx].close, tip };
+        return { state: 'met', tf: x, close: view.bars[e.idx].close, tip, time: view.bars[e.idx].time };
       }
     }
   }
