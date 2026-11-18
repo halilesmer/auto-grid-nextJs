@@ -29,9 +29,12 @@ export async function chartReady(page: Page) {
  * search still runs and still widens the price axis (`priceRange` does not depend on the switch).
  */
 export async function hideFormationDrawings(page: Page) {
+  // Only the formation timeframes (D1, H4, H1, M15) have the switch. Decide by the timeframe of the address, not by a count of the
+  // switch at this moment: the switch may not be drawn yet, and the formation lines would stay (review of the coordinator, PR 616)
+  const tf = new URL(page.url()).searchParams.get('tf');
+  if (tf && !['D1', 'H4', 'H1', 'M15'].includes(tf)) return;
   const toggle = page.getByTestId('formation-drawings-toggle');
-  // Only the formation timeframes (D1, H4, H1, M15) have the switch; W1 and MN draw no formation
-  if ((await toggle.count()) === 0) return;
+  await expect(toggle).toBeVisible();
   if ((await toggle.getAttribute('aria-pressed')) === 'true') await toggle.click();
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
 }

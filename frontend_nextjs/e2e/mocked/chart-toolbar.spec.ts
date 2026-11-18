@@ -13,6 +13,8 @@ async function lineY(page: Page, offset: number) {
   return bar.y + bar.height + offset;
 }
 async function drawLine(page: Page, offset = 60) {
+  // The click is at a fixed pixel: a formation line of the search must not lie under it (1118-A5.1, see hideFormationDrawings)
+  await hideFormationDrawings(page);
   await page.getByRole('button', { name: msg('cw.rail.linesMenu'), exact: true }).click();
   await page.getByTestId('tool-horizontal-line').click();
   const box = await page.getByTestId('analysis-chart').boundingBox(); if (!box) throw new Error('Chart missing');

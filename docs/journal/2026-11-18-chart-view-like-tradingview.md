@@ -76,6 +76,9 @@ All e2e runs on the Mac under the heavy lock (SYS-11), mocked e2e, 3 Playwright 
 | After the review fixes and the drawing-test fix: 16 affected specs (`chart-view-like-tradingview`, `chart-workspace`, `formation-page`, `chart-older-heavy`, the 9 drawing specs, `chart-latest-bar`, `settings-osc-scope`, `tooltips`) | `274 passed`, `2 failed` (UI-27 W1 and MN: the fixture waited for the formation switch, which only D1/H4/H1/M15 have; fixed) |
 | `chart-fib-settings.spec.ts`, `chart-scan-scale-tool.spec.ts` after that fix | `12 passed` |
 | Full pre-PR check after the fixes | not run again; the affected specs ran as above, CI runs all mocked e2e tests |
+| CI run 44392981333 of PR 616, compared with the last three completed `tests.yml` runs on `main` (44341865901, 44322763436, 44317960655; §4.17) | 1 flaky in the PR: ANA-17 `chart-toolbar.spec.ts:137` (first try: `cw.undo` stays disabled after `drawLine`, the horizontal line was not drawn); first try passed in all three `main` runs. Finding of this PR, same cause: `drawLine` clicks a fixed pixel without `chartReady`. Fixed: `drawLine` calls `hideFormationDrawings` |
+| Review of the coordinator on `hideFormationDrawings` | a count of the switch at one moment can be 0 before the switch is drawn; the function then did nothing. Fixed: the timeframe of the address decides (D1, H4, H1, M15 or no `tf`: wait for the switch; W1, MN: nothing to do) |
+| `chart-toolbar.spec.ts` `--repeat-each=3`; the 9 drawing specs `--repeat-each=2` with the fixed fixture | `33 passed`; `88 passed` |
 | `npx tsc --noEmit`, `npx eslint` on the changed files | no output |
 | `scripts/features/run.sh check` | `features.yaml ok (284 Features)` |
 
