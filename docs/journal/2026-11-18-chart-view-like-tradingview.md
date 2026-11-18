@@ -83,7 +83,7 @@ All e2e runs on the Mac under the heavy lock (SYS-11), mocked e2e, 3 Playwright 
 | `scripts/features/run.sh check` | `features.yaml ok (284 Features)` |
 
 ## Open points
-- [ ] PR merged and the run of `tests.yml` on `main` is green.
+- [x] PR merged and the run of `tests.yml` on `main` is green (run 44405922732, commit `22fcce3d`: success).
 - [x] Defect "a formation line takes the press while a tool is active": fixed in the next PR (journal `2026-11-18-tool-over-formation-line`).
 - [ ] Observation: with the default right offset of the library (0), the last candle is at the right edge. The possible zone of a forming formation ahead of the last candle is then narrow (measured 16 px on FRM-20). TradingView has a right margin setting; the brief asked for the library default.
 - [ ] Observation from the review, not examined: `ChartCore` builds the chart again when `hasNotes` changes (`notes` exists only with a setup zone); the zoom of the user is then lost. Before, the stored zoom hid this.
