@@ -18,3 +18,18 @@ export async function chartReady(page: Page) {
   // new picture was not measured; with this wait 116 of 116 runs passed).
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
 }
+
+/**
+ * Hides the formation drawings (toolbar switch "Formasyon çizimleri", FRM-45) for a test about the user's own drawings.
+ *
+ * Since 1118-A5.1 the chart opens with the latest candles at the default bar spacing, so the formation of the search spreads over
+ * the view. The 14 px hit area of its lines (`line-hit`, `pointer-events: stroke`) then can lie under the fixed pixels of the test
+ * and takes the pointer events, also while a drawing tool is active (measured with `elementFromPoint`: journal
+ * 2026-11-18-chart-view-like-tradingview). The switch is stored in the chart document: it stays after a reload. The formation
+ * search still runs and still widens the price axis (`priceRange` does not depend on the switch).
+ */
+export async function hideFormationDrawings(page: Page) {
+  const toggle = page.getByTestId('formation-drawings-toggle');
+  if ((await toggle.getAttribute('aria-pressed')) === 'true') await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+}

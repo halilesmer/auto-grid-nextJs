@@ -1,12 +1,10 @@
 import type { Page } from '@playwright/test';
 import { DEMO_ID, LIVE_ID, makeZone, test, expect } from '../fixtures/test';
-import { chartReady } from '../fixtures/chart-ready';
+import { chartReady, hideFormationDrawings } from '../fixtures/chart-ready';
 import { msg } from '../fixtures/i18n';
 import { openDrawings } from '../fixtures/chart-dialog';
 
-// 30 days: the chart opens with the latest candles at 6 px (1118-A5.1); 7 days of H1 do not fill the width, and the fixed pixels of
-// the drawings below would fall on the empty area left of the first candle
-const URL = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=30d`;
+const URL = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
 const storageKey = 'grid-robot-chart-workspaces-v1';
 test.setTimeout(60_000);
 /** Höhe einer Linie: `offset` zählt ab der Unterkante der Kopfleiste (UI-10: der Chart füllt die Seite, die Kopfleiste liegt auf ihm) */
@@ -217,6 +215,7 @@ test('Mehrere ausgewählte Zeichnungen bleiben bis zur Löschbestätigung vorgem
   void worker;
   await page.goto(URL);
   await chartReady(page); // the test clicks the drawn lines at fixed pixels later (journal 2026-11-16-chart-drawing-tests-scan-race)
+  await hideFormationDrawings(page);
   await page.getByRole('button', { name: msg('cw.magnet'), exact: true }).click();
   await drawLine(page, 60);
   await drawLine(page, 110);

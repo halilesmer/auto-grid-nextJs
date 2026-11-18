@@ -1,15 +1,14 @@
 import type { Page } from '@playwright/test';
 import { DEMO_ID, test, expect } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
+import { hideFormationDrawings } from '../fixtures/chart-ready';
 
 // 1116-A7.1: the formation scan widens the price axis to the levels of its formation when it ends. While a drawing tool
 // is active, the screen must not move: the scale change waits until the tool ends, then it applies (1116-B1).
 // Measurement without chart internals: both points of a trend line go on the same pixel row. With the same scale for
 // both clicks (magnet off), both points have the same price. A scale change between the clicks gives two prices.
 // Exception to `chartReady(page)` (.claude/rules/tests.md): this test clicks before the search ends on purpose.
-// 30 days: the chart opens with the latest candles at 6 px (1118-A5.1); 7 days of H1 do not fill the width, and the fixed pixels of
-// the drawings below would fall on the empty area left of the first candle
-const URL = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=30d`;
+const URL = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
 const storageKey = 'grid-robot-chart-workspaces-v1';
 test.setTimeout(60_000);
 test.beforeEach(({ page }) => page.addInitScript(() => localStorage.setItem('grid-robot-formation-sidebar', JSON.stringify({ open: false, tab: 'conditions' }))));
@@ -31,6 +30,7 @@ test('Tarama bir çizim aracı etkinken biterse fiyat ölçeği araç bitene kad
   await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' });
   await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-bars', /^[1-9]\d*$/);
   await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', '');
+  await hideFormationDrawings(page);
   const magnet = page.getByRole('button', { name: msg('cw.magnet'), exact: true });
   if ((await magnet.getAttribute('aria-pressed')) === 'true') await magnet.click();
   await page.getByTestId('chart-workspace').getByRole('button', { name: msg('cw.rail.linesMenu'), exact: true }).click();
@@ -69,6 +69,7 @@ test('Tarama fare basılıyken biter, bırakınca ölçek genişler (basılı du
   await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' });
   await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-bars', /^[1-9]\d*$/);
   await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', '');
+  await hideFormationDrawings(page);
   const magnet = page.getByRole('button', { name: msg('cw.magnet'), exact: true });
   if ((await magnet.getAttribute('aria-pressed')) === 'true') await magnet.click();
   const draw = async (x1: number, x2: number, y: number) => {

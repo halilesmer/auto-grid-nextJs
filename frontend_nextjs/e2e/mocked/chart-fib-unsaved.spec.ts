@@ -4,13 +4,11 @@
  */
 import type { Page } from '@playwright/test';
 import { openDrawings } from '../fixtures/chart-dialog';
-import { chartReady } from '../fixtures/chart-ready';
+import { chartReady, hideFormationDrawings } from '../fixtures/chart-ready';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, expect, test } from '../fixtures/test';
 
-// 30 days: the chart opens with the latest candles at 6 px (1118-A5.1); 7 days of H1 do not fill the width, and the fixed pixels of
-// the drawings below would fall on the empty area left of the first candle
-const URL = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=30d`;
+const URL = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
 const KEY = 'grid-robot-chart-workspaces-v1';
 test.setTimeout(90_000);
 
@@ -26,6 +24,7 @@ async function stored(page: Page) {
 }
 async function drawFib(page: Page) {
   await chartReady(page);
+  await hideFormationDrawings(page);
   await page.getByRole('button', { name: msg('cw.rail.fibMenu'), exact: true }).click();
   await page.getByTestId('tool-fib-retracement').click();
   const box = (await page.getByTestId('analysis-chart').boundingBox())!;
@@ -108,6 +107,7 @@ test('UI-27: Farbpanel wie TradingView: Palette, eigene Farbe (bleibt), Deckkraf
   // nach dem Neuladen steht die eigene Farbe noch im Panel (jeder Farbknopf)
   await page.reload();
   await chartReady(page);
+  await hideFormationDrawings(page);
   await openByDoubleClick(page, at);
   await d.getByRole('button', { name: `${msg('fib.levelColor')} 0`, exact: true }).click();
   await expect(d.getByTestId('color-palette').locator('[data-color="#123456"]')).toHaveCount(1);
