@@ -151,7 +151,7 @@ export function FormationChecklist({
               const state = checkRowState(c);
               const highlighted = activeSet !== null && c.drawings.some((d) => activeSet.has(d));
               return (
-                <Tooltip key={c.id} content={t('formation.rule.id.hint', { id: c.id })} side="bottom" role="presentation" className="flex w-full shrink">
+                <Tooltip key={c.id} content={t('formation.rule.id.hint', { id: c.id })} side="left" role="presentation" className="flex w-full shrink">
                   <div
                     tabIndex={0}
                     data-testid={c.veto ? 'veto-row' : 'check-row'}

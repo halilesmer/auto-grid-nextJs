@@ -37,7 +37,8 @@ const EDGE = 8; // Mindestabstand zum Viewport-Rand
 
 interface TooltipProps extends Omit<HTMLAttributes<HTMLSpanElement>, 'content'> {
   content: HintContent;
-  side?: 'top' | 'bottom';
+  /** `left`: links neben dem Anker, senkrecht mittig; ohne Platz links fällt es auf `bottom` zurück (schmale Ansicht). */
+  side?: 'top' | 'bottom' | 'left';
   /** Antippen (Touch) schaltet den Tooltip um; für das (i)-Icon, das es auf Touch sonst nicht gäbe. */
   touchToggle?: boolean;
 }
@@ -84,9 +85,15 @@ export function Tooltip({ content, side = 'top', touchToggle = false, className,
     }
     const a = anchor.getBoundingClientRect();
     const r = tip.getBoundingClientRect();
+    if (side === 'left' && a.left - r.width - GAP >= EDGE) {
+      const topC = Math.max(EDGE, Math.min(a.top + a.height / 2 - r.height / 2, window.innerHeight - r.height - EDGE));
+      tip.style.top = `${topC}px`;
+      tip.style.left = `${a.left - r.width - GAP}px`;
+      return;
+    }
     let top = side === 'top' ? a.top - r.height - GAP : a.bottom + GAP;
     if (side === 'top' && top < EDGE) top = a.bottom + GAP;
-    else if (side === 'bottom' && top + r.height > window.innerHeight - EDGE) top = a.top - r.height - GAP;
+    else if (side !== 'top' && top + r.height > window.innerHeight - EDGE) top = a.top - r.height - GAP;
     const left = Math.max(EDGE, Math.min(a.left + a.width / 2 - r.width / 2, window.innerWidth - r.width - EDGE));
     tip.style.top = `${Math.max(EDGE, top)}px`;
     tip.style.left = `${left}px`;

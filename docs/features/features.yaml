@@ -2588,6 +2588,7 @@ kategorien:
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-19) ausführen (Marken secondary und assumption sind ausgeschriebene Wörter mit mindestens 4 Zeichen, der Hinweis der Annahme nennt keine Datei).
           - Playwright-Test e2e/mocked/formation-page-lib.spec.ts (@FRM-19) ausführen (Kurztexte stimmen mit der Messung überein).
           - "Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-19) ausführen (kein Zeilentext enthält die Regel-ID; Hover und Tastaturfokus zeigen im Hinweis „Kural: ID“)."
+          - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-19) ausführen (bei 1440 px öffnet der Hinweis der Zeile links neben der Zeile, liegt im Fenster und überdeckt keine Zeile; Hover und Tastaturfokus).
           - Playwright-Test e2e/mocked/formation-crb-lib.spec.ts (@FRM-19) ausführen (Bedingungen der anderen Crab-Variante, Zählung im Bild).
           - Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-19) und die sechs Prüfer-Specs formation-{abcd,gar-bat,but,crb,cyp,cdt}-lib.spec.ts (Gruppe invalidBy) ausführen (ungültig mit wartender Regel, invalidBy nennt nur die verursachende Regel, Doppeltop mit CDT-15 und fehlendem Signal nur CDT-15).
           - "Playwright-Test e2e/mocked/formation-settle-lib.spec.ts (@FRM-19) ausführen (nicht messbare Pflicht → im Aufbau, auch CYP-02 auf D1 ohne W1) und formation-page.spec.ts (Hinweis „Nicht messbar: CYP-02“ mit Tooltip)."

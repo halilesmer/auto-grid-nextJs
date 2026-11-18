@@ -283,6 +283,39 @@ test.describe('FRM-19 Kandidaten-Liste und Checkliste', () => {
     await expect(page.getByRole('tooltip')).toHaveText(msg('formation.rule.id.hint', { id: 'GAR-03' }));
   });
 
+  test('Der Hinweis der Zeile öffnet links neben der Zeile und verdeckt keine Zeile (1440 px, Hover und Tastaturfokus)', { tag: '@FRM-19' }, async ({ page, worker }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openPage(page, worker, `${URL}&form=GAR`);
+    const list = page.getByTestId('formation-checklist');
+    const rows = list.getByTestId('check-row');
+    const row = list.locator('[data-testid="check-row"][data-rule-id="GAR-03"]');
+    const check = async () => {
+      const tip = page.getByRole('tooltip');
+      await expect(tip).toBeVisible();
+      const tb = (await tip.boundingBox())!;
+      const rb = (await row.boundingBox())!;
+      expect(tb.x + tb.width).toBeLessThanOrEqual(rb.x);
+      expect(tb.x).toBeGreaterThanOrEqual(0);
+      expect(tb.y).toBeGreaterThanOrEqual(0);
+      expect(tb.x + tb.width).toBeLessThanOrEqual(1440);
+      expect(tb.y + tb.height).toBeLessThanOrEqual(900);
+      const count = await rows.count();
+      for (let i = 0; i < count; i++) {
+        const b = (await rows.nth(i).boundingBox())!;
+        const overlap = tb.x < b.x + b.width && tb.x + tb.width > b.x && tb.y < b.y + b.height && tb.y + tb.height > b.y;
+        expect(overlap, `Zeile ${i}`).toBe(false);
+      }
+    };
+    await row.hover();
+    await check();
+    await page.mouse.move(0, 0);
+    await expect(page.getByRole('tooltip')).toHaveCount(0);
+    await row.focus();
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Tab');
+    await check();
+  });
+
   test('Jede Zeile füllt die Breite der Liste und die Werte stehen bündig am rechten Rand (auch bei kurzem und langem Text)', { tag: '@FRM-19' }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
     const list = page.getByTestId('formation-checklist');
