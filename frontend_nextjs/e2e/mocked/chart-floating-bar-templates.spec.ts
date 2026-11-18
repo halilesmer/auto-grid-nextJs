@@ -3,7 +3,7 @@
  * Eine Trendlinie: Vorlage speichern → auf eine neue Linie anwenden → nach dem Neuladen steht die Liste noch; Fibonacci wie bisher.
  */
 import type { Page } from '@playwright/test';
-import { chartReady } from '../fixtures/chart-ready';
+import { chartReady, hideFormationDrawings } from '../fixtures/chart-ready';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, expect, test } from '../fixtures/test';
 
@@ -51,7 +51,7 @@ async function select(page: Page, at: Drawn) {
   }).toPass({ timeout: 30_000 });
   await expect(bar(page)).toBeVisible();
 }
-const ready = (page: Page) => chartReady(page);
+const ready = async (page: Page) => { await chartReady(page); await hideFormationDrawings(page); };
 
 test('UI-29: Trendlinien-Vorlage speichern, auf neue Linie anwenden, nach dem Neuladen noch da, löschen', { tag: '@UI-29' }, async ({ page, worker }) => {
   void worker;
@@ -106,6 +106,7 @@ test('UI-29: alte Fibonacci-Vorlagen werden aus dem Speicher unverändert gelese
   }, KEY);
   await page.reload();
   await chartReady(page); // fixed pixels below: wait for the formation search first (journal 2026-11-16-chart-drawing-tests-scan-race)
+  await hideFormationDrawings(page);
   await page.getByRole('button', { name: msg('cw.rail.fibMenu'), exact: true }).click();
   await page.getByTestId('tool-fib-retracement').click();
   const box = (await page.getByTestId('analysis-chart').boundingBox())!;

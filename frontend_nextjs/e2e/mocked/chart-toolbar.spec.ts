@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { DEMO_ID, LIVE_ID, makeZone, test, expect } from '../fixtures/test';
-import { chartReady } from '../fixtures/chart-ready';
+import { chartReady, hideFormationDrawings } from '../fixtures/chart-ready';
 import { msg } from '../fixtures/i18n';
 import { openDrawings } from '../fixtures/chart-dialog';
 
@@ -13,6 +13,8 @@ async function lineY(page: Page, offset: number) {
   return bar.y + bar.height + offset;
 }
 async function drawLine(page: Page, offset = 60) {
+  // The click is at a fixed pixel: a formation line of the search must not lie under it (1118-A5.1, see hideFormationDrawings)
+  await hideFormationDrawings(page);
   await page.getByRole('button', { name: msg('cw.rail.linesMenu'), exact: true }).click();
   await page.getByTestId('tool-horizontal-line').click();
   const box = await page.getByTestId('analysis-chart').boundingBox(); if (!box) throw new Error('Chart missing');
@@ -215,6 +217,7 @@ test('Mehrere ausgewählte Zeichnungen bleiben bis zur Löschbestätigung vorgem
   void worker;
   await page.goto(URL);
   await chartReady(page); // the test clicks the drawn lines at fixed pixels later (journal 2026-11-16-chart-drawing-tests-scan-race)
+  await hideFormationDrawings(page);
   await page.getByRole('button', { name: msg('cw.magnet'), exact: true }).click();
   await drawLine(page, 60);
   await drawLine(page, 110);

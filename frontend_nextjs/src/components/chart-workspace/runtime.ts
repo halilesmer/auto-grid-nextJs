@@ -1,11 +1,10 @@
 import {
   AreaSeries, BaselineSeries, ColorType, CrosshairMode, createTextWatermark, HistogramSeries, LineSeries, LineStyle, LineType, PriceScaleMode,
-  type IChartApi, type IPaneApi, type ISeriesApi, type LineWidth, type LogicalRange, type ISeriesPrimitive, type IPrimitivePaneView, type ITextWatermarkPluginApi, type SeriesAttachedParameter, type Time, type UTCTimestamp,
+  type IChartApi, type IPaneApi, type ISeriesApi, type LineWidth, type ISeriesPrimitive, type IPrimitivePaneView, type ITextWatermarkPluginApi, type SeriesAttachedParameter, type Time, type UTCTimestamp,
 } from 'lightweight-charts';
 import type { Bar, MissingRange } from '@/lib/analysis/candles';
 import { readChartColors, withAlpha } from '@/lib/chartTheme';
 import { canvasColor } from '@/lib/formation/lineStyle';
-import { emptyChartDocument, useChartWorkspaceStore, type VisibleTime } from '@/store/useChartWorkspaceStore';
 import { rowStyle } from '@/lib/chart-workspace/indicatorStyle';
 import { aggregateIndicatorBars, calculateIndicator, isOscillator, SYSTEM_RSI_ID, visibleAtInterval, type Indicator, type Value } from '@/lib/chart-workspace/indicators';
 import { orderPanes, presentPanes, type SystemPaneId } from '@/lib/chart-workspace/paneOrder';
@@ -24,84 +23,32 @@ export function createChartBinding(chart: IChartApi, candles: ISeriesApi<'Candle
     dispose() { if (disposed) return; disposed = true; for (const callback of callbacks) callback(); callbacks.clear(); },
   };
 }
-/** Wartezeit, bis ein Zoom gespeichert wird; so oft ändert sich der Bereich beim Ziehen */
-const VIEW_SAVE_DELAY_MS = 180;
-/** Der Chart übernimmt eine gesetzte Ansicht erst im nächsten Bild und rundet sie dabei auf Kerzen; diese Meldungen sind kein Zoom */
-const VIEW_SETTLE_MS = 150;
 /** Kleinster Kerzenabstand in px (`minBarSpacing`); Standard von lightweight-charts wäre 0,5, 0,2 erlaubt mehr Auszoomen (1107-A9.3) */
 export const MIN_BAR_SPACING_PX = 0.2;
 
-/** Zeigt den gespeicherten Zeitbereich, wenn er die geladenen Kerzen überlappt, sonst alle Kerzen (wie „Ansicht zurücksetzen“). Gibt true zurück, wenn alle Kerzen gezeigt werden. */
-export function restoreChartView(chart: IChartApi, times: readonly number[], saved: VisibleTime | undefined): boolean {
-  const first = times[0], last = times[times.length - 1];
-  const overlaps = saved && first !== undefined && saved.to >= first && saved.from <= last;
-  if (overlaps) chart.timeScale().setVisibleRange({ from: saved.from as UTCTimestamp, to: saved.to as UTCTimestamp });
-  else chart.timeScale().fitContent();
-  return !overlaps;
+/**
+ * Öffnungsansicht wie bei TradingView (1118-A5.1 = B): die letzten Kerzen mit dem Standard-Kerzenabstand von lightweight-charts und
+ * dem Standard-Abstand rechts, an die letzte Kerze geschoben. Gilt beim Öffnen (auch Symbol-, Zeitrahmenwechsel, Neuladen) und für
+ * „Ansicht zurücksetzen“. Der Zoom wird nicht gespeichert (Journal 2026-11-18-chart-view-like-tradingview).
+ */
+export function openingView(chart: IChartApi) {
+  chart.timeScale().resetTimeScale();
 }
 
-/** Gemerkte Ansicht eines Charts: `showsAll` sagt, ob sie zuletzt alle Kerzen zeigte (kein Zoom des Nutzers); `dispose` meldet ab und schreibt Ausstehendes */
-export interface ChartViewMemory { showsAll: () => boolean; dispose: () => void }
-
 /**
- * Speichert den Zoom des Nutzers in dem Chart-Dokument `contextKey`; ein Bereich, der alle Kerzen zeigt, löscht ihn.
- * Änderungen durch neue Kerzen (`pointCount`) oder eine andere Breite sind kein Zoom und bleiben unbeachtet; sie ändern auch `showsAll` nicht.
- * `showsAllAtStart`: die Ansicht beim Anmelden zeigt alle Kerzen (kein gespeicherter Zoom wiederhergestellt).
- * Setzt `data-visible-range` (von,bis in Kerzenzeit) an den Elementen `hosts`.
+ * Schreibt den sichtbaren Zeitbereich (von,bis in Kerzenzeit) als `data-visible-range` an die Elemente `hosts` (Tests und
+ * Fehlersuche; der Chart zeichnet in <canvas>). Speichert nichts. Gibt die Abmeldung zurück.
  */
-export function rememberChartView(chart: IChartApi, hosts: HTMLElement[], contextKey: string, pointCount: () => number, showsAllAtStart: boolean): ChartViewMemory {
+export function publishVisibleRange(chart: IChartApi, hosts: HTMLElement[]): () => void {
   const scale = chart.timeScale();
-  let all = showsAllAtStart;
-  let count = pointCount(), width = scale.width();
-  const asText = (r: { from: unknown; to: unknown }) => `${r.from},${r.to}`;
-  const settledAt = performance.now() + VIEW_SETTLE_MS;
-  // Steht die Ansicht beim Anmelden schon, meldet der Chart danach keine Änderung mehr
-  const shown = scale.getVisibleRange();
-  const publish = (range: { from: unknown; to: unknown }) => hosts.forEach((host) => host.setAttribute('data-visible-range', asText(range)));
-  if (shown) publish(shown);
-  let pending: { zoom: VisibleTime | undefined } | null = null;
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  const flush = () => {
-    if (timer) clearTimeout(timer);
-    timer = null;
-    if (!pending) return;
-    const { zoom } = pending;
-    pending = null;
-    const store = useChartWorkspaceStore.getState();
-    const doc = store.documents[contextKey] ?? emptyChartDocument();
-    if (doc.visibleTime?.from === zoom?.from && doc.visibleTime?.to === zoom?.to) return;
-    const { visibleTime, ...rest } = doc;
-    void visibleTime;
-    store.setDocument(contextKey, zoom ? { ...rest, visibleTime: zoom } : rest);
-  };
-  const onChange = (logical: LogicalRange | null) => {
+  const publish = () => {
     const range = scale.getVisibleRange();
-    if (!logical || !range) return;
-    publish(range);
-    if (pointCount() !== count || scale.width() !== width || performance.now() < settledAt) {
-      count = pointCount();
-      width = scale.width();
-      return;
-    }
-    // fitContent() liegt bis auf einen halben Kerzenabstand an den Rändern. Passen mehr Kerzen in die Breite, als der
-    // kleinste Kerzenabstand zulässt, ist die breiteste Ansicht bis zur letzten Kerze die Standardansicht.
-    // One bar of tolerance more than before (count - 3): the running candle of the formation search counts as a point too (1107-A21)
-    const reachesEnd = logical.to >= count - 3;
-    const widest = logical.to - logical.from + 2 >= scale.width() / MIN_BAR_SPACING_PX;
-    const showsAll = reachesEnd && (logical.from <= 1 || widest);
-    all = showsAll;
-    pending = { zoom: showsAll ? undefined : { from: Number(range.from), to: Number(range.to) } };
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(flush, VIEW_SAVE_DELAY_MS);
+    if (range) hosts.forEach((host) => host.setAttribute('data-visible-range', `${range.from},${range.to}`));
   };
-  scale.subscribeVisibleLogicalRangeChange(onChange);
-  return {
-    showsAll: () => all,
-    dispose: () => {
-      scale.unsubscribeVisibleLogicalRangeChange(onChange);
-      flush();
-    },
-  };
+  // Steht die Ansicht beim Anmelden schon, meldet der Chart danach keine Änderung mehr
+  publish();
+  scale.subscribeVisibleLogicalRangeChange(publish);
+  return () => scale.unsubscribeVisibleLogicalRangeChange(publish);
 }
 
 export function lineStyle(v: string) { if (v === 'dashed') return LineStyle.Dashed; if (v === 'dotted') return LineStyle.Dotted; return LineStyle.Solid; }

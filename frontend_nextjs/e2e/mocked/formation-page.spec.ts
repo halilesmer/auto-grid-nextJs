@@ -469,7 +469,10 @@ test.describe('FRM-20 Chart-Overlay und Hover', () => {
     await expect(overlay.locator('circle[fill="none"]')).toHaveCount(1);
     await expect(overlay.locator('text', { hasText: 'D?' })).toHaveCount(1);
     await expect(overlay.locator('text', { hasText: msg('formation.draw.zonePossible', { tf: 'H4', up: 'D1' }) })).toHaveCount(1);
-    await expect(overlay.locator('[data-drawing] rect[rx="3"]')).toHaveCount(0);
+    // The reversal-candle mark is a small rect without fill (FormationLayer: tone `mark`, width ≤ 20 px, fill-opacity 0). Since the chart
+    // opens with the latest candles (1118-A5.1), the possible zone ahead of the last candle can be 20 px or narrower too (measured 16 px,
+    // fill-opacity 0.16): it has rounded corners as well, but it is no mark
+    await expect(overlay.locator('[data-drawing] rect[rx="3"][fill-opacity="0"]')).toHaveCount(0);
   });
 
   for (const theme of ['light', 'dark']) {
@@ -585,57 +588,68 @@ test.describe('FRM-20 Chart-Overlay und Hover', () => {
 });
 
 test.describe('FRM-20 Ansicht des Formations-Charts', () => {
+  // 1118-A5.1 = B (Halil, 2026-11-18, like TradingView): each opening shows the latest candles at the default bar spacing; the
+  // zoom is not stored. Replaces the decision of 2026-10-31 (all candles, zoom stored per product).
   const range = (page: Page) => page.getByTestId('formation-chart').getAttribute('data-visible-range');
-  const allCandles = () => { const rows = rowsUntil(NOW); return `${rows[0][0]},${rows[rows.length - 1][0]}`; };
-  /** Der Chart rundet eine wiederhergestellte Ansicht um höchstens eine Kerze (14400 s) */
+  const storedViews = (page: Page) => page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').documents ?? {}).filter((d) => !!(d as { visibleTime?: unknown }).visibleTime).length);
+  /** The chart rounds a view by at most one candle (14400 s) */
   const sameView = async (page: Page, expected: string | null) => {
     const [from, to] = (await range(page) ?? '0,0').split(',').map(Number), [wantFrom, wantTo] = (expected ?? '0,0').split(',').map(Number);
     return Math.max(Math.abs(from - wantFrom), Math.abs(to - wantTo)) <= 14400;
   };
   const zoomIn = async (page: Page) => {
-    // Die ersten 150 ms nach dem Aufbau gelten dem Wiederherstellen der Ansicht, nicht dem Nutzer
     await page.waitForTimeout(400);
     const box = (await page.getByTestId('formation-chart').boundingBox())!;
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.wheel(0, -600);
   };
+  /** The view after the search: it ends at the last candle (the running candle of the search) */
+  const opened = async (page: Page) => {
+    const last = rowsUntil(NOW).at(-1)![0];
+    await expect.poll(async () => Number((await range(page))?.split(',')[1])).toBeGreaterThanOrEqual(last);
+    return range(page);
+  };
 
-  test('Der Chart lädt mit allen Kerzen wie nach „Ansicht zurücksetzen“', { tag: ['@FRM-20', '@ANA-19'] }, async ({ page, worker }) => {
+  test('Der Chart öffnet mit den letzten Kerzen wie nach „Ansicht zurücksetzen“', { tag: ['@FRM-20', '@ANA-19'] }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
-    await expect.poll(() => range(page)).toBe(allCandles());
+    const start = await opened(page);
+    // About 220 candles do not fit at the default spacing: the first candle is not in the view
+    expect(Number(start!.split(',')[0])).toBeGreaterThan(rowsUntil(NOW)[0][0]);
+    await zoomIn(page);
+    await expect.poll(() => range(page)).not.toBe(start);
+    await page.getByRole('button', { name: msg('cw.fit'), exact: true }).click();
+    await expect.poll(() => range(page)).toBe(start);
   });
 
-  test('Der Wechsel der Zeiteinheit überschreibt den gespeicherten Zoom nicht, auch bei gleicher Kerzenzahl', { tag: ['@FRM-20', '@ANA-19'] }, async ({ page, worker }) => {
+  test('Der Wechsel der Zeiteinheit öffnet wieder die Standardansicht, ein Zoom bleibt nicht', { tag: ['@FRM-20', '@ANA-19'] }, async ({ page, worker }) => {
     serveFixture(worker, NOW);
     const series = worker.state.ratesSeries as Record<string, number[][]>;
-    // Gleiche Kerzen im Stundenabstand: gleich viele Punkte, aber eine andere Zeitachse
+    // Same candles one hour apart: same number of points, other time axis
     const lastTime = series.H4[series.H4.length - 1][0];
     series.H1 = series.H4.map(([, ...prices], i) => [lastTime - (series.H4.length - 1 - i) * 3600, ...prices]);
     await page.goto(`${URL}&form=GAR`);
     await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
-    await expect.poll(() => range(page)).toBe(allCandles());
+    const start = await opened(page);
     await zoomIn(page);
-    await expect.poll(() => range(page)).not.toBe(allCandles());
-    // Der Zoom wird verzögert gespeichert
-    await page.waitForTimeout(400);
-    const zoomed = await range(page);
+    await expect.poll(() => range(page)).not.toBe(start);
 
     await page.getByTestId('timeframe-H1').click();
     await expect(page.getByTestId('formation-chart')).toBeVisible();
     await page.waitForTimeout(400);
     await page.getByTestId('timeframe-H4').click();
     await expect(page.getByTestId('formation-chart')).toBeVisible();
-    await expect.poll(() => sameView(page, zoomed)).toBe(true);
+    await expect.poll(() => sameView(page, start)).toBe(true);
+    expect(await storedViews(page)).toBe(0);
   });
 
   test('Ein Klick auf eine andere Formation ändert die Ansicht nicht, auch mit Zoom', { tag: ['@FRM-20', '@ANA-19'] }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
-    await expect.poll(() => range(page)).toBe(allCandles());
+    const start = await opened(page);
     await page.getByTestId('formation-form-BAT').click();
     await expect(page.getByTestId('formation-form-BAT')).toHaveAttribute('aria-pressed', 'true');
-    await expect.poll(() => range(page)).toBe(allCandles());
+    await expect.poll(() => range(page)).toBe(start);
     await zoomIn(page);
-    await expect.poll(() => range(page)).not.toBe(allCandles());
+    await expect.poll(() => range(page)).not.toBe(start);
     const zoomed = await range(page);
     await page.getByTestId('formation-form-GAR').click();
     await expect(page.getByTestId('formation-form-GAR')).toHaveAttribute('aria-pressed', 'true');
@@ -643,25 +657,17 @@ test.describe('FRM-20 Ansicht des Formations-Charts', () => {
     await expect.poll(() => sameView(page, zoomed)).toBe(true);
   });
 
-  test('Der Zoom bleibt nach dem Neuladen, „Ansicht zurücksetzen“ zeigt wieder alle Kerzen', { tag: ['@FRM-20', '@ANA-19'] }, async ({ page, worker }) => {
+  test('Der Zoom kommt nach dem Neuladen nicht zurück und wird nicht gespeichert', { tag: ['@FRM-20', '@ANA-19'] }, async ({ page, worker }) => {
     await openPage(page, worker, `${URL}&form=GAR`);
-    await expect.poll(() => range(page)).toBe(allCandles());
+    const start = await opened(page);
     await zoomIn(page);
-    await expect.poll(() => range(page)).not.toBe(allCandles());
-    // Der Zoom wird entprellt gespeichert
-    await expect.poll(() => page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').documents ?? {}).some((d) => !!(d as { visibleTime?: unknown }).visibleTime))).toBe(true);
-    const zoomed = await range(page);
+    await expect.poll(() => range(page)).not.toBe(start);
+    await page.waitForTimeout(500);
+    expect(await storedViews(page)).toBe(0);
     await page.reload();
     await expect(page.getByTestId('chart-topbar')).toBeVisible();
-    await expect.poll(() => sameView(page, zoomed)).toBe(true);
-    await page.waitForTimeout(400);
-    await page.getByRole('button', { name: msg('cw.fit'), exact: true }).click();
-    await expect.poll(() => range(page)).toBe(allCandles());
-    // Das Zurücksetzen wird entprellt gespeichert
-    await expect.poll(() => page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('grid-robot-chart-workspaces-v1') || '{}').documents ?? {}).some((d) => !!(d as { visibleTime?: unknown }).visibleTime))).toBe(false);
-    await page.reload();
-    await expect(page.getByTestId('chart-topbar')).toBeVisible();
-    await expect.poll(() => range(page)).toBe(allCandles());
+    await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+    await expect.poll(() => sameView(page, start)).toBe(true);
   });
 });
 

@@ -1,6 +1,6 @@
 import { MAX_TOTAL_BARS, OLDER_PAGE_BARS } from '../../src/lib/analysis/candles';
 import { DEMO_ID, expect, test, type MockWorker } from '../fixtures/test';
-import { dragLeft, openNearLeftEdge, panToFirstCandle } from '../fixtures/chart-older';
+import { dragLeft, openNearLeftEdge, panToFirstCandle, zoomOutFully } from '../fixtures/chart-older';
 
 // These tests are about the chart itself. The side bar of the one chart starts open from 1024 px and takes 288 px (1107-A21, U4-4a): closed, the chart has its old width
 test.beforeEach(({ page }) => page.addInitScript(() => localStorage.setItem('grid-robot-formation-sidebar', JSON.stringify({ open: false, tab: 'conditions' }))));
@@ -60,6 +60,8 @@ test('Ältere Kerzen anfügen: Dauer je Seite bleibt unter der Grenze', { tag: '
   await expect(chart).toHaveAttribute('data-bars', '100000', { timeout: 120_000 });
   const read = () => page.evaluate(() => (window as unknown as { __older: { response: number[]; steps: { bars: number; committed: number; drawn: number }[]; longest: number } }).__older);
   const pages: { bars: number; ms: number }[] = [];
+  // Die Öffnungsansicht zeigt die letzten Kerzen im Standard-Kerzenabstand (1118-A5.1): erst herauszoomen, sonst bringt ein Zug nur rund 150 Kerzen
+  await zoomOutFully(page);
   for (let guard = 0; guard < 12; guard++) {
     const before = Number(await chart.getAttribute('data-bars'));
     if (before >= TARGET) break;
@@ -99,8 +101,9 @@ test.describe('ANA-27 Zeitraum über 100.000 Kerzen (M1)', () => {
   // 78 Tage M1 = 112.320 Kerzen: mehr als die 100.000 der ersten Ladung, der Rest kommt nach
 
   test('Sola kaydırınca bir sayfa eklenir, görünen zaman aralığı aynı kalır, aralık başında yükleme durur', { tag: '@ANA-27' }, async ({ page, worker }) => {
-    // Wie vor dem Umzug dieses Tests aus chart-workspace.spec.ts (90 s); der Umzug hatte die Angabe verloren
-    test.setTimeout(90_000);
+    // 90 s wie vor dem Umzug aus chart-workspace.spec.ts, plus der Weg an den linken Rand: seit 1118-A5.1 gibt es keinen
+    // gespeicherten Zoom dort, der Test zieht von den letzten Kerzen aus rund 20 Züge über 100.000 Kerzen
+    test.setTimeout(150_000);
     worker.state.ratesAllDays = true;
     const { chart, rangeOf, before, loadedFrom, release } = await openNearLeftEdge(page, chartOnly(worker), { url: M1_URL, initialBars: '100000' });
     release();

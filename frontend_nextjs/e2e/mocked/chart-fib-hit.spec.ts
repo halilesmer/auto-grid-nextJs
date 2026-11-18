@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { DEMO_ID, test, expect } from '../fixtures/test';
-import { chartReady } from '../fixtures/chart-ready';
+import { chartReady, hideFormationDrawings } from '../fixtures/chart-ready';
 import { msg } from '../fixtures/i18n';
 
 // 1110-A4.8 (S3): levels of a Fib retracement outside the 0–1 band must be selectable and deletable.
@@ -22,6 +22,7 @@ async function drawFib(page: Page) {
   await page.goto(URL);
   await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' });
   await chartReady(page);
+  await hideFormationDrawings(page);
   const magnet = page.getByRole('button', { name: msg('cw.magnet'), exact: true });
   if ((await magnet.getAttribute('aria-pressed')) === 'true') await magnet.click();
   await page.getByRole('button', { name: msg('cw.rail.fibMenu'), exact: true }).click();

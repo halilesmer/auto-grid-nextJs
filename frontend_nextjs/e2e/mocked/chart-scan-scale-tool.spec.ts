@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { DEMO_ID, test, expect } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
+import { hideFormationDrawings } from '../fixtures/chart-ready';
 
 // 1116-A7.1: the formation scan widens the price axis to the levels of its formation when it ends. While a drawing tool
 // is active, the screen must not move: the scale change waits until the tool ends, then it applies (1116-B1).
@@ -29,6 +30,7 @@ test('Tarama bir çizim aracı etkinken biterse fiyat ölçeği araç bitene kad
   await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' });
   await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-bars', /^[1-9]\d*$/);
   await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', '');
+  await hideFormationDrawings(page);
   const magnet = page.getByRole('button', { name: msg('cw.magnet'), exact: true });
   if ((await magnet.getAttribute('aria-pressed')) === 'true') await magnet.click();
   await page.getByTestId('chart-workspace').getByRole('button', { name: msg('cw.rail.linesMenu'), exact: true }).click();
@@ -67,6 +69,7 @@ test('Tarama fare basılıyken biter, bırakınca ölçek genişler (basılı du
   await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' });
   await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-bars', /^[1-9]\d*$/);
   await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', '');
+  await hideFormationDrawings(page);
   const magnet = page.getByRole('button', { name: msg('cw.magnet'), exact: true });
   if ((await magnet.getAttribute('aria-pressed')) === 'true') await magnet.click();
   const draw = async (x1: number, x2: number, y: number) => {

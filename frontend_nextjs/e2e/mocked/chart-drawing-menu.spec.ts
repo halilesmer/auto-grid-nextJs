@@ -3,7 +3,7 @@
  * Kilitle sonrası Kaldır kapalı; Klonla ikinci çizim üretir; Kaldır sonrası ⌘Z geri getirir; Ayarlar… Fib penceresini açar; Alt+F aracı seçer.
  */
 import type { Page } from '@playwright/test';
-import { chartReady } from '../fixtures/chart-ready';
+import { chartReady, hideFormationDrawings } from '../fixtures/chart-ready';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, expect, test } from '../fixtures/test';
 
@@ -21,6 +21,7 @@ async function stored(page: Page) {
 }
 async function drawFib(page: Page) {
   await chartReady(page);
+  await hideFormationDrawings(page);
   await page.getByRole('button', { name: msg('cw.rail.fibMenu'), exact: true }).click();
   await page.getByTestId('tool-fib-retracement').click();
   const box = (await page.getByTestId('analysis-chart').boundingBox())!;
