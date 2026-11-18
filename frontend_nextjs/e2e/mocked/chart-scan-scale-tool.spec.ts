@@ -7,7 +7,9 @@ import { msg } from '../fixtures/i18n';
 // Measurement without chart internals: both points of a trend line go on the same pixel row. With the same scale for
 // both clicks (magnet off), both points have the same price. A scale change between the clicks gives two prices.
 // Exception to `chartReady(page)` (.claude/rules/tests.md): this test clicks before the search ends on purpose.
-const URL = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
+// 30 days: the chart opens with the latest candles at 6 px (1118-A5.1); 7 days of H1 do not fill the width, and the fixed pixels of
+// the drawings below would fall on the empty area left of the first candle
+const URL = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=30d`;
 const storageKey = 'grid-robot-chart-workspaces-v1';
 test.setTimeout(60_000);
 test.beforeEach(({ page }) => page.addInitScript(() => localStorage.setItem('grid-robot-formation-sidebar', JSON.stringify({ open: false, tab: 'conditions' }))));

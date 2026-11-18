@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useCallback, useMemo, useState, type ReactNode } from 'react';
+import { Suspense, useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { ChartPage } from '@/components/chart-page/ChartPage';
 import { OneChart } from '@/components/chart-page/OneChart';
@@ -49,15 +49,21 @@ function ChartRoot() {
   const { params, accounts, accountId, accountKnown, zones, settingsError, clock, offsetSec, today, bounds } = useChartContext();
   const { symbol: urlSymbol, zoneId, range, setAccount, setRange } = params;
   // Ein Zeitraum aus der Kopfleiste passt ihn einmal ein, auch derselbe noch einmal (1118-A5.1, wie TradingView); kein Modus.
-  // Die Anfrage gilt, sobald die Adresse diesen Zeitraum hat, und endet, wenn der Chart eingepasst hat
-  const [fit, setFit] = useState<{ seq: number; range: ChartRange } | null>(null);
+  // Die Anfrage gilt, sobald die Adresse diesen Zeitraum hat, und endet, wenn der Chart eingepasst hat. Die Nummer steigt immer
+  // (ChartCore passt jede neue Nummer einmal ein); ein anderes Konto, Symbol oder ein anderer Zeitrahmen beendet eine Anfrage, die
+  // kein Chart eingepasst hat (z. B. keine Kerzen im Zeitraum), damit das nächste Öffnen wieder die Öffnungsansicht zeigt
+  const fitSeq = useRef(0);
+  const scope = `${accountId}|${urlSymbol}|${zoneId}|${params.timeframe}`;
+  const [fit, setFit] = useState<{ seq: number; range: ChartRange; scope: string } | null>(null);
   const chooseRange = useCallback((value: ChartRange) => {
     setRange(value);
-    setFit((f) => ({ seq: (f?.seq ?? 0) + 1, range: value }));
-  }, [setRange]);
+    fitSeq.current += 1;
+    setFit({ seq: fitSeq.current, range: value, scope });
+  }, [setRange, scope]);
   const onFitted = useCallback((seq: number) => setFit((f) => (f?.seq === seq ? null : f)), []);
+  if (fit && fit.scope !== scope) setFit(null);
   const fitBounds = fit ? chartBounds(fit.range, today) : null;
-  const fitOnce = fit && fitBounds!.from === bounds.from && fitBounds!.to === bounds.to ? fit.seq : null;
+  const fitOnce = fit && fit.scope === scope && fitBounds!.from === bounds.from && fitBounds!.to === bounds.to ? fit.seq : null;
 
   // Das Symbol des Charts: ?symbol=, sonst das Symbol der Zone aus ?zone= (alte Links), sonst das erste Setup des Kontos
   const symbol = useMemo(() => {

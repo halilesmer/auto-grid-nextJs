@@ -5,7 +5,9 @@ import { msg } from '../fixtures/i18n';
 
 // 1110-A4.8 (S3): levels of a Fib retracement outside the 0–1 band must be selectable and deletable.
 // lightweight-charts-drawing 0.6.2 hit-tests only the box between the two handles.
-const URL = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
+// 30 days: the chart opens with the latest candles at 6 px (1118-A5.1); 7 days of H1 do not fill the width, and the fixed pixels of
+// the drawings below would fall on the empty area left of the first candle
+const URL = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=30d`;
 const storageKey = 'grid-robot-chart-workspaces-v1';
 test.setTimeout(60_000);
 test.beforeEach(({ page }) => page.addInitScript(() => localStorage.setItem('grid-robot-formation-sidebar', JSON.stringify({ open: false, tab: 'conditions' }))));

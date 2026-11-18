@@ -8,7 +8,9 @@ import { chartReady } from '../fixtures/chart-ready';
 import { msg } from '../fixtures/i18n';
 import { DEMO_ID, expect, test } from '../fixtures/test';
 
-const URL = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
+// 30 days: the chart opens with the latest candles at 6 px (1118-A5.1); 7 days of H1 do not fill the width, and the fixed pixels of
+// the drawings below would fall on the empty area left of the first candle
+const URL = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=30d`;
 const KEY = 'grid-robot-chart-workspaces-v1';
 test.setTimeout(90_000);
 

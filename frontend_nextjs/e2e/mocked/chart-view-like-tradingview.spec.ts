@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 import { DEMO_ID, test, expect } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 import { nowMs } from '../fixtures/mock-worker';
+import { dragLeft } from '../fixtures/chart-older';
 
 // 1118-A5.1 = B and 1118-A2.1 = B (Halil, 2026-11-18: "Trading View nasıl yapıyorsa biz de öyle yapalım."):
 // - Each opening of the chart shows the latest candles at the default bar spacing of lightweight-charts (6 px), scrolled to
@@ -125,4 +126,42 @@ test('Bir zaman aralığı seçmek onu bir kez sığdırır; yeni canlı mum gö
   await page.waitForTimeout(500);
   expect(await rangeOf(page)).toEqual([series[1][0], latest]);
   expect(await storedViews(page)).toBe(0);
+});
+
+test('Aynı aralık ikinci kez seçilince yine bir kez sığdırır (arada zoom)', { tag: '@ANA-19' }, async ({ page, worker }) => {
+  // Review finding of this PR: the number of the fit request started again at 1 after each fit, so the second choice did nothing
+  const { series, lastClosed: [lastClosed] } = hourSeries(worker, 600);
+  await holdRunningCandle(page);
+  await page.goto(URL);
+  await expect.poll(async () => (await rangeOf(page))?.[1]).toBe(lastClosed);
+  for (let round = 0; round < 2; round++) {
+    await page.getByTestId('range-trigger').click();
+    await page.getByTestId('range-preset-last7').click();
+    await expect.poll(() => rangeOf(page)).toEqual([series[0][0], lastClosed]);
+    await page.waitForTimeout(300);
+    await zoomIn(page);
+    await expect.poll(async () => (await rangeOf(page))![0]).toBeGreaterThan(series[0][0]);
+  }
+});
+
+test('Son mumdan uzaktaki görünüm yeni mumla kaymaz', { tag: '@ANA-19' }, async ({ page, worker }) => {
+  // Library default (shiftVisibleRangeOnNewBar): the view moves with a new candle only when the last candle is in the view.
+  // Replaces test 2 of PR 584 ("the user zoomed, the running candle changes neither the view nor the stored zoom") without the store
+  const { latest, lastClosed: [lastClosed] } = hourSeries(worker, 1000);
+  const release = await holdRunningCandle(page);
+  await page.goto(URL);
+  await expect.poll(async () => (await rangeOf(page))?.[1]).toBe(lastClosed);
+  await page.waitForTimeout(300);
+  await dragLeft(page);
+  await expect.poll(async () => (await rangeOf(page))![1]).toBeLessThan(lastClosed);
+  const away = (await rangeOf(page))!;
+  release();
+  await expect(page.locator('[data-last-price]')).toHaveCount(1);
+  await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+  expect(Number((await page.locator('[data-last-price]').getAttribute('data-last-price'))!.split(':')[0])).toBe(latest);
+  await page.waitForTimeout(500);
+  const after = (await rangeOf(page))!;
+  // The right edge stays; at the end of the search the price axis gets a few pixels wider, the left edge moves by one candle at most
+  expect(after[1]).toBe(away[1]);
+  expect(Math.abs(after[0] - away[0])).toBeLessThanOrEqual(3600);
 });

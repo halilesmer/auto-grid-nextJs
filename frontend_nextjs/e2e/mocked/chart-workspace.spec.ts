@@ -178,8 +178,8 @@ test('Ein gewählter Zeitraum passt auch mehr als 2000 Kerzen einmal ein (1118-A
   expect(await firstShown()).toBeGreaterThan(series[0][0]);
   await page.getByTestId('range-trigger').click();
   await page.getByTestId('range-preset-last7').click();
-  await expect.poll(firstShown).toBe(series[0][0]);
-  expect(Number((await chart.getAttribute('data-visible-range'))!.split(',')[1])).toBeGreaterThanOrEqual(series[2099][0]);
+  // The series sets no `ratesLive`: there is no running candle, the last candle of the view is the last of the series
+  await expect.poll(() => chart.getAttribute('data-visible-range')).toBe(`${series[0][0]},${series[2099][0]}`);
 });
 
 test('Neue Kerze und Größenänderung speichern keinen Zoom, ein Zeitrahmenwechsel öffnet die Standardansicht (1118-A5.1)', { tag: '@ANA-19' }, async ({ page, worker }) => {

@@ -134,7 +134,7 @@ export async function openNearLeftEdge(
     await gate;
     return route.fallback();
   });
-  // Ohne Bedienung lädt der Chart nichts (1118-A3.1)
+  // Beim Öffnen lädt der Chart nichts (die Ansicht steht rechts). Rand ohne Bewegung des Nutzers: ANA-27 „Tıklama ve kendiliğinden …“
   await page.waitForTimeout(800);
   expect(requests).toBe(0);
   await approachLeftEdge(page, loadedFrom, () => requests > 0);

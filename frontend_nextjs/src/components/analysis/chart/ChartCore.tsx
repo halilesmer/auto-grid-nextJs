@@ -183,6 +183,10 @@ const OLDER_TRIGGER_BARS = 50;
  * neue Breite) kurz nach einem Klick holte sonst eine Seite (Journal 2026-11-17-chart-older-page-dock-scan-findings §3)
  */
 const GESTURE_WINDOW_MS = 400;
+/** Nach dem Loslassen eines Wischens läuft der Schwung (kineticScroll von touch) weiter; so lange zählt die Bewegung noch */
+const SWIPE_WINDOW_MS = 1000;
+/** Ab so vielen Pixeln vom Druckpunkt ist ein Druck ein Ziehen, kein Klick mit Zittern */
+const DRAG_START_PX = 3;
 
 function previousColor(up: boolean, body: boolean, positive: string, negative: string) { if (!body) return 'transparent'; return up ? positive : negative; }
 /** Farben einer Kerze, wenn sie sich nach dem Schluss der vorigen Kerze richten (Einstellung „previous“) */
@@ -293,8 +297,8 @@ export function ChartCore({
   const lastBar = useRef<Bar | null>(null);
   const fittedKey = useRef<string | null>(null);
   const checkOlder = useRef<(() => void) | null>(null);
-  // Letzter Rad- oder Wischschritt des Nutzers und ob er gerade zieht (für das Laden älterer Kerzen)
-  const lastGesture = useRef(-Infinity);
+  // Bis wann eine Bewegung des Nutzers zählt (Rad, Wischen) und ob er gerade zieht (für das Laden älterer Kerzen)
+  const gestureUntil = useRef(-Infinity);
   const dragging = useRef(false);
   const keepViewFrame = useRef(0);
   // Bis zur Korrektur der Ansicht nach einer Seite älterer Kerzen sieht check() noch die verschobene Ansicht und holte sonst unnötig eine weitere Seite
@@ -597,29 +601,40 @@ export function ChartCore({
     const { chart, candles } = binding;
     // Die Zeichenfläche und die Bedienung liegen über dem Chart, darum an der Fläche lauschen, nicht am Chart-Element
     const host = surfaceRef.current ?? binding.host;
-    // Bewegungen des Nutzers: Rad, Ziehen mit gedrückter Taste, Wischen (danach läuft der Schwung von touch noch kurz nach).
-    // pointerdown und touchstart allein (ein Klick, ein Tippen) zählen nicht
-    const mark = () => { lastGesture.current = performance.now(); };
+    // Bewegungen des Nutzers: Rad, Ziehen mit der linken Taste ab einem Druck auf dem Chart, Wischen (danach läuft der Schwung von
+    // touch noch nach). Ein Klick oder Tippen allein (auch mit etwas Zittern) zählt nicht
+    const mark = (ms: number) => { gestureUntil.current = Math.max(gestureUntil.current, performance.now() + ms); };
+    const wheel = () => mark(GESTURE_WINDOW_MS);
+    let press: { x: number; y: number } | null = null;
     let touchMoved = false;
-    const drag = (event: PointerEvent) => {
-      if (event.pointerType === 'touch') return;
-      dragging.current = event.buttons !== 0;
-      if (dragging.current) mark();
+    // In der Capture-Phase am Fenster: ein stopPropagation einer Ebene über dem Chart soll den Druck nicht verstecken
+    const down = (event: PointerEvent) => {
+      const onChart = event.target instanceof Node && host.contains(event.target);
+      press = onChart && event.pointerType !== 'touch' && event.button === 0 ? { x: event.clientX, y: event.clientY } : null;
     };
-    const release = () => { dragging.current = false; };
-    const touchMove = () => { touchMoved = true; mark(); };
-    const touchEnd = () => { if (touchMoved) mark(); touchMoved = false; };
-    host.addEventListener('wheel', mark, { passive: true });
-    host.addEventListener('pointermove', drag, { passive: true });
+    const move = (event: PointerEvent) => {
+      if (!press || !(event.buttons & 1)) return;
+      if (!dragging.current && Math.hypot(event.clientX - press.x, event.clientY - press.y) < DRAG_START_PX) return;
+      dragging.current = true;
+      mark(GESTURE_WINDOW_MS);
+    };
+    const release = () => { press = null; dragging.current = false; };
+    const touchMove = () => { touchMoved = true; mark(GESTURE_WINDOW_MS); };
+    const touchEnd = () => { if (touchMoved) mark(SWIPE_WINDOW_MS); touchMoved = false; };
+    const touchCancel = () => { touchMoved = false; };
+    host.addEventListener('wheel', wheel, { passive: true });
+    window.addEventListener('pointerdown', down, { capture: true, passive: true });
+    window.addEventListener('pointermove', move, { capture: true, passive: true });
     host.addEventListener('touchmove', touchMove, { passive: true });
     host.addEventListener('touchend', touchEnd, { passive: true });
-    window.addEventListener('pointerup', release);
-    window.addEventListener('pointercancel', release);
+    host.addEventListener('touchcancel', touchCancel, { passive: true });
+    window.addEventListener('pointerup', release, true);
+    window.addEventListener('pointercancel', release, true);
     const check = () => {
       if (!needOlder.current || viewFixPending.current || fittedKey.current !== currentViewKey.current) return;
       // Die Kerzenreihe hat die neuen Kerzen noch nicht, die Zeitachse schon: barsBefore wäre zu klein
       if (pointsRef.current !== incomingPoints.current) return;
-      if (!dragging.current && performance.now() - lastGesture.current > GESTURE_WINDOW_MS) return;
+      if (!dragging.current && performance.now() > gestureUntil.current) return;
       const range = chart.timeScale().getVisibleLogicalRange();
       const info = range ? candles.barsInLogicalRange(range) : null;
       if (info && info.barsBefore < OLDER_TRIGGER_BARS) needOlder.current();
@@ -628,12 +643,14 @@ export function ChartCore({
     chart.timeScale().subscribeVisibleLogicalRangeChange(check);
     return () => {
       checkOlder.current = null;
-      host.removeEventListener('wheel', mark);
-      host.removeEventListener('pointermove', drag);
+      host.removeEventListener('wheel', wheel);
+      window.removeEventListener('pointerdown', down, true);
+      window.removeEventListener('pointermove', move, true);
       host.removeEventListener('touchmove', touchMove);
       host.removeEventListener('touchend', touchEnd);
-      window.removeEventListener('pointerup', release);
-      window.removeEventListener('pointercancel', release);
+      host.removeEventListener('touchcancel', touchCancel);
+      window.removeEventListener('pointerup', release, true);
+      window.removeEventListener('pointercancel', release, true);
       dragging.current = false;
       try { chart.timeScale().unsubscribeVisibleLogicalRangeChange(check); } catch { /* Chart schon entfernt */ }
     };
