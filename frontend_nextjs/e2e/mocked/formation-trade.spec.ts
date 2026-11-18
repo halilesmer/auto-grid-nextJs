@@ -184,6 +184,13 @@ test.describe('FRM-39 Handelsblock AB=CD (TP2, Ergebnisse in R)', () => {
     await expect(sofar).toContainText('+0,43');
     await expect(block.getByTestId('trade-outcome-plan-tp1')).toHaveText(msg('formation.trade.outcome.plan', { value: '+0,50' }));
     await expect(block.getByTestId('trade-outcome-plan-tp12')).toHaveText(msg('formation.trade.outcome.plan', { value: '+1,31' }));
+    // Hiza: die drei Kästen (auch der ungewrappte Stop-Kasten) haben gleiche obere und untere Kante
+    const edges = await block.locator('[data-testid^="trade-outcome-"][data-active]').evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); return [r.top, r.bottom]; }));
+    expect(edges).toHaveLength(3);
+    for (const [top, bottom] of edges) {
+      expect(Math.abs(top - edges[0][0])).toBeLessThanOrEqual(1);
+      expect(Math.abs(bottom - edges[0][1])).toBeLessThanOrEqual(1);
+    }
     // Der Stop-Kasten hat keine Plan-Zeile
     await expect(block.getByTestId('trade-outcome-plan-stop')).toHaveCount(0);
     // Hover: beide Werte im Hinweis
