@@ -70,5 +70,5 @@ What would change the advice:
 
 ## Open points
 
-- [ ] The owner decides advice 1 and 2. No default was changed.
-- [ ] Reason for the lock wait of 4 h 26 min (round A, run A5) is not known. The measurement did not look at the holder.
+- [x] The owner decides advice 1 and 2. No default was changed. The owner accepted both (Halil, 2026-11-18: "Kabul"): 3 Playwright workers stay the default; `run.sh <ID>` stays without the heavy lock. Nothing changed.
+- [ ] Reason for the lock wait of 4 h 26 min (round A, run A5) is not known. The measurement did not look at the holder. In the same hours, a `precheck.sh` of PR 603 ran 4.4 h at load 30 to 50 (9 timeouts); it is the probable holder (not verified).
