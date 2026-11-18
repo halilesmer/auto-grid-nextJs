@@ -3,7 +3,7 @@ date: 2026-11-18
 author: Claude
 type: feature
 status: done
-pr: []
+pr: [609]
 features: [FRM-19]
 areas: [frontend, tests]
 ---
@@ -31,4 +31,4 @@ The row tooltip opens on the whole row, so a keyboard user gets the ID too. The 
 Percent tolerances ("5 % of AB"), reward-to-risk values, RSI/ATR/candle counts and the name "Level 1" have no "Fib". GAR-08 and BAT-08 name the range 0.382 to 0.728. The value 0.728 looks like a typo (0.768?). The text now says "Fib 0.382 to 0.728", and the value is not verified against `params.ts`.
 
 ## Verification
-See the PR description.
+Run `tsc`, lint, FRM-19 (59 tests) and `precheck.sh` (4099 e2e tests, 0 failed). Screenshots: `images/checklist-light.png`, `images/checklist-dark.png`.
