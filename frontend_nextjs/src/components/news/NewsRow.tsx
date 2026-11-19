@@ -3,7 +3,7 @@
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useFormat, useT, type MessageKey } from '@/i18n';
-import { arrowOf, formatNewsValue, isSoon, minutesUntil, sectorKey, timeModeOf, type NewsEvent } from '@/lib/news';
+import { arrowOf, formatNewsValue, goldArrowOf, isSoon, minutesUntil, sectorKey, timeModeOf, type NewsEvent } from '@/lib/news';
 import { cn } from '@/lib/utils';
 
 const BARS: Record<string, { n: number; tone: string; key: MessageKey }> = {
@@ -56,6 +56,15 @@ export default function NewsRow({ event: e, nowMs, focused = false }: { event: N
     arrowHint += comment;
   }
 
+  const gold = goldArrowOf(e);
+  let goldHint = '';
+  if (gold && arrow) {
+    const word = (d: 'up' | 'down') => t(d === 'up' ? 'news.gold.up' : 'news.gold.down');
+    goldHint = gold.direct
+      ? t('news.gold.direct', { usd: word(arrow.dir), gold: word(gold.dir) })
+      : t('news.gold.indirect', { c: ccy, c_dir: word(arrow.dir), gold: word(gold.dir) });
+  }
+
   const timeText = mode === 'time' ? f.clock(e.time) : t(mode === 'tentative' ? 'news.time.tentative' : 'news.time.allday');
   const countdown = mode !== 'time' ? '' : t(past ? 'news.ago' : 'news.in', { t: dur(minutes) });
   const actualTone = { positive: 'text-success font-bold', negative: 'text-danger font-bold' }[e.impact_type ?? ''] ?? '';
@@ -100,6 +109,29 @@ export default function NewsRow({ event: e, nowMs, focused = false }: { event: N
               className={cn('inline-flex cursor-help', arrow.dir === 'up' ? 'text-success' : 'text-danger', !arrow.released && 'opacity-60')}
             >
               {arrow.dir === 'up' ? <ArrowUp size={12} strokeWidth={3} aria-hidden="true" /> : <ArrowDown size={12} strokeWidth={3} aria-hidden="true" />}
+            </span>
+          </Tooltip>
+        )}
+        {gold && (
+          <Tooltip content={goldHint}>
+            <span
+              tabIndex={0}
+              role="img"
+              aria-label={goldHint}
+              data-testid="news-gold"
+              data-dir={gold.dir}
+              data-direct={gold.direct ? 'true' : 'false'}
+              data-released={gold.released ? 'true' : 'false'}
+              className={cn(
+                'inline-flex cursor-help items-center gap-0.5 rounded border bg-warning/15 px-1 font-mono text-[10px] font-bold text-warning',
+                gold.direct ? 'border-warning' : 'border-dashed border-warning/70',
+                !gold.released && 'opacity-60',
+              )}
+            >
+              XAU
+              <span className={gold.dir === 'up' ? 'text-success' : 'text-danger'}>
+                {gold.dir === 'up' ? <ArrowUp size={12} strokeWidth={3} aria-hidden="true" /> : <ArrowDown size={12} strokeWidth={3} aria-hidden="true" />}
+              </span>
             </span>
           </Tooltip>
         )}
