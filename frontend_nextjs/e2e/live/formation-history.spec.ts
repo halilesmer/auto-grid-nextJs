@@ -18,7 +18,7 @@ import { barsOf, TIMEFRAME_SEC, type MissingRange } from '../../src/lib/analysis
 import type { RatesResponse } from '../../src/services/marketApi';
 import { FormationContext, type ContextInput } from '../../src/lib/formation/context';
 import { ABCD_PARAMS, DEFAULT_TREND_SETTINGS, HISTORY_DAYS } from '../../src/lib/formation/params';
-import { setFormationDiag } from '../../src/lib/formation/diag';
+import { setFormationDiag, type DiagEvent } from '../../src/lib/formation/diag';
 import { scanFormations, type ScanFormation, type ScanHit } from '../../src/lib/formation/scan';
 import { analyzeAbcd } from '../../src/lib/formation/abcdChecks';
 import { dReached, shapeOf } from '../../src/lib/formation/abcd';
@@ -58,6 +58,7 @@ const FLAG_DEFS: Record<string, string> = {
   reentry: 'Bir AB=CD adayının ilk işlemi TP1 ve TP2 aldı ve fiyat sonra D’deki Engulf bölgesine döndü; yeniden giriş değerleri üretildi.',
   reentryTarget2: 'Yeniden girişte ikinci hedef (reentry.target2, son dip/tepe bölgesi) dolu.',
   reentryTp1Only: 'İlk işlem yalnız TP1 aldı (TP2 almadı) ve fiyat sonra D’deki Engulf bölgesine döndü; değer yok, yalnız uyarı.',
+  'diag.earlyBand': 'Erken dönüş Stufe 3 nach Grund (FORMATION_HISTORY_EARLY=1; AB=CD-only). stateReasons = Tarama-Zustände (Stufe 2, nicht 3) nach Grund: noBand = Band leer; notYet = Band da, D hat −0,272 nicht erreicht; other. candidateReasons = Kandidaten, die Stufe 3 nie erreichten, nach letztem Grund. candidateDepth = deren Korrekturtiefe; notYetMaxProgress = größter Weg C→−0,272 des D.',
   'diag.early.sN': 'Erken dönüş eleme basamağı N: s1 D var ve seviye 1 yok; s2 + geçersiz değil; s3 + D −0,272 bandında; s4 + D mumunun dokunduğu işlem yönlü bölge; s5 + D’den sonra Engulf; s6 + hacimce güçlü; s7 + Engulf bölgeye dokunuyor; s8 + stop girişin doğru tarafında (işlem oluştu). states = tarama durumu, keys = ayrı aday.',
   'probableC.k1': 'Olası C, katman K1: AB=CD adayının son iki dönüm noktası A, B (B en son dönüm noktası); kapanan t mumu C yönünde fraktalin sol yarısı (solda iki komşu, hiçbiri C ucunun ötesinde kapanmamış, sağ komşu yok) ve düzeltme derinliği ABCD-04..06 sınırlarında.',
   'probableC.k2': 'Olası C, katman K2: K1 ve kütüphanenin cLegOf fonksiyonu o anki veriyle (C = t mumu, D yok) null olmayan sonuç verir (aynı koşullar, aynı çağrı).',
@@ -70,7 +71,8 @@ const FLAG_DEFS: Record<string, string> = {
  * (FORMATION_HISTORY_ABCD_ONLY=1 ile aynı yol: `analyzeAbcd`, `scanFormations`in AB=CD kolunun kendisi); harmonikler sıfır kalır.
  */
 const PROBABLE = process.env.FORMATION_HISTORY_PROBABLE === '1';
-const ABCD_ONLY = PROBABLE || process.env.FORMATION_HISTORY_ABCD_ONLY === '1';
+const EARLY_BAND = process.env.FORMATION_HISTORY_EARLY === '1';
+const ABCD_ONLY = PROBABLE || EARLY_BAND || process.env.FORMATION_HISTORY_ABCD_ONLY === '1';
 const OUT_DIR = process.env.FORMATION_HISTORY_OUT || path.resolve(__dirname, '../../test-results/formation-history');
 
 /** [tf, geçmiş gün] */
@@ -526,7 +528,16 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
     ks.add(key);
   };
   const events = new Map<string, number | string>();
+  // Erken dönüş Stufe 3 (band): Grund je Tarama (letzter Aufruf gewinnt) und je Kandidat
+  type BandRec = NonNullable<DiagEvent['band']>;
+  const bandNow = new Map<string, BandRec>();
+  const bandStates: Record<string, number> = { noBand: 0, notYet: 0, other: 0 };
+  const bandCand = new Map<string, { last: BandRec['reason']; depth: number | null; maxProgress: number; reasons: Set<string> }>();
   setFormationDiag((e) => {
+    if (e.fn === 'earlyBand') {
+      if (e.band) bandNow.set(e.key, e.band);
+      return;
+    }
     const k = `${e.fn}|${e.key}`;
     const prev = events.get(k);
     if (e.fn === 'early' && typeof prev === 'number' && typeof e.step === 'number' && prev >= e.step) return;
@@ -540,6 +551,7 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
   let ms = 0;
   for (let i = first; i < mainBars.length; i += STEP) {
     const at = mainBars[i].time + tfSec;
+    bandNow.clear();
     const started = performance.now();
     // ABCD_ONLY: `scanFormations`in AB=CD kolu (ANALYZERS.ABCD) tek başına; aynı hitler, harmonikler hesaplanmaz
     const hits = (
@@ -586,7 +598,18 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
         // Erken dönüş, Stufe 1–2 (3–8 kommen aus der Kanca): D da und Level 1 nicht erreicht; Kandidat nicht ungültig
         if (p.D && !reached) {
           countStage('early.s1', key);
-          if ((c.invalidBy ?? []).length === 0) countStage('early.s2', key);
+          if ((c.invalidBy ?? []).length === 0) {
+            countStage('early.s2', key);
+            const b = bandNow.get(key);
+            if (b) {
+              bandStates[b.reason]++;
+              const bc = bandCand.get(key) ?? { last: b.reason, depth: b.depth, maxProgress: 0, reasons: new Set<string>() };
+              bc.last = b.reason;
+              bc.reasons.add(b.reason);
+              if (b.progress !== null && b.progress > bc.maxProgress) bc.maxProgress = b.progress;
+              bandCand.set(key, bc);
+            }
+          }
         }
         if (t.cLeg && reached) tally.violate('cLegWhileReached', { symbol, tf, at: iso(at), key });
         if (t.cLeg) {
@@ -723,6 +746,44 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
     reentryCalled: stage('reentry.called'),
     reentryExits: Object.fromEntries(names.filter((n) => n.startsWith('reentry.exit.')).map((n) => [n.slice('reentry.exit.'.length), stage(n)])),
   };
+  // Stufe 3 (band) nach Grund: je Tarama-Zustand und je Kandidat (Kandidat = Stufe 2 erreicht, Stufe 3 nie)
+  const s3Keys = diagKeys.get('early.s3') ?? new Set<string>();
+  const bucketOf = (x: number | null, cuts: readonly number[]) => {
+    if (x === null) return 'null';
+    const i = cuts.findIndex((c) => x < c);
+    if (i === 0) return `<${cuts[0]}`;
+    return i === -1 ? `>=${cuts[cuts.length - 1]}` : `${cuts[i - 1]}-${cuts[i]}`;
+  };
+  const bucketDepth = (d: number | null) => bucketOf(d, [0.382, 0.5, 0.618, 0.678]);
+  const bucketProg = (x: number) => bucketOf(x, [0.5, 0.8, 0.95]);
+  const byReason: Record<string, number> = { noBand: 0, notYet: 0, other: 0 };
+  const byDepth: Record<string, number> = {};
+  const byDepthAll: Record<string, number> = {};
+  const byProgress: Record<string, number> = {};
+  const mixed = { noBandAndNotYet: 0 };
+  let stage3Cands = 0;
+  for (const [key, bc] of bandCand) {
+    byDepthAll[bucketDepth(bc.depth)] = (byDepthAll[bucketDepth(bc.depth)] ?? 0) + 1;
+    if (s3Keys.has(key)) continue;
+    stage3Cands++;
+    byReason[bc.last]++;
+    byDepth[bucketDepth(bc.depth)] = (byDepth[bucketDepth(bc.depth)] ?? 0) + 1;
+    if (bc.last === 'notYet') byProgress[bucketProg(bc.maxProgress)] = (byProgress[bucketProg(bc.maxProgress)] ?? 0) + 1;
+    if (bc.reasons.has('noBand') && bc.reasons.has('notYet')) mixed.noBandAndNotYet++;
+  }
+  const earlyBand = {
+    s2States: tally.counts['diag.early.s2'] ?? 0,
+    s3States: tally.counts['diag.early.s3'] ?? 0,
+    stateReasons: bandStates,
+    s2Candidates: diagKeys.get('early.s2')?.size ?? 0,
+    s3Candidates: s3Keys.size,
+    stage3Candidates: stage3Cands,
+    candidateReasons: byReason,
+    candidateDepth: byDepth,
+    allS2CandidateDepth: byDepthAll,
+    notYetMaxProgress: byProgress,
+    mixed,
+  };
   const delays = tally.lists['cleg.delayBars'] ?? [];
   const probableC = pc ? pc.summary(cKeys) : undefined;
   const harmonics = Object.fromEntries(
@@ -757,6 +818,7 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
     to: iso(mainBars[mainBars.length - 1].time),
     abcd: { candidates: abcd.size, entered, lastStatus: status, statusEver, ...flags },
     diag,
+    earlyBand,
     cleg,
     ...(probableC ? { probableC } : {}),
     harmonics,

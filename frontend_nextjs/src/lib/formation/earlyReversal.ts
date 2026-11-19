@@ -79,6 +79,24 @@ export function earlyReversalOf(o: EarlyInput): EarlyReversal | null {
     if (n > deep) deep = n;
   });
   if (o.s.d && !o.reached) emitDiag({ fn: 'early', key: `${o.s.side}|${o.bars[o.s.a.idx]?.time}|${o.bars[o.s.b.idx]?.time}|${o.bars[o.s.c.idx]?.time}`, step: r ? 8 : deep });
+  const dTip = o.s.d;
+  if (dTip && !o.reached && deep < 3) {
+    // Tanı: Grund des Scheiterns an Stufe 3 (nur Messung, ändert das Ergebnis nicht)
+    const { s } = o;
+    const out = (p: number) => outward(s.es, p);
+    const ext = extensionPrice(s, ABCD_PARAMS.minExtension);
+    let reason: 'noBand' | 'notYet' | 'other' = 'other';
+    let progress: number | null = null;
+    if (s.len > 0) {
+      if (!(out(ext) < out(s.level1))) reason = 'noBand';
+      else if (out(dTip.price) < out(ext)) {
+        reason = 'notYet';
+        const span = out(ext) - out(s.c.price);
+        progress = span > 0 ? Math.max(0, Math.min(1, (out(dTip.price) - out(s.c.price)) / span)) : null;
+      }
+    }
+    emitDiag({ fn: 'earlyBand', key: `${s.side}|${o.bars[s.a.idx]?.time}|${o.bars[s.b.idx]?.time}|${o.bars[s.c.idx]?.time}`, step: 2, band: { reason, depth: s.depth, progress } });
+  }
   return r;
 }
 
