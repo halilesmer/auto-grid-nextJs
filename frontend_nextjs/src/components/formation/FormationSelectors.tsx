@@ -9,7 +9,7 @@ import { Combobox, ComboboxAutocomplete } from '@/components/ui/combobox';
 import { InfoHint, Tooltip } from '@/components/ui/tooltip';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useSymbolDetails } from '@/hooks/useSymbolDetails';
-import { useDock } from '@/components/chart-workspace/dock/DockProvider';
+import { useBarLoading } from '@/components/chart-page/ChartTopBarLoading';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
 import type { SymbolDetail } from '@/store/types';
@@ -166,9 +166,9 @@ export function FormationAccountSelect({ accounts, value, onChange, className, l
   onChange: (id: string) => void;
 }) {
   const t = useT();
-  const dock = useDock();
+  const barLoading = useBarLoading(loading);
   const env = accounts.find((account) => String(account.id) === value)?.env_type;
-  if (loading && dock && !dock.phone) {
+  if (barLoading) {
     return (
       <Tooltip content={t('chart.loading.accounts.hint')} className={cn('min-w-0 flex-1 lg:w-44 lg:flex-none', className)}>
         <div role="status" aria-busy="true" data-testid="chart-topbar-account-loading" className="flex h-[30px] w-full min-w-0 animate-pulse items-center px-2 text-xs text-muted-foreground">

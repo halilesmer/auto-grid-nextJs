@@ -5,6 +5,7 @@ import { CalendarDays } from 'lucide-react';
 import { DayPicker, type DateRange } from 'react-day-picker';
 import { de, enUS, tr } from 'date-fns/locale';
 import 'react-day-picker/style.css';
+import { useBarLoading } from '@/components/chart-page/ChartTopBarLoading';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, useDropdownClose } from '@/components/ui/dropdown-menu';
 import { InputField } from '@/components/ui/InputField';
@@ -59,14 +60,17 @@ interface DateRangePickerProps {
   /** Heutiger Brokertag (Brokeruhr des Kontos) */
   today: DayString;
   onChange: (value: RangeSelection) => void;
+  /** Die Kontoliste lädt (1119-A19.1): auf dem Desktop der Kopfleiste blass und gesperrt, gleiche Maße */
+  loading?: boolean;
 }
 
 /**
  * Zeitraum in Brokertagen (MT5-Zeit): Vorauswahlen, Kalender und Eingabe als TT.MM.JJ.
  * Gerechnet wird in src/lib/serverTime.ts; der Kalender zeigt nur Tage an.
  */
-export function DateRangePicker({ value, today, onChange }: DateRangePickerProps) {
+export function DateRangePicker({ value, today, onChange, loading = false }: DateRangePickerProps) {
   const t = useT();
+  const barLoading = useBarLoading(loading);
   const range = resolveRange(value, today);
   const label = 'preset' in value ? t(PRESET_KEYS[value.preset]) : rangeText(range, t('analysis.range.all'));
   const detail = 'preset' in value && value.preset !== 'all' ? rangeText(range, '') : null;
@@ -74,7 +78,8 @@ export function DateRangePicker({ value, today, onChange }: DateRangePickerProps
   return (
     <DropdownMenu
       label={`${t('analysis.range')}: ${label}`}
-      hint={t('analysis.range.hint')}
+      hint={barLoading ? t('chart.loading.control.hint') : t('analysis.range.hint')}
+      triggerProps={barLoading ? { disabled: true, 'aria-busy': true } : undefined}
       icon={
         <span className="flex min-w-0 items-center gap-2" data-testid="range-trigger">
           <CalendarDays size={14} className="shrink-0" />

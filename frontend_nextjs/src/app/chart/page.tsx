@@ -35,7 +35,7 @@ function NoAccountChart({ accountId, accountsKnown, pending, chrome }: { account
       panel={null}
       notices={null}
       floating={null}
-      topBar={<ChartTopBar loading={pending} account={chrome.account} target={null} timeframes={null} range={chrome.range} tools={<FormationAlarmMenu symbol={null} alarm={alarm} pastView={false} />} />}
+      topBar={<ChartTopBar loading={pending} account={chrome.account} target={null} timeframes={null} range={chrome.range} tools={<FormationAlarmMenu symbol={null} alarm={alarm} pastView={false} loading={pending} />} />}
       surface={alert}
     />
   );
@@ -85,7 +85,7 @@ function ChartRoot() {
         }}
       />
     ),
-    range: <DateRangePicker value={range} today={today} onChange={chooseRange} />,
+    range: <DateRangePicker value={range} today={today} onChange={chooseRange} loading={accountsPending} />,
     notices: (
       <>
         <ChartNotice>

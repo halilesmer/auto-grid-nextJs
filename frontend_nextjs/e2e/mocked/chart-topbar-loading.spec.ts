@@ -54,6 +54,17 @@ test.describe('UI-15 Kopfleiste beim Laden der Kontoliste', () => {
     await expect(account).toHaveAttribute('aria-busy', 'true');
     await expect(account).toContainText(msg('chart.loading.accounts'));
     await expect(page.getByText(msg('account.select.placeholder'))).toHaveCount(0);
+    // 1119-A19.1: Alarm und Zeitraum sind beim Laden blass und gesperrt; ein Druck öffnet kein Panel
+    const alarm = page.getByTestId('formation-alarm');
+    const rangeButton = page.getByTestId('range-trigger').locator('xpath=ancestor::button[1]');
+    await expect(alarm).toBeDisabled();
+    await expect(rangeButton).toBeDisabled();
+    await expect(alarm).toHaveAttribute('aria-label', msg('formation.alarm.menu'));
+    await alarm.click({ force: true });
+    await rangeButton.click({ force: true });
+    await page.waitForTimeout(300);
+    await expect(page.getByTestId('formation-alarm-panel')).toHaveCount(0);
+    await expect(page.getByTestId('range-panel')).toHaveCount(0);
     const before = await xPositions(page, 'chart-topbar-timeframes-loading');
     const barBefore = await bar.evaluate((el) => Math.round(el.getBoundingClientRect().height));
 
@@ -62,6 +73,8 @@ test.describe('UI-15 Kopfleiste beim Laden der Kontoliste', () => {
     await expect(symbol).toHaveCount(0);
     await expect(timeframes).toHaveCount(0);
     await expect(account).toHaveCount(0);
+    await expect(alarm).toBeEnabled();
+    await expect(rangeButton).toBeEnabled();
     const after = await xPositions(page, 'timeframe-select');
     expect(before.account).not.toBeNull();
     expect(before.range).not.toBeNull();
@@ -70,6 +83,16 @@ test.describe('UI-15 Kopfleiste beim Laden der Kontoliste', () => {
     expect(Math.abs(after.range! - before.range!), 'Zeitraum').toBeLessThanOrEqual(1);
     expect(Math.abs(after.timeframes! - before.timeframes!), 'Zeiteinheiten').toBeLessThanOrEqual(1);
     expect(Math.abs((await bar.evaluate((el) => Math.round(el.getBoundingClientRect().height))) - barBefore), 'Höhe der Leiste').toBeLessThanOrEqual(1);
+    // Nach dem Laden öffnen beide Panels und bleiben offen
+    await alarm.click();
+    await expect(page.getByTestId('formation-alarm-panel')).toBeVisible();
+    await page.waitForTimeout(500);
+    await expect(page.getByTestId('formation-alarm-panel')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await rangeButton.click();
+    await expect(page.getByTestId('range-panel')).toBeVisible();
+    await page.waitForTimeout(500);
+    await expect(page.getByTestId('range-panel')).toBeVisible();
   });
 
   test('375 × 812: auf dem Handy keine Platzhalter, der bisherige Ladezustand bleibt', { tag: '@UI-15' }, async ({ page, worker }) => {
@@ -81,6 +104,7 @@ test.describe('UI-15 Kopfleiste beim Laden der Kontoliste', () => {
     await expect(page.getByTestId('chart-topbar-symbol-loading')).toHaveCount(0);
     await expect(page.getByTestId('chart-topbar-timeframes-loading')).toHaveCount(0);
     await expect(page.getByTestId('chart-topbar-account-loading')).toHaveCount(0);
+    await expect(page.getByTestId('formation-alarm')).toBeEnabled();
     release();
     await expect(page.getByTestId('timeframe-select')).toBeVisible();
   });

@@ -17,6 +17,7 @@ Plan 1119-A9.1 (Halil, 2026-11-19, "B: placeholder"). While the account list loa
 - The placeholders are not controls. They are `div`/`span` with `role="status"` and `aria-busy="true"`, so they need no tooltip (UI-07 does not apply).
 - The phone layout (container under 30 rem) keeps the old loading state. Reason: phone UI waits (Halil, 2026-11-17).
 - `useChartContext` returns `accountsPending`. It is true until the first load attempt ends. If the first attempt fails, the placeholders go away and the old notices show; the 10-second retry continues.
+- 1119-A19.1 (Halil, 2026-11-19, "B: passive"): in the loading bar on the desktop, the alarm bell (`formation-alarm`) and the date range ("Tümü") are pale and disabled. A press opens no panel. They keep their position and width, their accessible name and a hint that says why ("Hesap listesi yüklenirken kullanılamaz"). When the list is there, they work as before and stay open when pressed. On the phone they are unchanged. The shared hook `useBarLoading` (desktop dock only) decides this in the account select, the range picker and the alarm menu.
 
 ## Deviation from the brief
 The symbol placeholder always has the width `w-44`, the same as the real symbol field. A width based on the `symbol` in the URL would move the bar when the list arrives. The URL symbol is not shown as text, because it is not yet verified.

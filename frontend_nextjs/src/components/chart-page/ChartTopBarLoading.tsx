@@ -1,5 +1,6 @@
 'use client';
 
+import { useDock } from '@/components/chart-workspace/dock/DockProvider';
 import { useT } from '@/i18n';
 import { CHART_TIMEFRAMES } from '@/lib/analysis/candles';
 
@@ -28,4 +29,10 @@ export function TimeframesPlaceholder() {
       ))}
     </div>
   );
+}
+
+/** Ladezustand der Kopfleiste gilt nur auf dem Desktop (Dock ohne Handy-Anordnung); auf dem Handy bleibt alles wie bisher (Halil 2026-11-17) */
+export function useBarLoading(loading: boolean) {
+  const dock = useDock();
+  return loading && !!dock && !dock.phone;
 }
