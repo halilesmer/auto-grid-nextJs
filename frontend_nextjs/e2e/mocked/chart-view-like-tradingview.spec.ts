@@ -196,3 +196,26 @@ test('Son mumdan uzaktaki görünüm yeni mumla kaymaz', { tag: '@ANA-19' }, asy
   expect(after[1]).toBe(away[1]);
   expect(Math.abs(after[0] - away[0])).toBeLessThanOrEqual(3600);
 });
+
+test('Kurulum bölgesi grafikten sonra gelince grafik yeniden kurulmaz, zoom kaybolmaz', { tag: '@ANA-19' }, async ({ page, worker }) => {
+  // 1119-A11.1 = B: `notes` exist only with a setup zone; they must not rebuild the chart. The settings answer comes late.
+  let release = () => {};
+  const gate = new Promise<void>((r) => { release = r; });
+  await page.route(new RegExp(`/api/settings/${DEMO_ID}$`), async (route) => { await gate; await route.fallback(); });
+  await page.goto(`/chart?account=${DEMO_ID}&symbol=USOUSD&tf=M15&range=last7`);
+  const chart = page.getByTestId('analysis-chart');
+  await expect.poll(async () => (await logicalOf(page))?.[1]).toBeGreaterThan(0);
+  await page.waitForTimeout(300);
+  await zoomIn(page);
+  await expect.poll(async () => slots((await rangeOf(page))!)).toBeGreaterThan(0);
+  await page.waitForTimeout(300);
+  const zoomed = await logicalOf(page);
+  const builds = await chart.getAttribute('data-chart-builds');
+  release();
+  // The zone arrives: the setup card shows the symbol zone
+  await expect(page.getByTestId('chart-workspace')).toBeVisible();
+  await expect.poll(() => worker.callsTo('GET', `/api/settings/${DEMO_ID}`).length).toBeGreaterThan(0);
+  await page.waitForTimeout(1000);
+  expect(await chart.getAttribute('data-chart-builds')).toBe(builds);
+  expect(await logicalOf(page)).toEqual(zoomed);
+});

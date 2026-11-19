@@ -348,6 +348,8 @@ export function ChartCore({
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+    // Test hook (ANA-19): how many times this container built a chart
+    el.setAttribute('data-chart-builds', String(Number(el.getAttribute('data-chart-builds') ?? 0) + 1));
     const chart = createChart(el, {
       autoSize: true,
       layout: {
@@ -393,18 +395,6 @@ export function ChartCore({
     equityRef.current = equitySeries;
     primitives.current = { band, missing, pauses, links, fractals: fractalMarks, trend };
 
-    const onMove = (param: MouseEventParams<Time>) => {
-      if (param.time === undefined) {
-        setHover(null);
-        return;
-      }
-      const time = Number(param.time);
-      const bar = barByTimeRef.current.get(time) ?? null;
-      // Gleiche Kerze: kein neuer Zustand, sonst rendert jede Mausbewegung den Chart neu
-      setHover((prev) => (prev && prev.time === time && prev.bar === bar ? prev : { bar, time }));
-    };
-    // OHLC unter dem Fadenkreuz gibt es nur im Layout mit Karte; die Trade-Notizen (notes) gibt es in beiden
-    if (!overlayLayout || hasNotes) chart.subscribeCrosshairMove(onMove);
     return () => {
       forgetView.current?.();
       forgetView.current = null;
@@ -412,7 +402,6 @@ export function ChartCore({
       cancelAnimationFrame(keepViewFrame.current);
       viewFixPending.current = false;
       attached.dispose?.();
-      chart.unsubscribeCrosshairMove(onMove);
       chart.remove();
       chartRef.current = null;
       candlesRef.current = null;
@@ -426,6 +415,27 @@ export function ChartCore({
       lastBar.current = null;
       shownRunning.current = null;
       runningCount.current = 0;
+    };
+  }, [hasCurves, overlayLayout, systemSeries]);
+
+  // Fadenkreuz-Hover: eigener Effekt, damit das Kommen der Notizen (hasNotes) den Chart nicht neu anlegt (1119-A11.1)
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || (overlayLayout && !hasNotes)) return;
+    const onMove = (param: MouseEventParams<Time>) => {
+      if (param.time === undefined) {
+        setHover(null);
+        return;
+      }
+      const time = Number(param.time);
+      const bar = barByTimeRef.current.get(time) ?? null;
+      // Gleiche Kerze: kein neuer Zustand, sonst rendert jede Mausbewegung den Chart neu
+      setHover((prev) => (prev && prev.time === time && prev.bar === bar ? prev : { bar, time }));
+    };
+    chart.subscribeCrosshairMove(onMove);
+    return () => {
+      // Der Aufbau-Effekt räumt zuerst auf und entfernt den Chart; dann gibt es nichts mehr zu lösen
+      try { chart.unsubscribeCrosshairMove(onMove); } catch { /* Chart schon entfernt */ }
     };
   }, [hasCurves, hasNotes, overlayLayout, systemSeries]);
 
