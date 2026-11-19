@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { useAccounts } from '@/components/account/hooks';
 import { useAccountSettings } from '@/hooks/useAccountSettings';
@@ -40,12 +40,16 @@ export function useChartContext() {
   // Direkt aufgerufen (Neuladen, Link): Kontoliste selbst laden. Schlägt das erste Laden fehl (der Worker startet gerade neu), bliebe die Auswahl sonst leer:
   // neuer Versuch im Takt, erst nach dem Ende des vorigen geplant (eine hängende Anfrage stapelt keine weiteren)
   const accountsLoaded = accounts.length > 0;
+  // Erster Ladeversuch beendet (auch fehlgeschlagen): bis dahin zeigt /chart Platzhalter, danach die Hinweise (1119-A9.1)
+  const [firstTryDone, setFirstTryDone] = useState(false);
+  const accountsPending = !accountsLoaded && !firstTryDone;
   useEffect(() => {
     if (accountsLoaded) return;
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
     const load = async () => {
       await fetchAccounts();
+      if (!stopped) setFirstTryDone(true);
       if (!stopped) timer = setTimeout(load, ACCOUNTS_RETRY_MS);
     };
     void load();
@@ -80,5 +84,5 @@ export function useChartContext() {
   // Zeitraum in MT5-Sekunden, halb offen; „alles“ endet mit dem heutigen Brokertag
   const bounds = useMemo(() => chartBounds(range, today), [range, today]);
 
-  return { params, accounts, accountId, accountKnown, zones, settingsError, clock, offsetSec, today, bounds };
+  return { params, accounts, accountsPending, accountId, accountKnown, zones, settingsError, clock, offsetSec, today, bounds };
 }
