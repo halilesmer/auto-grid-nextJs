@@ -3,7 +3,7 @@ date: 2026-11-13
 author: Claude
 type: diagnosis
 status: done
-pr: []
+pr: [622]
 features: [ANA-21, FRM-03]
 areas: [frontend]
 ---
