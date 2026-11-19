@@ -2,7 +2,7 @@
 date: 2026-11-13
 author: Claude
 type: diagnosis
-status: open
+status: done
 pr: []
 features: [ANA-21, FRM-03]
 areas: [frontend]
@@ -53,7 +53,7 @@ So no code changed. The shift happens each time the extreme candle comes before 
 
 ## Open points
 
-- [ ] Decision of the project owner: keep the rule, or let a fractal count when the EWO has the color of its side at any candle from the fractal candle up to the candle that completes it (`idx` to `doneAt`). This option has no look-ahead (the decision stays at `doneAt`). Here the EWO is red at `doneAt` (2026-10-15 00:00, −143.6), so the 16:00 low would be the point and the 20:00 low would be weaker and not drawn. It changes the test above and maybe the GBPCAD reference count ("10 von 12") and other `welle`/`welle382` charts. A red test and a measurement over the fixtures come first.
+- [x] (Done 2026-11-19, see `2026-11-19-ewo-color-window.md`: owner chose the window) Decision of the project owner: keep the rule, or let a fractal count when the EWO has the color of its side at any candle from the fractal candle up to the candle that completes it (`idx` to `doneAt`). This option has no look-ahead (the decision stays at `doneAt`). Here the EWO is red at `doneAt` (2026-10-15 00:00, −143.6), so the 16:00 low would be the point and the 20:00 low would be weaker and not drawn. It changes the test above and maybe the GBPCAD reference count ("10 von 12") and other `welle`/`welle382` charts. A red test and a measurement over the fixtures come first.
 
 ## Lessons
 

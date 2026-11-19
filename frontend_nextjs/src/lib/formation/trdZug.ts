@@ -33,11 +33,23 @@ function sizeRule(minLeg: Size): ZugRule {
   };
 }
 
-/** Je grüner EWO-Welle nur das höchste Hoch, je roter nur das tiefste Tief */
+/** Hat der EWO an einer Kerze von `idx` bis `doneAt` die Farbe der Seite (grün für ein Hoch, rot für ein Tief)? */
+function hasSideColor(ewo: Series, f: ZugPoint): boolean {
+  for (let i = f.idx; i <= f.doneAt; i++) {
+    const w = ewo[i];
+    if (w !== null && w !== undefined && phaseSide(w) === f.side) return true;
+  }
+  return false;
+}
+
+/**
+ * Je grüner EWO-Welle nur das höchste Hoch, je roter nur das tiefste Tief. Farbe in zwei Kerzen (Halil 2026-11-19): der EWO läuft dem Preis
+ * hinterher, daher genügt es, wenn er an irgendeiner Kerze von der Fraktalkerze bis zur Fertigstellung (`idx` bis `doneAt`) die Farbe der Seite hat.
+ * Die Entscheidung bleibt an `doneAt`, es fließt keine spätere Kerze ein.
+ */
 function waveRule(ewo: Series): ZugRule {
   return (zug, f) => {
-    const w = ewo[f.idx];
-    if (w === null || phaseSide(w) !== f.side) return null;
+    if (!hasSideColor(ewo, f)) return null;
     const last = zug[zug.length - 1];
     if (last?.side !== f.side) return { cut: 0, add: [f] };
     return beyond(f.side, f, last) ? { cut: 1, add: [f] } : null;
