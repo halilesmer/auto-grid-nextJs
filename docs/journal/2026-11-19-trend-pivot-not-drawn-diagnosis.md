@@ -3,7 +3,7 @@ date: 2026-11-19
 author: Claude
 type: diagnosis
 status: open
-pr: []
+pr: [619]
 features: [FRM-03, FRM-39]
 areas: [frontend]
 ---
