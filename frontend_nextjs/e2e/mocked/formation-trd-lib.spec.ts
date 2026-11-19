@@ -817,27 +817,41 @@ test.describe('TRD: Trendzug', () => {
     }
   });
 
-  frm('Regel welle: in jeder EWO-Welle steht höchstens ein Punkt, im GBPCAD-Chart 10 von 12 Referenzpunkten', () => {
+  frm('Regel welle: im GBPCAD-Chart 10 von 12 Referenzpunkte, jeder Punkt hat die Farbe seiner Seite im Fenster von Fraktalkerze bis Fertigstellung', () => {
     const chart = refChart('trd-ref-d1-gbpcad');
     const { model, bars } = refMatch(chart, { rule: 'welle' });
     const ewo = wave(bars);
-    const phaseOf = (i: number) => {
-      let k = i;
-      while (k > 0 && ewo[k - 1] !== null && ewo[k - 1]! > 0 === ewo[i]! > 0) k--;
-      return k;
-    };
-    const phases = model.pivots.map((p) => phaseOf(p.idx));
-    expect(new Set(phases).size).toBe(phases.length);
+    const hasColor = (side: string, i: number) => (side === 'resistance' ? ewo[i]! > 0 : ewo[i]! < 0);
+    expect(model.pivots.every((p) => [...Array(p.doneAt - p.idx + 1).keys()].some((d) => hasColor(p.side, p.idx + d)))).toBe(true);
     expect(refMatch(chart, { rule: 'welle' }).hit).toBe(10);
   });
 
-  frm('Regel welle: ein Hoch liegt in einer grünen, ein Tief in einer roten Phase', () => {
+  frm('Regel welle: ein Hoch hat von seiner Kerze bis zur Fertigstellung eine grüne, ein Tief eine rote EWO-Kerze (Farbe in zwei Kerzen)', () => {
     const { bars } = fixtureBars('trd-ref-d1-gbpusd');
     const ewo = wave(bars);
     const { pivots } = buildTrend('H4', bars, [], { rule: 'welle' });
-    expect(pivots).toHaveLength(5);
-    expect(pivots.every((p) => (p.side === 'resistance' ? ewo[p.idx]! > 0 : ewo[p.idx]! < 0))).toBe(true);
+    expect(pivots).toHaveLength(9);
+    const hasColor = (side: string, i: number) => (side === 'resistance' ? ewo[i]! > 0 : ewo[i]! < 0);
+    expect(pivots.every((p) => [...Array(p.doneAt - p.idx + 1).keys()].some((d) => hasColor(p.side, p.idx + d)))).toBe(true);
   });
+
+  // Farbe in zwei Kerzen (Halil 2026-11-19): ein Fraktal gilt, wenn der EWO an irgendeiner Kerze von `idx` bis `doneAt` die Farbe seiner Seite hat
+  // 36 Kerzen steigen von 100 auf 140, dann fällt der Preis schnell: am tiefsten Docht (99.4) ist der EWO noch grün, an der Fertigstellung rot
+  const RAMP: Row[] = Array.from({ length: 36 }, (_, i): Row => plain(i === 0 ? 100 : 100 + (40 * i) / 36, 100 + (40 * (i + 1)) / 36));
+  const DROP: Row[] = [...RAMP, ...zig([100, 130, 115, 139, 108.35], [10, 4, 14, 8], 3)];
+  const DEEP = RAMP.length + 1;
+  const deepRows = (): Row[] => DROP.map((r, i): Row => (i === DEEP ? [r[0], r[1], 99.4, r[3]] : r));
+
+  for (const rule of ['welle', 'welle382'] as const) {
+    frm(`Regel ${rule}: der tiefste Docht gilt, wenn der EWO bis zur Fertigstellung rot wird (Farbe in zwei Kerzen)`, () => {
+      const bars = barsOf(deepRows());
+      const ewo = wave(bars);
+      expect(ewo[DEEP]! > 0).toBe(true); // am Docht noch grün
+      expect(ewo[DEEP + 2]! < 0).toBe(true); // an der Fertigstellung rot
+      const lows = buildTrend('H4', bars, [], { rule }).pivots.filter((p) => p.side === 'support');
+      expect(lows[0]).toMatchObject({ idx: DEEP, price: 99.4 });
+    });
+  }
 
   // Regel welle382 (EWO + Fibo 382, Halil 2026-11-10): wie welle, aber eine Gegenbewegung unter 0,382 des vorigen Schenkels (Docht zu Docht) wird nicht gezeichnet
   const W382 = { ewoFast: 2, ewoSlow: 6 };

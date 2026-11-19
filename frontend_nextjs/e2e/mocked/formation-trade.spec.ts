@@ -466,9 +466,17 @@ const h1Of = (engulf: boolean, hours = 8): number[][] => {
   }
   return rows;
 };
+/**
+ * Seit der Regel „Farbe in zwei Kerzen“ (2026-11-19) wählt der Trend der abgeleiteten Tageskerzen von BREAKC das echte Hoch vom 15.07. (1,35575)
+ * statt des tieferen Hochs vom 20.07. (1,34805). Der Schluss der letzten Tageskerze liegt darunter, der frühere Wechsel nach oben (31.07.) entfällt.
+ * Für den Zustand des Tests (höherer Trend läuft aufwärts, gegen den Verkauf-AB=CD) schließt die letzte Tageskerze deshalb über diesem Hoch (sentetik).
+ */
+const liftedD1 = (rows: number[][], above: number): number[][] =>
+  rows.map((r, i) => (i === rows.length - 1 ? [r[0], r[1], Math.max(r[2], above), r[3], above] : r));
 const openCLeg = async (page: Page, worker: MockWorker, o: { file: string; now: number }, h1?: number[][]) => {
   await seedFixtureTrend(page, fixtureTrend(o.file), true);
-  await openPage(page, worker, o.file, o.now, 'ABCD', undefined, { D1: d1Of(o.file, o.now), ...(h1 ? { H1: h1 } : {}) });
+  const d1 = o.file === BREAKC.file ? liftedD1(d1Of(o.file, o.now), 1.3565) : d1Of(o.file, o.now);
+  await openPage(page, worker, o.file, o.now, 'ABCD', undefined, { D1: d1, ...(h1 ? { H1: h1 } : {}) });
 };
 // Saatlik küçük AB=CD (sentetik): B'den başlayan düz dolgu, sonra a 1,3373 (tepe), b 1,3313, c 1,3343 (derinlik 0,5), d 1,3273 (seviye 1 = 1,3283);
 // d, C mumunun ilk saatinde (C + 1 saat) biter. Ölçek: fiyat = 1,3273 + (x − 79) · 0,00015.

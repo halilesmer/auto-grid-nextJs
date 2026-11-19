@@ -671,10 +671,10 @@ test.describe('ABCD: echte Kerzen', () => {
   });
 
   frm('abcd-breakc-h4-01: Verkauf, der Trend dreht vor D abwärts und bricht C: davor im Aufbau, danach ungültig (ABCD-26)', () => {
-    // A 1.32721, B 1.35026, C 1.33412, D bisher 1.34587 (Level 1 1.35717); die H4-Kerze 08:00 schließt unter C, der Trendzug dreht abwärts
-    const before = analyzeAt('abcd-breakc-h4-01', '2026-11-11T08:00');
+    // A 1.32721, B 1.35026, C 1.33412; die H4-Kerze 16:00 am 10.11. schließt unter C, der Trendzug dreht abwärts (seit der Regel „Farbe in zwei Kerzen“, 2026-11-19, früher als zuvor 08:00 am 11.11.). Zwischen 12:00 und 16:00 meldet H4 ein anderes (Kauf-)Muster, daher steht „davor“ bei 08:00
+    const before = analyzeAt('abcd-breakc-h4-01', '2026-11-10T08:00');
     expect([before.side, before.points.C?.price, before.verdict, state(before, 'ABCD-26')]).toEqual(['sell', 1.33412, 'forming', N]);
-    const after = analyzeAt('abcd-breakc-h4-01', '2026-11-11T12:00');
+    const after = analyzeAt('abcd-breakc-h4-01', '2026-11-10T20:00');
     expect([after.side, after.points.C?.price, state(after, 'ABCD-26'), after.verdict, after.invalidBy]).toEqual(['sell', 1.33412, M, 'invalid', ['ABCD-26']]);
   });
 
