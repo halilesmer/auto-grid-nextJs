@@ -27,7 +27,7 @@ import type { Appearance } from '@/lib/chart-workspace/settings';
 import { readChartColors, withAlpha, type ChartColors } from '@/lib/chartTheme';
 import { useThemeStore } from '@/store';
 import { ChartWorkspace, type WorkspaceContext } from '@/components/chart-workspace/ChartWorkspace';
-import { type ChartBinding, MIN_BAR_SPACING_PX, createChartBinding, appearanceColors, openingView, publishVisibleRange, type SystemSeriesRef, type SystemSeriesRefs } from '@/components/chart-workspace/runtime';
+import { type ChartBinding, MIN_BAR_SPACING_PX, createChartBinding, appearanceColors, openingView, fitWithGap, setRightGap, publishVisibleRange, type SystemSeriesRef, type SystemSeriesRefs } from '@/components/chart-workspace/runtime';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
 import { clipSegments, type TrendSegment } from '@/lib/formation/trdPath';
 import { canvasColor, dashArrayOf } from '@/lib/formation/lineStyle';
@@ -578,13 +578,14 @@ export function ChartCore({
       // Der Backtest zeigt die letzten VISIBLE_BARS (bis FIT_MAX_POINTS alle); alle anderen öffnen wie TradingView mit den letzten
       // Kerzen im Standard-Kerzenabstand (1118-A5.1), außer der Nutzer hat oben gerade einen Zeitraum gewählt: dann einmal alle
       if (!workspaceKey || workspaceView === 'backtest') {
+        setRightGap(chart, 0);
         chart.timeScale().setVisibleLogicalRange({ from: n <= FIT_MAX_POINTS ? -1 : n - VISIBLE_BARS, to: n + 3 });
         return;
       }
       const request = fitRequest.current;
       if (request.seq !== null && request.seq !== fittedOnce.current) {
         fittedOnce.current = request.seq;
-        chart.timeScale().fitContent();
+        fitWithGap(chart);
         request.done?.(request.seq);
       } else openingView(chart);
       forgetView.current = publishVisibleRange(chart, surfaceRef.current ? [el, surfaceRef.current] : [el]);
@@ -668,7 +669,7 @@ export function ChartCore({
     const chart = chartRef.current;
     if (!chart || fitOnce === null || fitOnce === fittedOnce.current || fittedKey.current !== viewKey) return;
     fittedOnce.current = fitOnce;
-    chart.timeScale().fitContent();
+    fitWithGap(chart);
     onFitted?.(fitOnce);
   }, [fitOnce, onFitted, viewKey, alignedView]);
 

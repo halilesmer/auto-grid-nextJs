@@ -32,7 +32,19 @@ export const MIN_BAR_SPACING_PX = 0.2;
  * „Ansicht zurücksetzen“. Der Zoom wird nicht gespeichert (Journal 2026-11-18-chart-view-like-tradingview).
  */
 export function openingView(chart: IChartApi) {
+  setRightGap(chart, RIGHT_GAP_BARS);
   chart.timeScale().resetTimeScale();
+}
+/** Leerer Raum rechts der letzten Kerze in Kerzen (1119-A1.1 = B: 10 Kerzen, wie die Einstellung „Rechter Rand“ bei TradingView) */
+export const RIGHT_GAP_BARS = 10;
+/** Schreibt `rightOffset`; `resetTimeScale()` und `fitContent()` lesen ihn (fitContent rechnet ihn in den Bereich ein) */
+export function setRightGap(chart: IChartApi, bars: number) {
+  chart.timeScale().applyOptions({ rightOffset: bars });
+}
+/** Zeitraum in der Kopfleiste: alle Kerzen einmal einpassen, rechts bleibt der Rand von 10 Kerzen */
+export function fitWithGap(chart: IChartApi) {
+  setRightGap(chart, RIGHT_GAP_BARS);
+  chart.timeScale().fitContent();
 }
 
 /**
@@ -44,6 +56,9 @@ export function publishVisibleRange(chart: IChartApi, hosts: HTMLElement[]): () 
   const publish = () => {
     const range = scale.getVisibleRange();
     if (range) hosts.forEach((host) => host.setAttribute('data-visible-range', `${range.from},${range.to}`));
+    // Mantıksal aralık (kerze indeksi): sağ boşluk `to - son indeks` olarak okunur
+    const logical = scale.getVisibleLogicalRange();
+    if (logical) hosts.forEach((host) => host.setAttribute('data-visible-logical', `${logical.from},${logical.to}`));
   };
   // Steht die Ansicht beim Anmelden schon, meldet der Chart danach keine Änderung mehr
   publish();
