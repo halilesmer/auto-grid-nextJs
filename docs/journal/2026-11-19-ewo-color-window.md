@@ -31,6 +31,17 @@ The EWO lags the price. After a fast move, rules `welle` and `welle382` rejected
 - "Regel welle: ein Hoch liegt in einer grünen, ein Tief in einer roten Phase" held the old rule. It now asks for the color at one candle from `idx` to `doneAt`. The GBPUSD D1 fixture gives 9 points with the new rule (5 before).
 - "Regel welle: in jeder EWO-Welle steht höchstens ein Punkt, im GBPCAD-Chart 10 von 12 Referenzpunkten" held a result of the old rule: a pivot could not share an EWO wave with another one. With the window two pivots can share a wave (the GBPCAD run: 21 points in 18 waves). The test now checks the color window; the hit count 10 of 12 stays.
 
+## Tests that went red in the precheck (fixture `abcd-breakc-h4-01`)
+
+The fixture uses `welle382` (`FIXTURE_TRENDS`). Eight tests pinned a state that the old rule produced. The setup moved, the checks did not.
+
+| Test | Old expectation | New setup, same expectation | Cause |
+|---|---|---|---|
+| `formation-abcd-lib` "abcd-breakc-h4-01: Verkauf, der Trend dreht vor D abwärts…" | before 2026-11-11 08:00 (forming, ABCD-26 unmet), after 12:00 (invalid, ABCD-26 met) | before 2026-11-10 08:00, after 2026-11-10 20:00; same states | The trend turns down at 2026-11-10 16:00 (before: 2026-11-11 08:00) because the pivots before it moved: high 2026-09-10 20:00 1.353 (before 09-09 08:00 1.35675), low 2026-10-14 16:00 1.31364 (before 10-14 20:00 1.31528, the GBPUSD case of `2026-11-13-ewo-rule-pivot-one-bar-late.md`). From 12:00 to 16:00 the H4 view reports another (buy) pattern, so "before" is 08:00. |
+| `formation-trade` FRM-39 C ayağı: Kart 10, alt zaman AB=CD, Bekleme satırı, 4 × Geçmişe ait not (7 tests) | required group 4/4 or 3/4 with the trend row met | same numbers, same texts; the last derived D1 candle closes at 1.3565 (synthetic) | The trend of the D1 candles derived from the H4 bars changed. Old: high 2026-07-20 1.34805 and a change up on 2026-07-31. New: high 2026-07-15 1.35575 and no change. The trend row is the higher trend against the sell AB=CD. Without a change it is not measurable, so the required group fell from 3/4 to 2/4. |
+
+Evidence for the new high: the H4 bars of the fixture have the high 1.35575 on 2026-07-15 20:00, which is higher than 1.34805 of 2026-07-20. The old rule skipped it because the EWO was still red at that candle and drew the lower later high. The new rule draws the real extreme. That the trend row falls from 3/4 to 2/4 is a result of the rule, not a defect: the real D1 candles show no close above the real high.
+
 ## Measurement (local, not committed)
 
 Fixtures `e2e/fixtures/formation/*.json`, H4 and H1, default trend settings, old code from `e83130ff` against the new code. "Changed" counts points that only one of the two runs has (same candle and side).
