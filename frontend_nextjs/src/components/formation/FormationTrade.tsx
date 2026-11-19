@@ -627,7 +627,7 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
                     {fmt(cl.entry)}
                   </span>
                   {clAge && (
-                    <Tooltip content={t('formation.trade.cleg.past.hint')} className="self-start">
+                    <Tooltip content={t('formation.trade.cleg.past.hint')} side="left" className="self-start">
                       <span data-testid="trade-cleg-past" tabIndex={0} className="w-fit rounded-md bg-muted px-1.5 py-px text-[10.5px] font-medium text-muted-foreground">
                         {t(clAge.n === 1 ? 'formation.trade.cleg.past.one' : 'formation.trade.cleg.past.many', { n: String(clAge.n) })}
                       </span>
