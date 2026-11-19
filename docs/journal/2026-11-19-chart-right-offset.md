@@ -3,7 +3,7 @@ date: 2026-11-19
 author: Claude
 type: change
 status: done
-pr: []
+pr: [620]
 features: [ANA-19, FRM-20]
 areas: [frontend, chart, tests]
 ---
