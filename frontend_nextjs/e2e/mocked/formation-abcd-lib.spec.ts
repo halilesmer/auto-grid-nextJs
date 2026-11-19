@@ -22,7 +22,7 @@ import { FormationContext, type ContextInput } from '../../src/lib/formation/con
 import { parseFixture } from '../../src/lib/formation/fixture';
 import { zoneGeometry } from '../../src/lib/formation/frz';
 import type { Anchor, Candidate, CheckState, FormationBar } from '../../src/lib/formation/types';
-import { D1, END, H4, barsOf, mirror, plain, zig, type Row } from '../fixtures/formation-rows';
+import { D1, END, H1, H4, barsOf, mirror, plain, zig, type Row } from '../fixtures/formation-rows';
 import { expectTradeShape } from '../fixtures/formation-trade';
 import { FIXTURE_TREND, named, trendOf } from '../fixtures/formation-trend';
 
@@ -1251,6 +1251,10 @@ interface ErCase {
   zoneByD?: boolean;
   /** Volumenstärke der umschlossenen Kerze (bei einer Engulf-Kerze zählt nur sie) */
   engulfWide?: boolean | null;
+  /** Engulf in der nächstkleineren Zeiteinheit (H1) ab der Kerze nach dem D; `wide` = Volumenstärke beider Kerzen */
+  lower?: { wide: boolean | null };
+  /** Ersetzt die Kerze nach dem D (Verkaufskoordinaten) */
+  tail?: Row[];
 }
 const ER_BASE: ErCase = { tip: 140.5, bandZone: { bottom: 139, top: 141 }, engulf: 'bear', targetZones: [{ bottom: 117, top: 118 }], cZone: { bottom: 113.5, top: 115 } };
 
@@ -1268,7 +1272,7 @@ function erRun(side: 'sell' | 'buy', over: Partial<ErCase> = {}) {
     [116, 116, 114, 115], // C
     [120, 125, 119, 124],
     [124, c.tip, 123, Math.min(139, c.tip - 0.5)], // Uç (D)
-    engulfRow[c.engulf],
+    ...(c.tail ?? [engulfRow[c.engulf]]),
   ];
   const rows = rowsSell.map(([o, h, l, cl]): Row => (side === 'sell' ? [o, h, l, cl] : [m(o), m(l), m(h), m(cl)]));
   const bars = barsOf(rows, H4);
@@ -1283,7 +1287,15 @@ function erRun(side: 'sell' | 'buy', over: Partial<ErCase> = {}) {
   for (const z of c.targetZones) zones.push({ side: opp, rect: rect(z) });
   if (c.cZone) zones.push({ side: opp, rect: rect(c.cZone) });
   const engulf: EngulfZone[] = c.engulfZones && c.bandZone ? [{ side, idx: 3, rect: rect(c.bandZone), big: true, holds: true }] : [];
-  return { m, er: earlyReversalOf({ bars, wide, s, reached: dReached(s), zones, engulfZones: engulf }) };
+  let lower: { bars: ReturnType<typeof barsOf>; wide: (boolean | null)[]; sec: number } | undefined;
+  if (c.lower) {
+    const lrows: Row[] = [
+      [138, 139.6, 137.9, 139.4], // yükselen (satışta) / aynalı: Engulf'un sarıldığı mum
+      [139.5, 139.7, 121, 122], // Engulf
+    ];
+    lower = { bars: barsOf(lrows.map(([o, h, l, cl]): Row => (side === 'sell' ? [o, h, l, cl] : [m(o), m(l), m(h), m(cl)])), H1, 5 * H4), wide: [c.lower.wide, c.lower.wide], sec: H1 };
+  }
+  return { m, er: earlyReversalOf({ bars, wide, s, reached: dReached(s), zones, engulfZones: engulf, sec: H4, ...(lower ? { lower } : {}) }) };
 }
 
 for (const side of ['sell', 'buy'] as const) {
@@ -1340,6 +1352,43 @@ for (const side of ['sell', 'buy'] as const) {
   frm(`Erken dönüş (${tag}): hacimsiz ya da hacmi bilinmeyen Engulf sayılmaz`, () => {
     expect(erRun(side, { engulfWide: false }).er).toBeNull();
     expect(erRun(side, { engulfWide: null }).er).toBeNull();
+  });
+  // FRM-39: erken dönüşün Engulf'u formasyon ZD'sine ek olarak bir alt ZD'de de aranır (1119-A35.1.1, SIG-28)
+  test(`Erken dönüş (${tag}): hacimli Engulf yalnız alt ZD'de ise giriş verir (alt ZD'de kapanış)`, { tag: ['@FRM-05', '@FRM-39'] }, () => {
+    const { m, er } = erRun(side, { engulf: 'none', lower: { wide: true } });
+    expect(er).not.toBeNull();
+    near(er!.entry, m(122));
+    near(er!.stop, m(141));
+    expect(er!.lower).toBe(true);
+    expect(er!.idx).toBe(5);
+    expect(er!.time).toBe(5 * H4 + H1);
+  });
+  test(`Erken dönüş (${tag}): alt ZD'deki Engulf hacimsiz ya da hacmi bilinmiyorsa yok`, { tag: ['@FRM-05', '@FRM-39'] }, () => {
+    expect(erRun(side, { engulf: 'none', lower: { wide: false } }).er).toBeNull();
+    expect(erRun(side, { engulf: 'none', lower: { wide: null } }).er).toBeNull();
+  });
+  test(`Erken dönüş (${tag}): alt ZD görünümü yoksa eski davranış (yalnız formasyon ZD'si)`, { tag: ['@FRM-05', '@FRM-39'] }, () => {
+    expect(erRun(side, { engulf: 'none' }).er).toBeNull();
+    const base = erRun(side).er!;
+    expect(base.lower).toBe(false);
+  });
+  test(`Erken dönüş (${tag}): iki ZD'de de varsa zamanca ilk kapanan geçerli`, { tag: ['@FRM-05', '@FRM-39'] }, () => {
+    const { er } = erRun(side, { lower: { wide: true } });
+    expect(er!.lower).toBe(true);
+    expect(er!.time).toBe(5 * H4 + H1);
+  });
+  test(`Erken dönüş (${tag}): ilk Engulf'ta stop girişin ötesindeyse aynı bölgede sonraki Engulf denenir`, { tag: ['@FRM-05', '@FRM-39'] }, () => {
+    // Bölge 137–139,5 (stop 139,5); D ucu 140,5 aşılmaz
+    const tail: Row[] = [
+      [139.95, 140.4, 139.9, 140.3], // Engulf'un sarıldığı mum
+      [140.4, 140.45, 138.5, 139.8], // Engulf, kapanış 139,8 > stop 139,5: geçersiz
+      [139, 139.4, 138.9, 139.3], // yükselen mum
+      [139.4, 139.45, 121, 122], // ikinci Engulf, geçerli
+    ];
+    const { m, er } = erRun(side, { tail, bandZone: { bottom: 137, top: 139.5 } });
+    expect(er).not.toBeNull();
+    near(er!.entry, m(122));
+    expect(er!.idx).toBe(8);
   });
   frm(`Erken dönüş (${tag}): Engulf bölgesi de bantta bölge sayılır`, () => {
     const { m, er } = erRun(side, { engulfZones: true });

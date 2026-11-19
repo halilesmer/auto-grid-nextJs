@@ -7,6 +7,8 @@
  * - D hat die Ausdehnung −0.272 (ABCD-06) erreicht, aber Level 1 nicht (auch nicht mit der Toleranz von ABCD-08).
  * - Im Band zwischen −0.272 und Level 1 liegt eine Fraktalzone oder Engulf-Zone der Handelsseite, und die Kerze des D berührt sie.
  * - Bei oder nach dem D schließt eine Engulf-Kerze in Handelsrichtung (`engulfAt`, wie ABCD-20), deren Kerzen die Zone berühren.
+ *   Gesucht wird in der Zeiteinheit der Formation und in der nächstkleineren (SIG-28, wie ABCD-20; 1119-A35.1.1); gilt der erste
+ *   Engulf, der zeitlich zuerst schließt. Ohne Ansicht der kleineren Zeiteinheit gilt nur die Formations-Zeiteinheit.
  *
  * Werte: Einstieg = Schluss der Engulf-Kerze; Stop = ferne Kante der Zone (gilt mit dem Kerzenschluss);
  * Ziel 1 = nächste Zone der Gegenseite in Handelsrichtung ab dem Einstieg (nahe Kante); Ziel 2 = Zone am Punkt C (nahe Kante).
@@ -39,8 +41,12 @@ export interface EarlyZone {
 }
 
 export interface EarlyReversal {
-  /** Index der Engulf-Kerze (Einstieg) */
+  /** Index der Engulf-Kerze (Einstieg); bei einem Engulf der kleineren Zeiteinheit der Index der Formationskerze, in der er schließt */
   idx: number;
+  /** Öffnungszeit der Engulf-Kerze in ihrer eigenen Zeiteinheit */
+  time: number;
+  /** Der Engulf liegt in der nächstkleineren Zeiteinheit (SIG-28) */
+  lower: boolean;
   entry: number;
   /** Ferne Kante der Zone, in der das D wendet */
   stop: number;
@@ -60,6 +66,10 @@ interface EarlyInput {
   reached: boolean;
   zones: readonly EarlyZone[];
   engulfZones: readonly EngulfZone[];
+  /** Sekunden einer Formationskerze; nur nötig, wenn `lower` gesetzt ist */
+  sec?: number;
+  /** Nächstkleinere Zeiteinheit (wie ABCD-20); ohne sie sucht der Engulf nur in der Formations-Zeiteinheit */
+  lower?: { bars: readonly FormationBar[]; wide: readonly (boolean | null)[]; sec: number };
 }
 
 export function earlyReversalOf(o: EarlyInput): EarlyReversal | null {
@@ -98,19 +108,34 @@ function earlyReversalRun(o: EarlyInput, mark: (n: number) => void): EarlyRevers
     .sort((p, q) => out(far(p)) - out(far(q)));
 
   if (own.length > 0) mark(4);
-  for (const zone of own) {
-    for (let k = Math.max(d.idx, 1); k < bars.length; k++) {
-      const e = engulfAt(bars, o.wide, k, side);
+  // Erste passende Engulf-Kerze ab der D-Kerze in einer Zeiteinheit; Rückgabe mit Schlusszeit für den zeitlichen Vergleich
+  const scan = (zone: Rect, sb: readonly FormationBar[], wide: readonly (boolean | null)[], sec: number, from: number) => {
+    for (let k = Math.max(from, 1); k < sb.length; k++) {
+      const e = engulfAt(sb, wide, k, side);
       if (!e) continue;
       mark(5);
       // Wie ABCD-20: eine nicht volumenstarke Kerze verwirft den Engulf; unbekannte Stärke zählt nicht
       if ([e.prevWide, ...(e.count === 2 ? [e.engulfWide] : [])].some((w) => w !== true)) continue;
       mark(6);
-      if (!bars.slice(e.prevIdx, e.idx + 1).some((b) => touches(zone, b))) continue;
+      if (!sb.slice(e.prevIdx, e.idx + 1).some((b) => touches(zone, b))) continue;
       mark(7);
-      const entry = bars[k].close;
+      // Stop jenseits des Einstiegs: sonst ist dieser Engulf ungültig, die Suche geht in derselben Zone weiter
+      if (!(out(far(zone)) > out(sb[k].close))) continue;
+      return { k, close: sb[k].time + sec, bar: sb[k] };
+    }
+    return null;
+  };
+  const lowerFrom = o.lower ? o.lower.bars.findIndex((b) => b.time >= tipBar.time) : -1;
+  for (const zone of own) {
+    const own1 = scan(zone, bars, o.wide, o.sec ?? 0, d.idx);
+    const low = o.lower && o.sec !== undefined && lowerFrom >= 0 ? scan(zone, o.lower.bars, o.lower.wide, o.lower.sec, lowerFrom) : null;
+    const lowHit = low ? { ...low, lower: true, idx: Math.max(0, bars.findLastIndex((b) => b.time < low.close)) } : null;
+    const ownHit = own1 ? { ...own1, lower: false, idx: own1.k } : null;
+    const hit = ownHit && (!lowHit || ownHit.close <= lowHit.close) ? ownHit : lowHit;
+    if (!hit) continue;
+    {
+      const entry = hit.bar.close;
       const stop = far(zone);
-      if (!(out(stop) > out(entry))) continue;
       const opposing = o.zones.filter((z) => z.side === zoneSideOf(sell ? 'buy' : 'sell'));
       const nearestFrom = (rects: Rect[]): number | null => nearestEdgeFrom(rects, entry, side);
       const target1 = nearestFrom(opposing.map((z) => z.rect));
@@ -118,7 +143,7 @@ function earlyReversalRun(o: EarlyInput, mark: (n: number) => void): EarlyRevers
       const beyond1 = (r: Rect) => target1 !== null && gain(entry, sell ? r.top : r.bottom) > gain(entry, target1);
       const target2 = target1 === null ? null : nearestFrom(opposing.filter((z) => touches(z.rect, bars[s.c.idx]) && beyond1(z.rect)).map((z) => z.rect));
       const gap = Math.max(0, out(s.level1) - out(d.price));
-      return { idx: k, entry, stop, target1, target2, gap };
+      return { idx: hit.idx, time: hit.bar.time, lower: hit.lower, entry, stop, target1, target2, gap };
     }
   }
   return null;
