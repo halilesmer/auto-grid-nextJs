@@ -3,7 +3,7 @@ date: 2026-11-18
 author: Claude
 type: fix
 status: done
-pr: []
+pr: [618]
 features: [ANA-25, FRM-20]
 areas: [frontend, chart, tests]
 ---

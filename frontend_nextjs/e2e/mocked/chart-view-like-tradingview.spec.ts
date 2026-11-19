@@ -57,6 +57,37 @@ function hourSeries(worker: { state: { brokerOffset: number; ratesSeries?: unkno
   return { latest, series, lastClosed: series[closed - 1] };
 }
 
+/** Logical range of the view (candle index): the gap on the right is `to - index of the last candle` */
+const logicalOf = async (page: Page) => {
+  const text = await page.getByTestId('analysis-chart').getAttribute('data-visible-logical');
+  return text ? text.split(',').map(Number) as [number, number] : null;
+};
+
+test('Son mumun sağında 10 mumluk boşluk var; yeni canlı mumdan, sıfırlamadan ve aralık seçiminden sonra da', { tag: '@ANA-19' }, async ({ page, worker }) => {
+  // 1119-A1.1 = B (Halil, 2026-11-19): `rightOffset` 10. 1000 closed candles: indexes 0..999, the last closed candle has index 999.
+  const { latest, lastClosed: [lastClosed, , , , close] } = hourSeries(worker, 1000);
+  await holdRunningCandle(page); // the new candle comes only from the stream
+  await page.goto(URL);
+  await expect.poll(async () => (await rangeOf(page))?.[1]).toBe(lastClosed);
+  await expect.poll(async () => (await logicalOf(page))?.[1]).toBeCloseTo(999 + 10, 0);
+  // A new live candle: the view moves by one candle, the gap stays 10 (last index 1000)
+  await expect.poll(() => worker.openSockets).toBeGreaterThan(0);
+  await expect.poll(async () => {
+    worker.pushMetrics({ account_id: DEMO_ID, symbol: 'EURUSD', price: close, market_open: true });
+    return page.getByTestId('analysis-chart').getAttribute('data-last-bar');
+  }).toBe(`${latest}:${close}`);
+  await expect.poll(async () => (await logicalOf(page))?.[1]).toBeCloseTo(1000 + 10, 0);
+  // Zoom and reset view: back to the gap of 10
+  await page.waitForTimeout(300);
+  await zoomIn(page);
+  await page.getByTestId('chart-workspace').getByRole('button', { name: msg('cw.fit'), exact: true }).click();
+  await expect.poll(async () => (await logicalOf(page))?.[1]).toBeCloseTo(1000 + 10, 0);
+  // A range in the top bar fits all candles and keeps the gap of 10 on the right (as TradingView)
+  await page.getByTestId('range-trigger').click();
+  await page.getByTestId('range-preset-last7').click();
+  await expect.poll(async () => { const l = await logicalOf(page); return l && [Math.round(l[0]), Math.round(l[1])]; }).toEqual([0, 1010]);
+});
+
 test('Açılışta son mumlar varsayılan genişlikte görünür, zoom saklanmaz ve yeniden yüklemede geri gelmez', { tag: '@ANA-19' }, async ({ page, worker }) => {
   const { latest, series, lastClosed: [lastClosed] } = hourSeries(worker, 1000);
   const release = await holdRunningCandle(page);

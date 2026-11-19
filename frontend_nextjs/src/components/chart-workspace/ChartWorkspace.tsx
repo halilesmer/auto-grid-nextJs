@@ -22,7 +22,7 @@ import { withAlpha } from '@/lib/chartTheme';
 import type { Appearance, Section } from '@/lib/chart-workspace/settings';
 import { OPEN_SETTINGS_EVENT } from '@/lib/chart-workspace/settingsRequest';
 import { useShallow } from 'zustand/react/shallow';
-import { applyAppearance, appearanceColors, enableVerticalPan, IndicatorRenderer, openingView, resetPriceScale, type ChartBinding, type SystemPaneInput, type SystemPaneModel, type SystemSeriesRefs } from './runtime';
+import { applyAppearance, appearanceColors, enableVerticalPan, IndicatorRenderer, openingView, resetPriceScale, setRightGap, type ChartBinding, type SystemPaneInput, type SystemPaneModel, type SystemSeriesRefs } from './runtime';
 import { composeStandard, isStandardKind, sameStandard, splitStandard, standardIndicators, standardOf } from '@/lib/chart-workspace/oscStandard';
 import { isSystemPane, orderPanes, presentPanes, SYSTEM_PANE_IDS, type SystemPaneId } from '@/lib/chart-workspace/paneOrder';
 import { applySystemLayer } from './systemLayers';
@@ -199,7 +199,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const alarmsAvailable = context.view === 'analysis' || context.view === 'free';
   // „Ansicht zurücksetzen“: wie TradingView zurück zur Öffnungsansicht (letzte Kerzen, Standard-Kerzenabstand, 1118-A5.1); der Backtest passt weiter alle Kerzen ein
   const resetView = (b: ChartBinding) => {
-    if (context.view === 'backtest') b.chart.timeScale().fitContent(); else openingView(b.chart);
+    if (context.view === 'backtest') { setRightGap(b.chart, 0); b.chart.timeScale().fitContent(); } else openingView(b.chart);
     resetPriceScale(b, appearance.autoScale);
   };
   const names = useMemo(() => indicatorNames(paneIndicators), [paneIndicators]);
