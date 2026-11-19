@@ -74,8 +74,8 @@ export interface LowerAbcd {
  * AB=CD in der tieferen Zeiteinheit (nur Form; 2026-11-19 neu gefasst): Die B → C-Korrektur des großen AB=CD ist in der nächsttieferen geladenen
  * Zeiteinheit ein fertiges kleines AB=CD (a, b, c, d; a am großen B, d am großen C). Das kleine d ist der äußerste Docht der tieferen Zeiteinheit
  * innerhalb der großen C-Kerze (Verkauf-AB=CD: tiefstes Tief; Kauf: höchstes Hoch), nicht ein Wendepunkt der tieferen Trendlinie. a, b, c sind die
- * letzten drei Trend-Wendepunkte der tieferen Zeiteinheit vor dieser Kerze (Annahme: Wendepunkte, die vor dem Ende der C-Kerze liegen; folgen dem
- * letzten b-c-Paar Wendepunkte auf der Seite von d, sind sie vom äußersten Docht überholt und zählen nicht). Alle vier Bedingungen müssen gelten:
+ * letzten drei Trend-Wendepunkte der tieferen Zeiteinheit vor d (Annahme: nur Wendepunkte vor dem Ende der C-Kerze; Zwischenpunkte innerhalb der großen
+ * C-Kerze, etwa Reaktion und ein weniger äußerer Tiefpunkt, sind Rauschen und zählen nicht; Punkte auf der Seite von d am Ende sind vom äußersten Docht überholt). Alle vier Bedingungen müssen gelten:
  * 1. a öffnet am B oder danach; 2. Korrekturtiefe von c wie ABCD-04/06 (`ABCD_PARAMS.minCorrection` bis `maxCorrection`, gleiche `shapeOf`-Rechnung);
  * 3. d erreicht Level 1 des kleinen AB=CD mit der Toleranz von ABCD-08 (`dReached`); 4. d liegt in der C-Kerze (per Bau).
  * Nicht messbar: keine tiefere Zeiteinheit, keine Wendepunkte dort oder Daten beginnen nach der B-Kerze. Keine Zone, kein RSI, keine Divergenz.
@@ -99,8 +99,18 @@ export function lowerAbcdAt(env: Env, tf: ContextTimeframe, s: AbcdShape): Lower
   });
   if (d === null) return { state: 'unmet' };
   const dPt: { idx: number; price: number } = d;
-  const before = trend.pivots.filter((p) => p.idx < dPt.idx && trend.bars[p.idx].time < cEnd);
-  // Wendepunkte auf der Seite von d, die dem letzten c vorangehen oder folgen: vom äußersten Docht überholt
+  // Wendepunkte vor dem Ende der C-Kerze und vor d. Was innerhalb der großen C-Kerze liegt, ist Zickzack der tieferen Zeiteinheit im Rauschen
+  // einer einzigen großen Kerze (Gedanke wie TRD-06): endet die Folge vor der C-Kerze auf der Seite von c, zählen die Punkte in der Kerze nicht;
+  // endet sie auf der Seite von d, zählt in der Kerze nur der erste Punkt auf der Seite von c (das c selbst), die übrigen nicht.
+  const upto = trend.pivots.filter((p) => p.idx < dPt.idx && trend.bars[p.idx].time < cEnd);
+  const outside = upto.filter((p) => trend.bars[p.idx].time < cTime);
+  const inside = upto.filter((p) => trend.bars[p.idx].time >= cTime);
+  const before = [...outside];
+  if (before.length > 0 && before[before.length - 1].side === s.cs) {
+    const firstC = inside.find((p) => p.side === s.es);
+    if (firstC) before.push(firstC);
+  }
+  // Wendepunkte auf der Seite von d am Ende sind vom äußersten Docht überholt
   while (before.length > 0 && before[before.length - 1].side === s.cs) before.pop();
   if (before.length < 3) return { state: 'unmet' };
   const [a, b, c] = before.slice(-3);

@@ -360,6 +360,21 @@ for (const abSide of ['sell', 'buy'] as const) {
     expect(lowerOf(pv)).toEqual({ state: 'met', tf: 'H1' });
   });
 
+  frm(`Alt AB=CD (${tag}): C mumunda tepkiden sonraki ikinci dip daha uçsa da (d) karşılandı`, () => {
+    // c idx 7 (124), ilk dip idx 10 (116,5), tepki idx 11 (118), ikinci dip idx 12 (115,5, en uç = d). C mumunun içindeki ara dönüm noktaları (ilk dip, tepki) gürültü sayılır
+    const pv: Pv[] = [...SMALL.slice(0, 3), { idx: 10, top: false, price: 116.5 }, { idx: 11, top: true, price: 118 }, { idx: 12, top: false, price: 115.5 }];
+    expect(lowerOf(pv)).toEqual({ state: 'met', tf: 'H1' });
+  });
+
+  frm(`Alt AB=CD (${tag}): c gerçekten C mumunun içinde ve tek (tepki yok) → karşılandı, atlanmaz`, () => {
+    // a idx 2 (128), b idx 4 (120), c idx 9 (124, C mumunun ilk alt mumu), d idx 11 (115,5)
+    const pv: Pv[] = [SMALL[0], SMALL[1], { idx: 9, top: true, price: 124 }, { idx: 11, top: false, price: 115.5 }];
+    expect(lowerOf(pv)).toEqual({ state: 'met', tf: 'H1' });
+    // c'den sonra tepki ve ek dip de olsa (c ilk tepe) aynı sonuç
+    const more: Pv[] = [SMALL[0], SMALL[1], { idx: 9, top: true, price: 124 }, { idx: 10, top: false, price: 117 }, { idx: 11, top: true, price: 119 }, { idx: 12, top: false, price: 115.5 }];
+    expect(lowerOf(more)).toEqual({ state: 'met', tf: 'H1' });
+  });
+
   frm(`Alt AB=CD (${tag}): B'den C'ye düz düşüş, küçük AB=CD yok → karşılanmadı`, () => {
     // yalnız B tepesi dönüm noktası; C mumunda en uç fitil 115,5 var ama arkasında a, b, c yok
     expect(lowerOf([{ idx: 0, top: true, price: 131 }], { wicks: [{ idx: 10, top: false, price: 115.5 }] }).state).toBe('unmet');
