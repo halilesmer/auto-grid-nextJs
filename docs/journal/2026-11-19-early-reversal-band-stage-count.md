@@ -19,6 +19,8 @@ Plan 1114-A4. The live history scan of 2026-11-17 showed that the early reversal
 - Window: H4, 1560 bars, step 1. One run per product under the heavy lock, one after the other. Output in the summary JSON files (not committed).
 - Population: a call or candidate counts when it reached stage 2 (D exists, Level 1 not reached, candidate not invalid) and did not reach stage 3.
 
+The live scans ran on the code before PR 628 (the Engulf search in a lower time frame did not exist yet). Stage 3 comes before that search, so the stage 3 counts do not depend on it. The hook sits in `earlyReversalOf` and the branch was rebased on the code with PR 628.
+
 ## Definitions
 - **noBand (a, strict):** the band is empty (`−0.272` is not before Level 1).
 - **notYet (b):** the band exists and D did not reach −0.272.
