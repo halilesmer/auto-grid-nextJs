@@ -135,14 +135,20 @@ test('Zurückgesetzte Darstellung bleibt je Symbol gespeichert, der Zoom nicht (
   await chartReady(page);
   const opened = await rangeOf();
   expect(opened).toBeTruthy();
+  // 1119-A1.1: the gap of 10 candles on the right is empty space, so a zoom does not always change the time range (it is cut at
+  // the first and the last candle); the zoom shows in the logical range (candle index)
+  const logicalOf = () => page.getByTestId('analysis-chart').getAttribute('data-visible-logical');
+  const openedLogical = await logicalOf();
+  expect(openedLogical).toBeTruthy();
   await zoomIn(page);
-  await expect.poll(rangeOf).not.toBe(opened);
+  await expect.poll(logicalOf).not.toBe(openedLogical);
   await page.waitForTimeout(500);
   expect(await storedZoom()).toBeNull();
   await eurChart.getByRole('button', { name: msg('cw.fit'), exact: true }).click();
   await expect.poll(rangeOf).toBe(opened);
+  await expect.poll(logicalOf).toBe(openedLogical);
   await zoomIn(page);
-  await expect.poll(rangeOf).not.toBe(opened);
+  await expect.poll(logicalOf).not.toBe(openedLogical);
 
   await page.goto(url('XAUUSD'));
   const goldChart = page.getByTestId('chart-workspace');

@@ -25,5 +25,14 @@ Halil, 2026-11-19, 1119-A1.1: "B: 10 mum". Since PR 616 the last candle touches 
 
 Only `/chart` (workspace modes) is affected. `CurveChart` and `EquityOverlay` are separate charts and unchanged.
 
-## Verification
-See the PR for the test list and results.
+## Tests
+| Test | Result |
+|---|---|
+| `chart-view-like-tradingview.spec.ts` new "10 mumluk boşluk" (ANA-19) | Red with the gap at 0 (`toBeCloseTo(999 + 10)` failed), green with 10: opening, new live candle (last index 1000, gap 10), reset view, range "last7" gives logical range [0, 1010]. |
+| `chart-view-like-tradingview`, `formation-page` (FRM-20), `chart-older*`, `chart-tool-over-formation-line` | 173 passed, no expectation changed. The time range (`data-visible-range`) is cut at the last candle, so the old checks still hold. |
+| `chart-workspace.spec.ts` "Zurückgesetzte Darstellung …" (ANA-19) | Requirement change. The test waited for the time range to change after a zoom. With the empty gap the time range is cut at the first and last candle and can stay equal. The test now checks the logical range (`data-visible-logical`) for zoom and reset. Green after the change (one spec run). |
+| `precheck.sh` (one full run) | catalog, worker, lint, tsc ok; e2e 3957 of 3958 passed, the one failure is the test above. |
+
+## Open points
+- [ ] Phone layout is not checked (decision 2026-11-17: no phone UI work).
+- [ ] Halil checks the gap by eye on the live chart.
