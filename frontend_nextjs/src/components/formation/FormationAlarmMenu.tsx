@@ -1,5 +1,6 @@
 'use client';
 
+import { useBarLoading } from '@/components/chart-page/ChartTopBarLoading';
 import { useState } from 'react';
 import { Bell, BellOff, TrendingDown, TrendingUp, X } from 'lucide-react';
 import AnimatedTabs from '@/components/ui/animated-tabs';
@@ -124,8 +125,11 @@ function HistoryList({ alarm }: { alarm: Alarm }) {
  * <Produkt>“, den weiteren Alarm-Produkten, den Ereignissen, den Formationen und den Kanälen. Das Banner sagt dauerhaft,
  * dass der Alarm auf jeder Seite läuft, solange die App offen ist. Ohne Konto, für das der Alarm sucht, zeigt das Menü nur den Grund der Ruhe.
  */
-export function FormationAlarmMenu({ symbol, alarm, pastView = false }: { symbol: string | null; alarm: Alarm; pastView?: boolean }) {
+export function FormationAlarmMenu({ symbol, alarm, pastView = false, loading = false }: { symbol: string | null; alarm: Alarm; pastView?: boolean; /** Die Kontoliste lädt (1119-A19.1): auf dem Desktop blass und gesperrt */ loading?: boolean }) {
   const t = useT();
+  const barLoading = useBarLoading(loading);
+  let menuHint = t(pastView ? 'formation.alarm.menu.past.hint' : 'formation.alarm.menu.hint');
+  if (barLoading) menuHint = t('chart.loading.control.hint');
   const fmt = useFormat();
   const [tab, setTab] = useState<'settings' | 'history'>('history');
   const { prefs, enabled, favoritesEnabled, extras, status, permission, history, account } = alarm;
@@ -154,14 +158,14 @@ export function FormationAlarmMenu({ symbol, alarm, pastView = false }: { symbol
   return (
     <DropdownMenu
       label={t('formation.alarm.menu')}
-      hint={pastView ? t('formation.alarm.menu.past.hint') : t('formation.alarm.menu.hint')}
+      hint={menuHint}
       icon={icon}
       variant="ghost"
       size="icon-sm"
       align="left"
       className="max-lg:mr-1"
       panelClassName="w-80 max-w-[calc(100vw-1rem)]"
-      triggerProps={{ 'data-testid': 'formation-alarm', 'data-enabled': String(active), 'data-keep': '', disabled: pastView }}
+      triggerProps={{ 'data-testid': 'formation-alarm', 'data-enabled': String(active), 'data-keep': '', disabled: pastView || barLoading, ...(barLoading ? { 'aria-busy': true } : {}) }}
     >
       <div className="flex flex-col gap-3 p-3" data-testid="formation-alarm-panel">
         <div className="flex flex-col gap-0.5">

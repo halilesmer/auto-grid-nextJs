@@ -19,11 +19,13 @@ import { useT } from '@/i18n';
 /**
  * Der Chart ohne bekanntes Konto: Kopfleiste mit Kontoauswahl und Alarm (der Alarm ruht und sagt warum), auf der Fläche der Hinweis.
  */
-function NoAccountChart({ accountId, accountsKnown, chrome }: { accountId: string | null; accountsKnown: boolean; chrome: ChartChrome }) {
+function NoAccountChart({ accountId, accountsKnown, pending, chrome }: { accountId: string | null; accountsKnown: boolean; pending: boolean; chrome: ChartChrome }) {
   const t = useT();
   const alarm = useFormationAlarm(null, null);
   let alert: ReactNode = null;
-  if (!accountId) alert = <Alert className="absolute left-3 right-20 top-64 bg-background" tone="info" title={t('analysis.noAccount.title')}>{t('analysis.noAccount.text')}</Alert>;
+  // Kontoliste lädt noch (1119-A9.1): kein Hinweis „Konto wählen/nicht gefunden“, sondern ein schlichtes „lädt“
+  if (pending) alert = <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground" role="status" data-testid="chart-loading">{t('chart.loading.accounts')}</div>;
+  else if (!accountId) alert = <Alert className="absolute left-3 right-20 top-64 bg-background" tone="info" title={t('analysis.noAccount.title')}>{t('analysis.noAccount.text')}</Alert>;
   else if (accountsKnown) alert = <Alert className="absolute left-3 right-20 top-64 bg-background" tone="warning" title={t('analysis.noAccount.title')}>{t('analysis.account.notFound', { id: accountId })}</Alert>;
   return (
     <ChartPage
@@ -33,7 +35,7 @@ function NoAccountChart({ accountId, accountsKnown, chrome }: { accountId: strin
       panel={null}
       notices={null}
       floating={null}
-      topBar={<ChartTopBar account={chrome.account} target={null} timeframes={null} range={chrome.range} tools={<FormationAlarmMenu symbol={null} alarm={alarm} pastView={false} />} />}
+      topBar={<ChartTopBar loading={pending} account={chrome.account} target={null} timeframes={null} range={chrome.range} tools={<FormationAlarmMenu symbol={null} alarm={alarm} pastView={false} loading={pending} />} />}
       surface={alert}
     />
   );
@@ -46,7 +48,7 @@ function NoAccountChart({ accountId, accountsKnown, chrome }: { accountId: strin
  */
 function ChartRoot() {
   const t = useT();
-  const { params, accounts, accountId, accountKnown, zones, settingsError, clock, offsetSec, today, bounds } = useChartContext();
+  const { params, accounts, accountsPending, accountId, accountKnown, zones, settingsError, clock, offsetSec, today, bounds } = useChartContext();
   const { symbol: urlSymbol, zoneId, range, setAccount, setRange } = params;
   // Ein Zeitraum aus der Kopfleiste passt ihn einmal ein, auch derselbe noch einmal (1118-A5.1, wie TradingView); kein Modus.
   // Die Anfrage gilt, sobald die Adresse diesen Zeitraum hat, und endet, wenn der Chart eingepasst hat. Die Nummer steigt immer
@@ -76,13 +78,14 @@ function ChartRoot() {
     account: (
       <FormationAccountSelect
         accounts={accounts}
+        loading={accountsPending}
         value={accountId}
         onChange={(id) => {
           if (id !== accountId) setAccount(id);
         }}
       />
     ),
-    range: <DateRangePicker value={range} today={today} onChange={chooseRange} />,
+    range: <DateRangePicker value={range} today={today} onChange={chooseRange} loading={accountsPending} />,
     notices: (
       <>
         <ChartNotice>
@@ -103,7 +106,7 @@ function ChartRoot() {
     return <OneChart key={accountId} accountId={accountId} symbol={symbol} zones={zones} range={bounds} offsetSec={offsetSec} clockReady={!clock.loading} chrome={chrome} fitOnce={fitOnce} onFitted={onFitted} />;
   }
   // Chart ohne Konto (keins gewählt oder unbekannt): wie früher die Formationsseite, mit Kopfleiste und Alarm
-  return <NoAccountChart accountId={accountId} accountsKnown={accounts.length > 0} chrome={chrome} />;
+  return <NoAccountChart accountId={accountId} accountsKnown={accounts.length > 0} pending={accountsPending} chrome={chrome} />;
 }
 
 export default function ChartPageRoute() {

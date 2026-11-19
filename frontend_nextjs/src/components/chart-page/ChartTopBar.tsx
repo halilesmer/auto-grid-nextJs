@@ -7,6 +7,7 @@ import { DockPackage } from '@/components/chart-workspace/dock/DockPackage';
 import { useDock } from '@/components/chart-workspace/dock/DockProvider';
 import { DockRow } from '@/components/chart-workspace/dock/DockRow';
 import { cn } from '@/lib/utils';
+import { SymbolPlaceholder, TimeframesPlaceholder } from './ChartTopBarLoading';
 
 /** Was die Seite /chart zur Kopfleiste und zu den Hinweisen der Chart-Ansicht beisteuert (Konto, Zeitraum) */
 export interface ChartChrome {
@@ -29,6 +30,8 @@ export interface ChartTopBarProps {
   tools: ReactNode;
   /** Statistik-Seite: kein Platz für die Werkzeugleiste rechts (sie gibt es dort nicht) */
   flat?: boolean;
+  /** Die Kontoliste lädt (1119-A9.1): auf dem Desktop stehen graue Platzhalter für Symbol und Zeiteinheiten; auf dem Handy ändert sich nichts */
+  loading?: boolean;
 }
 
 /**
@@ -47,7 +50,7 @@ function Slot({ className, children }: { className?: string; children: ReactNode
  * Konto und Ziel (das Ziel hat Inhaltsbreite, höchstens 42 %, das Konto den Rest, Variante C von 04.11.); Zeitraum und Knöpfe; Zeiteinheiten.
  * Ab lg liegt die Leiste über dem Chart (ChartPage); am Ende steht die `DockRow` von Zeile 1 (UI-17, Pakete der Werkzeuge; gibt es keine, ist sie ausgeblendet). Die Leiste reicht Klicks im freien Bereich durch (nur ihre Bedienelemente fangen sie).
  */
-export function ChartTopBar({ account, target, timeframes, forms, range, tools, flat = false }: ChartTopBarProps) {
+export function ChartTopBar({ account, target, timeframes, forms, range, tools, flat = false, loading = false }: ChartTopBarProps) {
   const dock = useDock();
   // Paketler 30 rem Containerbreite an (Plan 1106-A1.5); darunter und ohne Provider (Statistik) die feste Anordnung wie bisher
   const docked = !!dock && !dock.phone && !flat;
@@ -63,13 +66,13 @@ export function ChartTopBar({ account, target, timeframes, forms, range, tools, 
         <div className="short:flex short:min-w-0 short:items-center short:border-b short:border-border">
           <DockRow zone="row2" className="w-full flex-none rounded-none border-b border-border px-2 short:w-auto short:border-b-0" />
         </div>
-        {target && <DockPackage id="symbol"><div className="w-44 min-w-0 max-w-full [&_[data-testid=zone-select]]:w-full [&_[data-testid=zone-select]]:flex-1" data-keep="">{target}</div></DockPackage>}
+        {(target || loading) && <DockPackage id="symbol"><div className="w-44 min-w-0 max-w-full [&_[data-testid=zone-select]]:w-full [&_[data-testid=zone-select]]:flex-1" data-keep="">{target ?? <SymbolPlaceholder />}</div></DockPackage>}
         <DockAnchor className="px-1">{account}</DockAnchor>
         <DockPackage id="actions">
           <div className="flex items-center @max-[75rem]/formation-main:[&_[data-range-detail]]:hidden">{range}</div>
           {tools}
         </DockPackage>
-        {timeframes && <DockPackage id="timeframes"><div className="flex items-center" data-keep="">{timeframes}</div></DockPackage>}
+        {(timeframes || loading) && <DockPackage id="timeframes"><div className="flex items-center" data-keep="">{timeframes ?? <TimeframesPlaceholder />}</div></DockPackage>}
         {forms && <DockPackage id="formations" testId="formation-forms">{forms}</DockPackage>}
       </div>
     );

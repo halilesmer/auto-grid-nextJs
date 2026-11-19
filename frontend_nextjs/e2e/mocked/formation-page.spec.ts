@@ -1627,6 +1627,8 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
       Notification.requestPermission = () => new Promise(() => {});
     });
     await page.goto(`/chart?account=${DEMO_ID}`);
+    // Erst der Chart des Kontos: ein Panel, das in der Ladeleiste (ohne Konto) geöffnet wird, geht beim Wechsel verloren (UI-15, 1119-A9.1)
+    await expect(page.getByTestId('timeframe-select')).toBeVisible();
     await openAlarmSettings(page);
     const stored = () => page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? '{}'), KEY);
     await page.getByRole('switch', { name: msg('formation.alarm.favorites') }).click();
@@ -1954,6 +1956,8 @@ test.describe('FRM-30 Alarm für Favoriten und Alarm-Produkte auf jeder Seite', 
     serveFixture(worker, NOW);
     await seed(page, { favoritesEnabled: [DEMO_ID], history: { [DEMO_ID]: [history()] }, forms: [] });
     await page.goto(`/chart?account=${DEMO_ID}`);
+    // Erst der Chart des Kontos: ein Panel, das in der Ladeleiste (ohne Konto) geöffnet wird, geht beim Wechsel verloren (UI-15, 1119-A9.1)
+    await expect(page.getByTestId('timeframe-select')).toBeVisible();
     await page.getByTestId('formation-alarm').click();
     await expect(page.getByRole('tab', { name: new RegExp(`^${msg('formation.alarm.tab.history')}`) })).toHaveAttribute('aria-selected', 'true');
     await expect(historyItems(page)).toHaveCount(1);

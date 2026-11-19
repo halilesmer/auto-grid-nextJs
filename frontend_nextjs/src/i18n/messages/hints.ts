@@ -40,6 +40,8 @@ const existingHints = defineArea(
     "backtest.compare.breakdown.hint": "Kapanan işlemleri setup, kapanış günü veya MT5 saatine göre gruplar.",
 
     // --- Hesap ---
+    'chart.loading.control.hint': 'Hesap listesi yüklenirken kullanılamaz; liste gelince açılır.',
+    'chart.loading.accounts.hint': 'Hesap listesi worker’dan yükleniyor; yüklenince hesap seçici burada açılır.',
     'account.label.hint':
       'Üzerinde çalışılan MT5 hesabını seçer. Bölgeler, bot ve loglar seçili hesaba aittir.',
     'account.action.downloadLog.hint': 'Seçili hesabın bot log dosyasını bilgisayarınıza indirir.',
@@ -743,6 +745,8 @@ const existingHints = defineArea(
     "backtest.compare.breakdown.hint": "Groups closed trades by setup, closing weekday or MT5 hour.",
 
     // --- Account ---
+    'chart.loading.control.hint': 'Not available while the account list loads; it works when the list is ready.',
+    'chart.loading.accounts.hint': 'The account list is loading from the worker; the account selector appears here when it is ready.',
     'account.label.hint':
       'Selects the MT5 account you are working with. Zones, bot and logs belong to the selected account.',
     'account.action.downloadLog.hint': 'Downloads the bot log file of the selected account to your computer.',
@@ -1446,6 +1450,8 @@ const existingHints = defineArea(
     "backtest.compare.breakdown.hint": "Gruppiert geschlossene Trades nach Setup, Schließ-Wochentag oder MT5-Stunde.",
 
     // --- Konto ---
+    'chart.loading.control.hint': 'Nicht verfügbar, solange die Kontoliste lädt; sie funktioniert, sobald die Liste da ist.',
+    'chart.loading.accounts.hint': 'Die Kontoliste wird vom Worker geladen; die Kontoauswahl erscheint hier, sobald sie da ist.',
     'account.label.hint':
       'Wählt das MT5-Konto, mit dem Sie arbeiten. Zonen, Bot und Logs gehören zum gewählten Konto.',
     'account.action.downloadLog.hint': 'Lädt die Bot-Logdatei des gewählten Kontos auf Ihren Computer herunter.',

@@ -9,6 +9,7 @@ import { Combobox, ComboboxAutocomplete } from '@/components/ui/combobox';
 import { InfoHint, Tooltip } from '@/components/ui/tooltip';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useSymbolDetails } from '@/hooks/useSymbolDetails';
+import { useBarLoading } from '@/components/chart-page/ChartTopBarLoading';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
 import type { SymbolDetail } from '@/store/types';
@@ -156,14 +157,26 @@ export function FormationSymbolSelect({ accountId, value, onChange, className }:
 }
 
 /** Konto als flacher Knopf; LIVE/DEMO steht immer sichtbar daneben. */
-export function FormationAccountSelect({ accounts, value, onChange, className }: {
+export function FormationAccountSelect({ accounts, value, onChange, className, loading = false }: {
   className?: string;
+  /** Die Kontoliste lädt (1119-A9.1): auf dem Desktop steht ein grauer Platzhalter statt „Konto wählen“; auf dem Handy bleibt der bisherige Zustand */
+  loading?: boolean;
   accounts: Account[];
   value: string | null;
   onChange: (id: string) => void;
 }) {
   const t = useT();
+  const barLoading = useBarLoading(loading);
   const env = accounts.find((account) => String(account.id) === value)?.env_type;
+  if (barLoading) {
+    return (
+      <Tooltip content={t('chart.loading.accounts.hint')} className={cn('min-w-0 flex-1 lg:w-44 lg:flex-none', className)}>
+        <div role="status" aria-busy="true" data-testid="chart-topbar-account-loading" className="flex h-[30px] w-full min-w-0 animate-pulse items-center px-2 text-xs text-muted-foreground">
+          <span className="truncate">{t('chart.loading.accounts')}</span>
+        </div>
+      </Tooltip>
+    );
+  }
   return (
     <Tooltip content={t('account.label.hint')} className={cn('min-w-0 flex-1 lg:w-44 lg:flex-none', className)}>
       <div className="flex w-full min-w-0 items-center gap-1">
