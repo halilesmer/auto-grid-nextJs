@@ -31,4 +31,5 @@ The crosshair listener has its own effect. The effect that builds the chart depe
 Not changed. `hasCurves`, `overlayLayout` and `systemSeries` are set with the chart type and the workspace, not with data that comes late. Not measured further.
 
 ## Result
-- [ ] Green run after the fix; PR merged; `tests.yml` on `main` green.
+- [x] Green run after the fix: ANA-19, FRM-20 and hover tests 75 of 75; `precheck.sh` OK (4012 of 4012, no flaky test).
+- [ ] PR merged and `tests.yml` on `main` green.
