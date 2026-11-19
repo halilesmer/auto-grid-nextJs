@@ -4,7 +4,7 @@
  * nicht in `candidate.checks`: Urteil, Punkte, `invalidBy`, Alarm und Favoriten ändern sich nicht. Nur der Handelsblock zeigt es.
  *
  * Sichtbar: kein D-Level erreicht, kein Erken dönüş, und seit C hat keine Kerze jenseits des Stops geschlossen (sonst verbraucht, wie beim Wiedereinstieg).
- * Pflicht: Korrektur mindestens 0,382; Handel in Richtung des höheren Trends (A → B); keine Wave-Divergenz an den B-Hochs (Verkauf-AB=CD; Kauf gespiegelt).
+ * Pflicht: Korrektur von 0,382 bis 0,728 (`ABCD_PARAMS.minCorrection` bis `maxCorrection`, wie ABCD-04/06; tiefer ist der Kandidat ungültig); Handel in Richtung des höheren Trends (A → B); keine Wave-Divergenz an den B-Hochs (Verkauf-AB=CD; Kauf gespiegelt).
  * Verstärkung: Zone am C (Engulf-Zone oder sehr starke Fraktalzone der C-Bein-Seite, vor der C-Kerze entstanden, vom C berührt); Umkehrkerze in der tieferen
  * Zeiteinheit ist Pflicht, wenn es keine Zone gibt, sonst Verstärkung; „AB=CD in der tieferen Zeiteinheit“ ist Verstärkung (`lowerAbcdAt`, nur Form).
  * Werte nur, wenn alle Pflichtzeilen erfüllt sind: mit Zone Einstieg = nahe Kante, Stop = ferne Kante; sonst mit Umkehrkerze Einstieg = Schluss,
@@ -13,7 +13,7 @@
 import { ABCD_PARAMS, type ContextTimeframe } from './params';
 import { dReached, shapeOf, type AbcdShape } from './abcd';
 import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
-import type { Rect, ZoneSide } from './frz';
+import { outward, wickEnd, type Rect, type ZoneSide } from './frz';
 import { neighborTf, touches, type Env } from './reasons';
 import { reversalCandleAt } from './reversal';
 import { divergenceOf, zoneSideOf, type EngulfZone } from './sig';
@@ -71,11 +71,13 @@ export interface LowerAbcd {
 }
 
 /**
- * AB=CD in der tieferen Zeiteinheit (2026-11-16, nur Form): Die B → C-Korrektur des großen AB=CD ist in der nächsttieferen geladenen Zeiteinheit
- * ein fertiges kleines AB=CD (a, b, c, d; a am großen B, d am großen C). Wendepunkte: die letzten vier der Trend-Wendepunkte der tieferen
- * Zeiteinheit, die vor dem Ende der C-Kerze liegen (Annahme). Alle vier Bedingungen müssen gelten:
+ * AB=CD in der tieferen Zeiteinheit (nur Form; 2026-11-19 neu gefasst): Die B → C-Korrektur des großen AB=CD ist in der nächsttieferen geladenen
+ * Zeiteinheit ein fertiges kleines AB=CD (a, b, c, d; a am großen B, d am großen C). Das kleine d ist der äußerste Docht der tieferen Zeiteinheit
+ * innerhalb der großen C-Kerze (Verkauf-AB=CD: tiefstes Tief; Kauf: höchstes Hoch), nicht ein Wendepunkt der tieferen Trendlinie. a, b, c sind die
+ * letzten drei Trend-Wendepunkte der tieferen Zeiteinheit vor d (Annahme: nur Wendepunkte vor dem Ende der C-Kerze; Zwischenpunkte innerhalb der großen
+ * C-Kerze, etwa Reaktion und ein weniger äußerer Tiefpunkt, sind Rauschen und zählen nicht; Punkte auf der Seite von d am Ende sind vom äußersten Docht überholt). Alle vier Bedingungen müssen gelten:
  * 1. a öffnet am B oder danach; 2. Korrekturtiefe von c wie ABCD-04/06 (`ABCD_PARAMS.minCorrection` bis `maxCorrection`, gleiche `shapeOf`-Rechnung);
- * 3. d erreicht Level 1 des kleinen AB=CD mit der Toleranz von ABCD-08 (`dReached`); 4. die Kerze von d öffnet in der Zeit der C-Kerze.
+ * 3. d erreicht Level 1 des kleinen AB=CD mit der Toleranz von ABCD-08 (`dReached`); 4. d liegt in der C-Kerze (per Bau).
  * Nicht messbar: keine tiefere Zeiteinheit, keine Wendepunkte dort oder Daten beginnen nach der B-Kerze. Keine Zone, kein RSI, keine Divergenz.
  */
 export function lowerAbcdAt(env: Env, tf: ContextTimeframe, s: AbcdShape): LowerAbcd {
@@ -87,14 +89,34 @@ export function lowerAbcdAt(env: Env, tf: ContextTimeframe, s: AbcdShape): Lower
   const bTime = base.bars[s.b.idx].time;
   const cTime = base.bars[s.c.idx].time;
   if (view.bars.length === 0 || view.bars[0].time > bTime) return { state: 'unmeasurable' };
-  const timeOf = (idx: number) => trend.bars[idx].time;
-  const upto = trend.pivots.filter((p) => timeOf(p.idx) < cTime + TIMEFRAME_SEC[tf]);
-  if (upto.length < 4) return { state: 'unmet' };
-  const [a, b, c, d] = upto.slice(-4);
-  // a öffnet am B oder danach, d öffnet in der Zeit der C-Kerze (bis zur Obergrenze oben)
-  if (timeOf(a.idx) < bTime || timeOf(d.idx) < cTime) return { state: 'unmet' };
-  if (a.side !== s.es || b.side !== s.cs || c.side !== s.es || d.side !== s.cs) return { state: 'unmet' };
-  const small = shapeOf(trend.bars, { a: { idx: a.idx, price: a.price }, b: { idx: b.idx, price: b.price }, c: { idx: c.idx, price: c.price } }, { idx: d.idx, price: d.price });
+  const cEnd = cTime + TIMEFRAME_SEC[tf];
+  // d: äußerster Docht auf der Seite von C innerhalb der C-Kerze (bei Gleichstand der früheste)
+  let d: { idx: number; price: number } | null = null;
+  trend.bars.forEach((bar, idx) => {
+    if (bar.time < cTime || bar.time >= cEnd) return;
+    const price = wickEnd(bar, s.cs);
+    if (d === null || outward(s.cs, price) > outward(s.cs, d.price)) d = { idx, price };
+  });
+  if (d === null) return { state: 'unmet' };
+  const dPt: { idx: number; price: number } = d;
+  // Wendepunkte vor dem Ende der C-Kerze und vor d. Was innerhalb der großen C-Kerze liegt, ist Zickzack der tieferen Zeiteinheit im Rauschen
+  // einer einzigen großen Kerze (Gedanke wie TRD-06): endet die Folge vor der C-Kerze auf der Seite von c, zählen die Punkte in der Kerze nicht;
+  // endet sie auf der Seite von d, zählt in der Kerze nur der erste Punkt auf der Seite von c (das c selbst), die übrigen nicht.
+  const upto = trend.pivots.filter((p) => p.idx < dPt.idx && trend.bars[p.idx].time < cEnd);
+  const outside = upto.filter((p) => trend.bars[p.idx].time < cTime);
+  const inside = upto.filter((p) => trend.bars[p.idx].time >= cTime);
+  const before = [...outside];
+  if (before.length > 0 && before[before.length - 1].side === s.cs) {
+    const firstC = inside.find((p) => p.side === s.es);
+    if (firstC) before.push(firstC);
+  }
+  // Wendepunkte auf der Seite von d am Ende sind vom äußersten Docht überholt
+  while (before.length > 0 && before[before.length - 1].side === s.cs) before.pop();
+  if (before.length < 3) return { state: 'unmet' };
+  const [a, b, c] = before.slice(-3);
+  if (trend.bars[a.idx].time < bTime) return { state: 'unmet' };
+  if (a.side !== s.es || b.side !== s.cs || c.side !== s.es) return { state: 'unmet' };
+  const small = shapeOf(trend.bars, { a: { idx: a.idx, price: a.price }, b: { idx: b.idx, price: b.price }, c: { idx: c.idx, price: c.price } }, dPt);
   if (small.depth === null || small.depth < ABCD_PARAMS.minCorrection || small.depth > ABCD_PARAMS.maxCorrection) return { state: 'unmet' };
   return dReached(small) ? { state: 'met', tf: lower } : { state: 'unmet' };
 }
@@ -150,7 +172,7 @@ export function cLegOf(o: {
   let trendState: CheckState = 'unmeasurable';
   if (o.withTrend !== null) trendState = o.withTrend ? 'unmet' : 'met';
   const rows: CLegRow[] = [
-    { key: 'depth', kind: 'required', state: s.depth >= ABCD_PARAMS.minCorrection ? 'met' : 'unmet', value: s.depth },
+    { key: 'depth', kind: 'required', state: s.depth >= ABCD_PARAMS.minCorrection && s.depth <= ABCD_PARAMS.maxCorrection ? 'met' : 'unmet', value: s.depth },
     { key: 'trend', kind: 'required', state: trendState },
     { key: 'noDivergence', kind: 'required', state: o.noDivergence },
     { key: 'zone', kind: 'bonus', state: zone ? 'met' : 'unmet', ...(zone ? { value: zone.kind } : {}) },

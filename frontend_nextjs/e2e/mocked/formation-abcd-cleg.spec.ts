@@ -150,6 +150,21 @@ for (const abSide of ['sell', 'buy'] as const) {
     expect(cl.entry).toBeNull();
   });
 
+  frm(`C ayağı (${tag}): derinlik 0,728'in üstünde (ABCD-06) → derinlik satırı karşılanmadı, değer yok`, () => {
+    // C 105: derinlik 25/30 = 0,833 > 0,728; bölge C'ye dokunur. abcd.ts ABCD-06 bu kandidatı geçersiz sayar; C ayağı da değer üretmez.
+    const rows: Sk[] = [...BASE.slice(0, 4), [107, 105, 106], AFTER];
+    const cl = need(run(abSide, { rows, cLow: 105, engulf: [{ rect: { bottom: 104, top: 106 } }] }).cl);
+    expect(row(cl, 'depth')).toMatchObject({ kind: 'required', state: 'unmet' });
+    expect(row(cl, 'depth').value as number).toBeCloseTo(25 / 30, 9);
+    expect(cl.variant).toBeNull();
+    expect(cl.entry).toBeNull();
+    expect(cl.stop).toBeNull();
+    expect(cl.target).toBeNull();
+    // sınırın içi: 0,72 (C 108,4) hâlâ karşılanır
+    const ok = need(run(abSide, { rows: [...BASE.slice(0, 4), [110, 108.4, 109], AFTER], cLow: 108.4, engulf: [{ rect: { bottom: 107, top: 109 } }] }).cl);
+    expect(row(ok, 'depth').state).toBe('met');
+  });
+
   frm(`C ayağı (${tag}): tepelerde uyumsuzluk varsa değer yok`, () => {
     const cl = need(run(abSide, { engulf: [{}], noDivergence: 'unmet' }).cl);
     expect(row(cl, 'noDivergence')).toMatchObject({ kind: 'required', state: 'unmet' });
@@ -229,7 +244,7 @@ const SMALL: Pv[] = [
   { idx: 10, top: false, price: 115.5 },
 ];
 
-function lowerEnv(abSide: Side, pv: Pv[], o: { loaded?: boolean; start?: number; bars?: number; noPivots?: boolean } = {}): { env: Env; s: ReturnType<typeof shapeOf> } {
+function lowerEnv(abSide: Side, pv: Pv[], o: { loaded?: boolean; start?: number; bars?: number; noPivots?: boolean; wicks?: Pv[] } = {}): { env: Env; s: ReturnType<typeof shapeOf> } {
   const sell = abSide === 'sell';
   const m = (p: number) => (sell ? p : 200 - p);
   const big: FormationBar[] = BASE.concat([AFTER]).map(([h, l, c], i) => {
@@ -238,7 +253,13 @@ function lowerEnv(abSide: Side, pv: Pv[], o: { loaded?: boolean; start?: number;
   });
   const s = shapeOf(big, { a: { idx: 1, price: m(100) }, b: { idx: 2, price: m(130) }, c: { idx: 4, price: m(114) } });
   const t0 = o.start ?? LT0;
-  const low: FormationBar[] = Array.from({ length: o.bars ?? 16 }, (_, i) => ({ time: t0 + i * H, open: m(120), high: m(121), low: m(119), close: m(120) }));
+  // Mumlar düz (satış çerçevesinde 119–121); dönüm noktası mumlarının fitili dönüm noktasının fiyatına uzanır, `wicks` dönüm noktası olmayan ek fitiller ekler (2026-11-19: küçük d = C mumundaki en uç fitil)
+  const low: FormationBar[] = Array.from({ length: o.bars ?? 16 }, (_, i) => {
+    let h = 121;
+    let l = 119;
+    for (const w of [...pv, ...(o.wicks ?? [])]) if (w.idx === i) w.top ? (h = Math.max(h, w.price)) : (l = Math.min(l, w.price));
+    return { time: t0 + i * H, open: m(120), high: sell ? h : m(l), low: sell ? l : m(h), close: m(120) };
+  });
   const pivots = pv.map((p): Pivot => ({ idx: p.idx, doneAt: p.idx + 2, side: p.top === sell ? 'resistance' : 'support', price: m(p.price), kind: 'correction', len: 1 }));
   const views = new Map<string, unknown>([['H4', { bars: big }]]);
   if (o.loaded !== false) views.set('H1', { bars: low });
@@ -322,6 +343,43 @@ for (const abSide of ['sell', 'buy'] as const) {
     expect(lowerOf(SMALL, { start: LT0 + 2 * H, bars: 14 })).toEqual({ state: 'unmeasurable' });
     // veri tam B mumunun açılışında başlıyorsa yeter
     expect(lowerOf(SMALL.map((p) => ({ ...p, idx: p.idx - 1 })), { start: LT0 + H, bars: 15 }).state).toBe('met');
+  });
+
+  frm(`Alt AB=CD (${tag}): d, C mumunun içindeki en uç alt zaman dilimi fitilidir; trend çizgisinin d'si daha az uçsa da karşılandı`, () => {
+    // dönüm noktaları a 128, b 120, c 124, d' 117 (idx 8, C mumundan önce, seviye 1 = 116'yı 1 kaçırır); C mumunun içinde (idx 10) dönüm noktası olmayan fitil 115,5
+    const pv: Pv[] = [SMALL[0], SMALL[1], SMALL[2], { idx: 8, top: false, price: 117 }];
+    expect(lowerOf(pv).state).toBe('unmet');
+    expect(lowerOf(pv, { wicks: [{ idx: 10, top: false, price: 115.5 }] })).toEqual({ state: 'met', tf: 'H1' });
+    // fitil seviye 1'i toleransın ötesinde kaçırıyorsa karşılanmaz (116,5 → 0,5 > 0,4)
+    expect(lowerOf(pv, { wicks: [{ idx: 10, top: false, price: 116.5 }] }).state).toBe('unmet');
+  });
+
+  frm(`Alt AB=CD (${tag}): C mumunda tepki ve ikinci dip varsa d en uç fitildir`, () => {
+    // d idx 10 (115,5); sonra tepki idx 11 (118, tepe) ve daha az uç ikinci dip idx 12 (116,5). Eski kural son dört noktayı (c, d, tepki, ikinci dip) alırdı: derinlik 0,29 → karşılanmaz
+    const pv: Pv[] = [...SMALL.slice(0, 3), { idx: 10, top: false, price: 115.5 }, { idx: 11, top: true, price: 118 }, { idx: 12, top: false, price: 116.5 }];
+    expect(lowerOf(pv)).toEqual({ state: 'met', tf: 'H1' });
+  });
+
+  frm(`Alt AB=CD (${tag}): C mumunda tepkiden sonraki ikinci dip daha uçsa da (d) karşılandı`, () => {
+    // c idx 7 (124), ilk dip idx 10 (116,5), tepki idx 11 (118), ikinci dip idx 12 (115,5, en uç = d). C mumunun içindeki ara dönüm noktaları (ilk dip, tepki) gürültü sayılır
+    const pv: Pv[] = [...SMALL.slice(0, 3), { idx: 10, top: false, price: 116.5 }, { idx: 11, top: true, price: 118 }, { idx: 12, top: false, price: 115.5 }];
+    expect(lowerOf(pv)).toEqual({ state: 'met', tf: 'H1' });
+  });
+
+  frm(`Alt AB=CD (${tag}): c gerçekten C mumunun içinde ve tek (tepki yok) → karşılandı, atlanmaz`, () => {
+    // a idx 2 (128), b idx 4 (120), c idx 9 (124, C mumunun ilk alt mumu), d idx 11 (115,5)
+    const pv: Pv[] = [SMALL[0], SMALL[1], { idx: 9, top: true, price: 124 }, { idx: 11, top: false, price: 115.5 }];
+    expect(lowerOf(pv)).toEqual({ state: 'met', tf: 'H1' });
+    // c'den sonra tepki ve ek dip de olsa (c ilk tepe) aynı sonuç
+    const more: Pv[] = [SMALL[0], SMALL[1], { idx: 9, top: true, price: 124 }, { idx: 10, top: false, price: 117 }, { idx: 11, top: true, price: 119 }, { idx: 12, top: false, price: 115.5 }];
+    expect(lowerOf(more)).toEqual({ state: 'met', tf: 'H1' });
+  });
+
+  frm(`Alt AB=CD (${tag}): B'den C'ye düz düşüş, küçük AB=CD yok → karşılanmadı`, () => {
+    // yalnız B tepesi dönüm noktası; C mumunda en uç fitil 115,5 var ama arkasında a, b, c yok
+    expect(lowerOf([{ idx: 0, top: true, price: 131 }], { wicks: [{ idx: 10, top: false, price: 115.5 }] }).state).toBe('unmet');
+    // a, b ve fitil: c eksik
+    expect(lowerOf([SMALL[0], SMALL[1]], { wicks: [{ idx: 10, top: false, price: 115.5 }] }).state).toBe('unmet');
   });
 
   frm(`Alt AB=CD (${tag}): satır bonus kalır; giriş, stop, hedef, varyant ve diğer satırlar bağımsız`, () => {
