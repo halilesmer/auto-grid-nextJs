@@ -196,10 +196,21 @@ def measure_clock(account_config: dict, symbol: str | None) -> dict:
     return _connected(account_config, collect)
 
 
+def _previous_close_bar(bars, tick_time):
+    """Son D1 mumu tick'in gününden eskiyse (seans henüz açılmadı) o mum önceki gündür; yoksa bir öncekisi."""
+    try:
+        last_day = int(bars[-1]["time"]) // 86400
+        if int(tick_time) // 86400 > last_day:
+            return bars[-1]
+    except (KeyError, TypeError, ValueError):
+        pass
+    return bars[-2]
+
+
 def collect_quotes(mt5, account_config: dict, symbols: list[str]) -> dict:
     """Son fiyat, önceki gün kapanışı ve hane sayısı (FRM-29 favori tablosu); okunamayan sembol None.
 
-    Son fiyat: tick.last, yoksa (FX/CFD'de last=0) bid. Önceki gün kapanışı: D1'in bir önceki mumu.
+    Son fiyat: tick.last, yoksa (FX/CFD'de last=0) bid. Önceki gün kapanışı: D1'in bir önceki mumu; bugünün mumu henüz yoksa (Brent) son mum.
     """
     _check_account(mt5, account_config)
     out: dict = {}
@@ -211,7 +222,7 @@ def collect_quotes(mt5, account_config: dict, symbols: list[str]) -> dict:
             out[name] = None
             continue
         last = _plain(getattr(tick, "last", 0)) or _plain(getattr(tick, "bid", 0))
-        prev_close = _plain(bars[-2]["close"])
+        prev_close = _plain(_previous_close_bar(bars, getattr(tick, "time", 0))["close"])
         out[name] = {"last": last, "prev_close": prev_close, "digits": _plain(info.digits)} if last else None
     return out
 
