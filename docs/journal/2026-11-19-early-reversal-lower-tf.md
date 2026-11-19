@@ -24,6 +24,10 @@ Decision 1119-A35.1.1 (Halil, 2026-11-19). The early reversal (1114-A4.5) looked
 - Entry = close of the engulfing candle in the timeframe where it was found.
 - `idx` stays an index in the pattern timeframe. For an engulfing candle from the lower timeframe it is the pattern candle in which that candle closes. `time` and `lower` carry the real candle.
 
+## Assumptions
+- The search in the lower timeframe starts at the open of the D candle, like ABCD-20 (`reversalCandleAt`). A lower-timeframe engulfing candle that closes inside the D candle, before the tip, can count.
+- The stop rule (the far edge of the zone must lie beyond the entry) is part of the search: an engulfing candle that fails it is skipped and the search goes on in the same zone, in each timeframe.
+
 ## Superseded
 The assumption in `2026-11-15-abcd-early-reversal.md` that the early reversal is stricter than ABCD-20 because it uses the same timeframe only no longer holds.
 

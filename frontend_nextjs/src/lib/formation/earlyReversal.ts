@@ -119,6 +119,8 @@ function earlyReversalRun(o: EarlyInput, mark: (n: number) => void): EarlyRevers
       mark(6);
       if (!sb.slice(e.prevIdx, e.idx + 1).some((b) => touches(zone, b))) continue;
       mark(7);
+      // Stop jenseits des Einstiegs: sonst ist dieser Engulf ungültig, die Suche geht in derselben Zone weiter
+      if (!(out(far(zone)) > out(sb[k].close))) continue;
       return { k, close: sb[k].time + sec, bar: sb[k] };
     }
     return null;
@@ -132,7 +134,6 @@ function earlyReversalRun(o: EarlyInput, mark: (n: number) => void): EarlyRevers
     {
       const entry = hit.bar.close;
       const stop = far(zone);
-      if (!(out(stop) > out(entry))) continue;
       const opposing = o.zones.filter((z) => z.side === zoneSideOf(sell ? 'buy' : 'sell'));
       const nearestFrom = (rects: Rect[]): number | null => nearestEdgeFrom(rects, entry, side);
       const target1 = nearestFrom(opposing.map((z) => z.rect));
