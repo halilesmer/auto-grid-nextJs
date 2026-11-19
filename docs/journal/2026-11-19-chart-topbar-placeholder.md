@@ -23,4 +23,5 @@ The symbol placeholder always has the width `w-44`, the same as the real symbol 
 
 ## Evidence
 - `e2e/mocked/chart-topbar-loading.spec.ts` (@UI-15): holds `GET /accounts`, checks the placeholders, releases, and measures account, date range and timeframes in one `evaluate` call: maximum 1 px shift. Red without the change (the placeholders did not exist), green with it.
-- Other tests that read `chart-topbar` stay green; see the PR.
+- The account select also shows a gray placeholder with "Hesaplar yükleniyor…" (desktop), not "Bir hesap seçin" (coordinator review of the first screenshots). Same width as the real select.
+- Other tests that read `chart-topbar` stay green. With `GET /accounts` delayed by 1.5 s (temporary change in the mock, not committed), `chart-header`, `chart-topbar`, `formation-page`, `formation-past` and the new spec pass. The delay found two alarm tests (FRM-30, FRM-32) that clicked the alarm button of the loading bar; they now wait for `timeframe-select`. The six tests of the open point in `2026-11-17-ui15-phone-topbar-measure-race.md` were already safe; that point is closed.

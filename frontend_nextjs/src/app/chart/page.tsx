@@ -78,6 +78,7 @@ function ChartRoot() {
     account: (
       <FormationAccountSelect
         accounts={accounts}
+        loading={accountsPending}
         value={accountId}
         onChange={(id) => {
           if (id !== accountId) setAccount(id);

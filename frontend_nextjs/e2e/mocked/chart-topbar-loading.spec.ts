@@ -25,7 +25,7 @@ function xPositions(page: Page, timeframes: string) {
   return page.evaluate(([tf, accountLabel]) => {
     const left = (el: Element | null) => el ? Math.round(el.getBoundingClientRect().left * 10) / 10 : null;
     return {
-      account: left(document.querySelector(`[aria-label="${accountLabel}"]`)),
+      account: left(document.querySelector(`[aria-label="${accountLabel}"], [data-testid="chart-topbar-account-loading"]`)),
       range: left(document.querySelector('[data-testid="range-trigger"]')),
       timeframes: left(document.querySelector(`[data-testid="${tf}"]`)),
     };
@@ -49,6 +49,11 @@ test.describe('UI-15 Kopfleiste beim Laden der Kontoliste', () => {
     await expect(timeframes).toHaveAttribute('aria-busy', 'true');
     await expect(timeframes).toContainText('H4');
     await expect(page.getByTestId('chart-loading')).toBeVisible();
+    const account = page.getByTestId('chart-topbar-account-loading');
+    await expect(account).toBeVisible();
+    await expect(account).toHaveAttribute('aria-busy', 'true');
+    await expect(account).toContainText(msg('chart.loading.accounts'));
+    await expect(page.getByText(msg('account.select.placeholder'))).toHaveCount(0);
     const before = await xPositions(page, 'chart-topbar-timeframes-loading');
     const barBefore = await bar.evaluate((el) => Math.round(el.getBoundingClientRect().height));
 
@@ -56,6 +61,7 @@ test.describe('UI-15 Kopfleiste beim Laden der Kontoliste', () => {
     await expect(page.getByTestId('timeframe-select')).toBeVisible();
     await expect(symbol).toHaveCount(0);
     await expect(timeframes).toHaveCount(0);
+    await expect(account).toHaveCount(0);
     const after = await xPositions(page, 'timeframe-select');
     expect(before.account).not.toBeNull();
     expect(before.range).not.toBeNull();
@@ -74,6 +80,7 @@ test.describe('UI-15 Kopfleiste beim Laden der Kontoliste', () => {
     await expect(page.getByTestId('chart-topbar')).toBeVisible();
     await expect(page.getByTestId('chart-topbar-symbol-loading')).toHaveCount(0);
     await expect(page.getByTestId('chart-topbar-timeframes-loading')).toHaveCount(0);
+    await expect(page.getByTestId('chart-topbar-account-loading')).toHaveCount(0);
     release();
     await expect(page.getByTestId('timeframe-select')).toBeVisible();
   });
