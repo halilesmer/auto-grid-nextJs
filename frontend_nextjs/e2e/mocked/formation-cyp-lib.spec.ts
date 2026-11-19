@@ -572,3 +572,29 @@ test.describe('CYP: Abdeckung', () => {
 test('Handelsblock: Einstieg am Level 0.786 der Fib X → C, Stop fest am Einstieg, TP1 aus C → D; keine Veto-Zeile', { tag: ['@FRM-39', '@FRM-40'] }, () => {
   expectTradeShape(run({ H4: BASE }), { veto: false });
 });
+
+for (const buy of [true, false]) {
+  test(`Handelsblock (${buy ? 'Kauf' : 'Verkauf'}): TP2 aus Fib C → D 0.618, Stand TP1 mit Stop am Einstieg, TP1 und TP2, Stop`, { tag: '@FRM-39' }, () => {
+    const mir = (p: number) => (buy ? p : 200 - p);
+    const go = (extra: Row[]) => {
+      const rows = [...BASE, ...extra];
+      return run({ H4: buy ? rows : mirror(rows) }, AT, { buy }).trade!;
+    };
+    const t = go([]);
+    const dEnd = 108.35;
+    expect(t.tp2, 'TP2').toBeCloseTo(mir(dEnd + 0.618 * (139 - dEnd)), 6);
+    expect(t.tp2AtEntry, 'TP2 am Einstieg').toBeCloseTo(mir(t.entry === null ? 0 : mir(t.entry) + 0.618 * (139 - mir(t.entry))), 6);
+    expect(t.tpBig).toBeUndefined();
+    const entry = mir(t.entry!);
+    const tp1 = mir(t.tp1!);
+    const tp2 = mir(t.tp2!);
+    const hitTp1: Row = [entry + 1, tp1 + 0.4, dEnd + 0.3, tp1 + 0.2];
+    const hitTp2: Row = [tp1 + 0.2, tp2 + 0.4, tp1 - 0.3, tp2 + 0.2];
+    expect(go([[entry + 1, entry + 1.5, dEnd + 0.3, entry + 1]]).status?.kind).toBe('open');
+    const one = go([hitTp1]);
+    expect(one.status?.kind).toBe('tp1');
+    expect(one.status?.stopNow).toBeCloseTo(one.entry!, 6);
+    expect(go([hitTp1, hitTp2]).status?.kind).toBe('tp12');
+    expect(go([[entry + 1, entry + 1.5, mir(t.stop!) - 3, mir(t.stop!) - 2]]).status?.kind).toBe('stopped');
+  });
+}

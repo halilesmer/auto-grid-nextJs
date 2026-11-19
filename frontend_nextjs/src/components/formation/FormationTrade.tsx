@@ -165,6 +165,8 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
     if (status.kind === 'stopped') return sub ? `formation.trade.status.stopped.${status.stopBy ?? 'close'}` : 'formation.trade.status.stopped';
     if (status.kind === 'breakeven' && status.tp2Fill !== undefined) return sub ? 'formation.trade.status.breakeven.sub' : 'formation.trade.status.breakeven12';
     if (open) return sub ? `formation.trade.status.${status.kind}.big.sub` : `formation.trade.status.${status.kind === 'tp12' ? 'tp12.big' : 'tp1'}`;
+    // „Seviye 1“ ist ein Begriff von AB=CD; bei Harmoniken liegt der Einstieg am D-Level
+    if (status.kind === 'open' && sub && candidate.code !== 'ABCD') return 'formation.trade.status.open.sub.harmonic';
     return `formation.trade.status.${status.kind}${sub ? '.sub' : ''}`;
   };
 

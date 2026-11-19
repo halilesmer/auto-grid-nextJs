@@ -155,7 +155,7 @@ export function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: num
   };
   if (d) points.D = anchorAt(bars, d.idx, d.price);
   const candidate: Candidate = { code: 'BAT', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
-  return withTrade(candidate, env, tf, harmonicTrade(a, d ?? null, reached, HARMONIC_PARAMS.targets, 'BAT-07', freeze), false);
+  return withTrade(candidate, env, tf, harmonicTrade(a, d ?? null, reached, HARMONIC_PARAMS.targets, 'BAT-07', freeze), false, freeze ? { entryIdx: freeze.idx, from: a.price, targets: HARMONIC_PARAMS.targets } : undefined);
 }
 
 function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, dLevel: number, reached: boolean, freeze: HarmonicFreeze | null): Drawing[] {
