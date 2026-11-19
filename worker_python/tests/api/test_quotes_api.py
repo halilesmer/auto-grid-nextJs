@@ -19,6 +19,7 @@ def broker(client, seed_accounts, monkeypatch):
     fake.add_symbol("XAUUSD", 2650.0, digits=2, point=0.01)
     fake.add_symbol("NODAYS", 1.1, digits=5, point=0.00001)  # keine D1-Kerzen
     fake.set_rates("XAUUSD", fake.TIMEFRAME_D1, [{"time": 86400 * d, "open": 1, "high": 2, "low": 0.5, "close": 2640.0 + d} for d in (1, 2)])
+    fake.ticks["XAUUSD"].time = 86400 * 3 + 10  # Tick liegt im Tag der laufenden Kerze (Tag 3)
     calls = []
 
     def fake_connect(account_config, timeout=60, allow_restart=True, data_query=False):
