@@ -54,6 +54,7 @@ export default function NewsRow({ event: e, nowMs, focused = false }: { event: N
       arrowHint = t('news.arrow.pre.noval');
     }
     arrowHint += comment;
+    if (!arrow.released) arrowHint = `${t('news.forecast.only')}\n${arrowHint}`;
   }
 
   const gold = goldArrowOf(e);
@@ -63,6 +64,7 @@ export default function NewsRow({ event: e, nowMs, focused = false }: { event: N
     goldHint = gold.direct
       ? t('news.gold.direct', { usd: word(arrow.dir), gold: word(gold.dir) })
       : t('news.gold.indirect', { c: ccy, c_dir: word(arrow.dir), gold: word(gold.dir) });
+    if (!gold.released) goldHint = `${t('news.forecast.only')}\n${goldHint}`;
   }
 
   const timeText = mode === 'time' ? f.clock(e.time) : t(mode === 'tentative' ? 'news.time.tentative' : 'news.time.allday');

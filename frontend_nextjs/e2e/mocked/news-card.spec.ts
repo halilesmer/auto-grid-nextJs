@@ -77,8 +77,15 @@ test.describe('NWS-02 Haber kartı', () => {
     // İpucu: rakam cümlesi + sektöre göre "genelde" yorumu
     await pre.hover();
     const tip = page.getByRole('tooltip');
+    await expect(tip).toContainText(msg('news.forecast.only'));
     await expect(tip).toContainText('0,3%');
     await expect(tip).toContainText(msg('news.sector.prices.good'));
+    // Soluk altın oku: ipucu 'yalnızca tahmin' der
+    await row('Çekirdek PCE').getByTestId('news-gold').hover();
+    await expect(page.getByRole('tooltip')).toContainText(msg('news.forecast.only'));
+    // Yayınlanmış ok tahmin uyarısı taşımaz
+    await row('Retail Sales').getByTestId('news-gold').hover();
+    await expect(page.getByRole('tooltip')).not.toContainText(msg('news.forecast.only'));
     // Tatil sektörü: yorum yok
     await expect(row('Bank Holiday').getByTestId('news-arrow')).toHaveCount(0);
   });
