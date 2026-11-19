@@ -572,6 +572,22 @@ test.describe('FRM-39 Handelsblock AB=CD (C ayağı)', () => {
     await expect(gap).toHaveText(msg('formation.trade.cleg.past.behind', { d: msg('formation.trade.away.pips', { n: '29,0' }) }));
   });
 
+  test('Geçmişe ait not: rozetin ipucu sola açılır, giriş fiyatı hücresini örtmez', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openCLeg(page, worker, ZONE_CASE);
+    const cl = page.getByTestId('trade-cleg');
+    const badge = cl.getByTestId('trade-cleg-past');
+    await badge.hover();
+    const tip = page.getByRole('tooltip');
+    await expect(tip).toHaveText(msg('formation.trade.cleg.past.hint'));
+    const [t, b, e] = await Promise.all([tip.boundingBox(), badge.boundingBox(), cl.getByTestId('trade-cleg-entry').boundingBox()]);
+    if (!t || !b || !e) throw new Error('kutu yok');
+    // rozetin solunda (sağ kenar rozetin sol kenarını aşmaz)
+    expect(t.x + t.width).toBeLessThanOrEqual(b.x + 0.5);
+    // giriş fiyatı hücresiyle kesişmez
+    const overlap = t.x < e.x + e.width && t.x + t.width > e.x && t.y < e.y + e.height && t.y + t.height > e.y;
+    expect(overlap).toBe(false);
+  });
+
   test('Geçmişe ait not: mum girişi (alış, fiyat girişin üstünde) → “20 mum önce” ve girişin ötesinde', { tag: '@FRM-39' }, async ({ page, worker }) => {
     await openCLeg(page, worker, BREAKC, h1Of(true));
     const cl = page.getByTestId('trade-cleg');
