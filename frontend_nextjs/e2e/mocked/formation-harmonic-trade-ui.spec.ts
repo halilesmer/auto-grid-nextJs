@@ -6,6 +6,7 @@
 import type { Page } from '@playwright/test';
 import { groupZones, makeZone } from '../fixtures/data';
 import { DEMO_ID, ZONE_ID, expect, test, type MockWorker } from '../fixtures/test';
+import { msg } from '../fixtures/i18n';
 import { seedFixtureTrend } from '../fixtures/formation-trend';
 import { H4, zig, type Row } from '../fixtures/formation-rows';
 
@@ -47,6 +48,11 @@ for (const theme of ['dark', 'light']) {
       const block = page.getByTestId('trade-block');
       await expect(block).toBeVisible();
       await expect(block.getByTestId('trade-status')).toHaveAttribute('data-status', name === 'stopped' ? 'stopped' : name);
+      if (name === 'open') {
+        // „Seviye 1“ gehört zu AB=CD: bei Harmoniken steht der Einstieg am D-Level
+        await expect(block.getByTestId('trade-status')).toContainText(msg('formation.trade.status.open.sub.harmonic'));
+        await expect(block.getByTestId('trade-status')).not.toContainText(/seviye 1|level 1/i);
+      }
       await expect(block.getByTestId('trade-outcomes')).toBeVisible();
       await block.scrollIntoViewIfNeeded();
       await block.screenshot({ path: test.info().outputPath(`gartley-${name}-${theme}.png`) });

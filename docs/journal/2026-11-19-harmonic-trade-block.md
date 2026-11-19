@@ -36,6 +36,7 @@ Plan 1114-A4, design approved by Halil on 2026-11-19 (1119-A8.1.1). The trade bl
 
 ## Verification
 - Red first: `formation-harmonic-trade.spec.ts` failed 24/24 without the change (TP2 and status missing); green with it. Cypher in `formation-cyp-lib.spec.ts`; block images from `formation-harmonic-trade-ui.spec.ts`.
+- Open state: the sub text says "D level reached" (key `status.open.sub.harmonic`) because "level 1" is an AB=CD term; `candidate.code` picks the text.
 - Images (dark and light, block fully visible): `docs/journal/images/2026-11-19-harmonic-trade-gartley-{open,tp1,tp12,stopped}-{dark,light}.png`.
 
 ## Open points
