@@ -175,7 +175,7 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape): Candidate {
   };
   if (d) points.D = anchorAt(bars, d.idx, d.price);
   const candidate: Candidate = { code: 'CRB', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
-  return withTrade(candidate, env, tf, harmonicTrade(a, d ?? null, reached, CRB_PARAMS.targets, 'CRB-04', freeze), false);
+  return withTrade(candidate, env, tf, harmonicTrade(a, d ?? null, reached, CRB_PARAMS.targets, 'CRB-04', freeze), false, freeze ? { entryIdx: freeze.idx, from: a.price, targets: CRB_PARAMS.targets } : undefined);
 }
 
 function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, reached: boolean, freeze: HarmonicFreeze | null): Drawing[] {

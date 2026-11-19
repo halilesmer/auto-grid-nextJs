@@ -55,11 +55,11 @@ type OutcomeTrade = Pick<Trade, 'entry' | 'stop' | 'tp1'> & Partial<Pick<Trade, 
  * Ergebnis in R (Risiko = 1) der Wege (1114-A4.2, A4.3): Stop −1; TP1 und Rest am Einstieg; TP1 und TP2; mit großem Ziel dazu alle drei.
  * Ohne großes Ziel gilt ½ · ½: TP1 = 0.5 × TP1-Abstand / Risiko, TP1 und TP2 = 0.5 × (TP1- + TP2-Abstand) / Risiko.
  * Mit großem Ziel gilt ⅓ · ⅓ · ⅓ (TP2: ⅓ × (r1 + r2), alle drei: ⅓ × (r1 + r2 + r3)). Alle Abstände gelten am Einstieg.
- * null ohne TP2 (Harmoniken) oder bei falscher Seite.
+ * null ohne TP2 oder bei falscher Seite.
  */
 export function outcomesOf(trade: OutcomeTrade, side: Side): TradeOutcomes | null {
   const m = tradeMetrics(trade, side);
-  const tp2 = trade.tp2AtEntry;
+  const tp2 = trade.tp2AtEntry ?? trade.tp2;
   if (m === null || tp2 === undefined || trade.entry === null) return null;
   const reward2 = side === 'buy' ? tp2 - trade.entry : trade.entry - tp2;
   if (!(reward2 > 0)) return null;
