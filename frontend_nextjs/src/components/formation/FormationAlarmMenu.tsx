@@ -128,6 +128,8 @@ function HistoryList({ alarm }: { alarm: Alarm }) {
 export function FormationAlarmMenu({ symbol, alarm, pastView = false, loading = false }: { symbol: string | null; alarm: Alarm; pastView?: boolean; /** Die Kontoliste lädt (1119-A19.1): auf dem Desktop blass und gesperrt */ loading?: boolean }) {
   const t = useT();
   const barLoading = useBarLoading(loading);
+  let menuHint = t(pastView ? 'formation.alarm.menu.past.hint' : 'formation.alarm.menu.hint');
+  if (barLoading) menuHint = t('chart.loading.control.hint');
   const fmt = useFormat();
   const [tab, setTab] = useState<'settings' | 'history'>('history');
   const { prefs, enabled, favoritesEnabled, extras, status, permission, history, account } = alarm;
@@ -156,7 +158,7 @@ export function FormationAlarmMenu({ symbol, alarm, pastView = false, loading = 
   return (
     <DropdownMenu
       label={t('formation.alarm.menu')}
-      hint={barLoading ? t('chart.loading.control.hint') : pastView ? t('formation.alarm.menu.past.hint') : t('formation.alarm.menu.hint')}
+      hint={menuHint}
       icon={icon}
       variant="ghost"
       size="icon-sm"
