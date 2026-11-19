@@ -20,6 +20,7 @@ areas: [frontend, chart, tests]
 Test `Kurulum bölgesi grafikten sonra gelince …` (ANA-19), mock worker, `/chart` for a symbol with a zone, settings answer held until after the zoom. Counter `data-chart-builds` on the chart element (counts builds of the container).
 - Before the fix: 1 build before the answer, 2 after it (red).
 - After the fix: see Result.
+- First measurement run (pid 10030) died on purpose: the temporary spec did not use the `worker` fixture, so every test waited 2 minutes for a chart that never came; I stopped it with `TaskStop`. The lock stayed about 24 minutes after that until a waiting run broke it as stale (lock child processes of a stopped task outlive it). Run again with the fixture.
 
 ## Change
 The crosshair listener has its own effect. The effect that builds the chart depends on `hasCurves`, `overlayLayout`, `systemSeries` only.
