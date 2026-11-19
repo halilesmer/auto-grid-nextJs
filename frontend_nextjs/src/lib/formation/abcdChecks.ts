@@ -363,6 +363,7 @@ function evaluateFull(
   const tp1Entry = frozenFrom ? fibPrice(frozenFrom.price, s.level1, ABCD_PARAMS.targets.tp1) : null;
   const strongZone = tp1Entry !== null && strongZoneAt([...env.frz.zones, ...env.frz.reversed], tp1Entry, side);
   // 1114-A4.5: Erken dönüş. Das Urteil bleibt „im Aufbau“; ein ungültiger Kandidat bekommt ihn nicht
+  const lowerView = lowerTf ? env.views.get(lowerTf) : undefined;
   const early =
     invalidBy.length === 0 && !reached && d
       ? earlyReversalOf({
@@ -372,6 +373,9 @@ function evaluateFull(
           reached,
           zones: [...env.frz.zones, ...env.frz.reversed],
           engulfZones: engulfZones(bars, view.wide),
+          sec: TIMEFRAME_SEC[tf],
+          // 1119-A35.1.1: der Engulf wird wie bei ABCD-20 auch in der nächstkleineren Zeiteinheit gesucht (SIG-28)
+          ...(lowerView && lowerTf ? { lower: { bars: lowerView.bars, wide: lowerView.wide, sec: TIMEFRAME_SEC[lowerTf] } } : {}),
         })
       : null;
   // 1114-A4.3: großes AB=CD-Ziel nur bei harmonischem D mit bekanntem X; Versatz = A − X (Kauf: nach oben, Verkauf: nach unten)
