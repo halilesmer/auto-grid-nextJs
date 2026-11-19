@@ -129,7 +129,9 @@ function earlyReversalRun(o: EarlyInput, mark: (n: number) => void): EarlyRevers
   for (const zone of own) {
     const own1 = scan(zone, bars, o.wide, o.sec ?? 0, d.idx);
     const low = o.lower && o.sec !== undefined && lowerFrom >= 0 ? scan(zone, o.lower.bars, o.lower.wide, o.lower.sec, lowerFrom) : null;
-    const hit = own1 && (!low || own1.close <= low.close) ? { ...own1, lower: false, idx: own1.k } : low ? { ...low, lower: true, idx: Math.max(0, bars.findLastIndex((b) => b.time < low.close)) } : null;
+    const lowHit = low ? { ...low, lower: true, idx: Math.max(0, bars.findLastIndex((b) => b.time < low.close)) } : null;
+    const ownHit = own1 ? { ...own1, lower: false, idx: own1.k } : null;
+    const hit = ownHit && (!lowHit || ownHit.close <= lowHit.close) ? ownHit : lowHit;
     if (!hit) continue;
     {
       const entry = hit.bar.close;
