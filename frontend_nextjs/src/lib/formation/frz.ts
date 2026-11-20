@@ -158,16 +158,18 @@ export function countTests(
   const reach = FRZ_PARAMS.testReach * (zone.top - zone.bottom);
   let tests = 0;
   let armed = true;
-  let last = -1;
+  // Kleinster Gegenfraktal-Index nach dem letzten Test; er ändert sich nur mit dem letzten Test, nicht je Kerze
+  let nextCounter = Infinity;
+  const counterAfter = (after: number): number => counter.reduce((min, f) => (f > after && f < min ? f : min), Infinity);
   for (let k = from; k <= to; k++) {
-    if (!armed && counter.some((f) => f > last && f + N < k)) armed = true;
+    if (!armed && nextCounter + N < k) armed = true;
     if (skip(k)) continue;
     const b = bars[k];
     const touch = side === 'resistance' ? b.high >= zone.bottom - reach : b.low <= zone.top + reach;
     if (touch && armed) {
       tests++;
       armed = false;
-      last = k;
+      nextCounter = counterAfter(k);
     }
   }
   return tests;
