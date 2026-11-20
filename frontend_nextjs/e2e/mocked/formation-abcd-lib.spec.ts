@@ -22,6 +22,7 @@ import { FormationContext, type ContextInput } from '../../src/lib/formation/con
 import { parseFixture } from '../../src/lib/formation/fixture';
 import { zoneGeometry } from '../../src/lib/formation/frz';
 import type { Anchor, Candidate, CheckState, FormationBar } from '../../src/lib/formation/types';
+import { atrSeries } from '../../src/lib/formation/indicators';
 import { D1, END, H1, H4, barsOf, mirror, plain, zig, type Row } from '../fixtures/formation-rows';
 import { expectTradeShape } from '../fixtures/formation-trade';
 import { FIXTURE_TREND, named, trendOf } from '../fixtures/formation-trend';
@@ -1505,5 +1506,19 @@ for (const side of ['sell', 'buy'] as const) {
       expect(t.status?.stopBy).toBe('wick');
       expect(m(t.emergencyStop!)).toBeCloseTo(notSl, 6);
     }
+  });
+}
+
+// Der Einstieg auf Level 1 geschieht in der Einfrierkerze; deren Spanne ist beim Einstieg noch nicht bekannt, also zählt die ATR der Kerze davor
+for (const side of ['sell', 'buy'] as const) {
+  test(`Not-SL (${side}): ATR der Kerze vor der Einfrierkerze, nicht die der Einfrierkerze selbst`, { tag: ['@FRM-05', '@FRM-39'] }, () => {
+    const rows = side === 'sell' ? S1 : mirror(S1);
+    const t = run({ H4: rows }, ABC, { sell: side === 'sell' }).trade!;
+    const atr = atrSeries(barsOf(rows, H4));
+    const idx = rows.length - 1; // D ist die letzte Kerze und die Einfrierkerze
+    expect(atr[idx]).not.toBeCloseTo(atr[idx - 1]!, 6);
+    const sign = side === 'sell' ? 1 : -1;
+    expect(t.emergencyStop).toBeCloseTo(t.stop! + sign * atr[idx - 1]!, 9);
+    expect(t.emergencyStop).not.toBeCloseTo(t.stop! + sign * atr[idx]!, 9);
   });
 }

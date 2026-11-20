@@ -402,10 +402,11 @@ function evaluateFull(
     input.tp1 = early.target1;
     input.reason = early.target1 === null ? { tp1: 'noZone' } : {};
     input.earlyReversal = { target2: early.target2, gap: early.gap };
-    input.entryAtrIdx = early.idx;
+    input.entryAtrIdx = early.lower ? early.idx - 1 : early.idx;
   }
   // 1114-A4.2 b: Stand nach dem Einstieg; der Not-SL ist derselbe wie im Handelsblock (Schluss-Stop ± ATR(14))
-  // Nach dem Einstieg zählt die ATR der Einfrierkerze (die Vergangenheit ändert sich nicht), beim Wiedereinstieg die der Berührungskerze
+  // Nach dem Einstieg zählt die ATR, die beim Einstieg bekannt war (die Vergangenheit ändert sich nicht): ein Einstieg in der Kerze (Level 1, Berührung)
+  // kennt nur die ATR der Kerze davor; der Schluss einer Kerze (Engulf der Formations-Zeiteinheit) kennt die der Kerze selbst
   const atrAt = (i: number) => (bars.length > 0 ? (view.atr[i] ?? null) : null);
   const atrNow = atrAt(last);
   const status =
@@ -416,7 +417,7 @@ function evaluateFull(
           side,
           entry: input.entry,
           stop: input.stop,
-          emergencyStop: emergencyStopOf(input.stop, side, atrAt(freezeIdx)),
+          emergencyStop: emergencyStopOf(input.stop, side, atrAt(freezeIdx - 1)),
           from: from.price,
           targets: ABCD_PARAMS.targets,
           ...(big ? { big } : {}),
@@ -424,7 +425,7 @@ function evaluateFull(
       : null;
   if (status) {
     input.status = status;
-    input.entryAtrIdx = freezeIdx;
+    input.entryAtrIdx = freezeIdx - 1;
   }
   // 1114-A4.4: Wiedereinstieg in die Engulf-Zone am D nach TP1 und TP2 (oder nur der Hinweis nach TP1); der erste Handel bleibt unberührt
   const reentry =
@@ -432,7 +433,7 @@ function evaluateFull(
       ? reentryOf({ bars, side, dIdx: d.idx, entryIdx: freezeIdx, status, diagKey: `${s.side}|${bars[s.a.idx]?.time}|${bars[s.b.idx]?.time}|${bars[s.c.idx]?.time}`, engulfZones: engulfZones(bars, view.wide), zones: [...env.frz.zones, ...env.frz.reversed] })
       : null;
   if (reentry?.kind === 'reentry') {
-    input.reentry = { entry: reentry.entry, stop: reentry.stop, emergencyStop: emergencyStopOf(reentry.stop, side, atrAt(reentry.idx)), target: reentry.target, target2: reentry.target2 };
+    input.reentry = { entry: reentry.entry, stop: reentry.stop, emergencyStop: emergencyStopOf(reentry.stop, side, atrAt(reentry.idx - 1)), target: reentry.target, target2: reentry.target2 };
   } else if (reentry?.kind === 'tp1Only') {
     input.reentryTp1Only = true;
   }
