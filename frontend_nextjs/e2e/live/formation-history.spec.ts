@@ -256,6 +256,8 @@ interface Track extends RunState {
   prices: number[];
   lastSeenAt?: number;
   lastState?: string;
+  /** Handel beendet (`status.endIdx` gesetzt: Stop, Rest am Einstieg, alle Ziele) */
+  lastFinished?: boolean;
   lastEntry?: number | null;
   lastStop?: number | null;
   entered?: { fp: string; at: number };
@@ -278,6 +280,7 @@ function trackAll(tally: InstanceType<typeof Tally>, tracks: Map<string, Track>,
     if (!t) continue;
     k.lastSeenAt = at;
     k.lastState = t.status?.kind ?? (t.earlyReversal ? 'earlyReversal' : 'noStatus');
+    k.lastFinished = t.status?.endIdx !== undefined;
     k.lastEntry = t.entry;
     k.lastStop = t.stop;
     const other = hit.tf !== mainTf;
@@ -305,7 +308,10 @@ function trackAll(tally: InstanceType<typeof Tally>, tracks: Map<string, Track>,
     if (k.seen === scanNo) continue;
     const windowStart = at - HISTORY_DAYS[k.tf as keyof typeof HISTORY_DAYS] * DAY;
     if (k.entered && k.firstTime >= windowStart) {
-      tally.violate('candidateVanished', { label: `${k.tf}:${k.form}`, side: k.side, symbol, tf: k.tf, key, enteredAt: iso(k.entered.at), vanishedAt: iso(at), lastSeenAt: k.lastSeenAt !== undefined ? iso(k.lastSeenAt) : null, lastState: k.lastState, abcPrices: k.prices, entry: k.lastEntry, stop: k.lastStop, firstPoint: iso(k.firstTime), kind: JSON.parse(k.entered.fp).kind });
+      // Entscheidung 1120-A42.1: ein beendeter Handel darf aus dem Rückblick fallen (die Geschichte wird nicht neu geschrieben): Zähler, kein Verstoß
+      tally.inc(`vanished.${k.lastFinished ? 'finished' : 'running'}.${k.lastState}`);
+      if (k.lastFinished) tally.inc('finishedVanished');
+      else tally.violate('candidateVanished', { label: `${k.tf}:${k.form}`, side: k.side, symbol, tf: k.tf, key, enteredAt: iso(k.entered.at), vanishedAt: iso(at), lastSeenAt: k.lastSeenAt !== undefined ? iso(k.lastSeenAt) : null, lastState: k.lastState, abcPrices: k.prices, entry: k.lastEntry, stop: k.lastStop, firstPoint: iso(k.firstTime), kind: JSON.parse(k.entered.fp).kind });
     }
     tracks.delete(key);
   }
@@ -954,6 +960,8 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
     cleg,
     ...(probableC ? { probableC } : {}),
     harmonics,
+    finishedVanished: tally.counts.finishedVanished ?? 0,
+    vanishedByState: Object.fromEntries(Object.entries(tally.counts).filter(([n]) => n.startsWith('vanished.')).map(([n, v]) => [n.slice('vanished.'.length), v])),
     timeframes: Object.fromEntries(['D1', 'H4', 'H1', 'M15'].map((x) => [x, { candidates: tally.counts[`tf.${x}.candidates`] ?? 0, entered: tally.counts[`tf.${x}.entered`] ?? 0 }])),
     violations: tally.violations,
   };

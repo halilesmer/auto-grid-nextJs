@@ -27,8 +27,19 @@ Live, an early reversal entry first appeared in zone B and some candles later mo
 - Time first: the engulf that closes first is valid, in any zone.
 - Equal close time: the zone with the nearest far edge wins.
 - `entryChanged`: after the entry (`status` or `earlyReversal` set), entry, stop and entry kind (early or normal) stay fixed.
-- `candidateVanished`: a candidate with an entry must appear in every later scan. A candidate whose first point leaves the history window of its timeframe (`HISTORY_DAYS`) is no violation.
+- `candidateVanished` (decision 1120-A42.1): a candidate with an unfinished trade (open, TP1 reached and the rest still running, early reversal, waiting for re-entry) must appear in every later scan. A finished trade (`status.endIdx` set: stopped, rest at entry, all targets) may drop out of the look-back: the past is not rewritten. Those are counted as `finishedVanished` (information, no violation). A candidate whose first point leaves the history window of its timeframe (`HISTORY_DAYS`) is no violation.
 
 ## Assumptions
 - "Entered" means `trade.status` or `trade.earlyReversal` is set and the entry is not null.
 - The scan window is `HISTORY_DAYS[timeframe]` before the scan time. Candidates that drop out because newer pivots push them out of the pivot lookback still count as vanished.
+
+## Open finding: unfinished trades vanish from the scan (live, not fixed here)
+EURUSD, scan of 400 H4 candles, `FORMATION_HISTORY_TFS=H4`. 19 candidates with an entry vanished. 16 had a finished trade (`finishedVanished`: stopped 7, rest at entry 8, TP1 and TP2 1). 3 had an unfinished trade. Entry, stop and entry kind did not change (`entryChanged` 0). The live spec stays red for these 3 until a diagnosis is done in a separate session. The check is not relaxed.
+
+| Case | A / B / C | Entry / stop | Entered | Last state | Last seen | Vanished |
+|---|---|---|---|---|---|---|
+| H1 Bat, buy | 1.17109 / 1.16507 / 1.16792 | 1.15827 / 1.15337 | 2026-08-29 00:00 | open | 2026-08-31 16:00 | 2026-08-31 20:00 |
+| H4 Gartley, buy | 1.16537 / 1.15918 / 1.16226 | 1.15750 / 1.15449 | 2026-09-11 16:00 | TP1 reached | 2026-09-12 00:00 | 2026-09-14 04:00 |
+| H4 Bat, buy | 1.16537 / 1.15918 / 1.16226 | 1.15758 / 1.15461 | 2026-09-11 16:00 | TP1 reached | 2026-09-12 00:00 | 2026-09-14 04:00 |
+
+The H4 Gartley and the H4 Bat come from the same pivots. The first point of each case is inside the history window of its timeframe, so the window rule does not explain the loss. Cause not known; likely the pivot look-back or a newer pivot.
