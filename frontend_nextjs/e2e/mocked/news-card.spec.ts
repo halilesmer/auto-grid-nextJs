@@ -31,7 +31,7 @@ test.describe('NWS-02 Haber kartı', () => {
     await button.click();
     const rows = page.getByTestId('news-row');
     await expect(rows).toHaveCount(5);
-    await expect(page.getByTestId('news-day-group').first().locator('div').first()).toHaveText(msg('news.day.d0'));
+    await expect(page.getByTestId('news-day-group').first().locator('div').first()).toHaveText(new RegExp(`^${msg('news.day.d0')} \\(.+\\)$`));
     await expect(page.locator(`[data-testid="news-row"][data-event-id="${NEWS_SOON_ID}"]`)).toHaveAttribute('data-soon', 'true');
     await expect(rows.filter({ hasText: 'Çekirdek PCE' })).toHaveCount(1); // başlık sayfa dilinde (lang=tr)
     await expect(page.getByTestId('news-saved')).toHaveCount(0);
@@ -65,12 +65,27 @@ test.describe('NWS-02 Haber kartı', () => {
     await expect(post).toHaveAttribute('data-released', 'true');
     await expect(post).not.toHaveClass(/opacity-60/);
     await expect(row('Retail Sales').getByTestId('news-actual')).toHaveClass(/text-success/);
+    // altın oku USD okunun tersi; USD haberinde doğrudan, ok yoksa etiket de yok
+    await expect(row('Çekirdek PCE').getByTestId('news-gold')).toHaveAttribute('data-dir', 'down');
+    await expect(row('Çekirdek PCE').getByTestId('news-gold')).toHaveAttribute('data-direct', 'true');
+    await expect(row('Çekirdek PCE').getByTestId('news-gold')).toHaveClass(/opacity-60/);
+    await expect(row('Unemployment Rate').getByTestId('news-gold')).toHaveAttribute('data-dir', 'up');
+    await expect(row('Retail Sales').getByTestId('news-gold')).toHaveAttribute('data-dir', 'down');
+    await expect(row('Retail Sales').getByTestId('news-gold')).not.toHaveClass(/opacity-60/);
+    await expect(row('Fed Chair Speech').getByTestId('news-gold')).toHaveCount(0);
     await expect(row('Fed Chair Speech').getByTestId('news-arrow')).toHaveCount(0); // impact none, yayınlanmamış, beklenti yok
     // İpucu: rakam cümlesi + sektöre göre "genelde" yorumu
     await pre.hover();
     const tip = page.getByRole('tooltip');
+    await expect(tip).toContainText(msg('news.forecast.only'));
     await expect(tip).toContainText('0,3%');
     await expect(tip).toContainText(msg('news.sector.prices.good'));
+    // Soluk altın oku: ipucu 'yalnızca tahmin' der
+    await row('Çekirdek PCE').getByTestId('news-gold').hover();
+    await expect(page.getByRole('tooltip')).toContainText(msg('news.forecast.only'));
+    // Yayınlanmış ok tahmin uyarısı taşımaz
+    await row('Retail Sales').getByTestId('news-gold').hover();
+    await expect(page.getByRole('tooltip')).not.toContainText(msg('news.forecast.only'));
     // Tatil sektörü: yorum yok
     await expect(row('Bank Holiday').getByTestId('news-arrow')).toHaveCount(0);
   });
@@ -88,6 +103,10 @@ test.describe('NWS-02 Haber kartı', () => {
     await expect(summary).toHaveText('EUR');
     await expect(page.getByTestId('news-row').filter({ hasText: 'ECB Rate Decision' }).getByTestId('news-arrow')).toHaveAttribute('data-dir', 'down');
     await expect(page.getByTestId('news-row').filter({ hasText: 'ECB Rate Decision' }).getByTestId('news-arrow')).toHaveClass(/text-danger/);
+    // altın oku: EUR oku aşağı → dolar güçlenir → altın aşağı, dolaylı (kesikli)
+    const eurGold = page.getByTestId('news-row').filter({ hasText: 'ECB Rate Decision' }).getByTestId('news-gold');
+    await expect(eurGold).toHaveAttribute('data-dir', 'down');
+    await expect(eurGold).toHaveAttribute('data-direct', 'false');
     await page.getByTestId('news-ccy-fill').click();
     await expect(summary).toHaveText('USD');
     await page.getByTestId('news-ccy-edit').click();
@@ -106,7 +125,7 @@ test.describe('NWS-02 Haber kartı', () => {
     await expect(rows).toHaveCount(7);
     await page.getByTestId('news-day-d-1').click();
     await expect(rows.filter({ hasText: 'ISM Services' })).toHaveCount(1);
-    await expect(page.getByTestId('news-day-group').first().locator('div').first()).toHaveText(msg('news.day.d-1'));
+    await expect(page.getByTestId('news-day-group').first().locator('div').first()).toHaveText(new RegExp(`^${msg('news.day.d-1')} \\(.+\\)$`));
     await page.getByTestId('news-day-week').click();
     for (const d of ['d-1', 'd0', 'd1']) {
       await expect(page.getByTestId(`news-day-${d}`)).toBeDisabled();
