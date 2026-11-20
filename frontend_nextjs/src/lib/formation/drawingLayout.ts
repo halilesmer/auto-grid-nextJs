@@ -349,6 +349,8 @@ export interface DLayoutInput {
 
 const BADGE_H = 20;
 const BADGE_GAP = 4;
+/** Abstand von der D-Mitte bis zur nahen Kante des Abzeichens: der D-Buchstabe (ca. 16 px) liegt dazwischen */
+const D_LETTER_SPACE = 24;
 export const BAND_ATR = 1.5;
 
 export function layoutExpectedD(input: DLayoutInput): DLayout {
@@ -369,7 +371,7 @@ export function layoutExpectedD(input: DLayoutInput): DLayout {
     const py = y(at.price);
     if (px === null || py === null) return [];
     const label = status === 'valid' ? `${name} ✓` : `${name} · ${text('formation.verdict.forming')}`;
-    return [{ id: it.id, selected: it.id === selectedId, status, price: at.price, x: Math.min(width - 8, px), y: py, label, w: label.length * 6.6 + 16 }];
+    return [{ id: it.id, selected: it.id === selectedId, status, side: c.side, price: at.price, x: Math.min(width - 8, px), y: py, label, w: label.length * 6.6 + 16 }];
   });
   found.sort((a, b) => Math.abs(a.price - close) - Math.abs(b.price - close));
 
@@ -379,8 +381,10 @@ export function layoutExpectedD(input: DLayoutInput): DLayout {
     let bx: number;
     let by: number;
     if (found.length === 1) {
-      bx = f.x + 12 + f.w > width ? Math.max(2, f.x - 12 - f.w) : f.x + 12;
-      by = Math.max(2, f.y - BADGE_H / 2);
+      // Kauf: D ist ein Tief, das Abzeichen sitzt unter dem D-Buchstaben; Verkauf: D ist ein Hoch, es sitzt darüber. Waagerecht mittig auf D.
+      bx = Math.max(2, Math.min(width - f.w - 2, f.x - f.w / 2));
+      by = f.side === 'sell' ? f.y - D_LETTER_SPACE - BADGE_H : f.y + D_LETTER_SPACE;
+      by = Math.max(2, Math.min(height - BADGE_H - 2, by));
     } else {
       // Ein Stapel am rechten Rand, das nächste D oben
       bx = Math.max(2, width - f.w - 6);
