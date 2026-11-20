@@ -3,7 +3,7 @@ date: 2026-11-19
 author: Claude
 type: decision
 status: done
-pr: []
+pr: [633]
 features: [UI-18, UI-26, ANA-18, UI-19]
 areas: [frontend]
 ---
