@@ -214,7 +214,11 @@ function checkRun(tally: InstanceType<typeof Tally>, k: RunState, c: { side: Sid
     const goals: [string, number | null | undefined][] = [['tp1', t.tp1], ['tp1AtEntry', t.tp1AtEntry], ['tp2', t.tp2], ['tp2AtEntry', t.tp2AtEntry], ['tpBig', t.tpBig], ['tpBigAtEntry', t.tpBigAtEntry]];
     // Die koşan Ziele (tp1, tp2, tpBig) laufen mit dem Extrem weiter und sind nach dem Ende des Handels bedeutungslos (gestoppt, Rest am Einstieg);
     // geprüft werden sie nur, solange sie zählen: TP1/TP2 bis TP1 und TP2 erreicht sind, das große Ziel bis es erreicht ist
-    const live = (name: string) => (name === 'tp1' || name === 'tp2' ? kind === 'open' || kind === 'tp1' : name === 'tpBig' ? kind !== 'stopped' && kind !== 'breakeven' && kind !== 'tp123' : true);
+    const live = (name: string): boolean => {
+      if (name === 'tp1' || name === 'tp2') return kind === 'open' || kind === 'tp1';
+      if (name === 'tpBig') return kind !== 'stopped' && kind !== 'breakeven' && kind !== 'tp123';
+      return true;
+    };
     for (const [name, v] of goals) if (live(name) && v != null && !(profit(v) > 0)) tally.violate('targetNotOnProfitSide', { ...where, label: `${ctx.form}.${name}.${kind}`, name, value: v, entry: t.entry, side: c.side });
     // Zählpreis von TP1/TP2: ein Ziel, das im Verlust liegt, darf nie als erreicht zählen (tradeStatus.ts verschiebt die Ziele mit jedem neuen Extrem)
     for (const [name, v] of [['tp1Fill', t.status!.tp1Fill], ['tp2Fill', t.status!.tp2Fill]] as const) {
