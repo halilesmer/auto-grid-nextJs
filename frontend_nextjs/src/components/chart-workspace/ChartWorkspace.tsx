@@ -166,7 +166,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const defaults = useMemo(() => {
     const others = [newIndicator('EWO')];
     others.forEach(v => { v.id = `initial-${v.kind}`; });
-    // Charts with the system RSI own one RSI with a fixed id; other charts (backtest) keep the old RSI(14) default
+    // Charts with the system RSI own one RSI with a fixed id; other charts (backtest) get a plain RSI, also with the rulebook settings (1119-B1.4)
     const rsi = context.systemRsi ? systemRsiIndicator() : newIndicator('RSI');
     if (!context.systemRsi) rsi.id = 'initial-RSI';
     return { ...emptyChartDocument(), indicators: [rsi, ...others] };
