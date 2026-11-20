@@ -143,7 +143,13 @@ function earlyReversalRun(o: EarlyInput, mark: (n: number) => void): EarlyRevers
     }
     return null;
   };
-  const lowerFrom = o.lower ? o.lower.bars.findIndex((b) => b.time >= tipBar.time) : -1;
+  const lowerStart = o.lower ? o.lower.bars.findIndex((b) => b.time >= tipBar.time) : -1;
+  // Kein Blick in die Zukunft: in der D-Kerze zählt ein Engulf der unteren Zeiteinheit erst ab der Kerze, in der der Kurs das Band (−0.272) zuerst erreicht;
+  // wurde es in den unteren Kerzen nie erreicht (fehlende Daten), gibt es keinen Treffer der unteren Zeiteinheit
+  const lowerFrom =
+    o.lower && lowerStart >= 0
+      ? o.lower.bars.findIndex((b, j) => j >= lowerStart && out(sell ? b.high : b.low) >= out(ext))
+      : -1;
   for (const zone of own) {
     const own1 = scan(zone, bars, o.wide, o.sec ?? 0, d.idx);
     const low = o.lower && o.sec !== undefined && lowerFrom >= 0 ? scan(zone, o.lower.bars, o.lower.wide, o.lower.sec, lowerFrom) : null;
