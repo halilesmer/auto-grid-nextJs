@@ -9,6 +9,7 @@
  * - Nach TP1 rückt der Stop auf den Einstieg (nie gegen die Position). Der Rest schließt dort, wenn eine Kerze über dem Einstieg
  *   schließt (gleiche Schlussregel; Annahme). Der Not-SL gilt nur vor TP1: danach ist der Stop am Einstieg maßgebend, ein Docht allein beendet nichts.
  * - TP1 und TP2 in einer Kerze zählen beide; schließt dieselbe Kerze aber jenseits des Einstiegs, gilt TP1 mit Rest am Einstieg.
+ * - Ein Ziel zählt nur, wenn es auf der Gewinnseite des Einstiegs liegt (Kauf: über, Verkauf: unter dem Einstieg; 1120-A35.1).
  * - Großes AB=CD-Ziel (1114-A4.3, nur mit `big`): TP2 beendet den Handel nicht, das letzte Drittel steht weiter am Einstieg (der Stop rückt nicht weiter).
  *   Das Ziel läuft wie TP1 mit dem äußersten Docht, zählt aber erst, wenn eine Kerze in Gewinnrichtung jenseits von A schloss (Aktivierung;
  *   die Kerze der Aktivierung darf es selbst berühren: Annahme). Ein Schluss jenseits des Einstiegs beendet den Rest am Einstieg.
@@ -62,7 +63,10 @@ export function tradeStatusOf(o: {
   const beyond = (price: number, level: number) => (sell ? price > level : price < level);
   /** Docht berührt den Not-SL (Verkauf: Hoch ≥ Not-SL) */
   const touchesEmergency = (price: number, level: number) => (sell ? price >= level : price <= level);
-  const touchesTarget = (b: FormationBar, level: number) => (sell ? toward(b) <= level : toward(b) >= level);
+  // Decision 1120-A35.1 (Schutz): ein Ziel zählt nur auf der Gewinnseite des Einstiegs. Ein mitlaufendes Ziel, das ein sehr tiefer Docht
+  // hinter den Einstieg zieht (ohne Schluss jenseits des Stops, ohne Not-SL), zählt in dieser Kerze nicht
+  const onProfitSide = (level: number) => (sell ? level < entry : level > entry);
+  const touchesTarget = (b: FormationBar, level: number) => onProfitSide(level) && (sell ? toward(b) <= level : toward(b) >= level);
 
   let ext = against(bars[o.entryIdx]);
   let kind: TradeStatusKind = 'open';
