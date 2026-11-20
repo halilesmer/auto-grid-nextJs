@@ -119,6 +119,8 @@ async function loadRates(
 interface Violation {
   count: number;
   first?: Record<string, unknown>;
+  /** ilk 3 örnek */
+  firsts?: Record<string, unknown>[];
   by?: Record<string, number>;
 }
 
@@ -135,6 +137,7 @@ class Tally {
       v.by[part] = (v.by[part] ?? 0) + 1;
     }
     v.first ??= example;
+    if ((v.firsts ??= []).length < 3) v.firsts.push(example);
   }
   inc(name: string, by = 1) {
     this.counts[name] = (this.counts[name] ?? 0) + by;
@@ -234,6 +237,78 @@ function checkRun(tally: InstanceType<typeof Tally>, k: RunState, c: { side: Sid
   }
   if (!k.notSl) k.notSl = { v: t.emergencyStop, at: ctx.at };
   else if (!same(k.notSl.v, t.emergencyStop)) tally.violate('emergencyStopChanged', { ...where, firstAt: iso(k.notSl.at), was: k.notSl.v, now: t.emergencyStop });
+}
+
+/**
+ * Alle Zeiteinheiten des Kontexts (1120-A13.8): jeder Kandidat mit A, B, C wird über die Scans verfolgt (Schlüssel: Zeiteinheit, Form, Seite, Punkte).
+ * - `entryChanged`: nach dem Einstieg (Stand oder Erken dönüş gesetzt) ändern sich Einstieg, Stop oder Einstiegsart (früher Rückkehr / normal) nicht;
+ * - `candidateVanished`: ein Kandidat mit Einstieg fehlt in einem späteren Scan ganz; fällt sein erster Punkt aus dem Verlaufsfenster der Zeiteinheit
+ *   (`HISTORY_DAYS`), zählt das nicht;
+ * - die Invarianten von `checkRun` gelten auch für die Zeiteinheiten neben der Haupt-Zeiteinheit.
+ */
+interface Track extends RunState {
+  tf: string;
+  form: string;
+  side: Side;
+  firstTime: number;
+  seen: number;
+  /** Preise von A, B, C (für Beispiele) */
+  prices: number[];
+  lastSeenAt?: number;
+  lastState?: string;
+  lastEntry?: number | null;
+  lastStop?: number | null;
+  entered?: { fp: string; at: number };
+}
+
+function trackAll(tally: InstanceType<typeof Tally>, tracks: Map<string, Track>, all: ScanHit[], mainTf: MainTf, symbol: string, at: number, scanNo: number) {
+  for (const hit of all) {
+    const { candidate: c, form } = hit;
+    const p = c.points;
+    if (!p.A || !p.B || !p.C) continue;
+    const key = `${hit.tf}|${form}|${c.side}|${p.X?.time ?? ''}|${p.A.time}|${p.B.time}|${p.C.time}`;
+    let k = tracks.get(key);
+    if (!k) {
+      k = { tf: hit.tf, form, side: c.side, firstTime: Math.min(p.X?.time ?? Infinity, p.A.time), seen: scanNo, prices: [p.A.price, p.B.price, p.C.price] };
+      tracks.set(key, k);
+      tally.inc(`tf.${hit.tf}.candidates`);
+    }
+    k.seen = scanNo;
+    const t = c.trade;
+    if (!t) continue;
+    k.lastSeenAt = at;
+    k.lastState = t.status?.kind ?? (t.earlyReversal ? 'earlyReversal' : 'noStatus');
+    k.lastEntry = t.entry;
+    k.lastStop = t.stop;
+    const other = hit.tf !== mainTf;
+    if (other) {
+      if (!finite(t)) tally.violate('nonFinite', { form, symbol, tf: hit.tf, at: iso(at), trade: t });
+      if (t.entry !== null && t.stop !== null) {
+        const risk = c.side === 'buy' ? t.entry - t.stop : t.stop - t.entry;
+        if (!(risk > 0)) tally.violate('riskNotPositive', { label: `${hit.tf}:${form}`, side: c.side, symbol, tf: hit.tf, at: iso(at), entry: t.entry, stop: t.stop });
+      }
+      if (t.status) checkRun(tally, k, c, t, { symbol, tf: hit.tf as MainTf, at, key, form: `${hit.tf}:${form}` });
+    }
+    if (t.entry !== null && (t.status !== undefined || t.earlyReversal !== undefined)) {
+      const fp = JSON.stringify({ entry: t.entry, stop: t.stop, kind: t.earlyReversal ? 'early' : 'normal' });
+      if (!k.entered) {
+        k.entered = { fp, at };
+        tally.inc(`tf.${hit.tf}.entered`);
+      } else if (k.entered.fp !== fp) {
+        const was = JSON.parse(k.entered.fp) as Record<string, unknown>;
+        tally.violate('entryChanged', { label: `${hit.tf}:${form}`, side: c.side, symbol, tf: hit.tf, key, enteredAt: iso(k.entered.at), at: iso(at), was, now: JSON.parse(fp) });
+        k.entered = { fp, at };
+      }
+    }
+  }
+  for (const [key, k] of tracks) {
+    if (k.seen === scanNo) continue;
+    const windowStart = at - HISTORY_DAYS[k.tf as keyof typeof HISTORY_DAYS] * DAY;
+    if (k.entered && k.firstTime >= windowStart) {
+      tally.violate('candidateVanished', { label: `${k.tf}:${k.form}`, side: k.side, symbol, tf: k.tf, key, enteredAt: iso(k.entered.at), vanishedAt: iso(at), lastSeenAt: k.lastSeenAt !== undefined ? iso(k.lastSeenAt) : null, lastState: k.lastState, abcPrices: k.prices, entry: k.lastEntry, stop: k.lastStop, firstPoint: iso(k.firstTime), kind: JSON.parse(k.entered.fp).kind });
+    }
+    tracks.delete(key);
+  }
 }
 
 function median(xs: number[]) {
@@ -564,6 +639,7 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
   const tally = new Tally();
   const abcd = new Map<string, AbcdKey>();
   const harm = new Map<string, HarmKey>();
+  const tracks = new Map<string, Track>();
   const exampleKinds = new Map<string, number>();
   const addExample = (kind: string, hit: ScanHit, at: number, note?: string) => {
     const n = exampleKinds.get(kind) ?? 0;
@@ -606,7 +682,7 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
     bandNow.clear();
     const started = performance.now();
     // ABCD_ONLY: `scanFormations`in AB=CD kolu (ANALYZERS.ABCD) tek başına; aynı hitler, harmonikler hesaplanmaz
-    const hits = (
+    const allHits = (
       ABCD_ONLY
         ? shareEnv(ctx, () => {
             const found = analyzeAbcd(ctx, at)
@@ -616,7 +692,8 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
             return found;
           })
         : scanFormations(ctx, at)
-    ).filter((h) => h.tf === tf && FORMS.includes(h.form));
+    ).filter((h) => FORMS.includes(h.form));
+    const hits = allHits.filter((h) => h.tf === tf);
     ms += performance.now() - started;
     scans++;
     for (const [ek, step] of events) {
@@ -629,6 +706,7 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
       }
     }
     events.clear();
+    trackAll(tally, tracks, allHits, tf, symbol, at, scans);
     for (const hit of hits) {
       const { candidate: c, form } = hit;
       const p = c.points;
@@ -876,6 +954,7 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
     cleg,
     ...(probableC ? { probableC } : {}),
     harmonics,
+    timeframes: Object.fromEntries(['D1', 'H4', 'H1', 'M15'].map((x) => [x, { candidates: tally.counts[`tf.${x}.candidates`] ?? 0, entered: tally.counts[`tf.${x}.entered`] ?? 0 }])),
     violations: tally.violations,
   };
 }
