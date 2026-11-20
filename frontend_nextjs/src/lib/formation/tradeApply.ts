@@ -11,7 +11,10 @@ import type { ContextTimeframe } from './params';
 import { TRADE_RULES, type Candidate, type Drawing, type FormationBar, type Side, type Trade } from './types';
 
 /** Werte, die der Prüfer kennt; der Not-SL und SIG-29 kommen hier dazu */
-export type TradeInput = Pick<Trade, 'entry' | 'stop' | 'tp1' | 'reason'> & Partial<Pick<Trade, 'tp1AtEntry' | 'missed' | 'tp2' | 'tp2AtEntry' | 'tp3' | 'tpBig' | 'tpBigAtEntry' | 'tpBigActivation' | 'tp1StrongZone' | 'status' | 'earlyReversal' | 'reentry' | 'reentryTp1Only' | 'cLeg'>>;
+export type TradeInput = Pick<Trade, 'entry' | 'stop' | 'tp1' | 'reason'> & Partial<Pick<Trade, 'tp1AtEntry' | 'missed' | 'tp2' | 'tp2AtEntry' | 'tp3' | 'tpBig' | 'tpBigAtEntry' | 'tpBigActivation' | 'tp1StrongZone' | 'status' | 'earlyReversal' | 'reentry' | 'reentryTp1Only' | 'cLeg'>> & {
+    /** Kerze des Einstiegs: der Not-SL rechnet mit ihrer ATR(14), nicht mit der der letzten Kerze; fehlt vor dem Einstieg */
+    entryAtrIdx?: number;
+  };
 
 /**
  * @param veto true bei TDF, OBO, CDT, LIB, T618, ENC und KEI (Harmoniken und 2618 sind laut Regelbuch Ausnahme)
@@ -26,7 +29,9 @@ export function withTrade(
   run?: { entryIdx: number; from: number; targets: { tp1: number; tp2: number } },
 ): Candidate {
   const view = env.views.get(tf);
-  const atr = view && view.bars.length > 0 ? (view.atr[view.bars.length - 1] ?? null) : null;
+  // Not-SL: nach dem Einstieg mit der ATR der Einstiegskerze (die Vergangenheit ändert sich nicht), davor mit der ATR der letzten Kerze
+  const atrIdx = run && input.entry !== null ? run.entryIdx : (input.entryAtrIdx ?? (view ? view.bars.length - 1 : -1));
+  const atr = view && view.bars.length > 0 && atrIdx >= 0 ? (view.atr[atrIdx] ?? null) : null;
   // CRV und SIG-29 laufen über TP1 am Einstieg, wenn der Handel einen hat (AB=CD)
   const sigs = tradeSigChecks(env, tf, candidate.side, { ...input, tp1: input.tp1AtEntry ?? input.tp1 });
   if (run && input.entry !== null && input.stop !== null && view) {

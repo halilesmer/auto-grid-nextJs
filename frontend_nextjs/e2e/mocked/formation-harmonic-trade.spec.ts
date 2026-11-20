@@ -118,3 +118,31 @@ for (const hc of cases) {
     });
   }
 }
+
+// 2026-11-20: Der Not-SL eines eingegangenen Handels rechnet mit der ATR der Einstiegskerze und ändert sich später nicht mehr
+for (const hc of cases) {
+  for (const buy of [true, false]) {
+    const side = buy ? 'buy' : 'sell';
+    const mir = (p: number) => (buy ? p : 200 - p);
+    t39(`${hc.code} (${side}): Not-SL bleibt bei der ATR der Einstiegskerze, spätere große Kerzen ändern Stand und Wert nicht`, () => {
+      const run = makeRun(hc.check, hc.at as never);
+      const build = (extra: Row[]) => tradeOf(run({ H4: buy ? [...hc.rows, ...extra] : mirror([...hc.rows, ...extra]) }, hc.at as never, { buy }));
+      const t0 = build([]);
+      const entry = mir(t0.entry!);
+      const stop = mir(t0.stop!);
+      const notSl = mir(t0.emergencyStop!);
+      expect(notSl, 'Not-SL liegt hinter dem Stop').toBeLessThan(stop);
+      // große Kerzen: Spanne bis knapp unter den Not-SL, Schluss über dem Stop, kein Ziel berührt
+      const big: Row = [entry, entry + 0.5, notSl + 0.05, entry];
+      // Docht knapp durch den alten Not-SL, Schluss über dem Stop
+      const wick: Row = [entry + 1, stop + 2, notSl - 0.01, stop + 1];
+      const plain1 = build([wick]);
+      const grown = build([big, big, big, big, big, big, wick]);
+      for (const t of [plain1, grown]) {
+        expect(t.status?.kind, 'Docht durch den Not-SL der Einstiegskerze').toBe('stopped');
+        expect(t.status?.stopBy).toBe('wick');
+        expect(mir(t.emergencyStop!), 'gezeigter Not-SL').toBeCloseTo(notSl, 6);
+      }
+    });
+  }
+}

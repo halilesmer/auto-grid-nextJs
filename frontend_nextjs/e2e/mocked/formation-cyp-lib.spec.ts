@@ -14,6 +14,7 @@ import { expect, test } from '@playwright/test';
 import { FormationContext, type ContextInput } from '../../src/lib/formation/context';
 import { parseFixture } from '../../src/lib/formation/fixture';
 import { analyzeCyp, checkCypCandidate, CYP_CHECK_IDS } from '../../src/lib/formation/cypChecks';
+import { outcomesOf } from '../../src/lib/formation/trade';
 import { layoutDrawings } from '../../src/lib/formation/drawingLayout';
 import { analyzeGar } from '../../src/lib/formation/garChecks';
 import { analyzeBat } from '../../src/lib/formation/batChecks';
@@ -583,7 +584,15 @@ for (const buy of [true, false]) {
     const t = go([]);
     const dEnd = 108.35;
     expect(t.tp2, 'TP2').toBeCloseTo(mir(dEnd + 0.618 * (139 - dEnd)), 6);
-    expect(t.tp2AtEntry, 'TP2 am Einstieg').toBeCloseTo(mir(t.entry === null ? 0 : mir(t.entry) + 0.618 * (139 - mir(t.entry))), 6);
+    // 2026-11-20: TP2 läuft wie TP1 (Fib C → D); kein TP2 am Einstieg mit anderer Grundlage
+    expect(t.tp2AtEntry, 'kein TP2 am Einstieg').toBeUndefined();
+    expect(t.tp1AtEntry, 'kein TP1 am Einstieg').toBeUndefined();
+    const o = outcomesOf(t, buy ? 'buy' : 'sell')!;
+    const risk = Math.abs(t.entry! - t.stop!);
+    const r1 = Math.abs(t.tp1! - t.entry!);
+    const r2 = Math.abs(t.tp2! - t.entry!);
+    expect(o.tp1, 'Ergebnis TP1').toBeCloseTo((0.5 * r1) / risk, 6);
+    expect(o.tp12, 'Ergebnis TP1 und TP2 – beide Ziele auf derselben Grundlage').toBeCloseTo((0.5 * (r1 + r2)) / risk, 6);
     expect(t.tpBig).toBeUndefined();
     const entry = mir(t.entry!);
     const tp1 = mir(t.tp1!);

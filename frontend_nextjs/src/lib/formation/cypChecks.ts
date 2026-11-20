@@ -172,7 +172,6 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number, li
         stop: fibPrice(c.price, entry, -P.targets.stop),
         tp1: fibPrice(c.price, d.price, P.targets.tp1),
         tp2: fibPrice(c.price, d.price, P.targets.tp2),
-        tp2AtEntry: fibPrice(c.price, entry, P.targets.tp2),
         reason: {},
       }
     : { entry: null, stop: null, tp1: null, reason: { entry: 'CYP-07', stop: 'CYP-07', tp1: 'CYP-07' } };

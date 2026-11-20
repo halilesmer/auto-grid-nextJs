@@ -1252,7 +1252,9 @@ interface ErCase {
   /** Volumenstärke der umschlossenen Kerze (bei einer Engulf-Kerze zählt nur sie) */
   engulfWide?: boolean | null;
   /** Engulf in der nächstkleineren Zeiteinheit (H1) ab der Kerze nach dem D; `wide` = Volumenstärke beider Kerzen */
-  lower?: { wide: boolean | null };
+  lower?: { wide: boolean | null; /** Zeilen der unteren Kerzen (Verkaufskoordinaten) und ihr Start; Standard: die vier H1 der D-Kerze, dann Umschlossene und Engulf nach dem D */ rows?: Row[]; start?: number };
+  /** Ersetzt die D-Kerze (Verkaufskoordinaten) */
+  dRow?: Row;
   /** Ersetzt die Kerze nach dem D (Verkaufskoordinaten) */
   tail?: Row[];
 }
@@ -1271,7 +1273,7 @@ function erRun(side: 'sell' | 'buy', over: Partial<ErCase> = {}) {
     [128, 130, 127, 129], // B
     [116, 116, 114, 115], // C
     [120, 125, 119, 124],
-    [124, c.tip, 123, Math.min(139, c.tip - 0.5)], // Uç (D)
+    c.dRow ?? [124, c.tip, 123, Math.min(139, c.tip - 0.5)], // Uç (D)
     ...(c.tail ?? [engulfRow[c.engulf]]),
   ];
   const rows = rowsSell.map(([o, h, l, cl]): Row => (side === 'sell' ? [o, h, l, cl] : [m(o), m(l), m(h), m(cl)]));
@@ -1289,11 +1291,16 @@ function erRun(side: 'sell' | 'buy', over: Partial<ErCase> = {}) {
   const engulf: EngulfZone[] = c.engulfZones && c.bandZone ? [{ side, idx: 3, rect: rect(c.bandZone), big: true, holds: true }] : [];
   let lower: { bars: ReturnType<typeof barsOf>; wide: (boolean | null)[]; sec: number } | undefined;
   if (c.lower) {
-    const lrows: Row[] = [
+    // Die vier H1 der D-Kerze (das Band −0.272 = 138,16 wird in der zweiten erreicht), dann die umschlossene Kerze und der Engulf nach dem D
+    const lrows: Row[] = c.lower.rows ?? [
+      [124, 130, 123, 129],
+      [129, 138.3, 128, 138.2],
+      [138.2, c.tip, 138, 139.5],
+      [139.5, 139.6, 138.9, 139],
       [138, 139.6, 137.9, 139.4], // yükselen (satışta) / aynalı: Engulf'un sarıldığı mum
       [139.5, 139.7, 121, 122], // Engulf
     ];
-    lower = { bars: barsOf(lrows.map(([o, h, l, cl]): Row => (side === 'sell' ? [o, h, l, cl] : [m(o), m(l), m(h), m(cl)])), H1, 5 * H4), wide: [c.lower.wide, c.lower.wide], sec: H1 };
+    lower = { bars: barsOf(lrows.map(([o, h, l, cl]): Row => (side === 'sell' ? [o, h, l, cl] : [m(o), m(l), m(h), m(cl)])), H1, c.lower.start ?? 4 * H4), wide: lrows.map(() => c.lower!.wide), sec: H1 };
   }
   return { m, er: earlyReversalOf({ bars, wide, s, reached: dReached(s), zones, engulfZones: engulf, sec: H4, ...(lower ? { lower } : {}) }) };
 }
@@ -1377,6 +1384,47 @@ for (const side of ['sell', 'buy'] as const) {
     expect(er!.lower).toBe(true);
     expect(er!.time).toBe(5 * H4 + H1);
   });
+  // 2026-11-20: der Engulf der unteren Zeiteinheit zählt in der D-Kerze erst ab der Kerze, in der der Kurs das Band (−0.272 = 138,16) zuerst erreicht
+  const FORWARD: Row[] = [
+    [124, 138.1, 123, 137.9], // D-Kerze, 1. H1: Hoch 138,1 < Band, berührt die Zone (ab 138)
+    [137.95, 138.1, 121, 122], // 2. H1: Engulf bis 122, Band noch nicht erreicht
+    [122, 140.5, 121.5, 140.2], // 3. H1: das Band wird erreicht (Spitze 140,5)
+    [140.2, 140.4, 139.5, 139], // 4. H1
+  ];
+  test(`Erken dönüş (${tag}): alt ZD'de Engulf, D ucundaki banda ulaşılmadan önce kapanırsa sayılmaz (ileriye bakma yok)`, { tag: ['@FRM-05', '@FRM-39'] }, () => {
+    const opts = { engulf: 'none' as const, bandZone: { bottom: 138, top: 141 }, dRow: [124, 140.5, 121, 139] as Row };
+    expect(erRun(side, { ...opts, lower: { wide: true, rows: FORWARD } }).er).toBeNull();
+  });
+  test(`Erken dönüş (${tag}): alt ZD'de Engulf, banda ulaşan mumun kendisinde kapanırsa sayılır`, { tag: ['@FRM-05', '@FRM-39'] }, () => {
+    const rows = FORWARD.map((r, i): Row => (i === 1 ? [137.95, 138.5, 121, 122] : r));
+    const { m, er } = erRun(side, { engulf: 'none', bandZone: { bottom: 138, top: 141 }, dRow: [124, 140.5, 121, 139], lower: { wide: true, rows } });
+    expect(er).not.toBeNull();
+    near(er!.entry, m(122));
+    expect(er!.lower).toBe(true);
+  });
+  test(`Erken dönüş (${tag}): alt mumlarda band hiç görülmediyse (D-kerzenin H1'leri yok) alt ZD isabeti yok`, { tag: ['@FRM-05', '@FRM-39'] }, () => {
+    // Die gelieferten unteren Kerzen bleiben unter dem Band (Hoch 138 < 138,16): ihr Engulf liegt vor jeder Bandberührung
+    const post: Row[] = [[137, 138, 136.5, 137.9], [137.95, 138, 121, 122]];
+    expect(erRun(side, { engulf: 'none', bandZone: { bottom: 138, top: 141 }, lower: { wide: true, rows: post, start: 5 * H4 } }).er).toBeNull();
+  });
+  test(`Erken dönüş (${tag}): iki ZD'de aynı anda kapanırsa formasyon ZD'si geçerli`, { tag: ['@FRM-05', '@FRM-39'] }, () => {
+    const lrows: Row[] = [
+      [124, 130, 123, 129], [129, 138.3, 128, 138.2], [138.2, 140.5, 138, 139.5], [139.5, 139.6, 138.9, 139],
+      [139, 139.5, 138.5, 139.2], [139, 139.3, 138.6, 139.1], [138, 139.6, 137.9, 139.4], [139.5, 139.7, 121, 122], // 4. H1 der Kerze 5 schließt zugleich mit der H4-Kerze 5
+    ];
+    const er = erRun(side, { lower: { wide: true, rows: lrows } }).er;
+    expect(er!.lower).toBe(false);
+    expect(er!.time).toBe(5 * H4);
+  });
+  test(`Erken dönüş (${tag}): formasyon ZD'si önce kapanırsa alt ZD'deki sonraki Engulf sayılmaz`, { tag: ['@FRM-05', '@FRM-39'] }, () => {
+    const lrows: Row[] = [
+      [124, 130, 123, 129], [129, 138.3, 128, 138.2], [138.2, 140.5, 138, 139.5], [139.5, 139.6, 138.9, 139],
+      [139, 139.5, 138.5, 139.2], [139, 139.3, 138.6, 139.1], [139.1, 139.2, 138.6, 139], [139, 139.2, 138.5, 139.1], // Kerze 5 ohne Engulf
+      [138, 139.6, 137.9, 139.4], [139.5, 139.7, 121, 122], // Engulf in Kerze 6
+    ];
+    const er = erRun(side, { lower: { wide: true, rows: lrows } }).er;
+    expect(er!.lower).toBe(false);
+  });
   test(`Erken dönüş (${tag}): ilk Engulf'ta stop girişin ötesindeyse aynı bölgede sonraki Engulf denenir`, { tag: ['@FRM-05', '@FRM-39'] }, () => {
     // Bölge 137–139,5 (stop 139,5); D ucu 140,5 aşılmaz
     const tail: Row[] = [
@@ -1434,5 +1482,28 @@ for (const side of ['sell', 'buy'] as const) {
     const c = run({ H4: later }, ER_ABC, { sell: side === 'sell' });
     expect(c.trade!.earlyReversal).toBeUndefined();
     expect(c.trade!.entry).toBeCloseTo(m(144), 9);
+  });
+}
+
+// ---- Not-SL eines eingegangenen Handels (2026-11-20): ATR der Einfrierkerze, nicht die der letzten Kerze ----
+for (const side of ['sell', 'buy'] as const) {
+  const m = (p: number) => (side === 'sell' ? p : 200 - p);
+  test(`Not-SL (${side}): bleibt bei der ATR der Einfrierkerze, spätere große Kerzen ändern Stand und Wert nicht`, { tag: ['@FRM-05', '@FRM-39'] }, () => {
+    const go = (extra: Row[]) => {
+      const all = [...S1, ...extra];
+      return run({ H4: side === 'sell' ? all : mirror(all) }, ABC, { sell: side === 'sell' }).trade!;
+    };
+    const t0 = go([]);
+    const entry = m(t0.entry!);
+    const stop = m(t0.stop!);
+    const notSl = m(t0.emergencyStop!);
+    expect(notSl).toBeGreaterThan(stop);
+    const big: Row = [entry, notSl - 0.05, entry - 0.5, entry];
+    const wick: Row = [entry - 1, notSl + 0.01, entry - 2, stop - 1];
+    for (const t of [go([wick]), go([big, big, big, big, big, big, wick])]) {
+      expect(t.status?.kind).toBe('stopped');
+      expect(t.status?.stopBy).toBe('wick');
+      expect(m(t.emergencyStop!)).toBeCloseTo(notSl, 6);
+    }
   });
 }
