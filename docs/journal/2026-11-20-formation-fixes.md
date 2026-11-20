@@ -37,5 +37,12 @@ A review of the merged formation code found three defects. Halil asked to fix al
 - Cypher: `formation-cyp-lib.spec.ts` ("Handelsblock … TP2").
 - Not tested by a case: the re-entry Not-SL (needs the full zone setup); it uses the same helper.
 
+## Live check (EURUSD H4, 400 candles, DEMO, read-only)
+- Run 1: `targetNotOnProfitSide` x3549. Cause: the running targets (`tp1`, `tp2`) follow the extreme and are meaningless after the trade ended (stopped, rest at entry, TP1 and TP2). This was a defect of the check, not of the code. The check now looks at running targets only while they count.
+- `fillOnLossSide` (TP1 or TP2 fill price on the loss side of the entry): 0 cases. A target that moved to the loss side never counted as filled in this sample.
+- Remaining after the narrowing: `BUT.tp2AtEntry` and `CRB.tp2AtEntry` on the loss side x456, all in state `stopped`. Code defect: `harmonicTrade` computes `tp2AtEntry` for Butterfly and Crab from `d.price` (the running extreme), but their entry is the fixed touch wick. When the price runs on, the "at entry" value moves with D and can pass the entry. Not fixed here (out of scope); the live check stays red for it.
+- `statusWentBack`, `targetsNotOrdered`, `emergencyStopChanged`: 0.
+
 ## Open
+- `tp2AtEntry` of Butterfly and Crab must use the touch wick (`freeze.touchEnd`), not `d.price`. Needs a decision from the coordinator.
 Out of scope and unchanged: early reversal zone priority before the time rule; the name `tp2AtEntry` for Butterfly and Crab; speed.
