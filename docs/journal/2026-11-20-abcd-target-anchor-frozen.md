@@ -30,7 +30,13 @@ Halil chose "B + guard":
 | `lib/formation/tradeStatus.ts` | `touchesTarget` is true only on the profit side of the entry. |
 | `e2e/mocked/formation-abcd-frozen-from-lib.spec.ts` | New. The real case (86 H1 candles, only H1, default trend settings): `tp1Fill` above the entry, the status of the ended trade does not change with later candles, TP1, TP2 and Z-ABCD-05 run from A. The first two tests failed before the fix. Guard tests (sell and buy): a TP1 behind the entry does not count; a TP1 on the profit side counts as before. |
 | `e2e/mocked/formation-abcd-lib.spec.ts` | New test: up to the entry the target Fib starts at C without divergence and at A with divergence at the entry candle. |
+| `e2e/mocked/formation-trade.spec.ts` | Re-entry tests changed (Decision 1120-A47.1), see below. |
 | `docs/features/features.yaml` | FRM-05: frozen start after the entry, guard. |
+
+## Decision 1120-A47.1: re-entry tests
+The guard made 5 re-entry tests in `formation-trade.spec.ts` fail: "Nach zwei Zielen …", "375 px: Abschnitt und Warnzeile …", "Zwei Ziele …", "Ein Ziel …" and "375 px: der Abschnitt mit zwei Zielen …". They used the real fixture `crb-form-h4-01` (buy, now 2025-11-18 20:00) and expected the state `tp12` and the re-entry section. In that fixture the entry is 100.57 and the target Fib starts at C 101.129. The wick of the entry candle (100.142) pulls the running TP1 to 100.519, below the entry of a buy. The old expectation `tp12` came from a TP1 fill on the loss side (`tp1Fill` 100.519). That is the defect that the guard removes, so the old expectation was wrong. This is not a weaker test.
+- The 5 tests now use a synthetic candidate: the same fixture with the low of the entry candle (index 199) at 100.30. Then TP1 (100.617) and TP2 (100.812) are above the entry and count in candle 200; the re-entry values are the same as before (target 101.123, second target 101.403 with the higher high of candle 201). The re-entry section, TP1/TP2 and the state chain are tested as before.
+- The real `crb-form-h4-01` stays as a guard test: in the UI (`formation-trade.spec.ts`, "Schutz …") and in the library (`formation-abcd-frozen-from-lib.spec.ts`). Expected: state `open`, no `tp1Fill`, no re-entry, no warning line.
 
 ## Verification
 - Mocked, `--grep @FRM-05`: 292 passed. The new tests in `formation-abcd-frozen-from-lib.spec.ts` failed before the change (2 of 3) and pass after it.

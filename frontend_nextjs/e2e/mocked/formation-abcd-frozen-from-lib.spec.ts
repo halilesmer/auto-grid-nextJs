@@ -7,13 +7,16 @@
  * Danach läuft D weiter (05-14 22:00: 4653.15) und ABCD-19 wird ☐. Vor 1120-A35.1 sprang `from` dann auf C (4710.02) und
  * `tradeStatusOf` rechnete den beendeten Handel neu: TP1 zählte 4683.32, unter dem Einstieg eines Kaufs (fillOnLossSide).
  */
+import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { FormationContext } from '../../src/lib/formation/context';
 import { DEFAULT_TREND_SETTINGS } from '../../src/lib/formation/params';
 import { analyzeAbcd } from '../../src/lib/formation/abcdChecks';
 import { fibPrice } from '../../src/lib/formation/trade';
 import { tradeStatusOf } from '../../src/lib/formation/tradeStatus';
+import { parseFixture } from '../../src/lib/formation/fixture';
 import type { Candidate, FormationBar } from '../../src/lib/formation/types';
+import { fixtureTrend } from '../fixtures/formation-trend';
 
 const frm = (title: string, fn: () => void) => test(title, { tag: '@FRM-05' }, fn);
 
@@ -187,3 +190,20 @@ for (const side of ['sell', 'buy'] as const) {
     expect(st.tp1Fill).toBeCloseTo(m(137.484), 9);
   });
 }
+
+// crb-form-h4-01 (Kauf, Stand 2025-11-18 20:00): Einstieg 100,57, Start C 101,129; der Docht 100,142 zieht TP1 auf 100,519 unter den Einstieg.
+// Vor 1120-A35.1 zählten TP1 und TP2 in Kerze 200 (tp1Fill 100,519) und der Yeniden-giriş-Abschnitt erschien (1120-A47.1).
+frm('Schutz, echte Kerzen (crb-form-h4-01): TP1 unter dem Einstieg zählt nicht; offen, kein tp1Fill, kein Wiedereinstieg', () => {
+  const fx = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/crb-form-h4-01.json', 'utf-8')));
+  const now = 1763496000;
+  const bars = fx.bars.filter((b) => b.time + 14400 <= now);
+  const ctx = new FormationContext(fx.symbol, { H4: bars }, { trend: fixtureTrend('crb-form-h4-01') });
+  const c = analyzeAbcd(ctx, now).find((a) => a.tf === 'H4')!.candidate;
+  expect([c.side, c.points.C?.price, c.points.D?.price]).toEqual(['buy', 101.129, 100.142]);
+  expect(c.trade!.entry).toBeCloseTo(100.57, 9);
+  expect(c.trade!.tp1!).toBeLessThan(100.57);
+  expect(c.trade!.status).toEqual({ kind: 'open', stopNow: c.trade!.stop });
+  expect(c.trade!.status!.tp1Fill).toBeUndefined();
+  expect(c.trade!.reentry).toBeUndefined();
+  expect(c.trade!.reentryTp1Only).toBeUndefined();
+});
