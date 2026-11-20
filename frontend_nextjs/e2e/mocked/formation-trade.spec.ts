@@ -714,3 +714,27 @@ test.describe('FRM-40 Veto', () => {
     await expect(page.getByTestId('veto-badge')).toHaveCount(0);
   });
 });
+
+test.describe('FRM-39 Handelsblock: Hinweis „harmonisches D gebrochen“ (1120-A14.2)', () => {
+  // gar-buy-h4-03, Einstieg offen (1765569600); die letzte sichtbare Kerze schließt unter X: Ziel bleibt (am Einstieg festgelegt), ABCD-16 wird ☐
+  const breakX = (bars: ReturnType<typeof load>, now: number) => {
+    const shown = bars.filter((b) => b.time + 14400 <= now);
+    const lo = Math.min(...shown.slice(-60, -1).map((b) => b.low));
+    const b = shown[shown.length - 1];
+    b.close = b.low = lo - 0.0005;
+  };
+
+  test('Ohne Bruch kein Hinweis', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'gar-buy-h4-03', 1765569600, 'ABCD');
+    await expect(page.getByTestId('trade-block').getByTestId('trade-tpBig')).toBeVisible();
+    await expect(page.getByTestId('trade-tpBig-broken-note')).toHaveCount(0);
+  });
+
+  test('Harmonisches D nach dem Einstieg gebrochen: großes Ziel bleibt, Hinweis steht darunter', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    const now = 1765569600 + 14400;
+    await openPage(page, worker, 'gar-buy-h4-03', now, 'ABCD', (bars) => breakX(bars, now));
+    const block = page.getByTestId('trade-block');
+    await expect(block.getByTestId('trade-tpBig')).not.toHaveText(/^\s*—\s*$/);
+    await expect(block.getByTestId('trade-tpBig-broken-note')).toHaveText(msg('formation.trade.big.harmonicBroken'));
+  });
+});
