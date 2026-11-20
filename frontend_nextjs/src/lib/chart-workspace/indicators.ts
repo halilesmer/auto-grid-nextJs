@@ -1,5 +1,6 @@
 import type { Bar, MissingRange } from '@/lib/analysis/candles';
 import { randomId } from '@/lib/randomId';
+import { RSI_PARAMS, WAVE_PARAMS } from '@/lib/formation/params';
 
 /** The gray swatch of the line menu: stays a CSS variable in the document, so the line follows the theme (runtime resolves it) */
 export const INDICATOR_GRAY = 'var(--muted-foreground)';
@@ -78,11 +79,26 @@ export const isSystemRsi = (indicator: Pick<Indicator, 'id'>) => indicator.id ==
 export type Value = number | null;
 export interface IndicatorResult { main: Value[]; extra: Value[][]; divergences: { from: number; to: number; bullish: boolean }[] }
 
+/**
+ * the rulebook settings (1119-B1.4): RSI = SIG-01 (length 7, close, bands 80/20, no smoothing); EWO = SIG-10 (SMA 5 − SMA 35 of the
+ * median price (high + low) / 2, a price difference, not a percent). The formation rules compute with the same numbers.
+ * New RSI and EWO indicators start with them; the dialog's defaults menu applies them to an existing one.
+ */
+export const RULEBOOK_SETTINGS: Partial<Record<IndicatorKind, Partial<Indicator>>> = {
+  RSI: { period: RSI_PARAMS.period, source: 'close', smoothing: 'none', upper: RSI_PARAMS.overbought, middle: 50, lower: RSI_PARAMS.oversold },
+  EWO: { period: WAVE_PARAMS.fast, slow: WAVE_PARAMS.slow, source: 'hl2', percent: false },
+};
+export const hasRulebookSettings = (indicator: Pick<Indicator, 'kind'>) => !!RULEBOOK_SETTINGS[indicator.kind];
+/** The indicator with the rulebook calculation values; look, visibility and place stay. */
+export function withRulebookSettings(item: Indicator): Indicator {
+  return { ...item, ...RULEBOOK_SETTINGS[item.kind] };
+}
+
 export function newIndicator(kind: IndicatorKind, color = ''): Indicator {
   let period = 20;
   if (kind === 'EWO') period = 5; else if (kind === 'MACD') period = 12; else if (kind === 'RSI' || kind === 'ATR') period = 14;
   const id = randomId();
-  return {
+  const indicator: Indicator = {
     id, kind, paneId: id, paneCollapsed: false, scaleSide: 'auto', visible: true,
     period,
     slow: kind === 'MACD' ? 26 : 35, signal: 9, source: 'close', color, negative: '', maColor: '', width: 1, lineStyle: 'solid',
@@ -91,6 +107,7 @@ export function newIndicator(kind: IndicatorKind, color = ''): Indicator {
     percent: true, divergence: false, labels: true, values: true, timeframe: 0, waitClose: true,
     plotType: 'line', precision: -1, statusInputs: false, visibility: structuredClone(DEFAULT_VISIBILITY), rowStyles: {},
   };
+  return withRulebookSettings(indicator);
 }
 
 /** Readable text of the built-in calculation. It is shown only and never evaluated. */

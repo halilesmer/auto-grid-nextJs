@@ -1,6 +1,6 @@
 import {
   AreaSeries, BaselineSeries, ColorType, CrosshairMode, createTextWatermark, HistogramSeries, LineSeries, LineStyle, LineType, PriceScaleMode,
-  type IChartApi, type IPaneApi, type ISeriesApi, type LineWidth, type ISeriesPrimitive, type IPrimitivePaneView, type ITextWatermarkPluginApi, type SeriesAttachedParameter, type Time, type UTCTimestamp,
+  type AutoscaleInfoProvider, type IChartApi, type IPaneApi, type ISeriesApi, type LineWidth, type ISeriesPrimitive, type IPrimitivePaneView, type ITextWatermarkPluginApi, type SeriesAttachedParameter, type Time, type UTCTimestamp,
 } from 'lightweight-charts';
 import type { Bar, MissingRange } from '@/lib/analysis/candles';
 import { readChartColors, withAlpha } from '@/lib/chartTheme';
@@ -284,8 +284,14 @@ export interface SystemPaneModel extends SystemPaneInput { hidden: boolean; coll
 export interface SystemSeriesRef { current: ISeriesApi<'Line' | 'Histogram'> | null }
 /** `rsi` is the series of the system RSI indicator (an ordinary indicator with a fixed id); the other ids are system panes. */
 export type SystemSeriesRefs = Record<SystemPaneId | 'rsi', SystemSeriesRef>;
-/** Height in px reserved above the upper band of an RSI pane for the legend row (design 1106-A2). */
-export const RSI_LEGEND_PX = 32;
+/**
+ * Strip in px above the chart of every oscillator pane for the legend row (1119-B1.5, was 32 px for the RSI and 8 % of the pane
+ * for the others): the 20 px row starts OSC_LEGEND_TOP_PX below the pane edge and ends 1 px above the RSI upper band.
+ */
+export const OSC_LEGEND_PX = 22;
+export const OSC_LEGEND_TOP_PX = 1;
+/** Height in px reserved above the upper band of an RSI pane for the legend row (design 1106-A2, 1119-B1.5). */
+export const RSI_LEGEND_PX = OSC_LEGEND_PX;
 /** Sent on the chart host after the renderer built or changed panes, so layers above the chart measure again. */
 export const PANES_CHANGED_EVENT = 'chart-panes-changed';
 interface IndicatorGroup { config: Indicator; plots: Plot[]; result: ReturnType<typeof calculateIndicator> | null; times: number[]; divergence: DivergenceLines | null; color: string; marks: SelectionMarks | null; /** Number of gradient fill series at the end of `plots` */ gradients: number }
@@ -363,17 +369,20 @@ export class IndicatorRenderer {
         const tones = { info: colors.info, warning: colors.warning, up: colors.up, down: negative, muted: colors.muted };
         const row = (key: Parameters<typeof rowStyle>[1]) => rowStyle({ ...config, color: color }, key, tones);
         const fade = (c: string, opacity: number) => { if (!c) return 'transparent'; return opacity >= 100 ? c : withAlpha(c, opacity / 100); };
+        // 1119-B1.2: RSI and EWO carry no name/value label on the scale; the legend row on the left shows both
+        const scaleLabelOf = (c: Indicator) => a.indicatorLabels && c.labels && c.kind !== 'RSI' && c.kind !== 'EWO';
         const percentLike = config.kind === 'RSI' || (config.kind === 'EWO' && config.percent);
         const decimals = config.precision >= 0 ? config.precision : (percentLike && 2) || 5;
         const line = (tone: string, histogram = false, main = false, style = { width: config.width, lineStyle: config.lineStyle }) => {
           const plot = main && config.kind === 'RSI' ? config.plotType : 'line';
-          const options = { visible: config.visible, priceScaleId: scaleOf(config), lineWidth: style.width, lastValueVisible: a.indicatorLabels && config.labels, priceLineVisible: false, title: config.kind, priceFormat: { type: 'price' as const, precision: decimals, minMove: 10 ** -decimals } };
+          const options = { visible: config.visible, priceScaleId: scaleOf(config), lineWidth: style.width, lastValueVisible: scaleLabelOf(config), priceLineVisible: false, title: scaleLabelOf(config) ? config.kind : '', priceFormat: { type: 'price' as const, precision: decimals, minMove: 10 ** -decimals } };
           let s;
           if (histogram || plot === 'histogram') s = chart.addSeries(HistogramSeries, { ...options, color: tone }, pane);
           else if (plot === 'area') s = chart.addSeries(AreaSeries, { ...options, lineColor: tone, topColor: withAlpha(tone, .3), bottomColor: 'transparent', lineStyle: lineStyle(style.lineStyle) }, pane);
           else s = chart.addSeries(LineSeries, { ...options, color: tone, lineStyle: lineStyle(style.lineStyle), lineType: plot === 'stepline' ? LineType.WithSteps : LineType.Simple, lineVisible: plot !== 'circles', pointMarkersVisible: plot === 'circles' }, pane);
           // Ein Indikator-Bereich übernähme sonst die großen oberen Ränder der Kerzen-Achse (Platz für die Bedienung auf dem Chart)
-          if (pane > 0) s.priceScale().applyOptions({ scaleMargins: config.kind === 'RSI' ? { top: 0, bottom: 0 } : { top: 0.08, bottom: 0.08 } });
+          // The top room of the other oscillators is the fixed legend strip (autoscale margin below), not a part of the pane height
+          if (pane > 0) s.priceScale().applyOptions({ scaleMargins: config.kind === 'RSI' ? { top: 0, bottom: 0 } : { top: 0, bottom: 0.08 } });
           plots.push(s as ISeriesApi<'Line'>); this.series.push(s as ISeriesApi<'Line'>); return s;
         };
         const mainRow = row('rsi');
@@ -386,10 +395,15 @@ export class IndicatorRenderer {
         const divergence = config.kind === 'RSI' && config.divergence && row('divUp').on ? new DivergenceLines(fade(row('divUp').color, row('divUp').opacity), fade(row('divDown').color, row('divDown').opacity), row('divUp').width) : null;
         if (divergence) first.attachPrimitive(divergence);
         if (config.kind === 'RSI') {
+          const axisLabels: number[] = [];
           for (const [key, price] of [['upper', config.upper], ['middle', config.middle], ['lower', config.lower]] as const) {
             const r = row(key);
-            if (r.on) first.createPriceLine({ price, color: fade(r.color, r.opacity), lineWidth: r.width, lineStyle: lineStyle(r.lineStyle), axisLabelVisible: false });
+            if (r.on && key !== 'middle') axisLabels.push(price);
+            // 1119-B1.3: the upper and lower band values stay on the scale at every pane height
+            if (r.on) first.createPriceLine({ price, color: fade(r.color, r.opacity), lineWidth: r.width, lineStyle: lineStyle(r.lineStyle), axisLabelVisible: key !== 'middle', axisLabelColor: r.color, title: '' });
           }
+          // Proof for the tests (1119-B1.2/B1.3): band values on the scale, and whether the value label is on
+          if (config.id === SYSTEM_RSI_ID) { this.binding.host.setAttribute('data-rsi-axis-labels', axisLabels.join(':')); this.binding.host.setAttribute('data-rsi-value-label', String(scaleLabelOf(config) || !!first.options().title)); }
           const bg = row('bg');
           if (bg.on) first.attachPrimitive(new BandTint(config.lower, config.upper, fade(bg.color, bg.opacity)));
           if (config.smoothing !== 'none') {
@@ -423,6 +437,11 @@ export class IndicatorRenderer {
           if (config.id === SYSTEM_RSI_ID && config.visible && this.systemSeries) this.systemSeries.rsi.current = first as ISeriesApi<'Line'>;
         }
         if (config.kind === 'MACD') { line(config.maColor || colors.warning); line(negative, true); }
+        if (isOscillator(config) && config.kind !== 'RSI' && pane > 0) {
+          // 1119-B1.5: the highest value starts right below the legend strip; every plot of the group gets it, or one would widen the scale again
+          const provider: AutoscaleInfoProvider = original => { const info = original(); return info && { ...info, margins: { above: OSC_LEGEND_PX, below: 0 } }; };
+          for (const plot of plots) plot.applyOptions({ autoscaleInfoProvider: provider });
+        }
         if (config.kind === 'BB') { line(color); line(color); }
         if (config.kind === 'EWO' || config.kind === 'MACD') first.createPriceLine({ price: 0, color: colors.muted, lineWidth: 1, lineStyle: LineStyle.Dotted, axisLabelVisible: false });
         this.groups.push({ config, plots, result: null, times: [], divergence, color: mainRow.on ? color : 'transparent', marks: null, gradients: gradientPlots });

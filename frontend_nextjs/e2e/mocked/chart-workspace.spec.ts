@@ -580,7 +580,7 @@ test('Indikatormenü: Sichtbarkeit, Zeitrahmen, Skala, Bereichswechsel, Kopie, F
 
   await menu('RSI 1');
   await page.getByRole('button', { name: msg('cw.indicatorSource') }).click();
-  await expect(page.getByTestId('indicator-formula')).toContainText('RMA(gain, 14)');
+  await expect(page.getByTestId('indicator-formula')).toContainText('RMA(gain, 7)'); // 1119-B1.4: a new RSI has the rulebook length 7
   await expect(page.getByRole('dialog').getByRole('textbox')).toHaveCount(0);
   await page.keyboard.press('Escape');
   await menu('EWO');

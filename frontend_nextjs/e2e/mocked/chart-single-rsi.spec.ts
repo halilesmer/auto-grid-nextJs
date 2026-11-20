@@ -20,7 +20,10 @@ for (const [name, url] of [['frei', FREE], ['Setup', SETUP]] as const) {
     const text = page.locator('[data-indicator-value="RSI"]');
     await expect(text).toContainText('RSI (7)');
     await expect(text).toHaveText(/\d+[.,]\d{2}$/);
-    await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-rsi-scale', '20:80:32:10');
+    await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-rsi-scale', '20:80:22:10');
+    // 1119-B1.2/B1.3: no value label of the RSI on the scale; the band values 80 and 20 stay as labels
+    await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-rsi-axis-labels', '80:20');
+    await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-rsi-value-label', 'false');
     expect(await page.evaluate(key => localStorage.getItem(key) ?? '', STORAGE)).not.toContain('initial-RSI');
   });
 }

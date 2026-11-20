@@ -85,7 +85,7 @@ test('Son mumun sağında 10 mumluk boşluk var; yeni canlı mumdan, sıfırlama
   // A range in the top bar fits all candles and keeps the gap of 10 on the right (as TradingView)
   await page.getByTestId('range-trigger').click();
   await page.getByTestId('range-preset-last7').click();
-  await expect.poll(async () => { const l = await logicalOf(page); return l && [Math.round(l[0]), Math.round(l[1])]; }).toEqual([0, 1010]);
+  await expect.poll(async () => { const l = await logicalOf(page); return l && [Math.round(l[0]) + 0, Math.round(l[1])]; }).toEqual([0, 1010]); // + 0: a start of -1e-12 rounds to -0, which toEqual tells apart from 0
 });
 
 test('Açılışta son mumlar varsayılan genişlikte görünür, zoom saklanmaz ve yeniden yüklemede geri gelmez', { tag: '@ANA-19' }, async ({ page, worker }) => {

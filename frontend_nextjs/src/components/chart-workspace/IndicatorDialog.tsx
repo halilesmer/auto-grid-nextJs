@@ -1,12 +1,12 @@
 'use client';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Eye, EyeOff, RotateCcw, Save } from 'lucide-react';
+import { Eye, EyeOff, GraduationCap, RotateCcw, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuGroup, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import AnimatedTabs from '@/components/ui/animated-tabs';
 import { Modal } from '@/components/ui/modal';
 import { useFormat, useT } from '@/i18n';
-import { INDICATOR_KINDS, newIndicator, resetIndicator, type Indicator } from '@/lib/chart-workspace/indicators';
+import { INDICATOR_KINDS, hasRulebookSettings, newIndicator, resetIndicator, withRulebookSettings, type Indicator } from '@/lib/chart-workspace/indicators';
 import { readChartColors } from '@/lib/chartTheme';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
 import { InputsTab, StyleTab, VisibilityTab } from './IndicatorTabs';
@@ -86,6 +86,7 @@ export function IndicatorDialog({ values, favorites, focusId = null, onChange, o
         <DropdownMenu label={t('ind.defaults')} hint={t('ind.defaults.hint')} side="top" align="left" size="sm" panelClassName="w-60" icon={<span>{t('ind.defaults')} ▾</span>}>
           <DropdownMenuGroup>
             <DropdownMenuItem icon={<RotateCcw className="size-4" aria-hidden="true" />} hint={t('ind.reset.hint')} onSelect={() => reset(current)}>{t('ind.reset')}</DropdownMenuItem>
+            {hasRulebookSettings(current) && <DropdownMenuItem icon={<GraduationCap className="size-4" aria-hidden="true" />} hint={t('ind.rulebook.hint')} onSelect={() => update(current.id, withRulebookSettings(current))} data-testid="indicator-rulebook">{t('ind.rulebook')}</DropdownMenuItem>}
             <DropdownMenuItem icon={<Save className="size-4" aria-hidden="true" />} hint={t('ind.saveDefault.hint')} onSelect={() => saveDefault(current)}>{t('ind.saveDefault')}</DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenu>
