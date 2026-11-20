@@ -1227,15 +1227,51 @@ test('Stop dondurulur: aday aynı kaldıkça sonraki her mumda giriş, stop ve b
   }
 });
 
+/**
+ * Harmonik D girişte yok, girişten sonra oluşur: Gartley (X 100, A 130, B 111.46, C 124.94), kısa bacaklar (X 2, A 4, B 6, C 8).
+ * Giriş mumu 13: fitili 106.55 ile Level 1'e (106.40) toleransla değer; ATR (periyot 14) 13'te henüz yok, yani yakınlık ölçüsü yok,
+ * harmonik D "ölçülemez". D'nin kendisi 14'te: orada ATR var, harmonik D ☑. Dondurma yoksa büyük hedef sonradan doğardı.
+ * `entryAtD` aynı seri, fitil yok: giriş mumu D'nin kendisi (14), harmonik D girişte de ☑.
+ */
+const LATE_HARMONIC_AT = { a: 4, b: 6, c: 8, d: 14 };
+const LATE_HARMONIC = (() => {
+  const rows = zig([100, 130, 111.46, 124.94, 106.41], [2, 2, 2, 6], 3);
+  rows[13] = [rows[13][0], rows[13][1], 106.55, 107.2];
+  return rows;
+})();
+const LATE_HARMONIC_AT_D = zig([100, 130, 111.46, 124.94, 106.41], [2, 2, 2, 6], 3);
+
+test('Büyük hedef dondurulur: harmonik D girişte yok, girişten sonra oluşuyor → büyük hedef yine yok', { tag: ['@FRM-05', '@FRM-39'] }, () => {
+  const c = run({ H4: LATE_HARMONIC }, LATE_HARMONIC_AT, { sell: false });
+  // Bugünün ortamında harmonik D var ...
+  expect(state(c, 'ABCD-16')).toBe(M);
+  // ... ama giriş (mum 13) harmonik D'siz anda oldu: büyük hedef, payları ve çizgisi yok
+  expect(c.trade!.entry).toBeCloseTo(106.4, 6);
+  expect([c.trade!.tpBig, c.trade!.tpBigAtEntry, c.trade!.tpBigActivation]).toEqual([undefined, undefined, undefined]);
+  expect(c.drawings.map((d) => d.id)).not.toContain('Z-ABCD-09');
+  // Kontrol: giriş mumu D'nin kendisiyse (harmonik D girişte de var) hedef doğar; fark yalnız giriş anındaki ortamdır
+  const control = run({ H4: LATE_HARMONIC_AT_D }, LATE_HARMONIC_AT, { sell: false });
+  expect(state(control, 'ABCD-16')).toBe(M);
+  expect(control.trade!.tpBig).toBeDefined();
+});
+
 test('Büyük hedef dondurulur: girişte harmonik D yoksa sonradan da doğmaz', { tag: ['@FRM-05', '@FRM-39'] }, () => {
   // X_NO_HARMONIC: girişte harmonik yok; sonraki mumlar hedef doğurmaz
   const rows = [...X_NO_HARMONIC, plain(144, 150), plain(150, 160)];
   expect(run({ H4: rows }, X_NO_HARMONIC_AT).trade!.tpBig).toBeUndefined();
+  // Girişten sonra gelen mumlar, harmonik D'li serideki gibi X altında ya da üstünde kapansa da büyük hedef doğmaz
+  for (const tail of [plain(144, 138), plain(144, 120)]) {
+    expect(run({ H4: [...X_NO_HARMONIC, tail] }, X_NO_HARMONIC_AT).trade!.tpBig).toBeUndefined();
+  }
 });
 
 test('Büyük hedef: giriş henüz olmadıysa karar son muma göre verilir (davranış aynen)', { tag: ['@FRM-05', '@FRM-39'] }, () => {
   const forming = zig([100, 130, 111.46, 124.94], [18, 4, 4], 3);
   expect(run({ H4: forming }, { a: 20, b: 24, c: 28 }, { sell: false }).trade!.tpBig).toBeUndefined();
+  // Giriş mumu eklenince (D 32: Level 1'e ulaşır) aynı aday hedefi kazanır: karar giriş anına bağlı, önceden değil
+  const entered = run({ H4: GARTLEY }, GARTLEY_AT, { sell: false }).trade!;
+  expect(entered.entry).not.toBeNull();
+  expect(entered.tpBig).toBeDefined();
 });
 
 // ---- Erken dönüş (1114-A4.5): D, Level 1'den önce (tolerans dahil) bölgede Engulf ile döner ----
