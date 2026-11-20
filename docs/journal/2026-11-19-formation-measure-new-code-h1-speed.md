@@ -3,7 +3,7 @@ date: 2026-11-19
 author: Claude
 type: diagnosis
 status: open
-pr: []
+pr: [634]
 features: [FRM-39, ANA-21]
 areas: [frontend]
 ---
