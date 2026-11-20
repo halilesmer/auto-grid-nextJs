@@ -196,3 +196,23 @@ test('UI-19 8: Verlaufsserien liegen auf der Skala des RSI (rechts und links)', 
     await expect(chart).toHaveAttribute('data-rsi-under-scale', side);
   }
 });
+
+test('1119-B1.4: Varsayılanlar → Kural kitabı ayarları setzt die Rechenwerte des RSI, MACD hat den Eintrag nicht', { tag: ['@UI-19', '@ANA-18'] }, async ({ page, worker }) => {
+  void worker;
+  await openSystemRsiSettings(page);
+  await field(page, 'ind.rsiLength').fill('9');
+  await field(page, 'ind.source').selectOption('open');
+  await field(page, 'ind.smoothType').selectOption('SMA');
+  await dialog(page).getByRole('button', { name: msg('ind.defaults'), exact: true }).click();
+  await page.getByTestId('indicator-rulebook').click();
+  await expect(field(page, 'ind.rsiLength')).toHaveValue('7');
+  await expect(field(page, 'ind.source')).toHaveValue('close');
+  await expect(field(page, 'ind.smoothType')).toHaveValue('none');
+  await page.getByRole('button', { name: msg('ind.ok'), exact: true }).click();
+  // MACD: no rulebook settings, so no entry
+  await page.getByRole('button', { name: msg('cw.indicators'), exact: true }).click();
+  await page.getByRole('button', { name: '+ MACD', exact: true }).click();
+  await dialog(page).getByRole('button', { name: msg('ind.defaults'), exact: true }).click();
+  await expect(page.getByRole('button', { name: msg('ind.reset'), exact: true })).toBeVisible();
+  await expect(page.getByTestId('indicator-rulebook')).toHaveCount(0);
+});

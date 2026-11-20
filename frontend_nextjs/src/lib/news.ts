@@ -119,6 +119,18 @@ export function arrowOf(e: NewsEvent): NewsArrow {
   return null;
 }
 
+export type GoldArrow = { dir: 'up' | 'down'; released: boolean; direct: boolean } | null;
+
+/** USD dolar endeksinin (DXY) payı ve altının dolarla ters hareketi: USD haberi altını doğrudan, DXY sepetindeki
+ *  diğer para birimleri (EUR, JPY, GBP, CAD, CHF) dolaylı etkiler. Altın oku, para biriminin okunun tersidir. */
+const GOLD_CCY = new Set(['USD', 'EUR', 'JPY', 'GBP', 'CAD', 'CHF']);
+export function goldArrowOf(e: NewsEvent): GoldArrow {
+  const arrow = arrowOf(e);
+  if (!arrow || !GOLD_CCY.has(e.currency ?? '')) return null;
+  const strong = e.currency === 'USD' ? arrow.dir === 'up' : arrow.dir === 'down'; // dolar güçlenir mi?
+  return { dir: strong ? 'down' : 'up', released: arrow.released, direct: e.currency === 'USD' };
+}
+
 /** Sektör → i18n anahtar kökü; none/holidays/tanınmayan → yorum yok. */
 const SECTORS: Record<string, string> = {
   prices: 'prices', jobs: 'labor', gdp: 'gdp', business: 'business', consumer: 'consumer', housing: 'housing', money: 'money', trade: 'trade',

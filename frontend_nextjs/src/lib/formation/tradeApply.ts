@@ -11,7 +11,10 @@ import type { ContextTimeframe } from './params';
 import { TRADE_RULES, type Candidate, type Drawing, type FormationBar, type Side, type Trade } from './types';
 
 /** Werte, die der Prüfer kennt; der Not-SL und SIG-29 kommen hier dazu */
-export type TradeInput = Pick<Trade, 'entry' | 'stop' | 'tp1' | 'reason'> & Partial<Pick<Trade, 'tp1AtEntry' | 'missed' | 'tp2' | 'tp2AtEntry' | 'tp3' | 'tpBig' | 'tpBigAtEntry' | 'tpBigActivation' | 'tp1StrongZone' | 'status' | 'earlyReversal' | 'reentry' | 'reentryTp1Only' | 'cLeg'>>;
+export type TradeInput = Pick<Trade, 'entry' | 'stop' | 'tp1' | 'reason'> & Partial<Pick<Trade, 'tp1AtEntry' | 'missed' | 'tp2' | 'tp2AtEntry' | 'tp3' | 'tpBig' | 'tpBigAtEntry' | 'tpBigActivation' | 'tp1StrongZone' | 'status' | 'earlyReversal' | 'reentry' | 'reentryTp1Only' | 'cLeg'>> & {
+    /** Kerze, deren ATR(14) beim Einstieg bekannt war (bei Einstieg in der Kerze die davor): der Not-SL rechnet mit ihr, nicht mit der der letzten Kerze; fehlt vor dem Einstieg */
+    entryAtrIdx?: number;
+  };
 
 /**
  * @param veto true bei TDF, OBO, CDT, LIB, T618, ENC und KEI (Harmoniken und 2618 sind laut Regelbuch Ausnahme)
@@ -26,7 +29,9 @@ export function withTrade(
   run?: { entryIdx: number; from: number; targets: { tp1: number; tp2: number } },
 ): Candidate {
   const view = env.views.get(tf);
-  const atr = view && view.bars.length > 0 ? (view.atr[view.bars.length - 1] ?? null) : null;
+  // Not-SL: nach dem Einstieg mit der ATR, die beim Einstieg bekannt war (Berührung in der Kerze: die Kerze davor; die Vergangenheit ändert sich nicht), davor mit der ATR der letzten Kerze
+  const atrIdx = run && input.entry !== null ? run.entryIdx - 1 : (input.entryAtrIdx ?? (view ? view.bars.length - 1 : -1));
+  const atr = view && view.bars.length > 0 && atrIdx >= 0 ? (view.atr[atrIdx] ?? null) : null;
   // CRV und SIG-29 laufen über TP1 am Einstieg, wenn der Handel einen hat (AB=CD)
   const sigs = tradeSigChecks(env, tf, candidate.side, { ...input, tp1: input.tp1AtEntry ?? input.tp1 });
   if (run && input.entry !== null && input.stop !== null && view) {
@@ -130,10 +135,12 @@ export function harmonicTrade(
     entry: freeze.entryLevel ?? freeze.touchEnd,
     stop: harmonicStop(from, freeze, targets.stop),
     tp1: fibPrice(from.price, d.price, targets.tp1),
-    ...(freeze.entryLevel === undefined ? {} : { tp1AtEntry: fibPrice(from.price, freeze.entryLevel, targets.tp1) }),
+    // am Einstieg eingefroren (Level oder Docht der Berührungskerze); Grundlage des CRV, läuft nicht mit D (1120-A10.2)
+    tp1AtEntry: fibPrice(from.price, freeze.entryLevel ?? freeze.touchEnd, targets.tp1),
     // TP2 (Fib 0.618) läuft wie TP1; kein großes Ziel, keine Wiedereinstieg und kein früher Rückkehr bei Harmoniken
     tp2: fibPrice(from.price, d.price, targets.tp2),
-    tp2AtEntry: fibPrice(from.price, freeze.entryLevel ?? d.price, targets.tp2),
+    // am Einstieg eingefroren (Level oder Docht der Berührungskerze), läuft nicht mit dem äußersten Docht D
+    tp2AtEntry: fibPrice(from.price, freeze.entryLevel ?? freeze.touchEnd, targets.tp2),
     reason: {},
   };
 }

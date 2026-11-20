@@ -106,7 +106,7 @@ export default function NewsCard({ nowMs, connected, derivedCurrencies, onRetry 
     let g = groups[groups.length - 1];
     if (!g || g.key !== key) {
       const diff = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() - new Date(new Date(nowMs).getFullYear(), new Date(nowMs).getMonth(), new Date(nowMs).getDate()).getTime()) / 86_400_000);
-      g = { key, label: diff >= -1 && diff <= 1 ? t(`news.day.d${diff}` as MessageKey) : f.dayLabel(d), items: [] };
+      g = { key, label: diff >= -1 && diff <= 1 ? `${t(`news.day.d${diff}` as MessageKey)} (${f.weekday(d)})` : f.dayLabel(d), items: [] };
       groups.push(g);
     }
     g.items.push(e);

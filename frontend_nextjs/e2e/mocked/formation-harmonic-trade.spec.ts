@@ -8,7 +8,7 @@ import { checkGarCandidate } from '../../src/lib/formation/garChecks';
 import { checkBatCandidate } from '../../src/lib/formation/batChecks';
 import { checkButCandidate } from '../../src/lib/formation/butChecks';
 import { checkCrbCandidate } from '../../src/lib/formation/crbChecks';
-import { fibPrice, outcomesOf, realizedOutcomesOf } from '../../src/lib/formation/trade';
+import { fibPrice, outcomesOf, realizedOutcomesOf, tradeMetrics } from '../../src/lib/formation/trade';
 import { AT, harmonic, makeRun } from '../fixtures/formation-harmonic';
 import { mirror, zig, type Row } from '../fixtures/formation-rows';
 import type { Candidate, Trade } from '../../src/lib/formation/types';
@@ -115,6 +115,62 @@ for (const hc of cases) {
       const d1 = Math.abs(done.status!.tp1Fill! - done.entry!);
       const d2 = Math.abs(done.status!.tp2Fill! - done.entry!);
       expect(real.tp12).toBeCloseTo((0.5 * (d1 + d2)) / risk, 6);
+    });
+  }
+}
+
+// 2026-11-20: Der Not-SL eines eingegangenen Handels rechnet mit der ATR der Einstiegskerze und ändert sich später nicht mehr
+for (const hc of cases) {
+  for (const buy of [true, false]) {
+    const side = buy ? 'buy' : 'sell';
+    const mir = (p: number) => (buy ? p : 200 - p);
+    t39(`${hc.code} (${side}): Not-SL bleibt bei der ATR der Einstiegskerze, spätere große Kerzen ändern Stand und Wert nicht`, () => {
+      const run = makeRun(hc.check, hc.at as never);
+      const build = (extra: Row[]) => tradeOf(run({ H4: buy ? [...hc.rows, ...extra] : mirror([...hc.rows, ...extra]) }, hc.at as never, { buy }));
+      const t0 = build([]);
+      const entry = mir(t0.entry!);
+      const stop = mir(t0.stop!);
+      const notSl = mir(t0.emergencyStop!);
+      expect(notSl, 'Not-SL liegt hinter dem Stop').toBeLessThan(stop);
+      // große Kerzen: Spanne bis knapp unter den Not-SL, Schluss über dem Stop, kein Ziel berührt
+      const big: Row = [entry, entry + 0.5, notSl + 0.05, entry];
+      // Docht knapp durch den alten Not-SL, Schluss über dem Stop
+      const wick: Row = [entry + 1, stop + 2, notSl - 0.01, stop + 1];
+      const plain1 = build([wick]);
+      const grown = build([big, big, big, big, big, big, wick]);
+      for (const t of [plain1, grown]) {
+        expect(t.status?.kind, 'Docht durch den Not-SL der Einstiegskerze').toBe('stopped');
+        expect(t.status?.stopBy).toBe('wick');
+        expect(mir(t.emergencyStop!), 'gezeigter Not-SL').toBeCloseTo(notSl, 6);
+      }
+    });
+  }
+}
+
+// 2026-11-20: Butterfly und Crab – TP2 am Einstieg gehört zum eingefrorenen Docht der Berührungskerze; ein später tieferer Docht (D läuft weiter) verschiebt ihn nicht
+for (const hc of cases.filter((c) => !c.atLevel)) {
+  for (const buy of [true, false]) {
+    const side = buy ? 'buy' : 'sell';
+    const mir = (p: number) => (buy ? p : 200 - p);
+    t39(`${hc.code} (${side}): TP2 am Einstieg bleibt am Docht der Berührungskerze, wenn D danach weiterläuft`, () => {
+      const run = makeRun(hc.check, hc.at as never);
+      const build = (extra: Row[]) => tradeOf(run({ H4: buy ? [...hc.rows, ...extra] : mirror([...hc.rows, ...extra]) }, hc.at as never, { buy }));
+      const t0 = build([]);
+      const entry = mir(t0.entry!);
+      // Kerze mit neuem äußersten Docht (D läuft 2 weiter), Schluss über dem Einstieg
+      const further: Row = [entry + 1, entry + 1.5, hc.dEnd - 2, entry + 0.5];
+      const t = build([further]);
+      expect(t.entry, 'Einstieg bleibt eingefroren').toBeCloseTo(t0.entry!, 6);
+      expect(t.tp2, 'TP2 läuft mit dem Docht').not.toBeCloseTo(t0.tp2!, 6);
+      expect(t.tp2AtEntry, 'TP2 am Einstieg = Fib A → Docht der Berührungskerze').toBeCloseTo(mir(fibPrice(130, hc.entry, 0.618)), 6);
+      // 1120-A10.2: auch TP1 am Einstieg hängt am Docht der Berührungskerze; CRV und Ergebnisse in R ändern sich nach dem Einstieg nicht
+      expect(t.tp1AtEntry, 'TP1 am Einstieg = Fib A → Docht der Berührungskerze').toBeCloseTo(mir(fibPrice(130, hc.entry, 0.382)), 6);
+      expect(t.tp1, 'TP1 läuft mit dem Docht').not.toBeCloseTo(t0.tp1!, 6);
+      const m0 = tradeMetrics(t0, side)!;
+      const m1 = tradeMetrics(t, side);
+      expect(m1, 'CRV bleibt vorhanden').not.toBeNull();
+      expect(m1!.reward).toBeCloseTo(m0.reward, 6);
+      expect(outcomesOf(t, side)).toEqual(outcomesOf(t0, side));
     });
   }
 }

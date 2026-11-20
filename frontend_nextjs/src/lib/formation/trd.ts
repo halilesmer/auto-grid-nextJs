@@ -126,23 +126,27 @@ export function changeRef(m: TrendModel): Pivot | undefined {
   return pos > 0 ? m.pivots[pos - 1] : undefined;
 }
 
-function setDrawn(m: TrendModel, p: ZugPoint, drawn: boolean): void {
-  const cand = m.cands.find((c) => c.idx === p.idx && c.side === p.side);
+/** Kandidaten nach Kerze und Seite (der erste, wie `m.cands.find`) */
+type CandIndex = Map<number, TrdCand>;
+const candKey = (idx: number, side: ZoneSide): number => idx * 2 + (side === 'resistance' ? 1 : 0);
+
+function setDrawn(byPoint: CandIndex, p: ZugPoint, drawn: boolean): void {
+  const cand = byPoint.get(candKey(p.idx, p.side));
   if (cand) cand.drawn = drawn;
 }
 
-function appendPivot(m: TrendModel, f: ZugPoint): void {
+function appendPivot(m: TrendModel, f: ZugPoint, byPoint: CandIndex): void {
   const prev = lastOf(m.pivots);
   if (prev && !m.dir) m.dir = legDir(f.side);
   let kind: Pivot['kind'] = 'start';
   if (prev) kind = legDir(f.side) === m.dir ? 'impulse' : 'correction';
   m.pivots.push({ ...f, kind, len: prev ? Math.abs(f.price - prev.price) : 0 });
-  setDrawn(m, f, true);
+  setDrawn(byPoint, f, true);
 }
 
-function applyEdit(m: TrendModel, edit: ZugEdit): void {
-  for (const gone of m.pivots.splice(m.pivots.length - edit.cut)) setDrawn(m, gone, false);
-  for (const f of edit.add) appendPivot(m, f);
+function applyEdit(m: TrendModel, edit: ZugEdit, byPoint: CandIndex): void {
+  for (const gone of m.pivots.splice(m.pivots.length - edit.cut)) setDrawn(byPoint, gone, false);
+  for (const f of edit.add) appendPivot(m, f, byPoint);
   // die Regel `filter` kann den Punkt streichen, an dem der laufende Trend beginnt
   m.originPos = Math.min(m.originPos, m.pivots.length - 1);
 }
@@ -160,6 +164,9 @@ export function buildTrend(
   const nextEdit = zugRule(opt, bars, minLeg);
 
   const m = emptyTrend(tf, bars, wave);
+  /** Kandidaten mit `isCorrection` und ohne `accepted` je Seite, alt → neu: nur sie zählen für `folded` */
+  const rejected: Record<ZoneSide, TrdCand[]> = { resistance: [], support: [] };
+  const byPoint: CandIndex = new Map();
 
   for (let k = 0; k < bars.length; k++) {
     // 1. Trendwechsel: Schlüsse jenseits des Gegenpunkts, an dem der Impuls begann (TRD-15 bis TRD-17)
@@ -210,11 +217,13 @@ export function buildTrend(
       const movesLeg = last?.side !== c.side || outward(c.side, price) > outward(c.side, last.price);
       // ein zweites, schwächeres Fraktal derselben Seite hinter einer verworfenen Korrektur zählt nicht als eigene Korrektur
       // Maßstab ist das äußerste verworfene Fraktal dieser Seite, nicht das älteste
-      const folded =
-        last &&
-        m.cands
-          .filter((x) => x.isCorrection && !x.accepted && x.side === c.side && x.idx > last.idx)
-          .reduce<TrdCand | undefined>((best, x) => (!best || outward(c.side, x.price) > outward(c.side, best.price) ? x : best), undefined);
+      // Die verworfenen Korrekturen je Seite stehen in `rejected` (alt → neu); bei Gleichstand gewinnt die älteste, wie in der Suche über `m.cands`
+      let folded: TrdCand | undefined;
+      if (last) {
+        for (const x of rejected[c.side]) {
+          if (x.idx > last.idx && (!folded || outward(c.side, x.price) > outward(c.side, folded.price))) folded = x;
+        }
+      }
       const weaker = folded && outward(c.side, price) <= outward(c.side, folded.price);
       if (legStart && m.dir && legDir(c.side) !== m.dir && movesLeg && !weaker) {
         cand.isCorrection = true;
@@ -224,12 +233,13 @@ export function buildTrend(
         }
       }
       m.cands.push(cand);
+      if (!byPoint.has(candKey(c.idx, c.side))) byPoint.set(candKey(c.idx, c.side), cand);
       const edit = nextEdit(m.pivots, { idx: c.idx, doneAt: k, side: c.side, price });
       if (edit) {
         cand.accepted = true;
-        applyEdit(m, edit);
+        applyEdit(m, edit, byPoint);
         if (outerBar) break;
-      }
+      } else if (cand.isCorrection) rejected[c.side].push(cand);
     }
 
     noteImpulse(m, k);

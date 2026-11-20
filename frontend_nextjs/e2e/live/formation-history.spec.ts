@@ -165,7 +165,14 @@ interface Example {
   note?: string;
 }
 
-interface AbcdKey {
+/** Zustand eines Kandidaten über die Scans (2026-11-20): Stand nur vorwärts, Not-SL fest ab dem Einstieg */
+interface RunState {
+  lastKind?: string;
+  notSl?: { v: number | null; at: number };
+}
+const STATUS_RANK: Record<string, number> = { open: 0, tp1: 1, tp12: 2, tp123: 3, stopped: 9, breakeven: 9 };
+
+interface AbcdKey extends RunState {
   firstAt: number;
   entry?: { entry: number; stop: number; hasBig: boolean; at: number };
   lastStatus?: string;
@@ -177,11 +184,56 @@ interface AbcdKey {
   lastAt: number;
 }
 
-interface HarmKey {
+interface HarmKey extends RunState {
   firstAt: number;
   reached?: { entry: number; stop: number; dPrice: number; at: number };
   dMoved: number;
   lastAt: number;
+}
+
+/**
+ * Invarianten eines eingegangenen Handels (`trade.status` gesetzt), je Scan:
+ * (a) der Stand geht nicht zurück: gestoppt und Rest am Einstieg sind endgültig, TP1 → offen und TP1 und TP2 → TP1 gibt es nicht;
+ * (b) die Ziele liegen auf der Gewinnseite und sind geordnet (TP1 vor TP2 vor dem großen Ziel), der Not-SL ändert sich nach dem Einstieg nicht.
+ */
+function checkRun(tally: InstanceType<typeof Tally>, k: RunState, c: { side: Side }, t: Trade, ctx: { symbol: string; tf: MainTf; at: number; key: string; form: string }) {
+  const where = { form: ctx.form, symbol: ctx.symbol, tf: ctx.tf, key: ctx.key, at: iso(ctx.at) };
+  const kind = t.status!.kind;
+  if (k.lastKind !== undefined && k.lastKind !== kind) {
+    const was = STATUS_RANK[k.lastKind] ?? 0;
+    const now = STATUS_RANK[kind] ?? 0;
+    // Erlaubt: aufwärts im Rang; Rest am Einstieg (breakeven) nach TP1 oder TP1 und TP2 mit großem Ziel
+    const terminalWas = was === 9;
+    const ok = !terminalWas && (now > was || (kind === 'breakeven' && was >= 1));
+    if (!ok) tally.violate('statusWentBack', { ...where, was: k.lastKind, now: kind });
+  }
+  k.lastKind = kind;
+  if (t.entry !== null) {
+    const profit = (p: number) => (c.side === 'buy' ? p - t.entry! : t.entry! - p);
+    const beyond = (far: number, near: number) => (c.side === 'buy' ? far > near : far < near);
+    const goals: [string, number | null | undefined][] = [['tp1', t.tp1], ['tp1AtEntry', t.tp1AtEntry], ['tp2', t.tp2], ['tp2AtEntry', t.tp2AtEntry], ['tpBig', t.tpBig], ['tpBigAtEntry', t.tpBigAtEntry]];
+    // Die koşan Ziele (tp1, tp2, tpBig) laufen mit dem Extrem weiter und sind nach dem Ende des Handels bedeutungslos (gestoppt, Rest am Einstieg);
+    // geprüft werden sie nur, solange sie zählen: TP1/TP2 bis TP1 und TP2 erreicht sind, das große Ziel bis es erreicht ist
+    const live = (name: string): boolean => {
+      if (name === 'tp1' || name === 'tp2') return kind === 'open' || kind === 'tp1';
+      if (name === 'tpBig') return kind !== 'stopped' && kind !== 'breakeven' && kind !== 'tp123';
+      return true;
+    };
+    for (const [name, v] of goals) if (live(name) && v != null && !(profit(v) > 0)) tally.violate('targetNotOnProfitSide', { ...where, label: `${ctx.form}.${name}.${kind}`, name, value: v, entry: t.entry, side: c.side });
+    // Zählpreis von TP1/TP2: ein Ziel, das im Verlust liegt, darf nie als erreicht zählen (tradeStatus.ts verschiebt die Ziele mit jedem neuen Extrem)
+    for (const [name, v] of [['tp1Fill', t.status!.tp1Fill], ['tp2Fill', t.status!.tp2Fill]] as const) {
+      if (v !== undefined && !(profit(v) > 0)) tally.violate('fillOnLossSide', { ...where, label: `${ctx.form}.${name}.${kind}`, name, value: v, entry: t.entry, stop: t.stop, side: c.side });
+    }
+    const order: [string, number | null | undefined, string, number | null | undefined][] = [
+      ['tp2', t.tp2, 'tp1', t.tp1],
+      ['tp2AtEntry', t.tp2AtEntry, 'tp1AtEntry', t.tp1AtEntry],
+      ['tpBig', t.tpBig, 'tp2', t.tp2],
+      ['tpBigAtEntry', t.tpBigAtEntry, 'tp2AtEntry', t.tp2AtEntry],
+    ];
+    for (const [far, fv, near, nv] of order) if (fv != null && nv != null && !beyond(fv, nv)) tally.violate('targetsNotOrdered', { ...where, label: `${far}.${kind}`, far, farValue: fv, near, nearValue: nv, side: c.side });
+  }
+  if (!k.notSl) k.notSl = { v: t.emergencyStop, at: ctx.at };
+  else if (!same(k.notSl.v, t.emergencyStop)) tally.violate('emergencyStopChanged', { ...where, firstAt: iso(k.notSl.at), was: k.notSl.v, now: t.emergencyStop });
 }
 
 function median(xs: number[]) {
@@ -647,6 +699,7 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
           }
         }
         if (t.status) {
+          checkRun(tally, k, c, t, { symbol, tf, at, key, form: 'ABCD' });
           k.lastStatus = t.status.kind;
           k.statusEver.add(t.status.kind);
           if (t.status.kind === 'tp12' || t.status.kind === 'tp123') {
@@ -702,6 +755,7 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
         if (!t || !p.D || t.entry === null || t.stop === null) continue;
         const risk = c.side === 'buy' ? t.entry - t.stop : t.stop - t.entry;
         if (!(risk > 0)) tally.violate('riskNotPositive', { label: form, side: c.side, symbol, tf, at: iso(at), entry: t.entry, stop: t.stop });
+        if (t.status) checkRun(tally, k, c, t, { symbol, tf, at, key, form });
         if (!k.reached) {
           k.reached = { entry: t.entry, stop: t.stop, dPrice: p.D.price, at };
           tally.inc(`${form}.reachedD`);

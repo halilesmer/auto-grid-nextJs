@@ -61,3 +61,13 @@ test('Son muma dön: ana iş parçacığı animasyon sırasında meşgulse de gr
   await button.click();
   await expect(button).toHaveAttribute('aria-hidden', 'true');
 });
+
+test('1119-B1.1: der Knopf sitzt am unteren Rand des Preisbereichs, über dem ersten Oszillator', { tag: '@UI-26' }, async ({ page, worker }) => {
+  void worker;
+  const button = await scrollAway(page);
+  // The price pane is the first row of the chart table; the oscillators follow below it
+  const paneBottom = await page.evaluate(() => document.querySelector('[data-testid="analysis-chart"] table tr')!.getBoundingClientRect().bottom);
+  const box = (await button.boundingBox())!;
+  expect(box.y + box.height).toBeLessThanOrEqual(paneBottom);
+  expect(box.y + box.height).toBeGreaterThan(paneBottom - 20);
+});

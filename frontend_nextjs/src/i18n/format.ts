@@ -15,6 +15,8 @@ export interface Formatters {
   clock: (value: Date | number | string) => string;
   /** Kısa gün adı + tarih (ör. Cum 7 Kas), yerel saat dilimi. */
   dayLabel: (value: Date | number | string) => string;
+  /** Uzun gün adı (ör. Çarşamba), yerel saat dilimi. */
+  weekday: (value: Date | number | string) => string;
   /** MT5-Zeit (Sekunden, wie UTC gerechnet) als Datum + Uhrzeit, unabhängig von der Zeitzone des Browsers. */
   mt5DateTime: (mt5Sec: number) => string;
 }
@@ -36,6 +38,7 @@ export function makeFormatters(locale: Locale): Formatters {
     dateTime: (value) => new Date(value).toLocaleString(tag, { hour12: false }),
     clock: (value) => new Date(value).toLocaleTimeString(tag, { hour: '2-digit', minute: '2-digit', hour12: false }),
     dayLabel: (value) => new Date(value).toLocaleDateString(tag, { weekday: 'short', day: 'numeric', month: 'short' }),
+    weekday: (value) => new Date(value).toLocaleDateString(tag, { weekday: 'long' }),
     mt5DateTime: (mt5Sec) =>
       new Date(mt5Sec * 1000).toLocaleString(tag, {
         timeZone: 'UTC',
