@@ -5,6 +5,7 @@
 import type { Page } from '@playwright/test';
 import { expect, openSetup, test } from './live';
 import { msg } from '../fixtures/i18n';
+import { openCardTab } from '../fixtures/card';
 
 /** Sammelt METRICS-Nachrichten des echten Streams, bis `count` erreicht ist. */
 async function collectMetrics(page: Page, accountId: string, count: number, timeout = 15_000) {
@@ -89,12 +90,9 @@ test.describe('Live (nur lesend)', () => {
     // Stream zeigt das Symbol der ersten Zone des Kontos
     const firstSymbol = settings.ZONES?.[0]?.symbol;
     if (firstSymbol && last.symbol) expect(String(last.symbol).toUpperCase()).toBe(firstSymbol.toUpperCase());
-    // Die schwebende Karte startet zu (UI-22): nach dem Scan aufklappen, dann stehen die Live-Werte in „Übersicht“
+    // Ab lg liegt die Karte im Seitenpanel hinter der rechten Leiste, darunter ist sie die schwebende Karte (UI-22, 1107-A21.22): der Helfer öffnet beide
     await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
-    const card = page.getByTestId('chart-floating-card');
-    const expand = card.getByRole('button', { name: msg('chart.card.expand'), exact: true });
-    if (await expand.count()) await expand.click();
-    await card.getByTestId('chart-card-tab-overview').click();
+    const card = await openCardTab(page, 'overview');
     await expect(card.getByTestId('chart-stat-price')).not.toContainText('--');
   });
 
