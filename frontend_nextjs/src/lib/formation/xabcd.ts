@@ -368,8 +368,10 @@ export function analyzeXabcd(
     const pivots = env.trends.get(tf)!.pivots;
     const keyOf = (b: XabcdBase, bs: Bars) => [b.x, b.a, b.b, b.c].map((p) => bs[p.idx].time).join('|');
     const best = bestRecent(env, tf, evaluate, misses, pip);
-    const dur = TIMEFRAME_SEC[tf];
     const last = bars.length - 1;
+    // leere Zeiteinheit (keine Kerzen geladen): kein Schlüssel, keine Verlaufssuche
+    if (last < 0) return { tf, candidate: best?.candidate ?? empty(tf) };
+    const dur = TIMEFRAME_SEC[tf];
     keys.set(`${tf}|${bars[last].time + dur}`, best ? keyOf(best.base, bars) : null);
     /** Schlüssel der besten Basis zum Schluss der Kerze `at` (ohne Vorrang laufender Handel) */
     const bestKeyAt = (at: number): string | null => {

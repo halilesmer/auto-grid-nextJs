@@ -156,6 +156,16 @@ test.describe('Harmonik: laufender Handel bleibt in der Suche', () => {
     }
   });
 
+  frm('eine leere Zeiteinheit neben der Formations-Zeiteinheit bricht die Suche nicht ab', () => {
+    const bars = barsOf(EURUSD_H4_0720_0914);
+    const ctx = new FormationContext('EURUSD', { D1: { bars: [], missing: [] }, H4: { bars, missing: [] }, H1: { bars: [], missing: [] } }, { trend: DEFAULT_TREND_SETTINGS });
+    const t = bars[bars.length - 1].time + DUR.H4;
+    for (const [form, analyze] of FORMS) {
+      const res = analyze(ctx, t);
+      expect(res.find((a) => a.tf === 'H4')?.candidate.points.X, form).toBeDefined();
+    }
+  });
+
   frm('shiftC: ein Schluss jenseits von B bis zur Einstiegskerze verschiebt C, ein späterer nicht', () => {
     const bar = (time: number, high: number, low: number, close: number): FormationBar => ({ time, open: close, high, low, close });
     // Kauf: B ist ein Tief (1.0), C ein Hoch; der höchste Docht zwischen B und dem Pivot von C liegt vor dem Pivot
