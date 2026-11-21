@@ -54,9 +54,29 @@ test.describe('FRM-44 Erwartetes D', () => {
     const forming = layoutExpectedD({ ...base, selectedId: 'ABCD-H0', items: items(25) });
     expect(forming.badges).toHaveLength(1);
     expect(forming.badges[0]).toMatchObject({ label: 'ABCD · oluşuyor', status: 'forming', selected: true });
-    expect(forming.badges[0].bx).toBeGreaterThan(forming.badges[0].x);
     const valid = layoutExpectedD({ ...base, selectedId: 'v', items: [{ id: 'v', form: 'GAR', candidate: abcd(18, 'valid') }] });
     expect(valid.badges[0]).toMatchObject({ label: 'GAR ✓', status: 'valid' });
+  });
+
+  frm('ein Abzeichen: Kauf unter dem D, Verkauf über dem D, waagerecht mittig, im Zeichenbereich', () => {
+    const at = (side: 'buy' | 'sell', level: number, over = {}) => {
+      const c = { ...abcd(level, 'valid'), side };
+      return layoutExpectedD({ ...base, ...over, selectedId: 'v', items: [{ id: 'v', form: 'GAR', candidate: c }] }).badges[0];
+    };
+    const buy = at('buy', 18);
+    expect(buy.by).toBeGreaterThan(buy.y);
+    expect(buy.bx + buy.w / 2).toBeCloseTo(buy.x, 5);
+    const sell = at('sell', 18);
+    expect(sell.by + sell.h).toBeLessThan(sell.y);
+    expect(sell.bx + sell.w / 2).toBeCloseTo(sell.x, 5);
+    // kein Platz unten (Kauf) oder oben (Verkauf): das Abzeichen bleibt im Zeichenbereich
+    const low = at('buy', 0);
+    expect(low.by + low.h).toBeLessThanOrEqual(400);
+    const high = at('sell', 40);
+    expect(high.by).toBeGreaterThanOrEqual(0);
+    // am rechten Rand bleibt es innen
+    const edge = at('buy', 18, { width: 120 });
+    expect(edge.bx + edge.w).toBeLessThanOrEqual(120);
   });
 
   frm('mehrere Formationen: ein Stapel, nächstes D oben, nur blasse Ringe für die übrigen, Klick-Ziel je Abzeichen', () => {
