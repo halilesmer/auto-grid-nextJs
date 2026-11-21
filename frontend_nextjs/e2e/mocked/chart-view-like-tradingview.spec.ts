@@ -17,6 +17,8 @@ const storageKey = 'grid-robot-chart-workspaces-v1';
 /** Default bar spacing of lightweight-charts (`timeScale.barSpacing`) */
 const DEFAULT_BAR_SPACING = 6;
 test.setTimeout(60_000);
+// A fixed weekday: on a weekend the real clock gives no running candle of the search (`data-last-price` stays missing)
+test.use({ fakeNow: '2026-11-18T12:00:00Z' });
 test.beforeEach(({ page }) => page.addInitScript(() => localStorage.setItem('grid-robot-formation-sidebar', JSON.stringify({ open: false, tab: 'conditions' }))));
 
 async function holdRunningCandle(page: Page) {
