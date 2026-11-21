@@ -1342,6 +1342,36 @@ function erRun(side: 'sell' | 'buy', over: Partial<ErCase> = {}) {
   return { m, er: earlyReversalOf({ bars, wide, s, reached: dReached(s), zones, engulfZones: engulf, sec: H4, ...(lower ? { lower } : {}) }) };
 }
 
+/** Erken dönüş, iki bölge (Satış): hangi bölgede olursa olsun kapanışı en erken olan Engulf geçerli (1120-A14.1) */
+function erTwoZones(tail: Row[], zones: { bottom: number; top: number }[]) {
+  const rows: Row[] = [[101, 102, 100, 101], [128, 130, 127, 129], [116, 116, 114, 115], [120, 125, 119, 124], [124, 140.5, 123, 139], ...tail];
+  const bars = barsOf(rows, H4);
+  const wide = bars.map(() => true as boolean | null);
+  const s = shapeOf(bars, { a: { idx: 0, price: 100 }, b: { idx: 1, price: 130 }, c: { idx: 2, price: 114 } });
+  const ez: EarlyZone[] = [
+    ...zones.map((rect): EarlyZone => ({ side: 'resistance', rect })),
+    { side: 'support', rect: { bottom: 117, top: 118 } },
+  ];
+  return earlyReversalOf({ bars, wide, s, reached: dReached(s), zones: ez, engulfZones: [], sec: H4 });
+}
+frm('Erken dönüş: zaman önce — yakın stoplu bölgede geç, diğerinde erken Engulf → erken olan seçilir', () => {
+  // Engulf 1 (Kerze 6) berührt nur die ferne Zone (140,2–143), Engulf 2 (Kerze 8) nur die nahe Zone (138,5–139)
+  const er = erTwoZones(
+    [[139.5, 140.4, 139.4, 140.2], [140.3, 140.4, 139.2, 139.3], [138.6, 139.2, 138.5, 139.1], [139.3, 139.4, 121, 122]],
+    [{ bottom: 138.5, top: 139 }, { bottom: 140.2, top: 143 }],
+  );
+  expect(er).not.toBeNull();
+  expect(er!.idx).toBe(6);
+  expect(er!.entry).toBeCloseTo(139.3, 9);
+  expect(er!.stop).toBeCloseTo(143, 9);
+});
+frm('Erken dönüş: aynı Schlusszeit → nahe Stop-Zone gewinnt', () => {
+  const er = erTwoZones([[139.5, 139.8, 121, 122]], [{ bottom: 140.2, top: 143 }, { bottom: 139, top: 141 }]);
+  expect(er).not.toBeNull();
+  expect(er!.idx).toBe(5);
+  expect(er!.stop).toBeCloseTo(141, 9);
+});
+
 for (const side of ['sell', 'buy'] as const) {
   const tag = side === 'sell' ? 'Satış' : 'Alış';
   const near = (a: number | null | undefined, b: number) => expect(a).toBeCloseTo(b, 9);

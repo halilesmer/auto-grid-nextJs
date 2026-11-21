@@ -7,8 +7,8 @@
  * - D hat die Ausdehnung −0.272 (ABCD-06) erreicht, aber Level 1 nicht (auch nicht mit der Toleranz von ABCD-08).
  * - Im Band zwischen −0.272 und Level 1 liegt eine Fraktalzone oder Engulf-Zone der Handelsseite, und die Kerze des D berührt sie.
  * - Bei oder nach dem D schließt eine Engulf-Kerze in Handelsrichtung (`engulfAt`, wie ABCD-20), deren Kerzen die Zone berühren.
- *   Gesucht wird in der Zeiteinheit der Formation und in der nächstkleineren (SIG-28, wie ABCD-20; 1119-A35.1.1); gilt der erste
- *   Engulf, der zeitlich zuerst schließt. Ohne Ansicht der kleineren Zeiteinheit gilt nur die Formations-Zeiteinheit.
+ *   Gesucht wird in der Zeiteinheit der Formation und in der nächstkleineren (SIG-28, wie ABCD-20; 1119-A35.1.1); gilt über alle
+ *   Zonen der Engulf, der zeitlich zuerst schließt (1120-A14.1); bei gleicher Schlusszeit die Zone mit der nächsten fernen Kante. Ohne Ansicht der kleineren Zeiteinheit gilt nur die Formations-Zeiteinheit.
  *
  * Werte: Einstieg = Schluss der Engulf-Kerze; Stop = ferne Kante der Zone (gilt mit dem Kerzenschluss);
  * Ziel 1 = nächste Zone der Gegenseite in Handelsrichtung ab dem Einstieg (nahe Kante); Ziel 2 = Zone am Punkt C (nahe Kante).
@@ -117,7 +117,7 @@ function earlyReversalRun(o: EarlyInput, mark: (n: number) => void): EarlyRevers
   const far = (r: Rect) => (sell ? r.top : r.bottom);
   const gain = (entry: number, price: number) => (sell ? entry - price : price - entry);
 
-  // Zonen der Handelsseite im Band, die das D berührt; engste ferne Kante zuerst
+  // Zonen der Handelsseite im Band, die das D berührt; engste ferne Kante zuerst (Reihenfolge entscheidet nur bei gleicher Schlusszeit)
   const own: Rect[] = [
     ...o.zones.filter((z) => z.side === zoneSideOf(side) && !(z.fractalTimes && z.fractalTimes.every((ft) => ft >= tipBar.time))).map((z) => z.rect),
     ...o.engulfZones.filter((z) => z.holds && z.side === side && z.idx < d.idx).map((z) => z.rect),
@@ -150,25 +150,29 @@ function earlyReversalRun(o: EarlyInput, mark: (n: number) => void): EarlyRevers
     o.lower && lowerStart >= 0
       ? o.lower.bars.findIndex((b, j) => j >= lowerStart && out(sell ? b.high : b.low) >= out(ext))
       : -1;
+  // Zeit zuerst (1120-A14.1): über alle Zonen gilt der Engulf, der zeitlich zuerst schließt; bei gleicher Schlusszeit die Zone mit der
+  // nächsten fernen Kante (Reihenfolge von `own`, `<` behält den ersten)
+  let best: { zone: Rect; hit: { k: number; close: number; bar: FormationBar; lower: boolean; idx: number } } | null = null;
   for (const zone of own) {
     const own1 = scan(zone, bars, o.wide, o.sec ?? 0, d.idx);
     const low = o.lower && o.sec !== undefined && lowerFrom >= 0 ? scan(zone, o.lower.bars, o.lower.wide, o.lower.sec, lowerFrom) : null;
     const lowHit = low ? { ...low, lower: true, idx: Math.max(0, bars.findLastIndex((b) => b.time < low.close)) } : null;
     const ownHit = own1 ? { ...own1, lower: false, idx: own1.k } : null;
     const hit = ownHit && (!lowHit || ownHit.close <= lowHit.close) ? ownHit : lowHit;
-    if (!hit) continue;
-    {
-      const entry = hit.bar.close;
-      const stop = far(zone);
-      const opposing = o.zones.filter((z) => z.side === zoneSideOf(sell ? 'buy' : 'sell'));
-      const nearestFrom = (rects: Rect[]): number | null => nearestEdgeFrom(rects, entry, side);
-      const target1 = nearestFrom(opposing.map((z) => z.rect));
-      // Ziel 2 liegt hinter Ziel 1; dieselbe Zone zweimal zu zeigen hilft nicht
-      const beyond1 = (r: Rect) => target1 !== null && gain(entry, sell ? r.top : r.bottom) > gain(entry, target1);
-      const target2 = target1 === null ? null : nearestFrom(opposing.filter((z) => touches(z.rect, bars[s.c.idx]) && beyond1(z.rect)).map((z) => z.rect));
-      const gap = Math.max(0, out(s.level1) - out(d.price));
-      return { idx: hit.idx, time: hit.bar.time, lower: hit.lower, entry, stop, target1, target2, gap };
-    }
+    if (hit && (!best || hit.close < best.hit.close)) best = { zone, hit };
+  }
+  if (best) {
+    const { zone, hit } = best;
+    const entry = hit.bar.close;
+    const stop = far(zone);
+    const opposing = o.zones.filter((z) => z.side === zoneSideOf(sell ? 'buy' : 'sell'));
+    const nearestFrom = (rects: Rect[]): number | null => nearestEdgeFrom(rects, entry, side);
+    const target1 = nearestFrom(opposing.map((z) => z.rect));
+    // Ziel 2 liegt hinter Ziel 1; dieselbe Zone zweimal zu zeigen hilft nicht
+    const beyond1 = (r: Rect) => target1 !== null && gain(entry, sell ? r.top : r.bottom) > gain(entry, target1);
+    const target2 = target1 === null ? null : nearestFrom(opposing.filter((z) => touches(z.rect, bars[s.c.idx]) && beyond1(z.rect)).map((z) => z.rect));
+    const gap = Math.max(0, out(s.level1) - out(d.price));
+    return { idx: hit.idx, time: hit.bar.time, lower: hit.lower, entry, stop, target1, target2, gap };
   }
   return null;
 }
