@@ -24,7 +24,8 @@ import {
   type AbcdShape,
 } from './abcd';
 import { levelPrice, legLength, type FibLeg } from './fib';
-import { ABCD_PARAMS, BAT_PARAMS, CONTEXT_TIMEFRAMES, FRZ_PARAMS, GAR_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
+import { ABCD_PARAMS, BAT_PARAMS, CONTEXT_TIMEFRAMES, FRZ_PARAMS, GAR_PARAMS, HARMONIC_PARAMS, HISTORY_DAYS, type ContextTimeframe } from './params';
+import { DAY_SEC } from '@/lib/serverTime';
 import { emergencyStopOf, fibPrice, strongZoneAt, targetEnd } from './trade';
 import { tradeStatusOf } from './tradeStatus';
 import { abcdTrade, withTrade } from './tradeApply';
@@ -41,7 +42,7 @@ import { exemptFor, settle } from './settle';
 import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
 import { levelXA, ordered, pipOf, shapeOfX } from './xabcd';
 import { divergenceOf, engulfZones, rsiExtreme, zoneSideOf } from './sig';
-import { TRADE_RULES, type Anchor, type Candidate, type Check, type CheckState, type Drawing, type RuleKind, type RuleStatus, type Verdict } from './types';
+import { TRADE_RULES, type Anchor, type Candidate, type Check, type CheckState, type Drawing, type FormationBar, type RuleKind, type RuleStatus, type Verdict } from './types';
 
 const N = FRZ_PARAMS.neighbors;
 
@@ -90,6 +91,11 @@ export interface AbcdPointsInput {
 export interface AbcdAnalysis {
   tf: ContextTimeframe;
   candidate: Candidate;
+  /**
+   * Nur wenn ein laufender Handel Vorrang hat (1122-A1.3): der Kandidat, den die Punktwahl ohne Vorrang gezeigt hätte.
+   * Er ist verdeckt, solange der laufende Handel dauert (Messung im Verlaufsscan, keine Anzeige).
+   */
+  displaced?: Candidate;
 }
 
 const flag = (cond: boolean): CheckState => (cond ? 'met' : 'unmet');
@@ -477,7 +483,10 @@ function evaluateFull(
   };
   if (d) points.D = { time: bars[d.idx].time, price: d.price };
   const candidate: Candidate = { code: 'ABCD', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
-  return { candidate: withTrade(candidate, env, tf, input, false), big, frozenFrom };
+  const traded = withTrade(candidate, env, tf, input, false);
+  // Einstiegskerze für den Vorrang laufender Handel in `analyzeAbcd` (1122-A1.3)
+  if (status && traded.trade) traded.trade = { ...traded.trade, entryIdx: freezeIdx };
+  return { candidate: traded, big, frozenFrom };
 }
 
 function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolean, from: AbcdPoint, second: number | undefined, stop: number | null, freezeIdx: number, status: TradeStatus | null, early: EarlyReversal | null, bigTarget: number | null): Drawing[] {
@@ -547,16 +556,77 @@ function entryEnvOf(ctx: FormationContext, tf: ContextTimeframe): AtEntry {
   return (entryTime) => buildEnv(ctx, entryTime + TIMEFRAME_SEC[tf], tf);
 }
 
-/** Sucht je geladener Zeiteinheit (hoch → tief) die letzten Punkte A, B, C und misst D */
+/** Punkte der Wahl je Kontext und Zeit (`${tf}|${Schlusszeit}` → Schlüssel A|B|C oder null): hängen nur von den Kerzen bis dahin ab, ein Lauf rechnet jede Zeit einmal */
+const pickedKeys = new WeakMap<FormationContext, Map<string, string | null>>();
+
+/** Handel eingegangen (Einstieg mit Stand und Einstiegskerze) */
+const enteredTrade = (c: Candidate): boolean => c.trade?.entry != null && c.trade.status !== undefined && c.trade.entryIdx !== undefined;
+
+/**
+ * D erreicht eine Einstiegsschwelle: Level 1 mit Toleranz (Handel) oder die Ausdehnung −0.272 (Erken dönüş).
+ * Ohne das gibt es keinen Handel; die Verlaufssuche misst solche Punkte nicht.
+ */
+function mayHaveEntry(s: AbcdShape): boolean {
+  if (!s.d || s.len === 0) return false;
+  return dReached(s) || outward(s.es, s.d.price) >= outward(s.es, extensionPrice(s, ABCD_PARAMS.minExtension));
+}
+
+/**
+ * Sucht je geladener Zeiteinheit (hoch → tief) die letzten Punkte A, B, C (`selectPoints`) und misst D.
+ * Vorrang hat ein eingegangener Handel, der noch läuft oder in der letzten Kerze endet, wenn seine Punkte zum Schluss der Einstiegskerze die Wahl
+ * von `selectPoints` waren (beim Einstieg gezeigt). So fällt er erst nach seinem Ende weg und zeigt sein Ende einmal (1122-A1.3 = Regel 1121-A1.3 der
+ * Harmoniken, Entscheidung 1120-A42.1). Gesucht wird unter allen drei aufeinanderfolgenden Wendepunkten, deren A im Verlaufsfenster der Zeiteinheit
+ * liegt (`HISTORY_DAYS`). Unter mehreren gilt der zuerst eingegangene, bei gleicher Einstiegskerze der jüngste.
+ */
 export function analyzeAbcd(ctx: FormationContext, t: number): AbcdAnalysis[] {
   const tfs = ctx.timeframes();
   const base = tfs.length > 0 ? buildEnv(ctx, t, tfs[0]) : null;
   if (!base) return [];
   const pip = pipOf(ctx.symbol);
+  let keys = pickedKeys.get(ctx);
+  if (!keys) pickedKeys.set(ctx, (keys = new Map()));
+  const cache = keys;
   return tfs.map((tf) => {
     const env = envFor(base, ctx, t, tf);
-    const points = selectPoints(env.trends.get(tf)!.pivots);
-    return { tf, candidate: points ? evaluate(env, points, undefined, pip, entryEnvOf(ctx, tf)) : unmeasurable(tf) };
+    const pivots = env.trends.get(tf)!.pivots;
+    const bars = env.views.get(tf)!.bars;
+    const atEntry = entryEnvOf(ctx, tf);
+    const points = selectPoints(pivots);
+    if (!points) return { tf, candidate: unmeasurable(tf) };
+    const picked = evaluate(env, points, undefined, pip, atEntry);
+    const last = bars.length - 1;
+    const dur = TIMEFRAME_SEC[tf];
+    const keyOf = (p: AbcdPoints, bs: readonly FormationBar[]) => `${bs[p.a.idx].time}|${bs[p.b.idx].time}|${bs[p.c.idx].time}`;
+    cache.set(`${tf}|${bars[last].time + dur}`, keyOf(points, bars));
+    /** Schlüssel der Wahl zum Schluss der Kerze `at` (ohne Vorrang laufender Handel) */
+    const pickedKeyAt = (at: number): string | null => {
+      const id = `${tf}|${at}`;
+      if (!cache.has(id)) {
+        const top = buildEnv(ctx, at, tfs[0]);
+        const e = top ? envFor(top, ctx, at, tf) : null;
+        const p = e ? selectPoints(e.trends.get(tf)!.pivots) : null;
+        cache.set(id, p ? keyOf(p, e!.views.get(tf)!.bars) : null);
+      }
+      return cache.get(id)!;
+    };
+    const windowStart = t - HISTORY_DAYS[tf] * DAY_SEC;
+    const pt = (q: (typeof pivots)[number]): AbcdPoint => ({ idx: q.idx, price: q.price });
+    let kept: { candidate: Candidate; entryIdx: number } | null = null;
+    for (let j = pivots.length - 1; j >= 2; j--) {
+      const p: AbcdPoints = { a: pt(pivots[j - 2]), b: pt(pivots[j - 1]), c: pt(pivots[j]) };
+      if (bars[p.a.idx].time < windowStart) break;
+      const same = p.c.idx === points.c.idx && p.a.idx === points.a.idx;
+      if (!same && !mayHaveEntry(shapeOf(bars, p))) continue;
+      const candidate = same ? picked : evaluate(env, p, undefined, pip, atEntry);
+      const endIdx = candidate.trade?.status?.endIdx;
+      if (!enteredTrade(candidate) || (endIdx !== undefined && endIdx < last)) continue;
+      const entryIdx = candidate.trade!.entryIdx!;
+      if (kept !== null && entryIdx >= kept.entryIdx) continue;
+      if (pickedKeyAt(bars[entryIdx].time + dur) !== keyOf(p, bars)) continue;
+      kept = { candidate, entryIdx };
+    }
+    if (!kept || kept.candidate === picked) return { tf, candidate: picked };
+    return { tf, candidate: kept.candidate, displaced: picked };
   });
 }
 
