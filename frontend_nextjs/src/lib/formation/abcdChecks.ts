@@ -395,6 +395,8 @@ function evaluateFull(
     strongZone,
     reachedRule: 'ABCD-08',
   });
+  // 1120-A14.2: Ziel am Einstieg festgelegt, harmonisches D (ABCD-16) heute nicht mehr erfüllt → nur Hinweis
+  if (big && harmonic !== 'met') input.tpBigHarmonicBroken = true;
   if (early) {
     // Kein Fibo-Ziel, kein Anteil, kein Stand nach dem Einstieg (A4.5.3)
     input.entry = early.entry;

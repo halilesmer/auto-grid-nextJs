@@ -1588,3 +1588,20 @@ for (const side of ['sell', 'buy'] as const) {
     expect(t.emergencyStop).not.toBeCloseTo(t.stop! + sign * atr[idx]!, 9);
   });
 }
+
+// 1120-A14.2: Büyük hedef girişte belirlendi, harmonik D (ABCD-16) sonradan bozuldu → Handelsblock zeigt einen Hinweis (Flag)
+test('Büyük hedef bayrağı: harmonik D bozulunca tpBigHarmonicBroken var, bozulmayınca yok', { tag: ['@FRM-05', '@FRM-39'] }, () => {
+  const ok = run({ H4: GARTLEY }, GARTLEY_AT, { sell: false });
+  expect(state(ok, 'ABCD-16')).toBe(M);
+  expect(ok.trade!.tpBig).toBeDefined();
+  expect(ok.trade!.tpBigHarmonicBroken).toBeUndefined();
+  // Giriş sonrası X altında kapanış (GAR-18): ABCD-16 artık ☑ değil, hedef donuk kalır
+  const broken = run({ H4: [...GARTLEY, plain(106, 95)] }, GARTLEY_AT, { sell: false });
+  expect(state(broken, 'ABCD-16')).not.toBe(M);
+  expect(broken.trade!.tpBig).toBeDefined();
+  expect(broken.trade!.tpBigHarmonicBroken).toBe(true);
+  // Büyük hedef hiç yoksa bayrak da yok
+  const none = run({ H4: [...X_NO_HARMONIC, plain(144, 150)] }, X_NO_HARMONIC_AT);
+  expect(none.trade!.tpBig).toBeUndefined();
+  expect(none.trade!.tpBigHarmonicBroken).toBeUndefined();
+});

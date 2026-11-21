@@ -354,6 +354,16 @@ export function FormationTrade({ hit, digits }: { hit: ScanHit; digits: number |
               state: stateOf('tpBig'),
               note: bigNote,
             })}
+          {trade.tpBig !== undefined && trade.tpBigHarmonicBroken && (
+            <div
+              data-testid="trade-tpBig-broken-note"
+              className="col-span-2 flex items-start gap-1.5 rounded-lg border border-warning/35 bg-warning/10 px-2 py-1 text-[11px] text-warning"
+            >
+              <Info size={12} aria-hidden="true" className="mt-px shrink-0" />
+              <span className="flex-1">{t('formation.trade.big.harmonicBroken')}</span>
+              <InfoHint hint={t('formation.trade.big.harmonicBroken.hint')} className="text-warning" />
+            </div>
+          )}
           {trade.tp3 !== undefined &&
             target('tp3', t(big ? 'formation.trade.tp4' : 'formation.trade.tp3'), trade.tp3, { wide: true })}
         </div>

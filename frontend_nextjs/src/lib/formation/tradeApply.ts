@@ -11,7 +11,7 @@ import type { ContextTimeframe } from './params';
 import { TRADE_RULES, type Candidate, type Drawing, type FormationBar, type Side, type Trade } from './types';
 
 /** Werte, die der Prüfer kennt; der Not-SL und SIG-29 kommen hier dazu */
-export type TradeInput = Pick<Trade, 'entry' | 'stop' | 'tp1' | 'reason'> & Partial<Pick<Trade, 'tp1AtEntry' | 'missed' | 'tp2' | 'tp2AtEntry' | 'tp3' | 'tpBig' | 'tpBigAtEntry' | 'tpBigActivation' | 'tp1StrongZone' | 'status' | 'earlyReversal' | 'reentry' | 'reentryTp1Only' | 'cLeg'>> & {
+export type TradeInput = Pick<Trade, 'entry' | 'stop' | 'tp1' | 'reason'> & Partial<Pick<Trade, 'tp1AtEntry' | 'missed' | 'tp2' | 'tp2AtEntry' | 'tp3' | 'tpBig' | 'tpBigAtEntry' | 'tpBigActivation' | 'tpBigHarmonicBroken' | 'tp1StrongZone' | 'status' | 'earlyReversal' | 'reentry' | 'reentryTp1Only' | 'cLeg'>> & {
     /** Kerze, deren ATR(14) beim Einstieg bekannt war (bei Einstieg in der Kerze die davor): der Not-SL rechnet mit ihr, nicht mit der der letzten Kerze; fehlt vor dem Einstieg */
     entryAtrIdx?: number;
   };
@@ -63,6 +63,7 @@ export function withTrade(
     ...(input.tpBig === undefined ? {} : { tpBig: input.tpBig }),
     ...(input.tpBigAtEntry === undefined ? {} : { tpBigAtEntry: input.tpBigAtEntry }),
     ...(input.tpBigActivation === undefined ? {} : { tpBigActivation: input.tpBigActivation }),
+    ...(input.tpBigHarmonicBroken === undefined ? {} : { tpBigHarmonicBroken: input.tpBigHarmonicBroken }),
     ...(input.tp1StrongZone === undefined ? {} : { tp1StrongZone: input.tp1StrongZone }),
     ...(input.status === undefined ? {} : { status: input.status }),
     ...(input.earlyReversal === undefined ? {} : { earlyReversal: input.earlyReversal }),

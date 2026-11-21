@@ -96,6 +96,8 @@ export interface Trade {
   tpBigAtEntry?: number;
   /** AB=CD: A; eine Kerze, die jenseits davon (in Gewinnrichtung) schließt, aktiviert das große Ziel */
   tpBigActivation?: number;
+  /** AB=CD (1120-A14.2): das große Ziel ist am Einstieg festgelegt, aber das harmonische D (ABCD-16) ist heute nicht mehr erfüllt; nur Hinweis im Handelsblock */
+  tpBigHarmonicBroken?: boolean;
   /** AB=CD: TP1 liegt in einer sehr starken Zone der Gegenseite (nur Hinweis, die Rechnung bleibt) */
   tp1StrongZone?: boolean;
   /** AB=CD (1114-A4.2 b): Stand des Handels nach dem Einstieg (offen, TP1, TP1 und TP2, Stop, Rest am Einstieg); nur wenn der Einstieg erreicht ist */
