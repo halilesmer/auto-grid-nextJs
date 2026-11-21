@@ -4,7 +4,7 @@
  */
 import { outward, wickEnd, type ZoneSide } from './frz';
 import { tradeSigChecks } from './sigChecks';
-import { emergencyStopOf, fibPrice } from './trade';
+import { emergencyStopOf, fibPrice, targetEnd } from './trade';
 import { tradeStatusOf } from './tradeStatus';
 import type { Env } from './reasons';
 import type { ContextTimeframe } from './params';
@@ -109,6 +109,10 @@ export function harmonicFreeze(
 export const harmonicStop = (from: { price: number }, freeze: HarmonicFreeze, stopLevel: number): number =>
   fibPrice(from.price, freeze.entryLevel ?? freeze.touchEnd, -stopLevel);
 
+/** Ende der Ziel-Fib `from → D` in der Zeichnung: höchstens am eingefrorenen Stop wie TP1/TP2 im Handel (1121-A14.1); der Punkt D bleibt am Docht */
+export const harmonicTargetEnd = (from: { price: number }, d: { price: number }, freeze: HarmonicFreeze | null, stopLevel: number): number =>
+  freeze ? targetEnd(from.price, d.price, harmonicStop(from, freeze, stopLevel)) : d.price;
+
 /** Stop-Linie ab der Berührungskerze und ihre Beschriftung (wie Z-ABCD-07 und Z-ABCD-08); der Stop läuft nicht mit der Ziel-Fib */
 export function frozenStopDrawings(ids: [string, string], bars: readonly FormationBar[], freeze: HarmonicFreeze, stop: number, side: Side): Drawing[] {
   return [
@@ -132,14 +136,17 @@ export function harmonicTrade(
   freeze: HarmonicFreeze | null,
 ): TradeInput {
   if (!from || !d || !reached || !freeze) return { entry: null, stop: null, tp1: null, reason: { entry: reachedRule, stop: reachedRule, tp1: reachedRule } };
+  const stop = harmonicStop(from, freeze, targets.stop);
+  // Ende der Ziel-Fib höchstens am Stop: ein Docht jenseits des Stops ohne Schluss zieht die Ziele nicht weiter (1121-A14.1)
+  const end = targetEnd(from.price, d.price, stop);
   return {
     entry: freeze.entryLevel ?? freeze.touchEnd,
-    stop: harmonicStop(from, freeze, targets.stop),
-    tp1: fibPrice(from.price, d.price, targets.tp1),
+    stop,
+    tp1: fibPrice(from.price, end, targets.tp1),
     // am Einstieg eingefroren (Level oder Docht der Berührungskerze); Grundlage des CRV, läuft nicht mit D (1120-A10.2)
     tp1AtEntry: fibPrice(from.price, freeze.entryLevel ?? freeze.touchEnd, targets.tp1),
     // TP2 (Fib 0.618) läuft wie TP1; kein großes Ziel, keine Wiedereinstieg und kein früher Rückkehr bei Harmoniken
-    tp2: fibPrice(from.price, d.price, targets.tp2),
+    tp2: fibPrice(from.price, end, targets.tp2),
     // am Einstieg eingefroren (Level oder Docht der Berührungskerze), läuft nicht mit dem äußersten Docht D
     tp2AtEntry: fibPrice(from.price, freeze.entryLevel ?? freeze.touchEnd, targets.tp2),
     reason: {},
@@ -174,16 +181,19 @@ export function abcdTrade(o: {
   if (!from || !frozenFrom || !d || !o.reached) {
     return { entry: null, stop: null, tp1: null, reason: { entry: o.reachedRule, stop: o.reachedRule, tp1: o.reachedRule } };
   }
+  const stop = fibPrice(frozenFrom.price, level1, -targets.stop);
+  // Ende der Ziel-Fib höchstens am Stop: ein Docht jenseits des Stops ohne Schluss zieht die Ziele nicht weiter (1121-A14.1)
+  const end = targetEnd(from.price, d.price, stop);
   return {
     entry: level1,
-    stop: fibPrice(frozenFrom.price, level1, -targets.stop),
-    tp1: fibPrice(from.price, d.price, targets.tp1),
+    stop,
+    tp1: fibPrice(from.price, end, targets.tp1),
     tp1AtEntry: fibPrice(frozenFrom.price, level1, targets.tp1),
-    tp2: fibPrice(from.price, d.price, targets.tp2),
+    tp2: fibPrice(from.price, end, targets.tp2),
     tp2AtEntry: fibPrice(frozenFrom.price, level1, targets.tp2),
-    ...(o.divergence ? { tp3: fibPrice(from.price, d.price, targets.divergence) } : {}),
+    ...(o.divergence ? { tp3: fibPrice(from.price, end, targets.divergence) } : {}),
     ...(o.big
-      ? { tpBig: d.price + o.big.offset, tpBigAtEntry: level1 + o.big.offset, tpBigActivation: o.big.activation }
+      ? { tpBig: end + o.big.offset, tpBigAtEntry: level1 + o.big.offset, tpBigActivation: o.big.activation }
       : {}),
     ...(o.strongZone ? { tp1StrongZone: true } : {}),
     ...(o.missed > 0 ? { missed: o.missed } : {}),

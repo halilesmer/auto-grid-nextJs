@@ -13,7 +13,7 @@ import { outward } from './frz';
 import { closedBeyondBLimit, closedBeyondCLimit, extensionOfC, levelBC, levelXC, lenXC, retraceXC } from './cyp';
 import { analyzeLib } from './libChecks';
 import { CYP_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
-import { fibPrice } from './trade';
+import { fibPrice, targetEnd } from './trade';
 import { harmonicFreeze, withTrade, type TradeInput } from './tradeApply';
 import { dirSide, higherTrendTf, type Env } from './reasons';
 import { divergenceOf, rsiExtreme } from './sig';
@@ -166,12 +166,15 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number, li
   const candidate: Candidate = { code: 'CYP', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
   // Einstieg am Level 0.786 der Fib X → C, Stop fest am Einstieg (E-8 a: Fib C → Einstiegslevel), TP1 aus der Fib C → D
   // TP2 (Fib C → D, 0.618) läuft wie TP1; der Stand nach dem Einstieg läuft ab der ersten Berührung des Einstiegslevels
-  const trade: TradeInput = reached && d
+  // Ende der Ziel-Fib höchstens am Stop: ein Docht jenseits des Stops ohne Schluss zieht die Ziele nicht weiter (1121-A14.1)
+  const stop = fibPrice(c.price, entry, -P.targets.stop);
+  const end = d ? targetEnd(c.price, d.price, stop) : null;
+  const trade: TradeInput = reached && d && end !== null
     ? {
         entry,
-        stop: fibPrice(c.price, entry, -P.targets.stop),
-        tp1: fibPrice(c.price, d.price, P.targets.tp1),
-        tp2: fibPrice(c.price, d.price, P.targets.tp2),
+        stop,
+        tp1: fibPrice(c.price, end, P.targets.tp1),
+        tp2: fibPrice(c.price, end, P.targets.tp2),
         reason: {},
       }
     : { entry: null, stop: null, tp1: null, reason: { entry: 'CYP-07', stop: 'CYP-07', tp1: 'CYP-07' } };
@@ -191,7 +194,9 @@ function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, reached: bool
   ];
   if (d && reached) {
     const t = P.targets;
-    out.push({ id: 'Z-CYP-03', tool: 'fib', anchors: [anchorAt(bars, c.idx, c.price), anchorAt(bars, d.idx, d.price)], levels: [t.tp1, t.tp2], rules: TRADE_RULES, side });
+    // Ende der Ziel-Fib höchstens am Stop wie TP1/TP2 im Handel (1121-A14.1); der Punkt D bleibt am Docht
+    const end = targetEnd(c.price, d.price, fibPrice(c.price, levelXC(s, P.dLevel), -t.stop));
+    out.push({ id: 'Z-CYP-03', tool: 'fib', anchors: [anchorAt(bars, c.idx, c.price), anchorAt(bars, d.idx, end)], levels: [t.tp1, t.tp2], rules: TRADE_RULES, side });
     out.push({ id: 'Z-CYP-06', tool: 'marker', anchors: [anchorAt(bars, c.idx, c.price), anchorAt(bars, d.idx, d.price), { time: lastTime, price: levelXC(s, P.dLevel) }], rules: TRADE_RULES, side });
     // Stop fest am Einstieg (CYP `## Handel` E-8 (a)): Fib C → Einstiegslevel, nicht C → äußerster Docht; die Ziele in Z-CYP-03 folgen dem neuen Extrem
     out.push({ id: 'Z-CYP-07', tool: 'fib', anchors: [anchorAt(bars, c.idx, c.price), anchorAt(bars, d.idx, levelXC(s, P.dLevel))], levels: [-t.stop], rules: TRADE_RULES, side });

@@ -122,5 +122,15 @@ export function emergencyStopOf(stop: number | null, side: Side, atr: number | n
   return side === 'buy' ? stop - atr : stop + atr;
 }
 
+/**
+ * Ende der mitlaufenden Ziel-Fib `from → äußerster Docht` (1121-A14.1): ein Docht jenseits des Stops (ohne Schluss dort, also kein Stop)
+ * zieht die Ziele nicht weiter; das Ende bleibt am Stop. So liegt TP1 nie auf der Verlustseite des Einstiegs. Ohne Stop (vor dem Einstieg) das Extrem.
+ */
+export function targetEnd(from: number, extreme: number, stop: number | null): number {
+  if (stop === null) return extreme;
+  const beyondStop = (from - extreme) * (from - stop) > 0 && Math.abs(from - extreme) > Math.abs(from - stop);
+  return beyondStop ? stop : extreme;
+}
+
 /** Preis eines Fibonacci-Levels, Notation Start = 1, Ende = 0 (wie `levelPrice` in fib.ts, ohne dessen Abhängigkeiten) */
 export const fibPrice = (start: number, end: number, level: number): number => end + level * (start - end);

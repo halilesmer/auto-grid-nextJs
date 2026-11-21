@@ -12,7 +12,7 @@ import { expect, test } from '@playwright/test';
 import { FormationContext } from '../../src/lib/formation/context';
 import { DEFAULT_TREND_SETTINGS } from '../../src/lib/formation/params';
 import { analyzeAbcd } from '../../src/lib/formation/abcdChecks';
-import { fibPrice } from '../../src/lib/formation/trade';
+import { fibPrice, targetEnd } from '../../src/lib/formation/trade';
 import { tradeStatusOf } from '../../src/lib/formation/tradeStatus';
 import { parseFixture } from '../../src/lib/formation/fixture';
 import type { Candidate, FormationBar } from '../../src/lib/formation/types';
@@ -115,6 +115,8 @@ const candidateAt = (iso: string): Candidate => {
   return analyzeAbcd(ctx, at(iso)).find((a) => a.tf === 'H1')!.candidate;
 };
 const ENTRY = 4683.41;
+/** Stop = Level 1 − 0.382 × (A − Level 1), eingefroren mit `frozenFrom` = A */
+const STOP = ENTRY - 0.382 * (4718.75 - ENTRY);
 const state = (c: Candidate, id: string) => c.checks.find((x) => x.id === id)?.state;
 
 test.describe('AB=CD: Ziel-Fib-Start nach dem Einstieg (XAUUSD H1, Kauf 2026-05-14)', () => {
@@ -143,8 +145,8 @@ test.describe('AB=CD: Ziel-Fib-Start nach dem Einstieg (XAUUSD H1, Kauf 2026-05-
 
   frm('Ein beendeter Handel ändert seinen Stand mit späteren Kerzen nicht (tp1Fill bleibt der Wert der Endkerze)', () => {
     const ended = candidateAt('2026-05-14T18:00').trade!.status!;
-    // TP1 der Kerze 05-14 17:00 aus der Fib A → äußerster Docht 4666.82 (0.382)
-    expect(ended.tp1Fill).toBeCloseTo(4666.82 + 0.382 * (4718.75 - 4666.82), 6);
+    // TP1 der Kerze 05-14 17:00 aus der Fib A → Stop (0.382): der Docht 4666.82 liegt jenseits des Stops 4669.91 und zieht die Ziele nicht weiter (1121-A14.1)
+    expect(ended.tp1Fill).toBeCloseTo(fibPrice(4718.75, STOP, 0.382), 6);
     for (const iso of ['2026-05-14T23:00', '2026-05-15T03:00', '2026-05-15T13:00']) {
       expect(candidateAt(iso).trade!.status, `Stand bei ${iso}`).toEqual(ended);
     }
@@ -153,11 +155,15 @@ test.describe('AB=CD: Ziel-Fib-Start nach dem Einstieg (XAUUSD H1, Kauf 2026-05-
   frm('Nach dem Einstieg laufen TP1, TP2 und die Ziel-Fib Z-ABCD-05 ab A weiter, auch wenn ABCD-19 später ☐ wird', () => {
     for (const iso of ['2026-05-14T18:00', '2026-05-14T23:00', '2026-05-15T13:00']) {
       const c = candidateAt(iso);
-      const d = c.points.D!.price;
-      expect(c.trade!.tp1, `tp1 bei ${iso}`).toBeCloseTo(fibPrice(4718.75, d, 0.382), 6);
-      expect(c.trade!.tp2, `tp2 bei ${iso}`).toBeCloseTo(fibPrice(4718.75, d, 0.618), 6);
+      // Ende der Ziel-Fib: äußerster Docht, höchstens der Stop (1121-A14.1)
+      const end = targetEnd(4718.75, c.points.D!.price, STOP);
+      expect(c.trade!.tp1, `tp1 bei ${iso}`).toBeCloseTo(fibPrice(4718.75, end, 0.382), 6);
+      expect(c.trade!.tp2, `tp2 bei ${iso}`).toBeCloseTo(fibPrice(4718.75, end, 0.618), 6);
       const fib = c.drawings.find((x) => x.id === 'Z-ABCD-05')!;
       expect(fib.anchors[0], `Z-ABCD-05 bei ${iso}`).toEqual({ time: 1778752800, price: 4718.75 });
+      // Die Zeichnung endet wie TP1 am begrenzten Ende; die Zeit bleibt die des Punkts D
+      expect(fib.anchors[1].price, `Z-ABCD-05 Ende bei ${iso}`).toBeCloseTo(end, 6);
+      expect(fib.anchors[1].time).toBe(c.points.D!.time);
     }
   });
 });
@@ -191,19 +197,23 @@ for (const side of ['sell', 'buy'] as const) {
   });
 }
 
-// crb-form-h4-01 (Kauf, Stand 2025-11-18 20:00): Einstieg 100,57, Start C 101,129; der Docht 100,142 zieht TP1 auf 100,519 unter den Einstieg.
-// Vor 1120-A35.1 zählten TP1 und TP2 in Kerze 200 (tp1Fill 100,519) und der Yeniden-giriş-Abschnitt erschien (1120-A47.1).
-frm('Schutz, echte Kerzen (crb-form-h4-01): TP1 unter dem Einstieg zählt nicht; offen, kein tp1Fill, kein Wiedereinstieg', () => {
+// crb-form-h4-01 (Kauf, Stand 2025-11-18 20:00): Einstieg 100,57, Start C 101,129, Stop 100,356 (Schluss), Not-SL 99,985. Der Docht 100,142 liegt
+// jenseits des Stops (ohne Schluss dort). Vor 1120-A35.1 zog er TP1 auf 100,519 unter den Einstieg und TP1 zählte dort; mit 1120-A35.1 zählte es nicht
+// und der Handel blieb offen. Seit 1121-A14.1 endet die Ziel-Fib am Stop: TP1 = Fib(C → Stop, 0.382) liegt über dem Einstieg und zählt dort.
+frm('Ende am Stop, echte Kerzen (crb-form-h4-01): ein Docht jenseits des Stops zieht TP1 nicht unter den Einstieg; TP1 und TP2 zählen auf der Gewinnseite', () => {
   const fx = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/crb-form-h4-01.json', 'utf-8')));
   const now = 1763496000;
   const bars = fx.bars.filter((b) => b.time + 14400 <= now);
   const ctx = new FormationContext(fx.symbol, { H4: bars }, { trend: fixtureTrend('crb-form-h4-01') });
   const c = analyzeAbcd(ctx, now).find((a) => a.tf === 'H4')!.candidate;
   expect([c.side, c.points.C?.price, c.points.D?.price]).toEqual(['buy', 101.129, 100.142]);
-  expect(c.trade!.entry).toBeCloseTo(100.57, 9);
-  expect(c.trade!.tp1!).toBeLessThan(100.57);
-  expect(c.trade!.status).toEqual({ kind: 'open', stopNow: c.trade!.stop });
-  expect(c.trade!.status!.tp1Fill).toBeUndefined();
-  expect(c.trade!.reentry).toBeUndefined();
-  expect(c.trade!.reentryTp1Only).toBeUndefined();
+  const t = c.trade!;
+  expect(t.entry).toBeCloseTo(100.57, 9);
+  // Vorbedingung: der Docht D liegt jenseits des Stops, aber diesseits des Not-SL
+  expect(c.points.D!.price).toBeLessThan(t.stop!);
+  expect(c.points.D!.price).toBeGreaterThan(t.emergencyStop!);
+  expect(t.tp1!).toBeCloseTo(fibPrice(101.129, t.stop!, 0.382), 9);
+  expect(t.tp1!).toBeGreaterThan(100.57);
+  expect(t.status).toMatchObject({ kind: 'tp12', tp1Fill: t.tp1, tp2Fill: t.tp2 });
+  expect(t.status!.tp1Fill!).toBeGreaterThan(100.57);
 });
