@@ -567,6 +567,16 @@ test.describe('ABCD: Abdeckung und Eigenschaften', () => {
     const target = div.drawings.find((d) => d.id === 'Z-ABCD-05');
     expect(target?.levels).toEqual([0.382, 0.618, 0.786]);
   });
+
+  frm('Start der Ziel-Fib bis zum Einstieg nach der Divergenz (1120-A35.1): ohne Divergenz C, mit Divergenz an der Einstiegskerze A', () => {
+    const plain = run({ H4: S1 }, ABC);
+    expect(plain.drawings.find((d) => d.id === 'Z-ABCD-05')!.anchors[0]).toEqual({ time: 18 * H4, price: S1[18][2] });
+    const rows = DIV_BEAR;
+    const a = wick(rows, DIV.a, false);
+    const div = checkAbcdCandidate(ctxOf({ H4: rows }), END, { tf: 'H4', a, b: wick(rows, DIV.b, true), c: wick(rows, DIV.c, false), d: { time: 62 * H4, price: 143 } });
+    expect(state(div, 'ABCD-19')).toBe(M);
+    expect(div.drawings.find((d) => d.id === 'Z-ABCD-05')!.anchors[0]).toEqual(a);
+  });
 });
 
 // ---- Echte Reihen ----------------------------------------------------------------------------------------------

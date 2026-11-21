@@ -339,9 +339,15 @@ test.describe('FRM-39 Handelsblock AB=CD (Erken dönüş, 1114-A4.5)', () => {
 });
 
 test.describe('FRM-39 Handelsblock AB=CD (Yeniden giriş, 1114-A4.4)', () => {
-  // crb-form-h4-01: Kauf-AB=CD, TP1 und TP2 erreicht, danach berührt der Kurs die Engulf-Zone am D erneut
+  // Sentetik (1120-A47.1): crb-form-h4-01 mit flacherem Docht der Einstiegskerze (Index 199: Tief 100,30 statt 100,142). Kauf-AB=CD, Einstieg 100,57;
+  // TP1 (100,617) und TP2 (100,812) liegen über dem Einstieg und zählen in Kerze 200, danach berührt der Kurs die Engulf-Zone am D erneut.
+  // Im echten Fixture zieht der Docht 100,142 TP1 auf 100,519 unter den Einstieg; das zählt seit 1120-A35.1 nicht (Test „Schutz“ unten).
+  const profitTargets = (bars: ReturnType<typeof load>) => {
+    bars[199].low = 100.3;
+  };
+
   test('Nach zwei Zielen: Yeniden-giriş-Abschnitt mit Einstieg, Stop, Ziel und eigenem Verhältnis; das Ergebnis des ersten Handels bleibt', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    await openPage(page, worker, 'crb-form-h4-01', 1763496000, 'ABCD');
+    await openPage(page, worker, 'crb-form-h4-01', 1763496000, 'ABCD', profitTargets);
     const block = page.getByTestId('trade-block');
     await expect(block.getByTestId('trade-status')).toHaveAttribute('data-status', 'tp12');
     await expect(block.getByTestId('trade-outcomes')).toBeVisible();
@@ -380,9 +386,18 @@ test.describe('FRM-39 Handelsblock AB=CD (Yeniden giriş, 1114-A4.4)', () => {
     await expect(block.getByTestId('trade-reentry-warning')).toHaveCount(0);
   });
 
+  // Schutz (1120-A35.1): im echten crb-form-h4-01 liegt das mitlaufende TP1 (100,519) unter dem Einstieg 100,57; es zählt nicht
+  test('Schutz: TP1 hinter dem Einstieg zählt nicht, der Handel bleibt offen, kein Yeniden-giriş-Abschnitt und keine Warnzeile', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'crb-form-h4-01', 1763496000, 'ABCD');
+    const block = page.getByTestId('trade-block');
+    await expect(block.getByTestId('trade-status')).toHaveAttribute('data-status', 'open');
+    await expect(block.getByTestId('trade-reentry')).toHaveCount(0);
+    await expect(block.getByTestId('trade-reentry-warning')).toHaveCount(0);
+  });
+
   test('375 px: Abschnitt und Warnzeile laufen nicht über', { tag: '@FRM-39' }, async ({ page, worker }) => {
     await page.setViewportSize({ width: 375, height: 812 });
-    await openPage(page, worker, 'crb-form-h4-01', 1763496000, 'ABCD');
+    await openPage(page, worker, 'crb-form-h4-01', 1763496000, 'ABCD', profitTargets);
     const block = page.getByTestId('trade-block');
     await expect(block.getByTestId('trade-reentry')).toBeVisible();
     expect(await block.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
@@ -390,9 +405,10 @@ test.describe('FRM-39 Handelsblock AB=CD (Yeniden giriş, 1114-A4.4)', () => {
     await block.getByTestId('trade-reentry').scrollIntoViewIfNeeded();
     await block.getByTestId('trade-reentry').screenshot({ path: test.info().outputPath('reentry-375.png') });
   });
-  // Sentetik (kein Fixture hat zwei Ziele): crb-form-h4-01 mit höherem Hoch der Berührungskerze (Index 201). Das Hoch reicht dann in beide Widerstandszonen:
+  // Sentetik (kein Fixture hat zwei Ziele): wie profitTargets, dazu ein höheres Hoch der Berührungskerze (Index 201). Das Hoch reicht dann in beide Widerstandszonen:
   // Ziel 1 = nahe Kante der nächsten (101,123), Ziel 2 = nahe Kante der weiteren (101,403).
   const twoTargets = (bars: ReturnType<typeof load>) => {
+    profitTargets(bars);
     bars[201].high = 101.5;
   };
 
@@ -419,7 +435,7 @@ test.describe('FRM-39 Handelsblock AB=CD (Yeniden giriş, 1114-A4.4)', () => {
   });
 
   test('Ein Ziel: keine Zelle „Ziel 2“, keine zweite Verhältnis-Zeile, Text wie bisher', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    await openPage(page, worker, 'crb-form-h4-01', 1763496000, 'ABCD');
+    await openPage(page, worker, 'crb-form-h4-01', 1763496000, 'ABCD', profitTargets);
     const re = page.getByTestId('trade-block').getByTestId('trade-reentry');
     await expect(re.getByTestId('trade-reentry-target')).toBeVisible();
     await expect(re.getByTestId('trade-reentry-target2')).toHaveCount(0);

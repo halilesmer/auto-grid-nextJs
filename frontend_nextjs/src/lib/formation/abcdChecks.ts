@@ -310,7 +310,7 @@ function evaluateFull(
   add('ABCD-24', abcdIsCdt(env, tf, es, s.b, s.d));
   add('ABCD-25', flag(timeframeExcluded(tf)));
 
-  // Ziel-Fib wie Z-ABCD-05: ab A bei Divergenz oder Harmonik, sonst ab C
+  // Ziel-Fib wie Z-ABCD-05 vor dem Einstieg: ab A bei Divergenz oder Harmonik, sonst ab C (danach `targetFrom`)
   const from = divState === 'met' || harmonic === 'met' ? s.a : s.c;
   // Stop eingefroren (HDL-14): `from` der Kerze, die Level 1 (mit Toleranz) zuerst erreicht; Divergenz und Harmonik gelten an dieser Kerze
   let frozenFrom: AbcdPoint | null = null;
@@ -345,6 +345,9 @@ function evaluateFull(
       if (atK.frozenFrom) frozenFrom = atK.frozenFrom;
     }
   }
+  // Decision 1120-A35.1: nach dem Einstieg läuft die Ziel-Fib (TP1, TP2, TP3, Stand, Z-ABCD-05) ab dem eingefrorenen `from` der Einstiegskerze;
+  // eine spätere Divergenz oder Harmonik am weitergelaufenen D ändert den Start nicht mehr. Vor dem Einstieg gilt das aktuelle `from`.
+  const targetFrom = frozenFrom ?? from;
   // ABCD-26 nach der Einstiegskerze: ein Bruch von C ab dem Einstieg ist der Weg zum Ziel
   add('ABCD-26', flag(trendBreaksC(trend, s, reached && d ? freezeIdx : null)));
   const stateOf = (id: string) => checks.find((c) => c.id === id)!.state;
@@ -383,7 +386,7 @@ function evaluateFull(
   let big: BigTarget | null = xPrice === null ? null : { offset: s.a.price - xPrice, activation: s.a.price };
   if (entryRun) big = entryRun.big;
   const input = abcdTrade({
-    from,
+    from: targetFrom,
     frozenFrom,
     d: d ?? null,
     level1: s.level1,
@@ -420,7 +423,7 @@ function evaluateFull(
           entry: input.entry,
           stop: input.stop,
           emergencyStop: emergencyStopOf(input.stop, side, atrAt(freezeIdx - 1)),
-          from: from.price,
+          from: targetFrom.price,
           targets: ABCD_PARAMS.targets,
           ...(big ? { big } : {}),
         })
@@ -456,7 +459,7 @@ function evaluateFull(
     });
     if (cLeg) input.cLeg = cLeg;
   }
-  const drawings = drawingsOf(env, s, reached, divState === 'met', harmonic === 'met', secondLevels.find(isNear), input.stop, freezeIdx, status, early, input.tpBig ?? null);
+  const drawings = drawingsOf(env, s, reached, divState === 'met', targetFrom, secondLevels.find(isNear), input.stop, freezeIdx, status, early, input.tpBig ?? null);
   const withDrawings = checks.map((c) => ({
     ...c,
     drawings: [...new Set(drawings.filter((x) => x.rules.includes(c.id)).map((x) => x.id))],
@@ -477,7 +480,7 @@ function evaluateFull(
   return { candidate: withTrade(candidate, env, tf, input, false), big, frozenFrom };
 }
 
-function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolean, harmonic: boolean, second: number | undefined, stop: number | null, freezeIdx: number, status: TradeStatus | null, early: EarlyReversal | null, bigTarget: number | null): Drawing[] {
+function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolean, from: AbcdPoint, second: number | undefined, stop: number | null, freezeIdx: number, status: TradeStatus | null, early: EarlyReversal | null, bigTarget: number | null): Drawing[] {
   const bars = env.views.get(env.tf)!.bars;
   const at = (idx: number, price: number): Anchor => ({ time: bars[idx].time, price });
   const lastTime = bars[bars.length - 1].time;
@@ -508,7 +511,7 @@ function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolea
     { id: 'Z-ABCD-06', tool: 'label', anchors: [{ time: lastTime, price: s.level1 }], rules: ids([7]), side },
   ];
   if (s.d && reached) {
-    const from = divergence || harmonic ? s.a : s.c;
+    // Start der Ziel-Fib: A bei Divergenz oder Harmonik, sonst C; nach dem Einstieg eingefroren (1120-A35.1)
     const levels = [ABCD_PARAMS.targets.tp1, ABCD_PARAMS.targets.tp2, ...(divergence ? [ABCD_PARAMS.targets.divergence] : [])];
     out.push({ id: 'Z-ABCD-05', tool: 'fib', anchors: [at(from.idx, from.price), at(s.d.idx, s.d.price)], levels, rules: TRADE_RULES, side });
     // Der Stop ist eingefroren und steht als eigene Linie (nicht mehr als Level der mitlaufenden Ziel-Fib)
