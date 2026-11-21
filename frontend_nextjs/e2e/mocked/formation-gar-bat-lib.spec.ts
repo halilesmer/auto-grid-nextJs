@@ -619,9 +619,31 @@ test.describe('GAR und BAT: echte Kerzen', () => {
   });
 
   frm('bat-sell-h4-02: Verkauf-Bat mit D weit jenseits von X → A ist gültig', () => {
-    const c = analyzeAt('BAT', 'bat-sell-h4-02', '2025-10-24T16:00');
+    // Die Suche zeigt zu dieser Zeit den früher eingegangenen, noch laufenden Kauf-Bat (1121-A1.3, 1120-A48.1);
+    // der Verkauf-Bat wird mit seinen Punkten geprüft (X 10-23 08:00, A 10-23 20:00, B 10-24 00:00, C 10-24 04:00)
+    const fixture = loadFixture('bat-sell-h4-02');
+    const ctx = new FormationContext(fixture.symbol, { H4: fixture.bars }, { trend: trendOf(fixture.bars) });
+    const pt = (iso: string, price: number) => ({ time: at(iso), price });
+    const sell = { tf: 'H4' as const, x: pt('2025-10-23T08:00', 1.33566), a: pt('2025-10-23T20:00', 1.33075), b: pt('2025-10-24T00:00', 1.33318), c: pt('2025-10-24T04:00', 1.33172) };
+    const c = checkBatCandidate(ctx, at('2025-10-24T16:00'), sell);
+    expect(c.side).toBe('sell');
     expect(states(c, ['BAT-01', 'BAT-05', 'BAT-06', 'BAT-07', 'BAT-14'])).toEqual([M, M, M, M, N]);
     expect(c.verdict).toBe('valid');
+  });
+
+  frm('bat-sell-h4-02: der laufende Kauf-Bat bleibt in der Suche und zeigt sein Ende einmal', () => {
+    const shown = analyzeAt('BAT', 'bat-sell-h4-02', '2025-10-24T16:00');
+    expect(shown.side).toBe('buy');
+    expect(time(shown, 'X')).toBe('2025-10-22T12:00');
+    expect(shown.trade!.status).toMatchObject({ kind: 'open' });
+    expect(shown.trade!.status!.endIdx).toBeUndefined();
+    // der Kauf-Handel endet mit der Kerze 10-27 12:00 (Schluss 16:00): die Suche zeigt dieses Ende einmal.
+    // Der Verkauf-Bat wird danach nicht der Kandidat: sein eigener Handel endete schon vorher (Kerze 10-24 16:00, TP2).
+    const end = analyzeAt('BAT', 'bat-sell-h4-02', '2025-10-27T16:00');
+    expect(end.side).toBe('buy');
+    expect(time(end, 'X')).toBe('2025-10-22T12:00');
+    expect(end.trade!.status).toMatchObject({ kind: 'tp12' });
+    expect(end.trade!.status!.endIdx).toBeDefined();
   });
 
   frm('bat-bad-h4-01: Negativ – B unter X und H4-Schluss unter X schließen den Bat aus', () => {
