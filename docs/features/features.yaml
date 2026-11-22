@@ -2470,6 +2470,7 @@ kategorien:
         tiers: [e2e]
         pruefung:
           - Playwright-Logiktest e2e/mocked/formation-gar-bat-lib.spec.ts ausführen (je Bedingung ein Fall mit ☑ und einer mit ☐ auf von Hand gerechneten Kerzenreihen, dazu Abdeckungstest, Spiegelfall Kauf/Verkauf, Abgrenzung Gartley ↔ Bat, bedingte Art von BAT-02, Urteil, Ablauf ohne Blick in die Zukunft, Zeichnungen und echte Kerzenreihen).
+          - Playwright-Logiktest e2e/mocked/formation-harmonic-shown-at-entry-lib.spec.ts (@FRM-07) ausführen (beim Einstieg gezeigt nach Auslassen und Vorrang, 1122-A3.2; frühere Schlüsse aus einer Umgebung ohne Zonen mit gleichen Ansichten, Trends und Fibs, je Zeitpunkt einmal gerechnet, 1122-A41.1).
         erwartet: Jeder Fall stimmt mit der Handrechnung überein; eine Kauf-Formation und ihr Spiegelbild haben dieselben Zustände; bei den echten Reihen stimmen Punkte, Berührung der Level, Urteil und der Wechsel von gültig zu ungültig nach einem H4-Schluss jenseits von X, auch bei den Negativfällen.
       - id: FRM-08
         titel: "2618"

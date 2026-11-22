@@ -62,7 +62,24 @@ export function buildEnv(ctx: FormationContext, t: number, tf: ContextTimeframe,
   return scope.envs.get(key) ?? null;
 }
 
-function computeEnv(ctx: FormationContext, t: number, tf: ContextTimeframe, frzOptions: FrzOptions): Env | null {
+/**
+ * Umgebung zum Zeitpunkt t ohne Fraktal- und Engulf-Zonen (`frz` leer): Trends, Fibs und Ansichten wie bei `buildEnv`. Nur für Rechnungen, deren
+ * Ergebnis keine Zone liest; die Zonen sind der größte Teil der Kosten einer Umgebung (1122-A41.1). Ohne Zonen hängt die Umgebung nicht von der
+ * Einstiegs-Zeiteinheit ab: im Bereich von `shareEnv` einmal je Zeitpunkt gerechnet.
+ */
+export function buildEnvWithoutZones(ctx: FormationContext, t: number, tf: ContextTimeframe): Env | null {
+  if (!ctx.timeframes().includes(tf)) return null;
+  const scope = shared?.ctx === ctx ? shared : null;
+  const key = `${t}|ohne Zonen`;
+  let env = scope?.envs.get(key);
+  if (env === undefined) {
+    env = computeEnv(ctx, t, tf, {}, false);
+    scope?.envs.set(key, env);
+  }
+  return env && (env.tf === tf ? env : { ...env, tf });
+}
+
+function computeEnv(ctx: FormationContext, t: number, tf: ContextTimeframe, frzOptions: FrzOptions, zones = true): Env | null {
   if (!ctx.timeframes().includes(tf)) return null;
   const views = new Map<TrendTimeframe, TimeframeView>();
   const trends = new Map<TrendTimeframe, TrendModel>();
@@ -81,7 +98,8 @@ function computeEnv(ctx: FormationContext, t: number, tf: ContextTimeframe, frzO
     views.set('W1', w1);
     trends.set('W1', formationTrend(w1));
   }
-  return { t, tf, views, trends, fibs, frz: analyzeFrz(ctx, t, { entryTf: tf, fibTargets: fibTargetsOf(fibs), ...frzOptions }) };
+  const frz = zones ? analyzeFrz(ctx, t, { entryTf: tf, fibTargets: fibTargetsOf(fibs), ...frzOptions }) : { zones: [], reversed: [] };
+  return { t, tf, views, trends, fibs, frz };
 }
 
 /** Umgebung für eine andere Einstiegs-Zeiteinheit: nur M15-Zonen hängen davon ab (FRZ-27), sonst wird die Rechnung geteilt */
