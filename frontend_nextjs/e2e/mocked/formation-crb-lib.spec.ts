@@ -363,9 +363,25 @@ test.describe('CRB: echte Kerzen', () => {
   });
 
   frm('Abgrenzung echt: Gartley-, Bat- und Cypher-Fälle sind keine gültige Crab', () => {
-    for (const [name, iso] of [['gar-buy-h4-01', '2025-11-17T12:00'], ['gar-sell-h4-01', '2026-01-09T08:00'], ['bat-buy-h4-01', '2025-12-16T16:00'], ['cyp-buy-h4-01', '2025-12-17T00:00'], ['cyp-sell-h4-01', '2025-11-10T08:00']]) {
+    for (const [name, iso] of [['gar-buy-h4-01', '2025-11-17T12:00'], ['bat-buy-h4-01', '2025-12-16T16:00'], ['cyp-buy-h4-01', '2025-12-17T00:00'], ['cyp-sell-h4-01', '2025-11-10T08:00']]) {
       expect(analyzeAt(name, iso).verdict).not.toBe('valid');
     }
+    // gar-sell-h4-01: seit 1122-A3.2 zeigt die Suche um 01-09 08:00 einen laufenden Crab-Verkauf (Einstieg 12-19 08:00, beim Einstieg gezeigt);
+    // die Gartley-Punkte, die sie vorher zeigte, werden direkt geprüft
+    const fixture = loadFixture('gar-sell-h4-01');
+    const ctx = new FormationContext(fixture.symbol, { H4: fixture.bars }, { trend: trendOf(fixture.bars) });
+    const pt = (t: string, price: number) => ({ time: at(t), price });
+    const gartley = checkCrbCandidate(ctx, at('2026-01-09T08:00'), {
+      tf: 'H4',
+      x: pt('2026-01-06T20:00', 183.377),
+      a: pt('2026-01-07T08:00', 182.702),
+      b: pt('2026-01-07T16:00', 183.224),
+      c: pt('2026-01-08T00:00', 182.882),
+      d: pt('2026-01-09T04:00', 183.373),
+    });
+    expect(gartley.verdict).not.toBe('valid');
+    const shown = analyzeAt('gar-sell-h4-01', '2026-01-09T08:00');
+    expect([shown.side, shown.trade?.entry, shown.trade?.status?.endIdx]).toEqual(['sell', 184.12, undefined]);
   });
 });
 

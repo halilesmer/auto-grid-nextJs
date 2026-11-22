@@ -433,6 +433,27 @@ const analyzeAt = (name: string, iso: string): Candidate => {
   const ctx = new FormationContext(fixture.symbol, { H4: fixture.bars }, { trend: trendOf(fixture.bars) });
   return analyzeCyp(ctx, at(iso)).find((a) => a.tf === 'H4')!.candidate;
 };
+/**
+ * Prüft Punkte, die die Suche vor 1122-A3.2 zeigte: ihr Handel war beim Einstieg nicht gezeigt, die Suche zeigt die Basis seitdem nicht mehr.
+ * Gemessen werden dieselben Bedingungen; zusätzlich gilt, dass die Suche den Handel nicht zeigt, sondern `instead`.
+ */
+const checkHiddenAt = (
+  name: string,
+  iso: string,
+  p: Record<'X' | 'A' | 'B' | 'C' | 'D', [string, number]>,
+  instead: { side: 'buy' | 'sell'; X: string; entry: number | null },
+): Candidate => {
+  const fixture = loadFixture(name);
+  const ctx = new FormationContext(fixture.symbol, { H4: fixture.bars }, { trend: trendOf(fixture.bars) });
+  const a = ([t, price]: [string, number]): Anchor => ({ time: at(t), price });
+  const c = checkCypCandidate(ctx, at(iso), { tf: 'H4', x: a(p.X), a: a(p.A), b: a(p.B), c: a(p.C), d: a(p.D) });
+  const shown = analyzeCyp(ctx, at(iso)).find((r) => r.tf === 'H4')!.candidate;
+  expect(c.trade?.entryIdx, 'Handel eingegangen').toBeDefined();
+  expect(shown.side === c.side && shown.points.X?.time === c.points.X?.time && shown.trade?.entry === c.trade?.entry, 'Suche zeigt den Handel').toBe(false);
+  // an seiner Stelle die nächstbeste Basis
+  expect({ side: shown.side, X: shown.points.X?.time, entry: shown.trade?.entry ?? null }).toEqual({ ...instead, X: at(instead.X), entry: instead.entry === null ? null : expect.closeTo(instead.entry, 5) });
+  return c;
+};
 const states = (c: Candidate, ids: string[]) => ids.map((id) => state(c, id));
 const time = (c: Candidate, point: string) => new Date(c.points[point].time * 1000).toISOString().slice(0, 16);
 const times = (c: Candidate) => ['X', 'A', 'B', 'C', 'D'].map((p) => time(c, p));
@@ -468,7 +489,14 @@ test.describe('CYP: echte Kerzen', () => {
   });
 
   frm('cyp-bad-h4-02: Negativ – Verkauf-Cypher, RSI(7) am C nur 40 (CYP 06 ☐)', () => {
-    const c = analyzeAt('cyp-bad-h4-02', '2025-11-26T00:00');
+    // bis 1122-A3.2 von der Suche gezeigt; ihr Handel (Einstieg 11-25 16:00) war beim Einstieg nicht gezeigt
+    const c = checkHiddenAt('cyp-bad-h4-02', '2025-11-26T00:00', {
+      X: ['2025-11-24T20:00', 0.64678],
+      A: ['2025-11-25T00:00', 0.64563],
+      B: ['2025-11-25T04:00', 0.64665],
+      C: ['2025-11-25T12:00', 0.64444],
+      D: ['2025-11-25T16:00', 0.64752],
+    }, { side: 'buy', X: '2025-11-21T20:00', entry: 0.64501936 });
     expect(c.side).toBe('sell');
     expect(states(c, ['CYP-05', 'CYP-06', 'CYP-07', 'CYP-11'])).toEqual([M, N, M, N]);
     expect(c.verdict).toBe('invalid');
@@ -525,7 +553,14 @@ test.describe('CYP: echte Kerzen', () => {
   });
 
   frm('cyp-lib-h4-02: Kauf-Cypher, Libra-Einstieg am D noch nicht berührt (ohne K): CYP 10 ☐', () => {
-    const c = analyzeAt('cyp-lib-h4-02', '2025-12-11T08:00');
+    // bis 1122-A3.2 von der Suche gezeigt; ihr Handel (Einstieg 12-08 12:00) war beim Einstieg nicht gezeigt (dort ein Verkaufs-Cypher)
+    const c = checkHiddenAt('cyp-lib-h4-02', '2025-12-11T08:00', {
+      X: ['2025-12-05T12:00', 1.16411],
+      A: ['2025-12-05T16:00', 1.16597],
+      B: ['2025-12-08T00:00', 1.16329],
+      C: ['2025-12-08T08:00', 1.16717],
+      D: ['2025-12-09T16:00', 1.16146],
+    }, { side: 'sell', X: '2025-12-05T16:00', entry: 1.16503482 });
     expect(c.side).toBe('buy');
     // die Libra ist `forming` (E 1.16386, kein K, LIB-12 ☐): ihr Einstieg zählt noch nicht
     expect(states(c, ['CYP-05', 'CYP-07', 'CYP-09', 'CYP-10'])).toEqual([M, M, M, N]);
