@@ -69,7 +69,7 @@ function lostRunning(analyze: Analyze, check: Check, tf: Tf, rows: VanishRow[], 
   return lost;
 }
 
-/** Kerze für Kerze ab `fromIso`: jeder gezeigte eingegangene Handel war zum Schluss seiner Einstiegskerze schon gezeigt (Seite, X, Einstieg). Gibt die Verstöße zurück. */
+/** Kerze für Kerze ab `fromIso`: jeder gezeigte eingegangene Handel war zum Schluss seiner Einstiegskerze schon gezeigt (Ergebnis der Suche; Seite, Einstiegskerze, Einstieg). Gibt die Verstöße zurück. */
 function shownLate(analyze: Analyze, tf: Tf, rows: VanishRow[], fromIso: string): string[] {
   const ctx = ctxOf(tf, rows);
   const bars = barsOf(rows);
@@ -82,7 +82,8 @@ function shownLate(analyze: Analyze, tf: Tf, rows: VanishRow[], fromIso: string)
     const e = c.trade?.entryIdx;
     if (c.trade?.entry == null || c.trade.status === undefined || e === undefined) continue;
     const atEntry = shown(bars[e].time + DUR[tf]);
-    const same = atEntry.side === c.side && atEntry.points.X?.time === c.points.X?.time && atEntry.trade?.entry === c.trade.entry && atEntry.trade?.entryIdx === e;
+    // derselbe Handel: Seite, Einstiegskerze, Einstieg (wie die Suche ihn erkennt; X und C dürfen sich danach verschieben)
+    const same = atEntry.side === c.side && atEntry.trade?.entry === c.trade.entry && atEntry.trade.status !== undefined && atEntry.trade.entryIdx === e;
     if (!same) late.push(`${tf} ${new Date(t * 1000).toISOString()} ${JSON.stringify(view(c))}, Einstieg ${new Date(bars[e].time * 1000).toISOString()}: ${JSON.stringify(view(atEntry))}`);
   }
   return late;

@@ -276,7 +276,25 @@ test.describe('BUT: echte Kerzen', () => {
   // BUT 04: C an 0.662 von A → B (≥ 0.382 ☑); BUT 05: 0.662 < 0.886, Ausschluss ☐; BUT 06: Schluss unter B ☑; BUT 07: D an 1.318 von X → A (≥ 1.272 ☑).
   // Filter: BUT 08 ☑ (C ≥ 0.618), BUT 09 ☑ (0.286 ATR), BUT 10 ☑ (0.204 ATR), BUT 11 ☑ (0.322 ATR), BUT 12 ☑, BUT 13 ☐ (RSI 35.4), BUT 14 ☐.
   frm('but-buy-h4-02: Kauf-Butterfly, B 0.843 (BUT 02 ☑, BUT 03 ☐), C 0.662 (BUT 04 ☑, BUT 05 ☐), D 1.318 (BUT 07 ☑), ist gültig', () => {
-    const c = analyzeAt('but-buy-h4-02', '2025-11-19T12:00');
+    // bis 1122-A3.2 von der Suche gezeigt (Einstieg 11-19 08:00). Zum Schluss der Einstiegskerze war ein laufender Verkauf (Einstieg 11-13 16:00)
+    // gezeigt, darum zeigt die Suche den Kauf nie; gemessen werden dieselben Punkte
+    const fixture = loadFixture('but-buy-h4-02');
+    const ctx = new FormationContext(fixture.symbol, { H4: fixture.bars }, { trend: trendOf(fixture.bars) });
+    // Punkte wie in der Suche; der Preis kommt aus der Kerze (ein gerundeter Preis verfehlt die Dochtspitze, BUT-01 prüft das Fraktal genau)
+    const pt = (t: string, wick: 'high' | 'low') => {
+      const bar = fixture.bars.find((k) => k.time === at(t))!;
+      return { time: bar.time, price: bar[wick] };
+    };
+    const c = checkButCandidate(ctx, at('2025-11-19T12:00'), {
+      tf: 'H4',
+      x: pt('2025-11-17T08:00', 'low'),
+      a: pt('2025-11-17T12:00', 'high'),
+      b: pt('2025-11-18T04:00', 'low'),
+      c: pt('2025-11-18T08:00', 'high'),
+      d: pt('2025-11-19T08:00', 'low'),
+    });
+    const shown = analyzeAt('but-buy-h4-02', '2025-11-19T12:00');
+    expect([shown.side, shown.trade?.entry, shown.trade?.status?.endIdx], 'an seiner Stelle der laufende Verkauf').toEqual(['sell', 1.32155, undefined]);
     expect(c.side).toBe('buy');
     expect(times(c)).toEqual(['2025-11-17T08:00', '2025-11-17T12:00', '2025-11-18T04:00', '2025-11-18T08:00', '2025-11-19T08:00']);
     expect(states(c, CORE)).toEqual([M, M, N, M, N, M, M]);

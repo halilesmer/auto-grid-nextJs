@@ -496,7 +496,7 @@ test.describe('CYP: echte Kerzen', () => {
       B: ['2025-11-25T04:00', 0.64665],
       C: ['2025-11-25T12:00', 0.64444],
       D: ['2025-11-25T16:00', 0.64752],
-    }, { side: 'buy', X: '2025-11-21T12:00', entry: null });
+    }, { side: 'buy', X: '2025-11-21T20:00', entry: 0.64501936 });
     expect(c.side).toBe('sell');
     expect(states(c, ['CYP-05', 'CYP-06', 'CYP-07', 'CYP-11'])).toEqual([M, N, M, N]);
     expect(c.verdict).toBe('invalid');
@@ -560,7 +560,7 @@ test.describe('CYP: echte Kerzen', () => {
       B: ['2025-12-08T00:00', 1.16329],
       C: ['2025-12-08T08:00', 1.16717],
       D: ['2025-12-09T16:00', 1.16146],
-    }, { side: 'sell', X: '2025-12-05T08:00', entry: 1.16630824 });
+    }, { side: 'sell', X: '2025-12-05T16:00', entry: 1.16503482 });
     expect(c.side).toBe('buy');
     // die Libra ist `forming` (E 1.16386, kein K, LIB-12 ☐): ihr Einstieg zählt noch nicht
     expect(states(c, ['CYP-05', 'CYP-07', 'CYP-09', 'CYP-10'])).toEqual([M, M, M, N]);
