@@ -10,7 +10,10 @@
  *    H1 Verkauf, A 2025-12-09 08:00, B 18:00, C 12-10 12:00, Einstieg 12-10 22:00 (4239.26): eine Kerze später rückt der C-Wendepunkt
  *    auf 12-10 21:00, das Tripel ist nicht mehr unter den Wendepunkten. Die gespeicherte Wahl hängt nur von Kerzen bis zum Einstieg ab.
  */
+import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
+import { parseFixture } from '../../src/lib/formation/fixture';
+import { FIXTURE_TREND, named } from '../fixtures/formation-trend';
 import { FormationContext } from '../../src/lib/formation/context';
 import { DEFAULT_TREND_SETTINGS } from '../../src/lib/formation/params';
 import { analyzeAbcd } from '../../src/lib/formation/abcdChecks';
@@ -77,6 +80,26 @@ test.describe('AB=CD: verschwundene laufende Handel, Klassen a bis c (1122-A1.4)
       const part = view(candidateAt(ctxOf('H1', cutAt(iso)), 'H1', iso));
       expect(part, iso).toEqual(full);
       expect({ ...full, state: null }, iso).toEqual({ ...atEntry, state: null });
+    }
+  });
+});
+
+test.describe('AB=CD: nächstbester Kandidat nach Regel B (1122-A1.4 b)', () => {
+  // abcd-buy-h4-02 (EURUSD H4)
+  const file = 'e2e/fixtures/formation/abcd-buy-h4-02.json';
+  const bars = named(file, parseFixture(JSON.parse(readFileSync(file, 'utf-8')))).bars;
+  const H4 = 4 * 3600;
+  const shownAt = (iso: string, cut: boolean) => {
+    const b = cut ? bars.filter((x) => x.time + H4 <= at(iso)) : bars;
+    return analyzeAbcd(new FormationContext('EURUSD', { H4: b }, { trend: FIXTURE_TREND }), at(iso)).find((a) => a.tf === 'H4')!.candidate;
+  };
+  frm('b) Beim Einstieg zeigte die Suche einen älteren laufenden Handel: der neue Handel (A 07-10 00:00) erscheint auch nach dessen Ende nie', () => {
+    // Einstiegskerze 07-11 00:00; zu ihrem Schluss zeigte die Suche den laufenden Verkauf A 07-09 00:00 (Vorrang), nicht diesen Handel
+    expect(shownAt('2025-07-11T04:00', false).points.A?.time).toBe(at('2025-07-09T00:00'));
+    for (let t = at('2025-07-11T04:00'); t <= at('2025-07-14T12:00'); t += H4) {
+      const iso = new Date(t * 1000).toISOString().slice(0, 16);
+      const c = shownAt(iso, false);
+      expect(c.points.A?.time === at('2025-07-10T00:00') && c.points.C?.time === at('2025-07-10T16:00') && c.trade?.entry != null, `nicht gezeigter Handel erscheint zur Zeit ${iso}`).toBe(false);
     }
   });
 });

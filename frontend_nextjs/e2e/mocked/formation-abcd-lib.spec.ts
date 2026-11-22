@@ -588,6 +588,11 @@ const analyzeAt = (name: string, iso: string): Candidate => {
   const ctx = new FormationContext(fx.symbol, { H4: fx.bars } as ContextInput, { trend: trendOf(fx.bars) });
   return analyzeAbcd(ctx, at(iso)).find((a) => a.tf === 'H4')!.candidate;
 };
+/** Ein Tripel direkt gemessen (ohne die Wahl der Suche): für Fälle, deren Handel die Suche nach 1122-A1.4 nicht zeigt */
+const measureAt = (name: string, iso: string, abc: { a: Anchor; b: Anchor; c: Anchor }): Candidate => {
+  const fx = loadFixture(name);
+  return checkAbcdCandidate(new FormationContext(fx.symbol, { H4: fx.bars } as ContextInput, { trend: trendOf(fx.bars) }), at(iso), { tf: 'H4', ...abc });
+};
 const states = (c: Candidate, ids: string[]) => ids.map((id) => state(c, id));
 
 test.describe('ABCD: invalidBy', () => {
@@ -606,7 +611,22 @@ test.describe('ABCD: invalidBy', () => {
 
 test.describe('ABCD: echte Kerzen', () => {
   frm('sig-rsi-h4-01: Negativ – Verkauf mit RSI(7) über 80 am D, doch der Kurs ist durch die Zone nahe Level 1 geschlossen', () => {
-    const c = analyzeAt('sig-rsi-h4-01', '2025-11-11T04:00');
+    // Suche (1122-A1.4 b): A 11-07 (Einstieg 11-10 00:00) ist gezeigt, bis er stoppt (11-10 08:00) und sein Ende einmal zeigt; dieser Handel
+    // (A 11-05, gleiche Einstiegskerze) war beim Einstieg nicht gezeigt, endet auch dort und erscheint nie; um 11-11 04:00 zeigt die Suche keinen Kandidaten
+    const A0507 = 1762300800;
+    const A0711 = 1762473600;
+    for (const iso of ['2025-11-10T04:00', '2025-11-10T08:00', '2025-11-10T12:00']) expect(analyzeAt('sig-rsi-h4-01', iso).points.A?.time, iso).toBe(A0711);
+    for (let t = at('2025-11-10T00:00'); t <= at('2025-11-11T08:00'); t += 4 * 3600) {
+      const iso = new Date(t * 1000).toISOString().slice(0, 16);
+      const s = analyzeAt('sig-rsi-h4-01', iso);
+      expect(s.points.A?.time === A0507 && s.trade?.entry != null, `nicht gezeigter Handel erscheint zur Zeit ${iso}`).toBe(false);
+    }
+    expect(analyzeAt('sig-rsi-h4-01', '2025-11-11T04:00').points.C).toBeUndefined();
+    const c = measureAt('sig-rsi-h4-01', '2025-11-11T04:00', {
+      a: { time: A0507, price: 46.859 },
+      b: { time: 1762358400, price: 48.214 },
+      c: { time: 1762387200, price: 47.678 },
+    });
     expect(c.side).toBe('sell');
     expect(states(c, ['ABCD-04', 'ABCD-06', 'ABCD-08', 'ABCD-09', 'ABCD-10', 'ABCD-17', 'ABCD-22'])).toEqual([M, M, M, M, M, M, M]);
     expect(find(c, 'ABCD-17').value!).toBeGreaterThanOrEqual(80);
@@ -632,7 +652,15 @@ test.describe('ABCD: echte Kerzen', () => {
   });
 
   frm('sig-diverg-h4-01: Kauf am D ohne RSI-Extrem, der Engulf umschließt nur eine kleine Kerze (SIG-24), Zone durchbrochen', () => {
-    const c = analyzeAt('sig-diverg-h4-01', '2025-12-02T12:00');
+    // Suche (1122-A1.4 c): um 12-02 12:00 zeigt sie den beim Einstieg (12-02 04:00) gezeigten Verkauf, der in der letzten Kerze endet, nicht diesen Kauf
+    const shown = analyzeAt('sig-diverg-h4-01', '2025-12-02T12:00');
+    expect([shown.side, shown.points.A?.time, shown.points.C?.time, shown.trade?.status?.kind]).toEqual(['sell', 1764590400, 1764619200, 'stopped']);
+    expect(shown.trade!.entry).toBeCloseTo(205.758, 3);
+    const c = measureAt('sig-diverg-h4-01', '2025-12-02T12:00', {
+      a: { time: 1764288000, price: 207.193 },
+      b: { time: 1764331200, price: 206.139 },
+      c: { time: 1764345600, price: 206.884 },
+    });
     expect(c.side).toBe('buy');
     expect(states(c, ['ABCD-08', 'ABCD-17', 'ABCD-18', 'ABCD-20', 'ABCD-22'])).toEqual([M, N, N, N, M]);
     expect(find(c, 'ABCD-20').kind).toBe('required');

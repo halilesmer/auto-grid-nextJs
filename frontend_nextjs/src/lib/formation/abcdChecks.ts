@@ -8,13 +8,15 @@
  * Die Art von ABCD-19 und ABCD-20 hängt von anderen Bedingungen ab und steht im Feld `kind` des Ergebnisses.
  */
 import type { FormationContext } from './context';
-import { closesBeyond, countTests, outward, probeFractal, wickEnd, type Rect } from './frz';
+import { closesBeyond, countTests, outward, probeFractal, wickEnd, type Rect, type ZoneSide } from './frz';
 import {
+  depthOk,
   dReached,
+  entryIdxOf,
   extensionPrice,
   gapToRect,
   innerLevels,
-  selectPoints,
+  selectOrder,
   shapeOf,
   shortfall,
   timeframeExcluded,
@@ -24,8 +26,7 @@ import {
   type AbcdShape,
 } from './abcd';
 import { levelPrice, legLength, type FibLeg } from './fib';
-import { ABCD_PARAMS, BAT_PARAMS, CONTEXT_TIMEFRAMES, FRZ_PARAMS, GAR_PARAMS, HARMONIC_PARAMS, HISTORY_DAYS, type ContextTimeframe } from './params';
-import { DAY_SEC } from '@/lib/serverTime';
+import { ABCD_PARAMS, BAT_PARAMS, CONTEXT_TIMEFRAMES, FRZ_PARAMS, GAR_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
 import { emergencyStopOf, fibPrice, strongZoneAt, targetEnd } from './trade';
 import { tradeStatusOf } from './tradeStatus';
 import { abcdTrade, withTrade } from './tradeApply';
@@ -33,10 +34,11 @@ import type { TradeStatus } from './tradeStatus';
 import { abcdIsCdt } from './cdt';
 import { evaluate as evaluateBat } from './batChecks';
 import { evaluate as evaluateGar } from './garChecks';
-import { buildEnv, dirSide, envFor, neighborTf, type Env } from './reasons';
+import { buildEnv, buildEnvWithoutZones, dirSide, envFor, neighborTf, type Env } from './reasons';
 import { reversalAt } from './reversal';
 import { earlyReversalOf, type EarlyReversal } from './earlyReversal';
 import { reentryOf } from './reentry';
+import { enteredTrade, entryInHistory, hiddenOf, historyStart, recordShown, shownKeysOf, tradeAtOf } from './shownTrade';
 import { cLegOf, lowerAbcdAt, lowerCandleAt, noPeakDivergence } from './cLeg';
 import { exemptFor, settle } from './settle';
 import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
@@ -322,12 +324,7 @@ function evaluateFull(
   let frozenFrom: AbcdPoint | null = null;
   let freezeIdx = d ? d.idx : last;
   if (reached && d) {
-    // Gleiche Rechnung wie `shortfall` (Anteil von AB), damit Schleife und `reached` an der Toleranzgrenze nicht auseinanderlaufen
-    const missAt = (k: number) => Math.max(0, outward(es, s.level1) - outward(es, wickEnd(bars[k], es))) / s.len;
-    let k = s.c.idx + 1;
-    while (k <= last && missAt(k) > ABCD_PARAMS.tolerance) k++;
-    // Ein eigenes D, dessen Preis nicht auf einem Docht liegt, kann keine Kerze treffen: dann gilt die Kerze des D
-    if (k > last) k = d.idx;
+    const k = entryIdxOf(bars, s)!;
     freezeIdx = k;
     const dk: AbcdPoint = { idx: k, price: wickEnd(bars[k], es) };
     const divK = divergenceOf(trend, es, s.b.idx, k);
@@ -553,100 +550,140 @@ function unmeasurable(tf: ContextTimeframe): Candidate {
 
 /** Umgebung zum Ende der Einstiegskerze (Schlusszeit = Beginn + Dauer der Zeiteinheit) für das eingefrorene große Ziel */
 function entryEnvOf(ctx: FormationContext, tf: ContextTimeframe): AtEntry {
-  return (entryTime) => buildEnv(ctx, entryTime + TIMEFRAME_SEC[tf], tf);
+  // Ohne Zonen (1122-A41.1): am Einstieg zählen nur das große Ziel und der Stop-Anker (A oder C); beide hängen an Divergenz und harmonischem D
+  // (Urteil von Gartley/Bat, deren Zonenzeilen nur Bonus sind), nicht an Zonen. Wie `tradeAtOf`: in einer Suche einmal je Zeitpunkt gerechnet
+  return (entryTime) => buildEnvWithoutZones(ctx, entryTime + TIMEFRAME_SEC[tf], tf);
 }
-
-/** Punkte der Wahl je Kontext und Zeit (`${tf}|${Schlusszeit}` → Schlüssel A|B|C oder null): hängen nur von den Kerzen bis dahin ab, ein Lauf rechnet jede Zeit einmal */
-const pickedKeys = new WeakMap<FormationContext, Map<string, string | null>>();
 
 /**
  * Basen ohne Vorrang je Kontext (`${tf}|A|B|C` → Öffnungszeit der Kerze, ab der sie ausscheiden): beendeter Handel (ab der Kerze nach dem Ende)
- * oder beim Einstieg nicht gezeigt (ab der Einstiegskerze). Beides hängt nur von Kerzen bis dahin ab und ändert sich danach nicht;
+ * oder beim Einstieg nicht gezeigt (ab der Kerze nach dem Einstieg). Beides hängt nur von Kerzen bis dahin ab und ändert sich danach nicht;
  * frühere Zeiten rechnen weiter voll. Spart die Neubewertung alter Basen in jedem Scan.
  */
 const noPriority = new WeakMap<FormationContext, Map<string, number>>();
 
-/** Handel eingegangen (Einstieg mit Stand und Einstiegskerze) */
-const enteredTrade = (c: Candidate): boolean => c.trade?.entry != null && c.trade.status !== undefined && c.trade.entryIdx !== undefined;
+/** Schlüsselraum der AB=CD-Suche in den gezeigten Handeln je Kontext (`shownKeysOf`) */
+const ABCD_SCOPE = {};
 
 /**
- * D erreicht eine Einstiegsschwelle: Level 1 mit Toleranz (Handel) oder die Ausdehnung −0.272 (Erken dönüş).
- * Ohne das gibt es keinen Handel; die Verlaufssuche misst solche Punkte nicht.
+ * Frühere C eines Tripels: Dochtspitzen auf der Seite von C zwischen B und dem jetzigen C mit gültiger Korrekturtiefe (1122-A1.4 c).
+ * War eine davon beim Einstieg das C der Wahl, hat der Trend den Wendepunkt danach auf das jetzige C gerückt.
  */
-function mayHaveEntry(s: AbcdShape): boolean {
-  if (!s.d || s.len === 0) return false;
-  return dReached(s) || outward(s.es, s.d.price) >= outward(s.es, extensionPrice(s, ABCD_PARAMS.minExtension));
+function earlierCs(bars: readonly FormationBar[], p: AbcdPoints): AbcdPoints[] {
+  const cSide: ZoneSide = p.b.price > p.a.price ? 'support' : 'resistance';
+  const out: AbcdPoints[] = [];
+  for (let k = p.b.idx + 1; k < p.c.idx; k++) {
+    const price = wickEnd(bars[k], cSide);
+    const tip = (j: number) => j > p.b.idx && j < p.c.idx && outward(cSide, wickEnd(bars[j], cSide)) >= outward(cSide, price);
+    if (tip(k - 1) || tip(k + 1)) continue;
+    const q = { a: p.a, b: p.b, c: { idx: k, price } };
+    if (depthOk(q)) out.push(q);
+  }
+  return out;
 }
 
 /**
- * Sucht je geladener Zeiteinheit (hoch → tief) die letzten Punkte A, B, C (`selectPoints`) und misst D.
- * Vorrang hat ein eingegangener Handel, der noch läuft oder in der letzten Kerze endet, wenn seine Punkte zum Schluss der Einstiegskerze die Wahl
- * von `selectPoints` waren (beim Einstieg gezeigt). So fällt er erst nach seinem Ende weg und zeigt sein Ende einmal (1122-A1.3 = Regel 1121-A1.3 der
- * Harmoniken, Entscheidung 1120-A42.1). Gesucht wird unter allen drei aufeinanderfolgenden Wendepunkten, deren A im Verlaufsfenster der Zeiteinheit
- * liegt (`HISTORY_DAYS`). Unter mehreren gilt der zuerst eingegangene, bei gleicher Einstiegskerze der jüngste.
+ * Sucht je geladener Zeiteinheit (hoch → tief) die Punkte A, B, C in der Reihenfolge von `selectOrder` und misst D.
+ * Ein eingegangener Handel, der zum Schluss seiner Einstiegskerze nicht gezeigt war, wird nie gezeigt: trägt die Wahl einen solchen Handel, gilt die
+ * nächste in der Reihenfolge ohne ihn (1122-A1.4 b, wie 1122-A3.2 der Harmoniken). „Gezeigt“ ist das Ergebnis dieser Suche zu jenem Schluss (nach
+ * Auslassen und Vorrang, `shownTrade.ts`); die Identität des Handels hat keine Wendepunkte (1122-A1.4 c).
+ * Vorrang hat ein eingegangener Handel, der vor der letzten Kerze einging, noch läuft oder in der letzten Kerze endet und nicht verborgen ist. So fällt
+ * er erst nach seinem Ende weg und zeigt sein Ende einmal (1122-A1.3 = Regel 1121-A1.3 der Harmoniken, Entscheidung 1120-A42.1). Gesucht wird unter
+ * allen drei aufeinanderfolgenden Wendepunkten und ihren früheren C (`earlierCs`: das C beim Einstieg, wenn der Trend den Wendepunkt danach rückt),
+ * deren Einstieg im Verlaufsfenster liegt (`HISTORY_DAYS`, 1122-A1.4 a); die Suche endet bei einem C, das ein weiteres Fenster davor liegt.
+ * Unter mehreren gilt der zuerst eingegangene, bei gleicher Einstiegskerze der jüngste.
  */
 export function analyzeAbcd(ctx: FormationContext, t: number): AbcdAnalysis[] {
   const tfs = ctx.timeframes();
   const base = tfs.length > 0 ? buildEnv(ctx, t, tfs[0]) : null;
   if (!base) return [];
   const pip = pipOf(ctx.symbol);
-  let keys = pickedKeys.get(ctx);
-  if (!keys) pickedKeys.set(ctx, (keys = new Map()));
-  const cache = keys;
+  const keys = shownKeysOf(ctx, ABCD_SCOPE);
   let skipMap = noPriority.get(ctx);
   if (!skipMap) noPriority.set(ctx, (skipMap = new Map()));
   const skip = skipMap;
-  return tfs.map((tf) => {
-    const env = envFor(base, ctx, t, tf);
+
+  /** Gezeigter Kandidat der Zeiteinheit zum Zeitpunkt `at` und die Wahl ohne Vorrang; merkt sich den gezeigten Handel */
+  const shownAt = (env: Env, tf: ContextTimeframe, at: number): { shown: Candidate | null; picked: Candidate | null } => {
     const pivots = env.trends.get(tf)!.pivots;
     const bars = env.views.get(tf)!.bars;
+    const order = selectOrder(pivots);
+    if (order.length === 0) {
+      recordShown(keys, tf, bars, null);
+      return { shown: null, picked: null };
+    }
     const atEntry = entryEnvOf(ctx, tf);
-    const points = selectPoints(pivots);
-    if (!points) return { tf, candidate: unmeasurable(tf) };
-    const picked = evaluate(env, points, undefined, pip, atEntry);
     const last = bars.length - 1;
-    const dur = TIMEFRAME_SEC[tf];
-    const keyOf = (p: AbcdPoints, bs: readonly FormationBar[]) => `${bs[p.a.idx].time}|${bs[p.b.idx].time}|${bs[p.c.idx].time}`;
-    cache.set(`${tf}|${bars[last].time + dur}`, keyOf(points, bars));
-    /** Schlüssel der Wahl zum Schluss der Kerze `at` (ohne Vorrang laufender Handel) */
-    const pickedKeyAt = (at: number): string | null => {
-      const id = `${tf}|${at}`;
-      if (!cache.has(id)) {
-        const top = buildEnv(ctx, at, tfs[0]);
-        const e = top ? envFor(top, ctx, at, tf) : null;
-        const p = e ? selectPoints(e.trends.get(tf)!.pivots) : null;
-        cache.set(id, p ? keyOf(p, e!.views.get(tf)!.bars) : null);
-      }
-      return cache.get(id)!;
+    const pointsKey = (p: AbcdPoints) => `${tf}|${bars[p.a.idx].time}|${bars[p.b.idx].time}|${bars[p.c.idx].time}`;
+    // je Tripel einmal gemessen
+    const measured = new Map<string, Candidate>();
+    const candidateFor = (p: AbcdPoints) => {
+      const key = pointsKey(p);
+      let c = measured.get(key);
+      if (!c) measured.set(key, (c = evaluate(env, p, undefined, pip, atEntry)));
+      return c;
     };
-    const windowStart = t - HISTORY_DAYS[tf] * DAY_SEC;
+    const hidden = hiddenOf(tf, bars, tradeAt);
+    let picked: Candidate | null = null;
+    for (const p of order) {
+      const c = candidateFor(p);
+      if (!hidden(c)) {
+        picked = c;
+        break;
+      }
+    }
     const pt = (q: (typeof pivots)[number]): AbcdPoint => ({ idx: q.idx, price: q.price });
-    let kept: { candidate: Candidate; entryIdx: number } | null = null;
+    // Vorrang: unter allen Tripeln (und ihren früheren C) mit Einstieg im Fenster vor der letzten Kerze der zuerst eingegangene, der läuft und nicht
+    // verborgen ist. Die Einstiegskerze kommt ohne Messung aus der Form (`entryIdxOf`); gemessen wird in Einstiegsreihenfolge bis zum ersten Treffer.
+    const start = historyStart(tf, at);
+    const queue: { p: AbcdPoints; key: string; entryIdx: number; order: number }[] = [];
+    const enqueue = (p: AbcdPoints) => {
+      const key = pointsKey(p);
+      const from = skip.get(key);
+      if (from !== undefined && bars[last].time >= from) return;
+      const entryIdx = entryIdxOf(bars, shapeOf(bars, p));
+      if (entryIdx === null || entryIdx >= last || bars[entryIdx].time < start) return;
+      queue.push({ p, key, entryIdx, order: queue.length });
+    };
+    const searchFrom = historyStart(tf, start);
     for (let j = pivots.length - 1; j >= 2; j--) {
       const p: AbcdPoints = { a: pt(pivots[j - 2]), b: pt(pivots[j - 1]), c: pt(pivots[j]) };
-      if (bars[p.a.idx].time < windowStart) break;
-      const same = p.c.idx === points.c.idx && p.a.idx === points.a.idx;
-      const skipKey = `${tf}|${keyOf(p, bars)}`;
-      const from = skip.get(skipKey);
-      if (!same && from !== undefined && bars[last].time >= from) continue;
-      if (!same && !mayHaveEntry(shapeOf(bars, p))) continue;
-      const candidate = same ? picked : evaluate(env, p, undefined, pip, atEntry);
-      const endIdx = candidate.trade?.status?.endIdx;
-      if (!enteredTrade(candidate)) continue;
-      if (endIdx !== undefined && endIdx < last) {
-        skip.set(skipKey, bars[endIdx + 1].time);
-        continue;
-      }
-      const entryIdx = candidate.trade!.entryIdx!;
-      if (kept !== null && entryIdx >= kept.entryIdx) continue;
-      if (pickedKeyAt(bars[entryIdx].time + dur) !== keyOf(p, bars)) {
-        skip.set(skipKey, bars[entryIdx].time);
-        continue;
-      }
-      kept = { candidate, entryIdx };
+      if (bars[p.c.idx].time < searchFrom) break;
+      enqueue(p);
+      for (const q of earlierCs(bars, p)) enqueue(q);
     }
-    if (!kept || kept.candidate === picked) return { tf, candidate: picked };
-    return { tf, candidate: kept.candidate, displaced: picked };
+    // gleiche Einstiegskerze: das jüngere Tripel zuerst (Reihenfolge der Suche)
+    queue.sort((x, y) => x.entryIdx - y.entryIdx || x.order - y.order);
+    let found: Candidate | null = null;
+    for (const { p, key } of queue) {
+      const candidate = candidateFor(p);
+      if (!enteredTrade(candidate)) continue;
+      const endIdx = candidate.trade!.status!.endIdx;
+      const entryIdx = candidate.trade!.entryIdx!;
+      if (endIdx !== undefined && endIdx < last) {
+        skip.set(key, bars[endIdx + 1].time);
+        continue;
+      }
+      // in der letzten Kerze eingegangen: noch nie gezeigt, also kein Vorrang (gezeigt wird er nur als Wahl)
+      if (entryIdx === last || !entryInHistory(tf, bars, candidate, at)) continue;
+      if (hidden(candidate)) {
+        skip.set(key, bars[entryIdx + 1].time);
+        continue;
+      }
+      found = candidate;
+      break;
+    }
+    const shown = found ?? picked;
+    recordShown(keys, tf, bars, shown);
+    return { shown, picked };
+  };
+  const tradeAt = tradeAtOf(ctx, keys, shownAt);
+
+  return tfs.map((tf) => {
+    const { shown, picked } = shownAt(envFor(base, ctx, t, tf), tf, t);
+    if (!shown) return { tf, candidate: unmeasurable(tf) };
+    if (shown === picked || !picked) return { tf, candidate: shown };
+    return { tf, candidate: shown, displaced: picked };
   });
 }
 
