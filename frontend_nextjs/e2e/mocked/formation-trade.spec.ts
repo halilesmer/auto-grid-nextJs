@@ -386,12 +386,14 @@ test.describe('FRM-39 Handelsblock AB=CD (Yeniden giriş, 1114-A4.4)', () => {
     await expect(block.getByTestId('trade-reentry-warning')).toHaveCount(0);
   });
 
-  // Schutz (1120-A35.1): im echten crb-form-h4-01 liegt das mitlaufende TP1 (100,519) unter dem Einstieg 100,57; es zählt nicht
-  test('Schutz: TP1 hinter dem Einstieg zählt nicht, der Handel bleibt offen, kein Yeniden-giriş-Abschnitt und keine Warnzeile', { tag: '@FRM-39' }, async ({ page, worker }) => {
+  // Ende am Stop (1121-A14.1): im echten crb-form-h4-01 liegt der Docht D 100,142 jenseits des Stops 100,356 (ohne Schluss dort). Vor 1121-A14.1
+  // zog er TP1 auf 100,519 unter den Einstieg 100,57 und der Schutz aus 1120-A35.1 hielt den Handel offen; jetzt endet die Ziel-Fib am Stop,
+  // TP1 und TP2 liegen über dem Einstieg und zählen, und der Kurs kehrt danach in die Engulf-Zone zurück
+  test('Ende am Stop: TP1 und TP2 auf der Gewinnseite zählen, der Yeniden-giriş-Abschnitt erscheint, keine Warnzeile', { tag: '@FRM-39' }, async ({ page, worker }) => {
     await openPage(page, worker, 'crb-form-h4-01', 1763496000, 'ABCD');
     const block = page.getByTestId('trade-block');
-    await expect(block.getByTestId('trade-status')).toHaveAttribute('data-status', 'open');
-    await expect(block.getByTestId('trade-reentry')).toHaveCount(0);
+    await expect(block.getByTestId('trade-status')).toHaveAttribute('data-status', 'tp12');
+    await expect(block.getByTestId('trade-reentry')).toBeVisible();
     await expect(block.getByTestId('trade-reentry-warning')).toHaveCount(0);
   });
 

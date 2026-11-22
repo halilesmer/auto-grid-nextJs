@@ -14,7 +14,7 @@
  *   Das Ziel läuft wie TP1 mit dem äußersten Docht, zählt aber erst, wenn eine Kerze in Gewinnrichtung jenseits von A schloss (Aktivierung;
  *   die Kerze der Aktivierung darf es selbst berühren: Annahme). Ein Schluss jenseits des Einstiegs beendet den Rest am Einstieg.
  */
-import { fibPrice } from './trade';
+import { fibPrice, targetEnd } from './trade';
 import type { FormationBar, Side } from './types';
 
 export type TradeStatusKind = 'open' | 'tp1' | 'tp12' | 'tp123' | 'stopped' | 'breakeven';
@@ -92,8 +92,10 @@ export function tradeStatusOf(o: {
   for (let k = o.entryIdx + 1; k < bars.length; k++) {
     const b = bars[k];
     const newExtreme = beyond(against(b), ext);
-    const tp1 = fibPrice(from, ext, o.targets.tp1);
-    const tp2 = fibPrice(from, ext, o.targets.tp2);
+    // Ende der Ziel-Fib höchstens am Stop (1121-A14.1); „neues Extrem“ misst weiter den rohen Docht
+    const end = targetEnd(from, ext, stop);
+    const tp1 = fibPrice(from, end, o.targets.tp1);
+    const tp2 = fibPrice(from, end, o.targets.tp2);
     // Schluss jenseits von A in Gewinnrichtung aktiviert das große Ziel (bleibt aktiv)
     if (o.big && (sell ? b.close < o.big.activation : b.close > o.big.activation)) bigActive = true;
     let justTp1 = false;
@@ -121,8 +123,8 @@ export function tradeStatusOf(o: {
         // Ohne großes Ziel beendet TP2 den Handel
         if (!o.big) return status({ kind: 'tp12', endIdx: k });
       }
-      if (o.big && kind === 'tp12' && bigActive && !newExtreme && touchesTarget(b, ext + o.big.offset)) {
-        bigFill = ext + o.big.offset;
+      if (o.big && kind === 'tp12' && bigActive && !newExtreme && touchesTarget(b, end + o.big.offset)) {
+        bigFill = end + o.big.offset;
         return status({ kind: 'tp123', endIdx: k });
       }
     }

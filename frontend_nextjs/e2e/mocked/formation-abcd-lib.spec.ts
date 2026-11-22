@@ -761,7 +761,7 @@ test('Handelsblock: Einstieg am D, Ziel und Stop aus der Fib ab C (oder A); kein
 
 // ---- Handel: Einstieg an Level 1, eingefrorener Stop (1114-A4.1) ----------------------------------------------
 
-/** A 100, B 130, C 114: Level 1 = 144; D-Docht 150 und 160 liegen jenseits von Level 1 */
+/** A 100, B 130, C 114: Level 1 = 144; D-Docht 150 und 160 liegen jenseits von Level 1 (160 auch jenseits des Stops 155,46, ohne Schluss dort) */
 const S_PAST = zig([100, 130, 114, 150], 8, 0);
 const S_PAST_FAR = zig([100, 130, 114, 160], 8, 0);
 
@@ -774,9 +774,9 @@ test('Handel: Einstieg an Level 1 und Stop eingefroren, auch wenn der Docht weit
     expect(t.stop).toBeCloseTo(155.46, 9);
     expect(t.tp1AtEntry).toBeCloseTo(132.54, 9);
   }
-  // TP1: 0.382 der Fib C → äußerster Docht (150 bzw. 160)
+  // TP1: 0.382 der Fib C → äußerster Docht (150); der Docht 160 liegt jenseits des Stops, das Ende bleibt am Stop 155,46 (1121-A14.1)
   expect(near.tp1).toBeCloseTo(150 - 0.382 * 36, 9);
-  expect(far.tp1).toBeCloseTo(160 - 0.382 * 46, 9);
+  expect(far.tp1).toBeCloseTo(155.46 - 0.382 * 41.46, 9);
   // CRV am Einstieg = 1, SIG-29 wird vom Weiterlaufen nicht berührt
   expect(near.sig29?.value).toBeCloseTo(1, 9);
   expect(far.sig29?.value).toBeCloseTo(1, 9);
@@ -832,7 +832,8 @@ test('Handel: TP2 = 0.618 der Ziel-Fib und läuft mit dem Docht; tp2AtEntry gilt
   const near = run({ H4: S_PAST }, ABC).trade!;
   const far = run({ H4: S_PAST_FAR }, ABC).trade!;
   expect(near.tp2).toBeCloseTo(150 - 0.618 * 36, 9);
-  expect(far.tp2).toBeCloseTo(160 - 0.618 * 46, 9);
+  // Docht 160 jenseits des Stops: Ende der Ziel-Fib am Stop 155,46 (1121-A14.1)
+  expect(far.tp2).toBeCloseTo(155.46 - 0.618 * 41.46, 9);
   // Am Einstieg: 0.618 der Fib C → Level 1 (114 → 144)
   for (const t of [near, far]) {
     expect(t.tp2AtEntry).toBeCloseTo(144 - 0.618 * 30, 9);

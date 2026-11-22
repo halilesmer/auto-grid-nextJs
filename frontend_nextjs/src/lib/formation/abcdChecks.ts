@@ -25,7 +25,7 @@ import {
 } from './abcd';
 import { levelPrice, legLength, type FibLeg } from './fib';
 import { ABCD_PARAMS, BAT_PARAMS, CONTEXT_TIMEFRAMES, FRZ_PARAMS, GAR_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
-import { emergencyStopOf, fibPrice, strongZoneAt } from './trade';
+import { emergencyStopOf, fibPrice, strongZoneAt, targetEnd } from './trade';
 import { tradeStatusOf } from './tradeStatus';
 import { abcdTrade, withTrade } from './tradeApply';
 import type { TradeStatus } from './tradeStatus';
@@ -513,7 +513,8 @@ function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolea
   if (s.d && reached) {
     // Start der Ziel-Fib: A bei Divergenz oder Harmonik, sonst C; nach dem Einstieg eingefroren (1120-A35.1)
     const levels = [ABCD_PARAMS.targets.tp1, ABCD_PARAMS.targets.tp2, ...(divergence ? [ABCD_PARAMS.targets.divergence] : [])];
-    out.push({ id: 'Z-ABCD-05', tool: 'fib', anchors: [at(from.idx, from.price), at(s.d.idx, s.d.price)], levels, rules: TRADE_RULES, side });
+    // Ende höchstens am Stop wie TP1/TP2 im Handel (1121-A14.1); der Punkt D bleibt am Docht
+    out.push({ id: 'Z-ABCD-05', tool: 'fib', anchors: [at(from.idx, from.price), at(s.d.idx, targetEnd(from.price, s.d.price, stop))], levels, rules: TRADE_RULES, side });
     // Der Stop ist eingefroren und steht als eigene Linie (nicht mehr als Level der mitlaufenden Ziel-Fib)
     // Nach TP1 steht der Stop auf dem Einstieg: Linie ab der TP1-Kerze (1114-A4.2 b)
     if (stop !== null) {

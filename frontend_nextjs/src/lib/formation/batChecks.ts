@@ -14,7 +14,7 @@ import { nearEdge } from './cdt';
 import { rsiExtreme } from './sig';
 import { exemptFor, settle } from './settle';
 import { ABCD_PARAMS, BAT_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
-import { frozenStopDrawings, harmonicFreeze, harmonicStop, harmonicTrade, withTrade, type HarmonicFreeze } from './tradeApply';
+import { frozenStopDrawings, harmonicFreeze, harmonicStop, harmonicTargetEnd, harmonicTrade, withTrade, type HarmonicFreeze } from './tradeApply';
 import type { Env } from './reasons';
 import {
   analyzeXabcd,
@@ -194,7 +194,7 @@ function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, dLevel: numbe
     out.push({
       id: 'Z-BAT-06',
       tool: 'fib',
-      anchors: [anchorAt(bars, a.idx, a.price), anchorAt(bars, d.idx, d.price)],
+      anchors: [anchorAt(bars, a.idx, a.price), anchorAt(bars, d.idx, harmonicTargetEnd(a, d, freeze, t.stop))],
       levels: [t.tp1, t.tp2],
       rules: TRADE_RULES,
       side,
