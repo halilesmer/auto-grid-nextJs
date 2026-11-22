@@ -29,7 +29,7 @@ import { FIXTURE_TREND, named, trendOf } from '../fixtures/formation-trend';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-18' }, fn);
 
-type Analysis = { tf: string; candidate: Candidate };
+type Analysis = { tf: string; candidate: Candidate; displaced?: Candidate };
 type Alone = (ctx: FormationContext, t: number, done: Partial<Record<ScanFormation, Analysis[]>>) => Analysis[];
 const candidates = (...lists: (Analysis[] | undefined)[]) => lists.flatMap((l) => (l ?? []).map((a) => a.candidate));
 
@@ -54,8 +54,8 @@ function aloneHits(make: () => FormationContext, t: number): ScanHit[] {
   const hits: ScanHit[] = [];
   for (const form of SCAN_FORMATIONS) {
     done[form] = ALONE[form](make(), t, done);
-    for (const { tf, candidate } of done[form]!) {
-      if (Object.keys(candidate.points).length > 0) hits.push({ form, tf, candidate } as ScanHit);
+    for (const { tf, candidate, displaced } of done[form]!) {
+      if (Object.keys(candidate.points).length > 0) hits.push({ form, tf, candidate, ...(displaced ? { displaced } : {}) } as ScanHit);
     }
   }
   return hits;

@@ -98,4 +98,18 @@ test.describe('AB=CD: laufender Handel bleibt in der Suche', () => {
       expect(part.displaced && view(part.displaced), iso).toEqual(full.displaced && view(full.displaced));
     }
   });
+
+  frm('Zwischenspeicher ändert nichts: Kerze für Kerze auf einem Kontext gleich wie mit frischem Kontext je Zeit', () => {
+    const rows = XAUUSD_H1_0527_0612;
+    const shared = ctxOf(rows);
+    for (let i = 60; i < rows.length; i++) {
+      const t = rows[i][0] + HOUR;
+      const a = analyzeAbcd(shared, t).find((x) => x.tf === 'H1')!;
+      const b = analyzeAbcd(ctxOf(rows), t).find((x) => x.tf === 'H1')!;
+      const when = new Date(t * 1000).toISOString();
+      expect(view(a.candidate), when).toEqual(view(b.candidate));
+      expect(a.candidate.trade?.status, when).toEqual(b.candidate.trade?.status);
+      expect(a.displaced && view(a.displaced), when).toEqual(b.displaced && view(b.displaced));
+    }
+  });
 });
