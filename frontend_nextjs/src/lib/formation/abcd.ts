@@ -61,8 +61,8 @@ export function depthOk(p: AbcdPoints): boolean {
 }
 
 /**
- * Reihenfolge der Wahl: unter den letzten `lookbackPivots` Wendepunkten jedes C mit gültiger Korrekturtiefe, jüngstes zuerst; ohne gültiges Tripel
- * die letzten drei Wendepunkte. `selectPoints` ist das erste; die folgenden gelten, wenn das erste einen beim Einstieg nicht gezeigten Handel trägt (1122-A1.4 b).
+ * Reihenfolge der Wahl: unter den letzten `lookbackPivots` Wendepunkten jedes C mit gültiger Korrekturtiefe, jüngstes zuerst; danach die
+ * letzten drei Wendepunkte, wenn ihre Tiefe nicht gültig ist (ohne gültiges Tripel sind sie die Wahl). `selectPoints` ist das erste; die folgenden gelten, wenn das erste einen beim Einstieg nicht gezeigten Handel trägt (1122-A1.4 b).
  */
 export function selectOrder(pivots: readonly Pivot[]): AbcdPoints[] {
   const n = pivots.length;
@@ -71,7 +71,8 @@ export function selectOrder(pivots: readonly Pivot[]): AbcdPoints[] {
   const at = (j: number): AbcdPoints => ({ a: pt(pivots[j - 2]), b: pt(pivots[j - 1]), c: pt(pivots[j]) });
   const out: AbcdPoints[] = [];
   for (let j = n - 1; j >= Math.max(2, n - ABCD_PARAMS.lookbackPivots); j--) if (depthOk(at(j))) out.push(at(j));
-  if (out.length === 0) out.push(at(n - 1));
+  // ohne gültige Tiefe an n − 1: die letzten drei Wendepunkte zuletzt (ohne gültiges Tripel die Wahl selbst)
+  if (!depthOk(at(n - 1))) out.push(at(n - 1));
   return out;
 }
 

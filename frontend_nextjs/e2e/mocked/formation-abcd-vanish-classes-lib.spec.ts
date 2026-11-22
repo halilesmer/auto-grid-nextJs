@@ -85,7 +85,8 @@ test.describe('AB=CD: verschwundene laufende Handel, Klassen a bis c (1122-A1.4)
 });
 
 test.describe('AB=CD: nächstbester Kandidat nach Regel B (1122-A1.4 b)', () => {
-  // abcd-buy-h4-02 (EURUSD H4)
+  // abcd-buy-h4-02 (EURUSD H4): ab 07-14 16:00 ist unter den letzten Wendepunkten nur ein Tripel gültig (Verkauf, A 07-10 16:00, C 07-11 00:00);
+  // sein Handel (Einstiegskerze 07-11 04:00) war beim Einstieg nicht gezeigt. Dann gelten die letzten drei Wendepunkte (Tiefe ungültig, noch kein Einstieg).
   const file = 'e2e/fixtures/formation/abcd-buy-h4-02.json';
   const bars = named(file, parseFixture(JSON.parse(readFileSync(file, 'utf-8')))).bars;
   const H4 = 4 * 3600;
@@ -93,6 +94,19 @@ test.describe('AB=CD: nächstbester Kandidat nach Regel B (1122-A1.4 b)', () => 
     const b = cut ? bars.filter((x) => x.time + H4 <= at(iso)) : bars;
     return analyzeAbcd(new FormationContext('EURUSD', { H4: b }, { trend: FIXTURE_TREND }), at(iso)).find((a) => a.tf === 'H4')!.candidate;
   };
+  frm('b) Trägt das einzige gültige Tripel einen nicht gezeigten Handel, zeigt die Suche die letzten drei Wendepunkte, aus Kerzen bis zur Zeit', () => {
+    for (const iso of ['2025-07-14T16:00', '2025-07-14T20:00', '2025-07-15T00:00']) {
+      for (const cut of [false, true]) {
+        const c = shownAt(iso, cut);
+        expect([c.side, c.points.A?.time, c.points.C?.time, c.trade?.entry ?? null], `${iso} ${cut ? 'gekürzt' : 'ganz'}`).toEqual([
+          'sell',
+          at('2025-07-11T12:00'),
+          at('2025-07-14T04:00'),
+          null,
+        ]);
+      }
+    }
+  });
   frm('b) Beim Einstieg zeigte die Suche einen älteren laufenden Handel: der neue Handel (A 07-10 00:00) erscheint auch nach dessen Ende nie', () => {
     // Einstiegskerze 07-11 00:00; zu ihrem Schluss zeigte die Suche den laufenden Verkauf A 07-09 00:00 (Vorrang), nicht diesen Handel
     expect(shownAt('2025-07-11T04:00', false).points.A?.time).toBe(at('2025-07-09T00:00'));
