@@ -305,6 +305,18 @@ test.describe('BUT: echte Kerzen', () => {
     expect(c.verdict).toBe('invalid');
   });
 
+  frm('but-bad-h4-01: der beim Einstieg gezeigte Handel bleibt derselbe, obwohl der Trend den C-Wendepunkt vor die Einstiegskerze verschiebt (1122-A3.2)', () => {
+    const iso = (c: Candidate) => new Date(c.points.C.time * 1000).toISOString().slice(0, 16);
+    // Einstiegskerze 11-04 04:00: zu ihrem Schluss zeigt die Suche den Handel mit C am Wendepunkt 11-03 20:00
+    const atEntry = analyzeAt('but-bad-h4-01', '2025-11-04T08:00');
+    expect(atEntry.trade?.entry).toBeCloseTo(100.093, 3);
+    expect(iso(atEntry)).toBe('2025-11-03T20:00');
+    // später liegt der Wendepunkt bei 11-04 00:00 (X, A, B gleich): eine andere Basis, aber derselbe Handel, und die Suche zeigt ihn weiter
+    const later = analyzeAt('but-bad-h4-01', '2025-11-06T00:00');
+    expect(iso(later)).toBe('2025-11-04T00:00');
+    expect([later.side, later.points.X.time, later.trade?.entry, later.trade?.entryIdx]).toEqual([atEntry.side, atEntry.points.X.time, atEntry.trade?.entry, atEntry.trade?.entryIdx]);
+  });
+
   frm('but-bad-h4-02: Negativ – C nur an 0.264 von A → B (BUT 04 ☐), die Butterfly ist ungültig', () => {
     const c = analyzeAt('but-bad-h4-02', '2026-01-20T12:00');
     expect(c.side).toBe('sell');

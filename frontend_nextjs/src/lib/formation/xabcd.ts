@@ -334,15 +334,24 @@ function candidateOf(env: Env, tf: ContextTimeframe, bars: Bars, pivots: readonl
   return evaluate(env, tf, shapeOfX(bars, shiftBase(bars, base, xSide, aSide, prev, entryIdx)), pip);
 }
 
-/** Schlüssel der besten Basis je Kontext, Prüfer und Zeit (`${tf}|${Zeit}`): hängt nur von den Kerzen bis zu der Zeit ab, ein Lauf Kerze für Kerze rechnet jede Zeit einmal */
+/**
+ * Eingegangener Handel als Schlüssel: Seite, X, Einstiegskerze, Einstieg. Ohne C: verschiebt der Trend den letzten Wendepunkt nach dem Einstieg,
+ * bleibt es derselbe Handel (1121-A2.1). Ohne eingegangenen Handel `null`.
+ */
+const tradeKey = (c: Candidate, bars: Bars): string | null =>
+  enteredTrade(c) ? [c.side, c.points.X?.time, bars[c.trade!.entryIdx!].time, c.trade!.entry].join('|') : null;
+
+/** Handel der besten Basis je Kontext, Prüfer und Zeit (`${tf}|${Zeit}`): hängt nur von den Kerzen bis zu der Zeit ab, ein Lauf Kerze für Kerze rechnet jede Zeit einmal */
 const bestKeys = new WeakMap<FormationContext, Map<Evaluate, Map<string, string | null>>>();
 
 /**
  * Sucht je geladener Zeiteinheit (hoch → tief) die Punkte X, A, B, C: unter den Kandidaten der letzten `lookbackPivots` Wendepunkte gilt der mit den
  * wenigsten verletzten Form-Bedingungen (`misses`), bei Gleichstand der jüngste.
+ * Ein eingegangener Handel, dessen Basis zum Schluss der Einstiegskerze nicht die beste war (beim Einstieg nicht gezeigt), wird nie gezeigt: trägt die
+ * beste Basis einen solchen Handel, gilt die nächstbeste ohne ihn (1122-A3.2). Den Handel hätte niemand eingehen können, und ein „schon laufender“
+ * Handel, der auftaucht, kann mit der nächsten Wendepunkt-Verschiebung wieder verschwinden.
  * Vorrang hat ein eingegangener Handel, der noch läuft oder in der letzten Kerze endet, wenn seine Basis zum Schluss der Einstiegskerze die beste war
- * (beim Einstieg gezeigt). So fällt er erst nach seinem Ende weg und zeigt sein Ende einmal (1121-A1.3, Entscheidung 1120-A42.1). Ein Handel, der erst
- * nach dem Einstieg der beste wurde, hat keinen Vorrang: das prüfte jede Kerze seit dem Einstieg und kostet ohne Zwischenspeicher Sekunden.
+ * (beim Einstieg gezeigt). So fällt er erst nach seinem Ende weg und zeigt sein Ende einmal (1121-A1.3, Entscheidung 1120-A42.1).
  * Gesucht wird er unter allen Basen, deren X im Verlaufsfenster der Zeiteinheit liegt (`HISTORY_DAYS`). Unter mehreren gilt der zuerst eingegangene
  * (ein späterer Einstieg verdrängt ihn nicht), bei gleicher Einstiegskerze der mit den wenigsten `misses`, dann der jüngste.
  */
@@ -366,24 +375,26 @@ export function analyzeXabcd(
     const env = envFor(base, ctx, t, tf);
     const bars = env.views.get(tf)!.bars;
     const pivots = env.trends.get(tf)!.pivots;
-    const keyOf = (b: XabcdBase, bs: Bars) => [b.x, b.a, b.b, b.c].map((p) => bs[p.idx].time).join('|');
-    const best = bestRecent(env, tf, evaluate, misses, pip);
+    const top = bestRecent(env, tf, evaluate, misses, pip);
     const last = bars.length - 1;
     // leere Zeiteinheit (keine Kerzen geladen): kein Schlüssel, keine Verlaufssuche
-    if (last < 0) return { tf, candidate: best?.candidate ?? empty(tf) };
+    if (last < 0) return { tf, candidate: top?.candidate ?? empty(tf) };
     const dur = TIMEFRAME_SEC[tf];
-    keys.set(`${tf}|${bars[last].time + dur}`, best ? keyOf(best.base, bars) : null);
-    /** Schlüssel der besten Basis zum Schluss der Kerze `at` (ohne Vorrang laufender Handel) */
-    const bestKeyAt = (at: number): string | null => {
+    keys.set(`${tf}|${bars[last].time + dur}`, top ? tradeKey(top.candidate, bars) : null);
+    /** Handel der besten Basis zum Schluss der Kerze `at` (ohne Vorrang laufender Handel) */
+    const tradeAt = (at: number): string | null => {
       const id = `${tf}|${at}`;
       if (!keys.has(id)) {
-        const top = buildEnv(ctx, at, tfs[0]);
-        const e = top ? envFor(top, ctx, at, tf) : null;
+        const head = buildEnv(ctx, at, tfs[0]);
+        const e = head ? envFor(head, ctx, at, tf) : null;
         const pick = e ? bestRecent(e, tf, evaluate, misses, pip) : null;
-        keys.set(id, pick ? keyOf(pick.base, e!.views.get(tf)!.bars) : null);
+        keys.set(id, pick ? tradeKey(pick.candidate, e!.views.get(tf)!.bars) : null);
       }
       return keys.get(id)!;
     };
+    /** Eingegangener Handel, den die beste Basis zum Schluss seiner Einstiegskerze nicht trug: beim Einstieg nicht gezeigt (1122-A3.2) */
+    const hidden = (c: Candidate) => enteredTrade(c) && tradeAt(bars[c.trade!.entryIdx!].time + dur) !== tradeKey(c, bars);
+    const best = top && hidden(top.candidate) ? bestRecent(env, tf, evaluate, misses, pip, hidden) : top;
     const recent = new Set(selectBases(pivots).map((b) => b.c.idx));
     const windowStart = t - HISTORY_DAYS[tf] * DAY_SEC;
     let kept: { candidate: Candidate; unmet: number; entryIdx: number } | null = null;
@@ -395,20 +406,28 @@ export function analyzeXabcd(
       const entryIdx = candidate.trade!.entryIdx!;
       const unmet = misses(candidate);
       if (kept !== null && (entryIdx > kept.entryIdx || (entryIdx === kept.entryIdx && unmet >= kept.unmet))) continue;
-      if (bestKeyAt(bars[entryIdx].time + dur) !== keyOf(b, bars)) continue;
+      if (hidden(candidate)) continue;
       kept = { candidate, unmet, entryIdx };
     }
     return { tf, candidate: kept?.candidate ?? best?.candidate ?? empty(tf) };
   });
 }
 
-/** Beste Basis der letzten `lookbackPivots` Wendepunkte: wenigste `misses`, bei Gleichstand die jüngste */
-function bestRecent(env: Env, tf: ContextTimeframe, evaluate: Evaluate, misses: (c: Candidate) => number, pip: number): { base: XabcdBase; candidate: Candidate; unmet: number } | null {
+/** Beste Basis der letzten `lookbackPivots` Wendepunkte: wenigste `misses`, bei Gleichstand die jüngste; `skip` lässt Kandidaten aus */
+function bestRecent(
+  env: Env,
+  tf: ContextTimeframe,
+  evaluate: Evaluate,
+  misses: (c: Candidate) => number,
+  pip: number,
+  skip?: (c: Candidate) => boolean,
+): { base: XabcdBase; candidate: Candidate; unmet: number } | null {
   const bars = env.views.get(tf)!.bars;
   const pivots = env.trends.get(tf)!.pivots;
   let best: { base: XabcdBase; candidate: Candidate; unmet: number } | null = null;
   for (const base of selectBases(pivots)) {
     const candidate = candidateOf(env, tf, bars, pivots, base, evaluate, pip);
+    if (skip?.(candidate)) continue;
     const unmet = misses(candidate);
     if (best === null || unmet < best.unmet) best = { base, candidate, unmet };
   }
