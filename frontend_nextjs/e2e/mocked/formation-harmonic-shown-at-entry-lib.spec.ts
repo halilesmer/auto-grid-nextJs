@@ -13,6 +13,7 @@ import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { FormationContext } from '../../src/lib/formation/context';
 import { parseFixture } from '../../src/lib/formation/fixture';
+import { buildEnv, buildEnvWithoutZones, shareEnv } from '../../src/lib/formation/reasons';
 import { analyzeBut, checkButCandidate } from '../../src/lib/formation/butChecks';
 import { analyzeGar, checkGarCandidate } from '../../src/lib/formation/garChecks';
 import type { Candidate, FormationBar } from '../../src/lib/formation/types';
@@ -91,5 +92,27 @@ test.describe('Harmonik: beim Einstieg gezeigt = Ergebnis der Suche zu jenem Sch
     expect(sideAndCandle(tradeOf(shown(at('2026-09-17T00:00')), fx.bars))).toBe('sell 2026-08-21T12:00');
     expect(sideAndCandle(tradeOf(shown(at('2026-09-18T00:00')), fx.bars)), 'Handel, der beim Einstieg nicht gezeigt war').toBeNull();
     expect(shownLate('GAR', 'abcd-breakc-h4-01', '2026-08-15T00:00', '2026-09-30T00:00')).toEqual([]);
+  });
+});
+
+test.describe('Harmoniken: Umgebung ohne Zonen für frühere Schlüsse (1122-A41.1)', () => {
+  // Der gezeigte Handel zu einem früheren Schluss wird ohne Zonen gerechnet (Zonen lesen nur Bonus-Zeilen und SIG-29).
+  // Die Umgebung ohne Zonen hat dieselben Kerzen, Trends und Fibs wie die volle; im Bereich von shareEnv wird sie je Zeitpunkt einmal gerechnet.
+  frm('gleiche Ansichten, Trends und Fibs wie buildEnv, leere Zonen, einmal je Zeitpunkt', () => {
+    const fx = load('bat-sell-h4-01');
+    const ctx = new FormationContext(fx.symbol, { H4: fx.bars }, { trend: trendOf(fx.bars) });
+    const t = fx.bars[fx.bars.length - 20].time + H4;
+    shareEnv(ctx, () => {
+      const full = buildEnv(ctx, t, 'H4')!;
+      const light = buildEnvWithoutZones(ctx, t, 'H4')!;
+      expect(light.frz).toEqual({ zones: [], reversed: [] });
+      expect(full.frz.zones.length + full.frz.reversed.length).toBeGreaterThan(0);
+      expect([...light.views.keys()]).toEqual([...full.views.keys()]);
+      expect(light.views.get('H4')!.bars).toEqual(full.views.get('H4')!.bars);
+      expect(light.trends.get('H4')!.pivots).toEqual(full.trends.get('H4')!.pivots);
+      expect(light.fibs.get('H4')!.state).toEqual(full.fibs.get('H4')!.state);
+      expect(buildEnvWithoutZones(ctx, t, 'H4')).toBe(light);
+    });
+    expect(buildEnvWithoutZones(ctx, t, 'H1')).toBeNull();
   });
 });

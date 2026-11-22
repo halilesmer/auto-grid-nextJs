@@ -11,7 +11,7 @@ import { DAY_SEC } from '@/lib/serverTime';
 import type { FormationContext } from './context';
 import { closesBeyond, outward, probeFractal, wickEnd, type Rect, type ZoneSide } from './frz';
 import { CONTEXT_TIMEFRAMES, HARMONIC_PARAMS, FRZ_PARAMS, HISTORY_DAYS, type ContextTimeframe } from './params';
-import { buildEnv, dirSide, envFor, neighborTf, type Env } from './reasons';
+import { buildEnv, buildEnvWithoutZones, dirSide, envFor, neighborTf, type Env } from './reasons';
 import { reversalAt } from './reversal';
 import { engulfZones, rsiExtreme, trailingRun, divergenceOf, zoneSideOf } from './sig';
 import type { Pivot } from './trd';
@@ -412,12 +412,15 @@ export function analyzeXabcd(
     keys.set(`${tf}|${bars[last].time + dur}`, shown ? tradeKey(shown, bars) : null);
     return shown;
   };
-  /** Handel, den die Suche zum Schluss `at` zeigte (rechnet frühere Schlüsse nur einmal je Kontext) */
+  /**
+   * Handel, den die Suche zum Schluss `at` zeigte (rechnet frühere Schlüsse nur einmal je Kontext). Ohne Zonen gerechnet: welcher Handel gezeigt ist,
+   * hängt nur an Form-Bedingungen, Punkt-Ausschlüssen, der Variante (Crab), Einstieg und Stand; keine davon liest eine Zone. Zonen lesen nur
+   * Bonus-Zeilen (Zone am D, Umkehr der tieferen Zeiteinheit) und SIG-29.
+   */
   const tradeAt = (tf: ContextTimeframe, at: number): string | null => {
     const id = `${tf}|${at}`;
     if (!keys.has(id)) {
-      const head = buildEnv(ctx, at, tfs[0]);
-      const e = head ? envFor(head, ctx, at, tf) : null;
+      const e = buildEnvWithoutZones(ctx, at, tf);
       if (e) shownAt(e, tf, at);
       if (!keys.has(id)) keys.set(id, null);
     }
