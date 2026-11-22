@@ -93,7 +93,8 @@ function trendDigests(): Record<string, string> {
       const n = view.bars.length;
       for (const upTo of [Math.floor(n / 3), Math.floor((2 * n) / 3), n - 1]) {
         const m = formationTrend(view, upTo);
-        const text = JSON.stringify({ ...m, bars: undefined, wave: undefined });
+        // `spans` (Lebensdauer der Wendepunkte, 1122-A28.1) ist Buchführung über die Wendepunkte, kein Trendergebnis; geprüft in formation-harmonic-base-freeze-lib
+        const text = JSON.stringify({ ...m, bars: undefined, wave: undefined, spans: undefined });
         out[`${file}|${tf}|${upTo}`] = createHash('sha256').update(text).digest('hex');
       }
     }

@@ -79,6 +79,14 @@ export interface TrendModel {
   refCorrection: number | null;
   /** Kerzen mit Schluss jenseits des vorigen Extrems in Trendrichtung (TRD-12, TRD-30), Kerzenindizes */
   impulseBars: number[];
+  /** Lebensdauer jedes je gezeichneten Wendepunkts: ab Kerze `from` bis vor Kerze `to` im Trendzug (to = Infinity: noch da) */
+  spans: PivotSpan[];
+}
+
+export interface PivotSpan {
+  pivot: Pivot;
+  from: number;
+  to: number;
 }
 
 export const lastOf = <T>(list: readonly T[]): T | undefined => list[list.length - 1];
@@ -109,6 +117,7 @@ export const emptyTrend = (tf: ContextTimeframe, bars: Bars, wave: (number | nul
   pendingRun: 0,
   refCorrection: null,
   impulseBars: [],
+  spans: [],
 });
 
 /** Neuer Impuls: erster Schluss jenseits des vorigen Extrems in Trendrichtung (TRD-12) */
@@ -135,18 +144,23 @@ function setDrawn(byPoint: CandIndex, p: ZugPoint, drawn: boolean): void {
   if (cand) cand.drawn = drawn;
 }
 
-function appendPivot(m: TrendModel, f: ZugPoint, byPoint: CandIndex): void {
+function appendPivot(m: TrendModel, f: ZugPoint, byPoint: CandIndex, k: number): void {
   const prev = lastOf(m.pivots);
   if (prev && !m.dir) m.dir = legDir(f.side);
   let kind: Pivot['kind'] = 'start';
   if (prev) kind = legDir(f.side) === m.dir ? 'impulse' : 'correction';
-  m.pivots.push({ ...f, kind, len: prev ? Math.abs(f.price - prev.price) : 0 });
+  const pivot: Pivot = { ...f, kind, len: prev ? Math.abs(f.price - prev.price) : 0 };
+  m.pivots.push(pivot);
+  m.spans.push({ pivot, from: k, to: Infinity });
   setDrawn(byPoint, f, true);
 }
 
-function applyEdit(m: TrendModel, edit: ZugEdit, byPoint: CandIndex): void {
-  for (const gone of m.pivots.splice(m.pivots.length - edit.cut)) setDrawn(byPoint, gone, false);
-  for (const f of edit.add) appendPivot(m, f, byPoint);
+function applyEdit(m: TrendModel, edit: ZugEdit, byPoint: CandIndex, k: number): void {
+  for (const gone of m.pivots.splice(m.pivots.length - edit.cut)) {
+    setDrawn(byPoint, gone, false);
+    for (let i = m.spans.length - 1; i >= 0; i--) if (m.spans[i].pivot === gone) { m.spans[i].to = k; break; }
+  }
+  for (const f of edit.add) appendPivot(m, f, byPoint, k);
   // die Regel `filter` kann den Punkt streichen, an dem der laufende Trend beginnt
   m.originPos = Math.min(m.originPos, m.pivots.length - 1);
 }
@@ -237,7 +251,7 @@ export function buildTrend(
       const edit = nextEdit(m.pivots, { idx: c.idx, doneAt: k, side: c.side, price });
       if (edit) {
         cand.accepted = true;
-        applyEdit(m, edit, byPoint);
+        applyEdit(m, edit, byPoint, k);
         if (outerBar) break;
       } else if (cand.isCorrection) rejected[c.side].push(cand);
     }

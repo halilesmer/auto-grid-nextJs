@@ -21,6 +21,7 @@ import { parseFixture } from '../../src/lib/formation/fixture';
 import { analyzeGar, checkGarCandidate } from '../../src/lib/formation/garChecks';
 import { analyzeCrb, checkCrbCandidate } from '../../src/lib/formation/crbChecks';
 import type { Anchor, Candidate, FormationBar } from '../../src/lib/formation/types';
+import { formationTrend } from '../../src/lib/formation/trdFormation';
 import { named, trendOf } from '../fixtures/formation-trend';
 
 const frm = (title: string, fn: () => void) => test(title, { tag: ['@FRM-07', '@FRM-39'] }, fn);
@@ -121,5 +122,17 @@ test.describe('Harmonik: Basis und Einstieg frieren am Einstieg ein (1122-A28.1)
   frm('Kerze für Kerze: Gartley cdt-top-h4-02 und Crab bat-sell-h4-01 halten jeden beim Einstieg gezeigten Handel bis zu seinem Ende', () => {
     expect(unfrozen(analyzeGar, checkGarCandidate, 'cdt-top-h4-02', '2025-10-20T00:00', '2025-11-20T00:00')).toEqual([]);
     expect(unfrozen(analyzeCrb, checkCrbCandidate, 'bat-sell-h4-01', '2025-11-25T00:00', '2025-12-20T00:00')).toEqual([]);
+  });
+  frm('Lebensdauer der Wendepunkte (TrendModel.spans): zu jeder Kerze k genau die Wendepunkte des Trendzugs bis k', () => {
+    const sig = (ps: readonly { idx: number; price: number; side: string }[]) => ps.map((p) => `${p.idx}:${p.price}:${p.side}`).join(',');
+    for (const name of ['cdt-top-h4-02', 'bat-sell-h4-01']) {
+      const { bars, ctx } = load(name);
+      const view = ctx().view('H4', bars[bars.length - 1].time + H4)!;
+      const full = formationTrend(view);
+      for (let k = 10; k < bars.length; k++) {
+        const alive = full.spans.filter((s) => s.from <= k && k < s.to).map((s) => s.pivot).sort((a, b) => a.idx - b.idx);
+        expect(sig(alive), `${name} k=${k}`).toBe(sig(formationTrend(view, k).pivots));
+      }
+    }
   });
 });
