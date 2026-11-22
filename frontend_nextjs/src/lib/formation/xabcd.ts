@@ -7,9 +7,10 @@
  */
 import { shapeOf, extremeAfter, gapToRect, type AbcdShape } from './abcd';
 import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
+import { DAY_SEC } from '@/lib/serverTime';
 import type { FormationContext } from './context';
 import { closesBeyond, outward, probeFractal, wickEnd, type Rect, type ZoneSide } from './frz';
-import { CONTEXT_TIMEFRAMES, HARMONIC_PARAMS, FRZ_PARAMS, type ContextTimeframe } from './params';
+import { CONTEXT_TIMEFRAMES, HARMONIC_PARAMS, FRZ_PARAMS, HISTORY_DAYS, type ContextTimeframe } from './params';
 import { buildEnv, dirSide, envFor, neighborTf, type Env } from './reasons';
 import { reversalAt } from './reversal';
 import { engulfZones, rsiExtreme, trailingRun, divergenceOf, zoneSideOf } from './sig';
@@ -103,31 +104,32 @@ export const deepestWickX = (bars: Bars, x: XPoint, side: ZoneSide, prevIdx: num
 
 /**
  * X, dann A, dann B auf ihre äußersten Dochte; jeder Punkt sucht nach dem verschobenen Vorgänger (Reihenfolge X → A → B):
- * A zwischen X und dem Pivot von B, B zwischen A und dem Pivot von C; C nur nach bestätigtem C→D-Bein (`shiftC`). D bleibt.
+ * A zwischen X und dem Pivot von B, B zwischen A und dem Pivot von C; C nur nach bestätigtem C→D-Bein (`shiftC`, Schluss bis `untilIdx`). D bleibt.
  * `pivotIdx` hält die Kerze des Trend-Pivots für die Strukturprüfungen fest.
  */
-export function shiftBase(bars: Bars, base: XabcdBase, xSide: ZoneSide, aSide: ZoneSide, prevIdx: number | null): XabcdBase {
+export function shiftBase(bars: Bars, base: XabcdBase, xSide: ZoneSide, aSide: ZoneSide, prevIdx: number | null, untilIdx = Infinity): XabcdBase {
   const pin = (moved: XPoint, orig: XPoint): XPoint => (moved.idx === orig.idx ? orig : { ...moved, pivotIdx: orig.idx });
   const x = pin(deepestWickX(bars, base.x, xSide, prevIdx, base.a.idx), base.x);
   const a = pin(extremeWick(bars, base.a, aSide, x.idx + 1, base.b.idx), base.a);
   const b = pin(extremeWick(bars, base.b, xSide, a.idx + 1, base.c.idx), base.b);
-  return { x, a, b, c: shiftC(bars, base.c, b, aSide, xSide) };
+  return { x, a, b, c: shiftC(bars, base.c, b, aSide, xSide, untilIdx) };
+}
+
+/** Erste Kerze nach dem Pivot von C, die jenseits von B schließt (bestätigtes C→D-Bein); -1 ohne solche Kerze */
+export function closeBeyondBIdx(bars: Bars, c: XPoint, b: XPoint, bSide: ZoneSide): number {
+  for (let k = c.idx + 1; k < bars.length; k++) if (closesBeyond(bars[k], b.price, bSide)) return k;
+  return -1;
 }
 
 /**
  * C erst nach bestätigtem C→D-Bein (Halil 2026-11-13): C sucht seine Dochtspitze zwischen B (ausgeschlossen) und dem Pivot von C (eingeschlossen).
  * Kerzen nach dem Pivot gehören zum C→D-Bein und zählen nicht. Verschoben wird nur, wenn nach dem Pivot schon eine Kerze jenseits von B schließt;
- * ohne diesen Schluss bleibt C am Pivot.
+ * ohne diesen Schluss bleibt C am Pivot. Zählt nur ein Schluss bis zur Kerze `untilIdx` (eingeschlossen): nach dem Einstieg bleibt C,
+ * wie es beim Einstieg war (Halil 2026-11-21, 1121-A2.1 „C girişte donar“).
  */
-export function shiftC(bars: Bars, c: XPoint, b: XPoint, cSide: ZoneSide, bSide: ZoneSide): XPoint {
-  let end = -1;
-  for (let k = c.idx + 1; k < bars.length; k++) {
-    if (closesBeyond(bars[k], b.price, bSide)) {
-      end = k;
-      break;
-    }
-  }
-  if (end < 0) return c;
+export function shiftC(bars: Bars, c: XPoint, b: XPoint, cSide: ZoneSide, bSide: ZoneSide, untilIdx = Infinity): XPoint {
+  const end = closeBeyondBIdx(bars, c, b, bSide);
+  if (end < 0 || end > untilIdx) return c;
   const moved = extremeWick(bars, c, cSide, b.idx + 1, c.idx + 1);
   return moved.idx === c.idx ? c : { ...moved, pivotIdx: c.idx };
 }
@@ -312,9 +314,37 @@ export function unmeasurable(code: string, tf: ContextTimeframe, checkIds: reado
   return { code, side: 'buy', tf, points: {}, checks, drawings: [], verdict: 'forming' };
 }
 
+/** Handel eingegangen (Einstieg mit Stand und Einstiegskerze) */
+const enteredTrade = (c: Candidate): boolean => c.trade?.entry != null && c.trade.status !== undefined && c.trade.entryIdx !== undefined;
+
 /**
- * Sucht je geladener Zeiteinheit (hoch → tief) die Punkte X, A, B, C: unter den Kandidaten gilt der mit den wenigsten
- * verletzten Form-Bedingungen (`misses`), bei Gleichstand der jüngste.
+ * Kandidat einer Basis: C wie beim Einstieg (1121-A2.1). Zuerst mit verschobenem C gemessen; liegt der erste Schluss jenseits von B
+ * nach der Einstiegskerze, wird mit C am Pivot neu gemessen (der Einstieg hing dann noch nicht vom verschobenen C ab).
+ */
+function candidateOf(env: Env, tf: ContextTimeframe, bars: Bars, pivots: readonly Pivot[], base: XabcdBase, evaluate: Evaluate, pip: number): Candidate {
+  const xi = pivots.findIndex((p) => p.idx === base.x.idx);
+  const prev = xi > 0 ? pivots[xi - 1].idx : null;
+  const [xSide, aSide] = [pivots[xi].side, pivots[xi + 1].side];
+  const picked = shiftBase(bars, base, xSide, aSide, prev);
+  const candidate = evaluate(env, tf, shapeOfX(bars, picked), pip);
+  if (picked.c === base.c) return candidate;
+  const entryIdx = candidate.trade?.entryIdx;
+  const cut = closeBeyondBIdx(bars, base.c, picked.b, xSide);
+  if (entryIdx === undefined || cut <= entryIdx) return candidate;
+  return evaluate(env, tf, shapeOfX(bars, shiftBase(bars, base, xSide, aSide, prev, entryIdx)), pip);
+}
+
+/** Schlüssel der besten Basis je Kontext, Prüfer und Zeit (`${tf}|${Zeit}`): hängt nur von den Kerzen bis zu der Zeit ab, ein Lauf Kerze für Kerze rechnet jede Zeit einmal */
+const bestKeys = new WeakMap<FormationContext, Map<Evaluate, Map<string, string | null>>>();
+
+/**
+ * Sucht je geladener Zeiteinheit (hoch → tief) die Punkte X, A, B, C: unter den Kandidaten der letzten `lookbackPivots` Wendepunkte gilt der mit den
+ * wenigsten verletzten Form-Bedingungen (`misses`), bei Gleichstand der jüngste.
+ * Vorrang hat ein eingegangener Handel, der noch läuft oder in der letzten Kerze endet, wenn seine Basis zum Schluss der Einstiegskerze die beste war
+ * (beim Einstieg gezeigt). So fällt er erst nach seinem Ende weg und zeigt sein Ende einmal (1121-A1.3, Entscheidung 1120-A42.1). Ein Handel, der erst
+ * nach dem Einstieg der beste wurde, hat keinen Vorrang: das prüfte jede Kerze seit dem Einstieg und kostet ohne Zwischenspeicher Sekunden.
+ * Gesucht wird er unter allen Basen, deren X im Verlaufsfenster der Zeiteinheit liegt (`HISTORY_DAYS`). Unter mehreren gilt der zuerst eingegangene
+ * (ein späterer Einstieg verdrängt ihn nicht), bei gleicher Einstiegskerze der mit den wenigsten `misses`, dann der jüngste.
  */
 export function analyzeXabcd(
   ctx: FormationContext,
@@ -327,21 +357,70 @@ export function analyzeXabcd(
   const base = tfs.length > 0 ? buildEnv(ctx, t, tfs[0]) : null;
   if (!base) return [];
   const pip = pipOf(ctx.symbol);
+  let byEvaluate = bestKeys.get(ctx);
+  if (!byEvaluate) bestKeys.set(ctx, (byEvaluate = new Map()));
+  let cache = byEvaluate.get(evaluate);
+  if (!cache) byEvaluate.set(evaluate, (cache = new Map()));
+  const keys = cache;
   return tfs.map((tf) => {
     const env = envFor(base, ctx, t, tf);
     const bars = env.views.get(tf)!.bars;
-    let best: { candidate: Candidate; unmet: number } | null = null;
     const pivots = env.trends.get(tf)!.pivots;
-    for (const base of selectBases(pivots)) {
-      const xi = pivots.findIndex((p) => p.idx === base.x.idx);
-      const prev = xi > 0 ? pivots[xi - 1].idx : null;
-      const picked = shiftBase(bars, base, pivots[xi].side, pivots[xi + 1].side, prev);
-      const candidate = evaluate(env, tf, shapeOfX(bars, picked), pip);
+    const keyOf = (b: XabcdBase, bs: Bars) => [b.x, b.a, b.b, b.c].map((p) => bs[p.idx].time).join('|');
+    const best = bestRecent(env, tf, evaluate, misses, pip);
+    const last = bars.length - 1;
+    // leere Zeiteinheit (keine Kerzen geladen): kein Schlüssel, keine Verlaufssuche
+    if (last < 0) return { tf, candidate: best?.candidate ?? empty(tf) };
+    const dur = TIMEFRAME_SEC[tf];
+    keys.set(`${tf}|${bars[last].time + dur}`, best ? keyOf(best.base, bars) : null);
+    /** Schlüssel der besten Basis zum Schluss der Kerze `at` (ohne Vorrang laufender Handel) */
+    const bestKeyAt = (at: number): string | null => {
+      const id = `${tf}|${at}`;
+      if (!keys.has(id)) {
+        const top = buildEnv(ctx, at, tfs[0]);
+        const e = top ? envFor(top, ctx, at, tf) : null;
+        const pick = e ? bestRecent(e, tf, evaluate, misses, pip) : null;
+        keys.set(id, pick ? keyOf(pick.base, e!.views.get(tf)!.bars) : null);
+      }
+      return keys.get(id)!;
+    };
+    const recent = new Set(selectBases(pivots).map((b) => b.c.idx));
+    const windowStart = t - HISTORY_DAYS[tf] * DAY_SEC;
+    let kept: { candidate: Candidate; unmet: number; entryIdx: number } | null = null;
+    for (const b of allBases(pivots)) {
+      if (!recent.has(b.c.idx) && bars[b.x.idx].time < windowStart) continue;
+      const candidate = best && b.c.idx === best.base.c.idx ? best.candidate : candidateOf(env, tf, bars, pivots, b, evaluate, pip);
+      const endIdx = candidate.trade?.status?.endIdx;
+      if (!enteredTrade(candidate) || (endIdx !== undefined && endIdx < last)) continue;
+      const entryIdx = candidate.trade!.entryIdx!;
       const unmet = misses(candidate);
-      if (best === null || unmet < best.unmet) best = { candidate, unmet };
+      if (kept !== null && (entryIdx > kept.entryIdx || (entryIdx === kept.entryIdx && unmet >= kept.unmet))) continue;
+      if (bestKeyAt(bars[entryIdx].time + dur) !== keyOf(b, bars)) continue;
+      kept = { candidate, unmet, entryIdx };
     }
-    return { tf, candidate: best ? best.candidate : empty(tf) };
+    return { tf, candidate: kept?.candidate ?? best?.candidate ?? empty(tf) };
   });
+}
+
+/** Beste Basis der letzten `lookbackPivots` Wendepunkte: wenigste `misses`, bei Gleichstand die jüngste */
+function bestRecent(env: Env, tf: ContextTimeframe, evaluate: Evaluate, misses: (c: Candidate) => number, pip: number): { base: XabcdBase; candidate: Candidate; unmet: number } | null {
+  const bars = env.views.get(tf)!.bars;
+  const pivots = env.trends.get(tf)!.pivots;
+  let best: { base: XabcdBase; candidate: Candidate; unmet: number } | null = null;
+  for (const base of selectBases(pivots)) {
+    const candidate = candidateOf(env, tf, bars, pivots, base, evaluate, pip);
+    const unmet = misses(candidate);
+    if (best === null || unmet < best.unmet) best = { base, candidate, unmet };
+  }
+  return best;
+}
+
+/** Alle Basen X, A, B, C aus vier aufeinanderfolgenden Wendepunkten, jüngstes C zuerst */
+function allBases(pivots: readonly Pivot[]): XabcdBase[] {
+  const pt = (p: Pivot): XPoint => ({ idx: p.idx, price: p.price });
+  const out: XabcdBase[] = [];
+  for (let j = pivots.length - 1; j >= 3; j--) out.push({ x: pt(pivots[j - 3]), a: pt(pivots[j - 2]), b: pt(pivots[j - 1]), c: pt(pivots[j]) });
+  return out;
 }
 
 /** Prüft eigene Punkte; ist eine Kerze nicht geschlossen oder nicht geladen oder stimmt die Reihenfolge nicht, sind die Prüfungen nicht messbar */

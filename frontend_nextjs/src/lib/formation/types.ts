@@ -102,6 +102,8 @@ export interface Trade {
   tp1StrongZone?: boolean;
   /** AB=CD (1114-A4.2 b): Stand des Handels nach dem Einstieg (offen, TP1, TP1 und TP2, Stop, Rest am Einstieg); nur wenn der Einstieg erreicht ist */
   status?: TradeStatus;
+  /** Harmoniken: Index der Einfrierkerze (Einstieg) in den Kerzen des Kandidaten; fehlt vor dem Einstieg */
+  entryIdx?: number;
   /**
    * AB=CD (1114-A4.5): Erken dönüş. D erreicht Level 1 nicht, dreht aber vorher in einer Zone mit einer Engulf-Kerze.
    * Dann gelten Einstieg (Engulf-Schluss), Stop (ferne Zonenkante) und `tp1` (nächste Gegenzone); Ziel 2 und der Abstand zu Level 1 stehen hier.

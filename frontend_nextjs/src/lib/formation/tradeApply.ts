@@ -66,6 +66,7 @@ export function withTrade(
     ...(input.tpBigHarmonicBroken === undefined ? {} : { tpBigHarmonicBroken: input.tpBigHarmonicBroken }),
     ...(input.tp1StrongZone === undefined ? {} : { tp1StrongZone: input.tp1StrongZone }),
     ...(input.status === undefined ? {} : { status: input.status }),
+    ...(run && input.status !== undefined ? { entryIdx: run.entryIdx } : {}),
     ...(input.earlyReversal === undefined ? {} : { earlyReversal: input.earlyReversal }),
     ...(input.reentry === undefined ? {} : { reentry: input.reentry }),
     ...(input.reentryTp1Only === undefined ? {} : { reentryTp1Only: input.reentryTp1Only }),
