@@ -559,6 +559,13 @@ function entryEnvOf(ctx: FormationContext, tf: ContextTimeframe): AtEntry {
 /** Punkte der Wahl je Kontext und Zeit (`${tf}|${Schlusszeit}` → Schlüssel A|B|C oder null): hängen nur von den Kerzen bis dahin ab, ein Lauf rechnet jede Zeit einmal */
 const pickedKeys = new WeakMap<FormationContext, Map<string, string | null>>();
 
+/**
+ * Basen ohne Vorrang je Kontext (`${tf}|A|B|C` → Öffnungszeit der Kerze, ab der sie ausscheiden): beendeter Handel (ab der Kerze nach dem Ende)
+ * oder beim Einstieg nicht gezeigt (ab der Einstiegskerze). Beides hängt nur von Kerzen bis dahin ab und ändert sich danach nicht;
+ * frühere Zeiten rechnen weiter voll. Spart die Neubewertung alter Basen in jedem Scan.
+ */
+const noPriority = new WeakMap<FormationContext, Map<string, number>>();
+
 /** Handel eingegangen (Einstieg mit Stand und Einstiegskerze) */
 const enteredTrade = (c: Candidate): boolean => c.trade?.entry != null && c.trade.status !== undefined && c.trade.entryIdx !== undefined;
 
@@ -586,6 +593,9 @@ export function analyzeAbcd(ctx: FormationContext, t: number): AbcdAnalysis[] {
   let keys = pickedKeys.get(ctx);
   if (!keys) pickedKeys.set(ctx, (keys = new Map()));
   const cache = keys;
+  let skipMap = noPriority.get(ctx);
+  if (!skipMap) noPriority.set(ctx, (skipMap = new Map()));
+  const skip = skipMap;
   return tfs.map((tf) => {
     const env = envFor(base, ctx, t, tf);
     const pivots = env.trends.get(tf)!.pivots;
@@ -616,13 +626,23 @@ export function analyzeAbcd(ctx: FormationContext, t: number): AbcdAnalysis[] {
       const p: AbcdPoints = { a: pt(pivots[j - 2]), b: pt(pivots[j - 1]), c: pt(pivots[j]) };
       if (bars[p.a.idx].time < windowStart) break;
       const same = p.c.idx === points.c.idx && p.a.idx === points.a.idx;
+      const skipKey = `${tf}|${keyOf(p, bars)}`;
+      const from = skip.get(skipKey);
+      if (!same && from !== undefined && bars[last].time >= from) continue;
       if (!same && !mayHaveEntry(shapeOf(bars, p))) continue;
       const candidate = same ? picked : evaluate(env, p, undefined, pip, atEntry);
       const endIdx = candidate.trade?.status?.endIdx;
-      if (!enteredTrade(candidate) || (endIdx !== undefined && endIdx < last)) continue;
+      if (!enteredTrade(candidate)) continue;
+      if (endIdx !== undefined && endIdx < last) {
+        skip.set(skipKey, bars[endIdx + 1].time);
+        continue;
+      }
       const entryIdx = candidate.trade!.entryIdx!;
       if (kept !== null && entryIdx >= kept.entryIdx) continue;
-      if (pickedKeyAt(bars[entryIdx].time + dur) !== keyOf(p, bars)) continue;
+      if (pickedKeyAt(bars[entryIdx].time + dur) !== keyOf(p, bars)) {
+        skip.set(skipKey, bars[entryIdx].time);
+        continue;
+      }
       kept = { candidate, entryIdx };
     }
     if (!kept || kept.candidate === picked) return { tf, candidate: picked };
