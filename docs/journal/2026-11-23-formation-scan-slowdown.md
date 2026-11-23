@@ -2,8 +2,8 @@
 date: 2026-11-23
 author: Claude
 type: diagnosis
-status: open
-pr: []
+status: closed
+pr: [655]
 features: [UI-13, UI-17, FRM-07, FRM-08]
 areas: [frontend]
 ---
