@@ -63,7 +63,7 @@ export function RowColor({ name, value, onChange, empty = false, role }: { name:
 
 const SECTION_ICONS: Record<Section, LucideIcon> = { symbol: CandlestickChart, status: AlignLeft, scales: Ruler, canvas: Paintbrush, overlays: Layers };
 
-export function SettingsDialog({ initialSection = 'symbol', toolbarResettable = false, initialAppearance, onApply, onClose, overlayContent, rollbackOverlays, commitOverlays, countdownAvailable, ohlcAvailable, defaultMargins }: { initialSection?: Section; toolbarResettable?: boolean; initialAppearance: Appearance; onApply: (appearance: Appearance) => void; onClose: () => void; overlayContent?: ReactNode; rollbackOverlays: () => void; commitOverlays: () => void; countdownAvailable: boolean; ohlcAvailable: boolean; defaultMargins?: { top: number; bottom: number } }) {
+export function SettingsDialog({ initialSection = 'symbol', toolbarResettable = false, initialAppearance, onApply, onClose, overlayContent, rollbackOverlays, commitOverlays, countdownAvailable, priceClockAvailable, ohlcAvailable, defaultMargins }: { initialSection?: Section; toolbarResettable?: boolean; initialAppearance: Appearance; onApply: (appearance: Appearance) => void; onClose: () => void; overlayContent?: ReactNode; rollbackOverlays: () => void; commitOverlays: () => void; countdownAvailable: boolean; priceClockAvailable: boolean; ohlcAvailable: boolean; defaultMargins?: { top: number; bottom: number } }) {
   const t = useT(), s = useChartWorkspaceStore();
   const saved = s.preview ?? initialAppearance;
   const a = !saved.marginsSet && defaultMargins ? { ...saved, marginTop: defaultMargins.top * 100, marginBottom: defaultMargins.bottom * 100 } : saved;
@@ -86,7 +86,7 @@ export function SettingsDialog({ initialSection = 'symbol', toolbarResettable = 
     return colors.text;
   };
   const sections: Section[] = ['symbol', 'status', 'scales', 'canvas', ...(overlayContent ? ['overlays' as const] : [])];
-  const available = (k: SettingKey) => (k !== 'countdown' || countdownAvailable) && (ohlcAvailable || (k !== 'ohlc' && k !== 'change'));
+  const available = (k: SettingKey) => (k !== 'countdown' || countdownAvailable) && (k !== 'priceClock' || priceClockAvailable) && (ohlcAvailable || (k !== 'ohlc' && k !== 'change'));
   const control = (k: SettingKey) => {
     const key = `cw.${k}` as MessageKey, options = OPTIONS[k];
     if (COLOR_KEYS.has(k)) return <RowColor key={k} name={key} value={color(k)} onChange={v => change(k, v)} />;

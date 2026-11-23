@@ -632,6 +632,7 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
               live={live}
               trendPath={trend}
               toolbarActions={<TrendToggle timeframe={timeframe} size="xs" />}
+              priceClockOffsetSec={wide && pastAt === null && offsetSec !== null ? offsetSec : null}
               clockNow={calendar || pastAt !== null || offsetSec === null || ratesData?.liveFrom == null ? null : now()}
               onNeedOlder={pastAt === null ? d1.loadOlder : undefined}
               olderEdge={olderEdge}
