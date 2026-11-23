@@ -24,8 +24,18 @@ export function contrastText(rgb: readonly [number, number, number]): 'black' | 
 }
 
 let probe: CanvasRenderingContext2D | null = null;
+/** The library asks for the text colour on every draw: parse a colour once, not once per draw */
+const rgbCache = new Map<string, [number, number, number]>();
 /** Any CSS colour as RGB (the canvas parses it) */
 function toRgb(color: string): [number, number, number] {
+  const known = rgbCache.get(color);
+  if (known) return known;
+  const rgb = parseRgb(color);
+  if (rgbCache.size > 32) rgbCache.clear();
+  rgbCache.set(color, rgb);
+  return rgb;
+}
+function parseRgb(color: string): [number, number, number] {
   probe ??= Object.assign(document.createElement('canvas'), { width: 1, height: 1 }).getContext('2d', { willReadFrequently: true });
   if (!probe) return [0, 0, 0];
   probe.clearRect(0, 0, 1, 1);
@@ -69,6 +79,9 @@ export interface PriceClockState {
 export class PriceClock implements ISeriesPrimitive<Time> {
   private param: SeriesAttachedParameter<Time> | null = null;
   private timer: number | null = null;
+  private align: number | null = null;
+  /** The text of the last draw: a tick that finds the same second on screen needs no redraw (streaming and dragging draw anyway) */
+  private drawn = '';
   private state: PriceClockState = { offsetSec: null, backColor: '#000', fontSize: 12 };
   private readonly view: ISeriesPrimitiveAxisView;
   private readonly fill: IPrimitivePaneView;
@@ -76,7 +89,7 @@ export class PriceClock implements ISeriesPrimitive<Time> {
     this.view = {
       coordinate: () => -1e6,
       fixedCoordinate: () => this.publishY(),
-      text: () => this.text(),
+      text: () => this.drawText(),
       textColor: () => contrastText(toRgb(this.state.backColor)),
       backColor: () => this.state.backColor,
       visible: () => this.shown(),
@@ -93,6 +106,7 @@ export class PriceClock implements ISeriesPrimitive<Time> {
   priceAxisPaneViews(): readonly IPrimitivePaneView[] { return [this.fill]; }
   paneViews(): readonly IPrimitivePaneView[] { return []; }
   update(state: PriceClockState) { this.state = state; this.sync(); }
+  private drawText() { return (this.drawn = this.text()); }
   private text() { return this.state.offsetSec === null ? '' : formatBrokerClock(brokerNow(this.state.offsetSec, this.now())); }
   /** y of the price label: the close of the bar that the library uses for it */
   private labelY(): number | null {
@@ -128,8 +142,17 @@ export class PriceClock implements ISeriesPrimitive<Time> {
   }
   private sync() {
     if (this.shown()) {
-      if (this.timer === null) this.timer = window.setInterval(() => this.tick(), 1000);
-      this.tick();
+      if (this.timer === null && this.align === null) {
+        // Tick on the second boundary (+250 ms: the chart draws the second that the tick found), then every 1000 ms
+        this.align = window.setTimeout(() => {
+          this.align = null;
+          this.timer = window.setInterval(() => this.tick(), 1000);
+          this.tick();
+        }, 1250 - (this.now() % 1000));
+      }
+      this.host.setAttribute('data-price-clock', this.text());
+      this.publishY();
+      this.param?.requestUpdate(); // colour, font or visibility may have changed
     } else {
       this.stop();
       this.host.removeAttribute('data-price-clock');
@@ -138,10 +161,14 @@ export class PriceClock implements ISeriesPrimitive<Time> {
       this.param?.requestUpdate();
     }
   }
-  private tick() {
-    this.host.setAttribute('data-price-clock', this.text());
-    this.publishY();
-    this.param?.requestUpdate();
+  /** One tick per second: ask for a redraw only when the last draw did not show this second (a full redraw of a big chart is costly) */
+  tick() {
+    const text = this.text();
+    this.host.setAttribute('data-price-clock', text);
+    if (text !== this.drawn) this.param?.requestUpdate();
   }
-  private stop() { if (this.timer !== null) { clearInterval(this.timer); this.timer = null; } }
+  private stop() {
+    if (this.timer !== null) { clearInterval(this.timer); this.timer = null; }
+    if (this.align !== null) { clearTimeout(this.align); this.align = null; }
+  }
 }

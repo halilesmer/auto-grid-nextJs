@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { axisLabelHeight, axisLabelPadding, contrastText, formatBrokerClock, labelBar } from '../../src/lib/chart-workspace/priceClock';
+import { PriceClock, axisLabelHeight, axisLabelPadding, contrastText, formatBrokerClock, labelBar } from '../../src/lib/chart-workspace/priceClock';
 
 // 1123-A10.1 = B: the clock under the last price label shows the broker time as SS:DD:ss.
 test('Brokerzeit wird mit UTC-Getter als SS:DD:ss geschrieben', { tag: '@ANA-28' }, () => {
@@ -38,4 +38,38 @@ test('Label-Kerze: rechter Rand rundet auf, wie die Bibliothek', { tag: '@ANA-28
   expect(asked.at(-1)).toBe(70);
   expect(labelBar(chart(69) as never, series as never)).toEqual({ close: 690 });
   expect(labelBar(chart(null) as never, series as never)).toBeNull();
+});
+
+// A tick asks for a redraw only when the last draw did not show this second: streaming and dragging draw anyway, and a full redraw of a big chart is costly.
+function clockWith(startMs: number) {
+  let nowMs = startMs;
+  const updates: number[] = [];
+  const attrs = new Map<string, string>();
+  const host = { setAttribute: (k: string, v: string) => attrs.set(k, v), removeAttribute: (k: string) => attrs.delete(k) };
+  const chart = { timeScale: () => ({ getVisibleLogicalRange: () => ({ from: 0, to: 9 }) }) };
+  const series = { dataByIndex: () => ({ close: 1.1 }), priceToCoordinate: () => 100, priceFormatter: () => ({ format: () => '1.10000' }), options: () => ({}) };
+  // The timer needs a `window`; a node test has none
+  Object.assign(globalThis, { window: globalThis });
+  const clock = new PriceClock(chart as never, series as never, host as never, () => nowMs);
+  const view = (clock as unknown as { view: { text: () => string } }).view;
+  clock.attached({ requestUpdate: () => { updates.push(nowMs); } } as never);
+  clock.update({ offsetSec: 0, backColor: '#ffeb3b', fontSize: 11 });
+  updates.length = 0;
+  return { clock, view, updates, attrs, advance: (ms: number) => { nowMs += ms; } };
+}
+
+test('Tik ohne neue Sekunde im letzten Zeichnen löst kein Neuzeichnen aus', { tag: '@ANA-28' }, () => {
+  const t = clockWith(Date.UTC(2026, 10, 23, 12, 0, 0));
+  t.view.text(); // a draw (streaming, drag) showed 12:00:00
+  t.clock.tick();
+  expect(t.updates).toHaveLength(0);
+  expect(t.attrs.get('data-price-clock')).toBe('12:00:00');
+  t.advance(1000);
+  t.clock.tick(); // the next second was not drawn yet
+  expect(t.updates).toHaveLength(1);
+  expect(t.attrs.get('data-price-clock')).toBe('12:00:01');
+  t.view.text(); // that redraw showed it
+  t.clock.tick();
+  expect(t.updates).toHaveLength(1);
+  t.clock.detached();
 });
