@@ -6,7 +6,7 @@
  *    M15 Kauf, A 2026-03-18 09:30, C 03-20 06:15, Einstieg 03-23: am 03-30 liegt A über 10 Tage zurück, der Handel läuft mit TP1.
  * b) Ein Handel, der beim Einstieg nicht gezeigt war, wird nie gezeigt; es gilt der nächstbeste Kandidat (1122-A3.2 = B).
  *    M15 Kauf, A 2026-07-06 04:45, C 07-07 01:30, Einstieg 07-07 22:15: zum Schluss der Einstiegskerze war ein anderer Kandidat gezeigt.
- * c) Die Identität des Handels hat kein C (Seite, A, Einstiegskerze, Einstiegspreis; 1122-A3.3.2); die Wahl beim Einstieg bleibt gespeichert.
+ * c) Die Identität des Handels hat keine Wendepunkte (Seite, Einstiegskerze, Einstiegspreis; wie 1122-A3.3.2); die Wahl beim Einstieg bleibt gespeichert.
  *    H1 Verkauf, A 2025-12-09 08:00, B 18:00, C 12-10 12:00, Einstieg 12-10 22:00 (4239.26): eine Kerze später rückt der C-Wendepunkt
  *    auf 12-10 21:00, das Tripel ist nicht mehr unter den Wendepunkten. Die gespeicherte Wahl hängt nur von Kerzen bis zum Einstieg ab.
  */

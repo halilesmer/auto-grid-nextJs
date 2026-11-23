@@ -34,7 +34,7 @@ Root cause of the 26 cases: `selectPoints` (abcd.ts) takes the youngest C among 
 - Red first: `formation-abcd-vanish-lib.spec.ts` (real XAUUSD H1 candles, 282 bars) failed on main at the expected assertion; the preconditions passed. The guard "the past stays" (candle by candle) also failed on main. With the change, all 3 tests pass.
 - `formation-vanish-remeasure-lib.spec.ts`: the M15 trade that ended between two scans is not a violation (end candle 21:30); the H1 trade that is running when it disappears is a violation.
 - All 48 formation lib spec files: 2092 passed.
-- Live check (DEMO, read-only, heavy lock, `E2E_LIVE=1`, `FORMATION_HISTORY_TFS=H1 FORMATION_HISTORY_SYMBOLS=XAUUSD FORMATION_HISTORY_BARS_H1=6240 FORMATION_HISTORY_STEP_H1=4`): LIVE_RESULT
+- Live check (DEMO, read-only, heavy lock, `E2E_LIVE=1`, `FORMATION_HISTORY_TFS=H1 FORMATION_HISTORY_SYMBOLS=XAUUSD FORMATION_HISTORY_BARS_H1=6240 FORMATION_HISTORY_STEP_H1=4`): not run for this change alone. The follow-up 1122-A1.4 (journal 2026-11-23-abcd-shown-at-entry) replaces the selection rule of this entry; its evidence uses a local replay of the same scan (XAUUSD H1, step 4, 1560 scans) with 0 AB=CD `candidateVanished`.
 
 ## Open
-- The harmonic fix (branch of the harmonic vanish) adds the same priority search to `analyzeXabcd`. After it merges, a shared helper for both is possible.
+- Done in 1122-A1.4: AB=CD and the harmonics use the same helpers (`shownTrade.ts`).
