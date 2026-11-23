@@ -1,6 +1,7 @@
 import { DEMO_ID, test, expect } from '../fixtures/test';
 import type { Page } from '@playwright/test';
 import { msg } from '../fixtures/i18n';
+import { chartReady } from '../fixtures/chart-ready';
 
 // UI-30: a dragged price axis and vertically moved candles stay after the mouse is released and after the chart updates.
 // The mock candles and the formation drawings on them follow the clock. At some hours and dates a formation sits where the second drag of the
@@ -52,6 +53,9 @@ async function open(page: Page) {
   await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=last7`);
   const chart = page.getByTestId('analysis-chart');
   await expect(chart).toBeVisible();
+  // The formation search ends at its own time (about 2 s on a CI runner) and changes the scale then; `before` of the second test must come after it
+  // (journal 2026-11-23-ui30-scan-race, .claude/rules/tests.md)
+  await chartReady(page);
   // Wait until the candles are drawn and the axis no longer changes
   let previous = '';
   await expect.poll(async () => { const now = await still(page); const same = now === previous && now.length > 0; previous = now; return same; }, { intervals: [300] }).toBe(true);
