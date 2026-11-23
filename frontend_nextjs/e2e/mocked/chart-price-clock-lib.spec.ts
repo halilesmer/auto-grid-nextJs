@@ -48,7 +48,7 @@ function clockWith(startMs: number) {
   const host = { setAttribute: (k: string, v: string) => attrs.set(k, v), removeAttribute: (k: string) => attrs.delete(k) };
   const chart = { timeScale: () => ({ getVisibleLogicalRange: () => ({ from: 0, to: 9 }) }) };
   const series = { dataByIndex: () => ({ close: 1.1 }), priceToCoordinate: () => 100, priceFormatter: () => ({ format: () => '1.10000' }), options: () => ({}) };
-  // The timer needs a `window`; a node test has none
+  // The timer needs a `window`; a node test has none. Other specs in this worker test `typeof window`, so the test removes it again.
   Object.assign(globalThis, { window: globalThis });
   const clock = new PriceClock(chart as never, series as never, host as never, () => nowMs);
   const view = (clock as unknown as { view: { text: () => string } }).view;
@@ -60,16 +60,20 @@ function clockWith(startMs: number) {
 
 test('Tik ohne neue Sekunde im letzten Zeichnen löst kein Neuzeichnen aus', { tag: '@ANA-28' }, () => {
   const t = clockWith(Date.UTC(2026, 10, 23, 12, 0, 0));
-  t.view.text(); // a draw (streaming, drag) showed 12:00:00
-  t.clock.tick();
-  expect(t.updates).toHaveLength(0);
-  expect(t.attrs.get('data-price-clock')).toBe('12:00:00');
-  t.advance(1000);
-  t.clock.tick(); // the next second was not drawn yet
-  expect(t.updates).toHaveLength(1);
-  expect(t.attrs.get('data-price-clock')).toBe('12:00:01');
-  t.view.text(); // that redraw showed it
-  t.clock.tick();
-  expect(t.updates).toHaveLength(1);
-  t.clock.detached();
+  try {
+    t.view.text(); // a draw (streaming, drag) showed 12:00:00
+    t.clock.tick();
+    expect(t.updates).toHaveLength(0);
+    expect(t.attrs.get('data-price-clock')).toBe('12:00:00');
+    t.advance(1000);
+    t.clock.tick(); // the next second was not drawn yet
+    expect(t.updates).toHaveLength(1);
+    expect(t.attrs.get('data-price-clock')).toBe('12:00:01');
+    t.view.text(); // that redraw showed it
+    t.clock.tick();
+    expect(t.updates).toHaveLength(1);
+  } finally {
+    t.clock.detached();
+    delete (globalThis as { window?: unknown }).window;
+  }
 });
