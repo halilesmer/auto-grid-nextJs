@@ -97,3 +97,15 @@ test('Nach dem Scrollen folgt die Uhr dem Preislabel (sichtbare letzte Kerze)', 
   await expect.poll(gap).toBeCloseTo(axisLabelHeight(11), 0);
   await expect(chart).toHaveAttribute('data-price-clock', /^15:/);
 });
+
+test('Die Uhr tickt auch, wenn der Chart vor den Kerzen steht (späte Antwort)', { tag: '@ANA-28' }, async ({ page, worker }) => {
+  void worker;
+  await page.setViewportSize({ width: 1280, height: 900 });
+  // The chart is built first, the candles come 1.5 s later: the clock starts with no data in the series
+  await page.route(/\/api\/market\/[^/]+\/rates\?/, async (route) => { await new Promise((r) => setTimeout(r, 1500)); await route.fallback(); });
+  await page.goto(URL);
+  const chart = page.getByTestId('analysis-chart');
+  await expect(chart).toHaveAttribute('data-price-clock', /^15:/);
+  const first = await clock(page);
+  await expect.poll(() => clock(page), { timeout: 5000 }).not.toBe(first);
+});
