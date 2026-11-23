@@ -107,6 +107,13 @@ test.describe('AB=CD: nächstbester Kandidat nach Regel B (1122-A1.4 b)', () => 
       }
     }
   });
+  frm('b) Der beim Einstieg nicht gezeigte Verkauf (A 07-10 16:00, C 07-11 00:00) erscheint auch mit TP1 und TP2 nicht (07-16 00:00)', () => {
+    // bis 1122-A1.4 zeigte die Suche ihn hier als „TP1 und TP2 alındı“ (früherer Zeitpunkt von formation-trade.spec.ts)
+    for (const cut of [false, true]) {
+      const c = shownAt('2025-07-16T00:00', cut);
+      expect([c.points.A?.time, c.points.C?.time], cut ? 'gekürzt' : 'ganz').not.toEqual([at('2025-07-10T16:00'), at('2025-07-11T00:00')]);
+    }
+  });
   frm('b) Beim Einstieg zeigte die Suche einen älteren laufenden Handel: der neue Handel (A 07-10 00:00) erscheint auch nach dessen Ende nie', () => {
     // Einstiegskerze 07-11 00:00; zu ihrem Schluss zeigte die Suche den laufenden Verkauf A 07-09 00:00 (Vorrang), nicht diesen Handel
     expect(shownAt('2025-07-11T04:00', false).points.A?.time).toBe(at('2025-07-09T00:00'));
