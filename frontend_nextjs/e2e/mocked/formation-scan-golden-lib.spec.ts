@@ -7,7 +7,7 @@
  * FRM-08 Formationserkennung
  */
 import { createHash } from 'node:crypto';
-import { appendFileSync, existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { TIMEFRAME_SEC } from '../../src/lib/analysis/candles';
 import { FormationContext, type ContextInput } from '../../src/lib/formation/context';
@@ -105,8 +105,10 @@ const KEY_MAX = JSON.parse(readFileSync('e2e/fixtures/formation-scan-golden.json
 for (const [now, sym] of PAGE) {
   test(`Seitenlauf ${sym} ${now}: gleiche Treffer, begrenzte Arbeit`, { tag: '@FRM-08' }, () => {
     const r = pageScan(now, sym);
-    appendFileSync('/private/tmp/claude-501/work.log', `${sym} ${now} ${JSON.stringify(r)}\n`);
+    // Abdeckung: der Lauf rechnet laufende Handel und Handelsblöcke, sonst sagt gleiche Treffer nichts über PR 647/648
     expect(r.hits, 'Treffer').toBeGreaterThan(0);
+    expect(r.work.running, 'laufende Handel').toBeGreaterThan(0);
+    expect(r.blocks, 'Handelsblöcke').toBeGreaterThan(0);
     written[`page:${sym}@${now}`] = r.hash;
     if (!UPDATE) {
       expect(r.hash, `page:${sym}@${now}`).toBe(golden[`page:${sym}@${now}`]);
@@ -134,7 +136,8 @@ for (const name of WALK) {
     }
     const key = `walk:${name}`;
     const hash = hashOf(key, all);
-    appendFileSync('/private/tmp/claude-501/work.log', `${key} ${JSON.stringify(cover)}\n`);
+    expect(cover.running, `${key}: laufende Handel`).toBeGreaterThan(0);
+    expect(cover.blocks, `${key}: Handelsblöcke`).toBeGreaterThan(0);
     written[key] = hash;
     if (!UPDATE) expect(hash, key).toBe(golden[key]);
   });
