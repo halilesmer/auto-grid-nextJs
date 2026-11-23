@@ -43,7 +43,7 @@ Count before the change (local data, 110 fixtures and XAUUSD one year M15/H1/H4)
 - Harmonic outputs are equal to main (0 diff lines): sweep of the 110 fixtures, XAUUSD sets D1+W1+H4+H1 and H4+H1+M15.
 - AB=CD replay dump of XAUUSD (4680 lines, 1560 scans): 988 lines differ. 985 lines: an ended trade with CD/AB > 1.618 is dropped (M15 42, H1 13, H4 6 formations); the replacement is a not-entered triple (731), an entered triple (139) or no AB=CD (115). 3 lines: a replacement triple that entered its trade later stays shown as a running trade (1122-A1.3); main showed another candidate there. No other difference. Violations: 0 on main and on the branch.
 - Speed, cold `scanFormations`, 10 moments × 3 runs, versions in mixed order, minimum per moment, worst moment: H4+H1+M15 main 9.60 s, branch 9.94 s (limit 15 s); D1+W1+H4+H1 main 1.79 s, branch 1.75 s (limit 3.2 s).
-- Live scan XAUUSD H1 (DEMO, read-only, 1560 candles, every candle): see the PR.
+- Live scan XAUUSD H1 (DEMO, read-only, 1560 candles, every candle): 1560 scans, 0 violations, 128 ended trades removed by the rule; passed in 34.5 min.
 
 ## Open
 - The trend rule `welle` applies no minimum leg size. A small AB can make a formation from a swing that belongs to a lower time frame. Separate decision.
