@@ -11,6 +11,9 @@ import { hideFormationDrawings } from '../fixtures/chart-ready';
 const URL = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
 const storageKey = 'grid-robot-chart-workspaces-v1';
 test.setTimeout(60_000);
+// The mock computes its candles from the clock (sine curve). The scale widens only when the levels of the found formation lie
+// outside the candle range. Measured on 2026-11-23: true at 05:30–13:30 UTC, false at 17:30 UTC. A fixed clock keeps the condition.
+test.use({ fakeNow: '2026-11-23T09:00:00Z' });
 test.beforeEach(({ page }) => page.addInitScript(() => localStorage.setItem('grid-robot-formation-sidebar', JSON.stringify({ open: false, tab: 'conditions' }))));
 
 type Stored = { id: string; points: { time: number; price: number }[] };

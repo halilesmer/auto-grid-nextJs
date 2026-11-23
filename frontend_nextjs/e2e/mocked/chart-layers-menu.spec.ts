@@ -34,7 +34,8 @@ async function open(page: Page, worker: MockWorker, name: string, url: string) {
 
 /** Die Karte ist unter 1024 px zu (UI-10): bei Bedarf aufklappen und „Übersicht“ wählen */
 async function openCard(page: Page) {
-  await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
+  // Die Formationssuche braucht seit PR 647/648 auf großen Verläufen mehrere Sekunden (langsame Runner mehr als die 7 s des Standards)
+  await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/, { timeout: 30_000 });
   const expand = cardRoot(page).getByRole('button', { name: msg('chart.card.expand'), exact: true });
   if (await expand.count()) await expand.click();
   await page.getByTestId('chart-card-tab-overview').click();

@@ -350,6 +350,10 @@ test.describe('FRM-39 Handelsblock AB=CD (Yeniden giriş, 1114-A4.4)', () => {
   const profitTargets = (bars: ReturnType<typeof load>) => {
     bars[199].low = 100.3;
   };
+  /** Docht D jenseits des Stops 100,356, aber in der Proportion (CD = 1,57 × AB ≤ 1.618, 1123-A15.1) */
+  const proportionalWick = (bars: ReturnType<typeof load>) => {
+    bars[199].low = 100.25;
+  };
 
   test('Nach zwei Zielen: Yeniden-giriş-Abschnitt mit Einstieg, Stop, Ziel und eigenem Verhältnis; das Ergebnis des ersten Handels bleibt', { tag: '@FRM-39' }, async ({ page, worker }) => {
     await openPage(page, worker, 'crb-form-h4-01', 1763496000, 'ABCD', profitTargets);
@@ -375,9 +379,11 @@ test.describe('FRM-39 Handelsblock AB=CD (Yeniden giriş, 1114-A4.4)', () => {
     await expect(re).not.toContainText(/ABCD-\d|HDL-\d|SIG-\d|TP\d/);
   });
 
-  // gar-buy-h4-01: nur TP1 erreicht (Rest am Einstieg), der Kurs kehrt in die Engulf-Zone am D zurück
+  // abcd-breakc-h4-01: Verkauf, nur TP1 erreicht (Rest am Einstieg, Handel läuft), der Kurs kehrt in die Engulf-Zone am D zurück; CD = 1,51 × AB.
+  // Bis 1123-A15.1 war es gar-buy-h4-01: dort wandert D nach dem Ende auf 2,36 × AB, die Proportion ist verloren und das AB=CD verlassen
+  // (formation-abcd-overshoot-lib.spec.ts)
   test('Nur TP1 erreicht und Kurs zurück in der Zone: keine Werte, eine Warnzeile', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    await openPage(page, worker, 'gar-buy-h4-01', 1763064000, 'ABCD');
+    await openPage(page, worker, 'abcd-breakc-h4-01', 1783699200, 'ABCD');
     const block = page.getByTestId('trade-block');
     await expect(block.getByTestId('trade-reentry')).toHaveCount(0);
     await expect(block.getByTestId('trade-reentry-warning')).toContainText(msg('formation.trade.reentry.warning'));
@@ -391,11 +397,12 @@ test.describe('FRM-39 Handelsblock AB=CD (Yeniden giriş, 1114-A4.4)', () => {
     await expect(block.getByTestId('trade-reentry-warning')).toHaveCount(0);
   });
 
-  // Ende am Stop (1121-A14.1): im echten crb-form-h4-01 liegt der Docht D 100,142 jenseits des Stops 100,356 (ohne Schluss dort). Vor 1121-A14.1
-  // zog er TP1 auf 100,519 unter den Einstieg 100,57 und der Schutz aus 1120-A35.1 hielt den Handel offen; jetzt endet die Ziel-Fib am Stop,
-  // TP1 und TP2 liegen über dem Einstieg und zählen, und der Kurs kehrt danach in die Engulf-Zone zurück
+  // Ende am Stop (1121-A14.1): der Docht D liegt jenseits des Stops 100,356 (ohne Schluss dort). Vor 1121-A14.1 zog er TP1 unter den Einstieg
+  // 100,57 und der Schutz aus 1120-A35.1 hielt den Handel offen; jetzt endet die Ziel-Fib am Stop, TP1 und TP2 liegen über dem Einstieg und zählen,
+  // und der Kurs kehrt danach in die Engulf-Zone zurück. Im echten Fixture liegt der Docht bei 100,142 (CD = 1,77 × AB): seit 1123-A15.1 ist das
+  // AB=CD nach dem Ende verlassen (formation-abcd-overshoot-lib.spec.ts). Hier der Docht 100,25: jenseits des Stops, CD = 1,57 × AB
   test('Ende am Stop: TP1 und TP2 auf der Gewinnseite zählen, der Yeniden-giriş-Abschnitt erscheint, keine Warnzeile', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    await openPage(page, worker, 'crb-form-h4-01', 1763496000, 'ABCD');
+    await openPage(page, worker, 'crb-form-h4-01', 1763496000, 'ABCD', proportionalWick);
     const block = page.getByTestId('trade-block');
     await expect(block.getByTestId('trade-status')).toHaveAttribute('data-status', 'tp12');
     await expect(block.getByTestId('trade-reentry')).toBeVisible();
@@ -689,8 +696,13 @@ test.describe('FRM-39 Handelsblock AB=CD (C ayağı)', () => {
     expect(Math.abs(stop!.y - entry!.y)).toBeLessThanOrEqual(1);
   });
 
+  // crb-form-h4-01 mit dem Docht D 100,25 (CD = 1,57 × AB): Handel bis TP1+2, Level 1 erreicht. Im echten Fixture (CD = 1,77 × AB) ist das AB=CD
+  // seit 1123-A15.1 nach dem Ende verlassen, und ein anderes Tripel ohne Level 1 ist gezeigt
   test('Seviye 1’e ulaşılmışsa bölüm yok', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    await openPage(page, worker, 'crb-form-h4-01', 1763496000, 'ABCD');
+    await openPage(page, worker, 'crb-form-h4-01', 1763496000, 'ABCD', (bars) => {
+      bars[199].low = 100.25;
+    });
+    await expect(page.getByTestId('trade-block').getByTestId('trade-status')).toHaveAttribute('data-status', 'tp12');
     await expect(page.getByTestId('trade-block')).toBeVisible();
     await expect(page.getByTestId('trade-cleg')).toHaveCount(0);
   });
