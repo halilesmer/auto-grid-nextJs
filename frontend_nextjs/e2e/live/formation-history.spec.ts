@@ -129,6 +129,12 @@ class Tally {
   readonly violations: Record<string, Violation> = {};
   readonly counts: Record<string, number> = {};
   readonly lists: Record<string, number[]> = {};
+  /** Örnekli sayaçlar (ihlal değil): her ad için en çok 3 örnek */
+  readonly samples: Record<string, Record<string, unknown>[]> = {};
+  sample(name: string, example: Record<string, unknown>) {
+    const l = (this.samples[name] ??= []);
+    if (l.length < 3) l.push(example);
+  }
   violate(name: string, example: Record<string, unknown>) {
     const v = (this.violations[name] ??= { count: 0 });
     v.count++;
@@ -318,16 +324,32 @@ function trackAll(tally: InstanceType<typeof Tally>, tracks: Map<string, Track>,
   for (const [key, k] of tracks) {
     if (k.seen === scanNo) continue;
     const windowStart = at - HISTORY_DAYS[k.tf as keyof typeof HISTORY_DAYS] * DAY;
-    if (k.entered && k.firstTime >= windowStart) {
+    if (k.entered) {
       // Entscheidung 1120-A42.1: ein beendeter Handel darf aus dem Rückblick fallen (die Geschichte wird nicht neu geschrieben): Zähler, kein Verstoß.
       // Beendet heißt: schon beim letzten Scan beendet oder neu gemessen zur Zeit des Verschwindens beendet (1122-A1.3.2)
       const re = k.lastFinished ? null : remeasureAtVanish(ctx, at, { tf: k.tf as ContextTimeframe, form: k.form as VanishForm, points: k.points });
       const verdict = vanishVerdict(!!k.lastFinished, re ?? { state: null, finished: false, endTime: null });
-      tally.inc(`vanished.${verdict === 'finished' ? 'finished' : 'running'}.${re?.state ?? k.lastState}`);
-      if (verdict === 'finished') {
-        tally.inc('finishedVanished');
-        if (re) tally.inc('finishedBetweenScans');
-      } else tally.violate('candidateVanished', { label: `${k.tf}:${k.form}`, side: k.side, symbol, tf: k.tf, key, enteredAt: iso(k.entered.at), vanishedAt: iso(at), lastSeenAt: k.lastSeenAt !== undefined ? iso(k.lastSeenAt) : null, lastState: k.lastState, stateAtVanish: re?.state ?? null, abcPrices: k.prices, entry: k.lastEntry, stop: k.lastStop, firstPoint: iso(k.firstTime), kind: JSON.parse(k.entered.fp).kind });
+      const example = { label: `${k.tf}:${k.form}`, side: k.side, symbol, tf: k.tf, key, enteredAt: iso(k.entered.at), vanishedAt: iso(at), lastSeenAt: k.lastSeenAt !== undefined ? iso(k.lastSeenAt) : null, lastState: k.lastState, stateAtVanish: re?.state ?? null, abcPrices: k.prices, entry: k.lastEntry, stop: k.lastStop, firstPoint: iso(k.firstTime), kind: JSON.parse(k.entered.fp).kind };
+      if (k.firstTime < windowStart) {
+        // Blinder Fleck (1122-A40): der erste Punkt liegt vor dem Verlaufsfenster; das Diagramm lädt nur so viele Kerzen. Nur Zähler, kein Verstoß.
+        const kind = verdict === 'finished' ? 'finished' : 'running';
+        tally.inc(`vanishedOutsideWindow.${kind}`);
+        tally.inc(`vanishedOutsideWindow.${kind}.${k.tf}.${k.form}`);
+        if (kind === 'running') tally.sample('vanishedOutsideWindow.running', example);
+      } else {
+        tally.inc(`vanished.${verdict === 'finished' ? 'finished' : 'running'}.${re?.state ?? k.lastState}`);
+        if (verdict === 'finished') {
+          tally.inc('finishedVanished');
+          if (re) {
+            // Zwischen zwei Scans beendet: nie mit Ende gezeigt. Haupt-Zeiteinheit: der Nutzer sieht jede Kerze, das ist ein Kandidat gegen 1120-A42.1;
+            // Kontext-Zeiteinheit: kommt aus der Scan-Häufigkeit (Messfehler).
+            const part = k.tf === mainTf ? 'mainTf' : 'contextTf';
+            tally.inc('finishedBetweenScans');
+            tally.inc(`endNeverShown.${part}`);
+            if (part === 'mainTf') tally.sample('endNeverShown.mainTf', example);
+          }
+        } else tally.violate('candidateVanished', example);
+      }
     }
     tracks.delete(key);
   }
@@ -980,6 +1002,13 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
     harmonics,
     finishedVanished: tally.counts.finishedVanished ?? 0,
     finishedBetweenScans: tally.counts.finishedBetweenScans ?? 0,
+    endNeverShown: { mainTf: tally.counts['endNeverShown.mainTf'] ?? 0, contextTf: tally.counts['endNeverShown.contextTf'] ?? 0, mainTfExamples: tally.samples['endNeverShown.mainTf'] ?? [] },
+    vanishedOutsideWindow: {
+      running: tally.counts['vanishedOutsideWindow.running'] ?? 0,
+      finished: tally.counts['vanishedOutsideWindow.finished'] ?? 0,
+      byTfForm: Object.fromEntries(Object.entries(tally.counts).filter(([n]) => n.startsWith('vanishedOutsideWindow.') && n.split('.').length === 4).map(([n, v]) => [n.slice('vanishedOutsideWindow.'.length), v])),
+      runningExamples: tally.samples['vanishedOutsideWindow.running'] ?? [],
+    },
     hiddenTrades: { states: tally.counts['hiddenTrades.states'] ?? 0, keys: hidden.size },
     vanishedByState: Object.fromEntries(Object.entries(tally.counts).filter(([n]) => n.startsWith('vanished.')).map(([n, v]) => [n.slice('vanished.'.length), v])),
     timeframes: Object.fromEntries(['D1', 'H4', 'H1', 'M15'].map((x) => [x, { candidates: tally.counts[`tf.${x}.candidates`] ?? 0, entered: tally.counts[`tf.${x}.entered`] ?? 0 }])),
@@ -1060,7 +1089,8 @@ test('Formasyon geçmiş taraması: işlem durumları canlı mumlarla (salt okun
       result[symbol][tf] = scanSeries(symbol, tf, ctx, closed, examples, tp12);
       (info.scanMs as Record<string, number>)[`${symbol}.${tf}`] = Date.now() - t0;
       const row = result[symbol][tf];
-      console.log(`[formation-history] ${symbol} ${tf}: ${row.scans} tarama, ${row.msPerScan} ms/tarama, ABCD aday ${row.abcd.candidates}, C ayağı ${row.cleg.born}, ihlal ${Object.keys(row.violations).length}`);
+      console.log(`[formation-history] ${symbol} ${tf}: ${row.scans} tarama, ${row.msPerScan} ms/tarama, ABCD aday ${row.abcd.candidates}, C ayağı ${row.cleg.born}, ihlal ${Object.keys(row.violations).length}, bitişi hiç gösterilmeyen ana/bağlam ${row.endNeverShown.mainTf}/${row.endNeverShown.contextTf}, pencere dışı kayboluş koşan/biten ${row.vanishedOutsideWindow.running}/${row.vanishedOutsideWindow.finished}`);
+      if (row.endNeverShown.mainTf > 0 || row.vanishedOutsideWindow.running > 0) console.log(`[formation-history] ${symbol} ${tf} örnekler: ${JSON.stringify({ endNeverShownMainTf: row.endNeverShown.mainTfExamples, vanishedOutsideWindowRunning: row.vanishedOutsideWindow.runningExamples, byTfForm: row.vanishedOutsideWindow.byTfForm })}`);
       writeFileSync(path.join(OUT_DIR, `summary-${override ? symbols.join('+') : 'all'}.json`), JSON.stringify({ info, result, examples, tp12 }, null, 2));
     }
   }
