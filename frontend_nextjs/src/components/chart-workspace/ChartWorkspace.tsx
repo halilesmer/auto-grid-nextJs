@@ -22,6 +22,7 @@ import { withAlpha } from '@/lib/chartTheme';
 import type { Appearance, Section } from '@/lib/chart-workspace/settings';
 import { OPEN_SETTINGS_EVENT } from '@/lib/chart-workspace/settingsRequest';
 import { useShallow } from 'zustand/react/shallow';
+import { PriceClock } from '@/lib/chart-workspace/priceClock';
 import { applyAppearance, appearanceColors, enableVerticalPan, IndicatorRenderer, openingView, resetPriceScale, setRightGap, type ChartBinding, type SystemPaneInput, type SystemPaneModel, type SystemSeriesRefs } from './runtime';
 import { composeStandard, isStandardKind, sameStandard, splitStandard, standardIndicators, standardOf } from '@/lib/chart-workspace/oscStandard';
 import { isSystemPane, orderPanes, presentPanes, SYSTEM_PANE_IDS, type SystemPaneId } from '@/lib/chart-workspace/paneOrder';
@@ -64,6 +65,8 @@ interface Props {
   digits: number | null;
   until: number;
   countdownNow?: number | null;
+  /** Broker offset (broker clock − UTC, s) for the clock under the last price label; `null` or missing: no clock (past, backtest, narrow screen, unknown offset) */
+  priceClockOffsetSec?: number | null;
   children: ReactNode;
   overlays?: ReactNode;
   /** Schalter, die rechts neben den Indikatoren in der Kopfleiste stehen (z. B. Trendzug) */
@@ -88,7 +91,7 @@ interface Props {
   fullscreenOfPage?: boolean;
 }
 
-export function ChartWorkspace({ context, binding, interactionReady = true, bars, missing, timeframeSec, digits, until, countdownNow, children, overlays, toolbarActions, viewActions, systemPanes, systemSeries, showRsi = true, className = '', overlayLayout = false, fullscreenOfPage = false }: Props) {
+export function ChartWorkspace({ context, binding, interactionReady = true, bars, missing, timeframeSec, digits, until, countdownNow, priceClockOffsetSec = null, children, overlays, toolbarActions, viewActions, systemPanes, systemSeries, showRsi = true, className = '', overlayLayout = false, fullscreenOfPage = false }: Props) {
   const t = useT(), fmt = useFormat();
   // Auf /chart (Formation) (overlayLayout) sind die Werkzeuge Pillen wie die Zeitrahmen-Knöpfe der Kopfleiste; „Ansicht zurücksetzen“ und „Indikatoren“ nur als Symbol
   const iconSize = overlayLayout ? 'icon-xs' : 'icon-sm';
@@ -407,6 +410,20 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     }
   }, [locked, revision, binding, drawingKey, state.hydrated]);
   useEffect(() => (binding && !binding.isDisposed() ? enableVerticalPan(binding) : undefined), [binding]);
+  // Clock under the last price label (1123-A10.1 = B): a price axis view of the candle series
+  const priceClock = useRef<PriceClock | null>(null);
+  useEffect(() => {
+    if (!binding || binding.isDisposed()) return;
+    const clock = new PriceClock(binding.candles, binding.host);
+    priceClock.current = clock;
+    binding.candles.attachPrimitive(clock);
+    return () => { priceClock.current = null; if (!binding.isDisposed()) binding.candles.detachPrimitive(clock); clock.detached(); };
+  }, [binding]);
+  useEffect(() => {
+    if (!binding || binding.isDisposed()) return;
+    const c = appearanceColors(appearance);
+    priceClock.current?.update({ offsetSec: appearance.priceClock && appearance.priceLabel ? priceClockOffsetSec : null, backColor: appearance.priceColor || c.text, textColor: c.background, fontSize: appearance.fontSize });
+  }, [binding, appearance, priceClockOffsetSec, theme]);
   useEffect(() => { manager.current?.setMagnet(magnet); manager.current?.setStayInDrawingMode(keepDrawing); }, [magnet, keepDrawing, binding, drawingKey, state.hydrated]);
   useEffect(() => {
     if (!binding || binding.isDisposed()) return;
@@ -602,7 +619,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     {binding && !binding.isDisposed() && gesture && <ChartGestureLayer key={`${context.key}-${gesture}`} binding={binding} mode={gesture} digits={digits} cancel={() => setGesture(null)} finishZoom={previous => { zoomActive.current = true; setZoomSnapshot(previous); setGesture(null); arm(null); }} />}
     {confirmRemove && <ConfirmModal open title={t(removalLabels[confirmRemove.target].title)} message={t(removalLabels[confirmRemove.target].message)} confirmHint={t(removalLabels[confirmRemove.target].hint)} onClose={() => setConfirmRemove(null)} onConfirm={() => { if (confirmRemove.target === 'indicators') saveDocument({ ...doc, indicators: doc.indicators.filter(isSystemRsi) }); else removeDrawings(confirmRemove.target === 'drawings', confirmRemove.ids); }} />}
     <input ref={imageInput} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" aria-label={t('cw.image')} data-tooltip-exempt onChange={e => { void changeImage(e.target.files?.[0]); e.target.value = ''; }} />
-    {settingsOpen && <SettingsDialog initialSection={settingsSection} toolbarResettable={overlayLayout} initialAppearance={appearance} onApply={saveAppearance} defaultMargins={binding?.defaultMargins?.()} ohlcAvailable={!overlayLayout} countdownAvailable={countdownNow != null} onClose={() => setSettingsOpen(false)} overlayContent={overlays} rollbackOverlays={rollbackOverlays} commitOverlays={() => { state.finishOverlayPreview(true); useAnalysisPrefsStore.getState().finishPreview(true); }} />}
+    {settingsOpen && <SettingsDialog initialSection={settingsSection} toolbarResettable={overlayLayout} initialAppearance={appearance} onApply={saveAppearance} defaultMargins={binding?.defaultMargins?.()} ohlcAvailable={!overlayLayout} countdownAvailable={countdownNow != null} priceClockAvailable={priceClockOffsetSec !== null} onClose={() => setSettingsOpen(false)} overlayContent={overlays} rollbackOverlays={rollbackOverlays} commitOverlays={() => { state.finishOverlayPreview(true); useAnalysisPrefsStore.getState().finishPreview(true); }} />}
     {indicatorsOpen && <IndicatorDialog initialSection={treeSection} values={paneIndicators} favorites={state.favorites.filter(kind => INDICATOR_KINDS.includes(kind as Indicator['kind'])) as Indicator['kind'][]} focusId={settingsFocus} timeframeSec={timeframeSec} drawingsPanel={drawingsPanel} drawingCount={drawings.length} onClose={() => { setIndicatorsOpen(false); setSettingsFocus(null); setTreeSection('indicators'); }} onChange={next => {
       // The dialog does not list the system RSI while its layer is off, and deleting it there only switches the layer off
       const current = documentRef.current, system = current.indicators.find(isSystemRsi), lost = !!system && !next.some(isSystemRsi);
