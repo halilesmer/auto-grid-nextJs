@@ -11,7 +11,10 @@
  */
 import { expect, test } from '@playwright/test';
 import { FormationContext } from '../../src/lib/formation/context';
-import { DEFAULT_TREND_SETTINGS } from '../../src/lib/formation/params';
+import { ABCD_PARAMS, DEFAULT_TREND_SETTINGS } from '../../src/lib/formation/params';
+import { readdirSync, readFileSync } from 'node:fs';
+import { parseFixture } from '../../src/lib/formation/fixture';
+import { named, trendOf } from '../fixtures/formation-trend';
 import { analyzeAbcd } from '../../src/lib/formation/abcdChecks';
 import type { Candidate, FormationBar } from '../../src/lib/formation/types';
 import { XAUUSD_M15_1114_1120 } from '../fixtures/formation-abcd-overshoot-rows';
@@ -22,9 +25,15 @@ const bars: FormationBar[] = XAUUSD_M15_1114_1120.map(([time, open, high, low, c
 const at = (iso: string) => Date.parse(`${iso}:00Z`) / 1000;
 /** Trendeinstellung des Charts am 2026-11-23 (Regel `welle`, Wechsel nach 2 Schlüssen) */
 const CHART_TREND = { ...DEFAULT_TREND_SETTINGS, rule: 'welle' as const, changeCloses: 2 };
-const ctx = new FormationContext('XAUUSD', { M15: { bars, missing: [] } }, { trend: CHART_TREND });
+const ctxOf = (list: FormationBar[]) => new FormationContext('XAUUSD', { M15: { bars: list, missing: [] } }, { trend: CHART_TREND });
+const ctx = ctxOf(bars);
 /** Kandidat zum Zeitpunkt `iso` = Schluss der letzten Kerze */
-const candidateAt = (iso: string): Candidate => analyzeAbcd(ctx, at(iso)).find((a) => a.tf === 'M15')!.candidate;
+const candidateIn = (c: FormationContext, iso: string): Candidate => analyzeAbcd(c, at(iso)).find((a) => a.tf === 'M15')!.candidate;
+const candidateAt = (iso: string): Candidate => candidateIn(ctx, iso);
+/** Dieselben Kerzen, die Stop-Kerze 14:30 mit anderem Tief und Schluss (Grenzfälle der Regel) */
+const withStopCandle = (low: number, close: number): FormationBar[] =>
+  bars.map((b) => (b.time === at('2026-11-19T14:30') ? { ...b, low, close } : b));
+const cdOverAb = (c: Candidate) => Math.abs(c.points.D!.price - c.points.C!.price) / Math.abs(c.points.B!.price - c.points.A!.price);
 
 const ABC = {
   A: { time: at('2026-11-19T10:00'), price: 3742.54 },
@@ -47,5 +56,54 @@ test.describe('AB=CD: verlorene Proportion beendet die Formation (1123-A)', () =
     // Heute (ohne Regel) gezeigt: dieselbe Formation mit D 3502.81 (11-20 20:45)
     const c = candidateAt('2026-11-21T00:00');
     expect(c.points.A?.time ?? null, 'verlassenes AB=CD (CD > 1.618 × AB) wird weiter gezeigt').not.toBe(ABC.A.time);
+  });
+
+  frm('die Messung beginnt nach der Endkerze: endet der Handel in einer Kerze jenseits von 1.618 × AB, zeigt er sein Ende einmal', () => {
+    // Stop-Kerze 14:30 mit Tief 3706 (CD = 1,84 × AB), Schluss wie echt unter dem Stop
+    const c2 = ctxOf(withStopCandle(3706, 3713.18));
+    const atEnd = candidateIn(c2, '2026-11-19T14:45');
+    expect(atEnd.points).toMatchObject(ABC);
+    expect(atEnd.trade?.status).toMatchObject({ kind: 'stopped' });
+    expect(cdOverAb(atEnd)).toBeGreaterThan(ABCD_PARAMS.maxCdAb);
+    // eine Kerze später ist die Formation verlassen
+    expect(candidateIn(c2, '2026-11-19T15:00').points.A?.time ?? null).not.toBe(ABC.A.time);
+  });
+
+  frm('ein laufender Handel fällt nicht wegen der Proportion weg', () => {
+    // Kerze 14:30 mit Tief 3707 (CD = 1,79 × AB, über dem Not-SL) und Schluss 3716 über dem Stop: der Handel läuft (TP1 14:45, Ende 15:00)
+    const c2 = ctxOf(withStopCandle(3707, 3716));
+    const running = candidateIn(c2, '2026-11-19T15:00');
+    expect(running.points).toMatchObject(ABC);
+    expect(running.trade?.status?.endIdx).toBeUndefined();
+    expect(cdOverAb(running)).toBeGreaterThan(ABCD_PARAMS.maxCdAb);
+    // nach dem Ende (Breakeven in der Kerze 15:00) zeigt er sein Ende einmal, danach ist er verlassen
+    expect(candidateIn(c2, '2026-11-19T15:15').trade?.status).toMatchObject({ kind: 'breakeven' });
+    expect(candidateIn(c2, '2026-11-19T15:30').points.A?.time ?? null).not.toBe(ABC.A.time);
+  });
+
+  frm('nach dem Verlassen gilt das nächste Tripel der Reihenfolge (hier die letzten drei Wendepunkte)', () => {
+    const c = candidateAt('2026-11-21T00:00');
+    expect(c.points.A).toEqual({ time: at('2026-11-20T07:30'), price: 3514.65 });
+    expect(c.points.B).toEqual({ time: at('2026-11-20T12:45'), price: 3595.19 });
+    expect(c.points.C).toEqual({ time: at('2026-11-20T20:45'), price: 3502.81 });
+  });
+
+  frm('ohne Einstieg liegt D nie jenseits von maxCdAb × AB (110 Fixtures, jede achte Kerze)', () => {
+    let seen = 0;
+    for (const f of readdirSync('e2e/fixtures/formation').filter((x) => x.endsWith('.json')).sort()) {
+      const path = `e2e/fixtures/formation/${f}`;
+      const fx = named(path, parseFixture(JSON.parse(readFileSync(path, 'utf-8'))));
+      if (fx.bars.length < 60 || !['M15', 'H1', 'H4', 'D1'].includes(fx.timeframe)) continue;
+      const tf = fx.timeframe as 'M15' | 'H1' | 'H4' | 'D1';
+      const fctx = new FormationContext(fx.symbol, { [tf]: { bars: fx.bars, missing: [] } }, { trend: trendOf(fx.bars) });
+      const sec = { M15: 900, H1: 3600, H4: 14400, D1: 86400 }[tf];
+      for (let i = 40; i < fx.bars.length; i += 8) {
+        const c = analyzeAbcd(fctx, fx.bars[i].time + sec).find((a) => a.tf === tf)?.candidate;
+        if (!c?.points.A || !c.points.D || c.trade?.status) continue;
+        seen++;
+        expect(cdOverAb(c), `${f} ${i}`).toBeLessThanOrEqual(ABCD_PARAMS.maxCdAb);
+      }
+    }
+    expect(seen).toBeGreaterThan(500);
   });
 });

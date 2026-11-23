@@ -609,7 +609,21 @@ function earlierCs(bars: readonly FormationBar[], p: AbcdPoints): AbcdPoints[] {
 }
 
 /**
+ * 1123-A (Entscheidung b1, Halil 2026-11-23): ein beendeter Handel, dessen D-Bein weiter als `ABCD_PARAMS.maxCdAb` × AB läuft, hat die
+ * Proportion verloren; das AB=CD wird nicht mehr gewählt. Gemessen erst nach der Endkerze (das Ende zeigt sich einmal, 1120-A42.1); ein
+ * laufender Handel ist nie betroffen (Vorrang 1122-A1.3). Vor dem Einstieg kann D nicht über Level 1 hinaus sein (Einstieg an Level 1).
+ */
+function proportionLost(c: Candidate, last: number): boolean {
+  const endIdx = c.trade?.status?.endIdx;
+  const { A, B, C, D } = c.points;
+  if (endIdx === undefined || endIdx >= last || !A || !B || !C || !D) return false;
+  const ab = Math.abs(B.price - A.price);
+  return ab > 0 && Math.abs(D.price - C.price) > ABCD_PARAMS.maxCdAb * ab;
+}
+
+/**
  * Sucht je geladener Zeiteinheit (hoch → tief) die Punkte A, B, C in der Reihenfolge von `selectOrder` und misst D.
+ * Ein beendeter Handel mit verlorener Proportion (`proportionLost`, 1123-A) wird nicht mehr gewählt; es gilt die nächste in der Reihenfolge.
  * Ein eingegangener Handel, der zum Schluss seiner Einstiegskerze nicht gezeigt war, wird nie gezeigt: trägt die Wahl einen solchen Handel, gilt die
  * nächste in der Reihenfolge ohne ihn (1122-A1.4 b, wie 1122-A3.2 der Harmoniken). „Gezeigt“ ist das Ergebnis dieser Suche zu jenem Schluss (nach
  * Auslassen und Vorrang, `shownTrade.ts`); die Identität des Handels hat keine Wendepunkte (1122-A1.4 c).
@@ -653,7 +667,7 @@ export function analyzeAbcd(ctx: FormationContext, t: number): AbcdAnalysis[] {
     let picked: Candidate | null = null;
     for (const p of order) {
       const c = candidateFor(p);
-      if (!hidden(c)) {
+      if (!hidden(c) && !proportionLost(c, last)) {
         picked = c;
         break;
       }

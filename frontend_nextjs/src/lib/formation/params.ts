@@ -175,6 +175,12 @@ export const ABCD_PARAMS = {
   lookbackPivots: 6,
   /** ABCD-08 (Annahme): D gilt als erreicht, wenn der Kurs höchstens diesen Anteil von AB vor Level 1 endet */
   tolerance: 0.05,
+  /**
+   * 1123-A (Annahme, Halil kann die Zahl ändern): Proportion des D-Beins. Ist der Handel beendet und liegt D weiter als dieses Vielfache von AB
+   * jenseits von C (CD/AB), ist die Proportion verloren: das AB=CD wird nicht mehr gewählt, die Suche geht mit dem nächsten Tripel weiter.
+   * 1.618 ist die äußerste Länge des verlängerten AB=CD im Regelbuch (nur Nebenquelle; gehandelt wird nur Level 1).
+   */
+  maxCdAb: 1.618,
   /** ABCD-11 (Annahme): „nahe“ = Abstand höchstens dieses Vielfache der ATR(14) der Formations-Zeiteinheit */
   nearAtr: 0.5,
   /** ABCD-18 (Annahme): RSI(7) kurz vor dem Extrem */
