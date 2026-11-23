@@ -12,10 +12,10 @@ import type { FormationContext } from './context';
 import { closesBeyond, outward, probeFractal, wickEnd, type Rect, type ZoneSide } from './frz';
 import { CONTEXT_TIMEFRAMES, HARMONIC_PARAMS, FRZ_PARAMS, HISTORY_DAYS, type ContextTimeframe } from './params';
 import { buildEnv, dirSide, envFor, neighborTf, type Env } from './reasons';
-import { enteredTrade, hiddenOf, recordShown, shownKeysOf, tradeAtOf } from './shownTrade';
+import { enteredTrade, frozenOf, hiddenOf, recordShown, shownKeysOf, tradeAtOf } from './shownTrade';
 import { reversalAt } from './reversal';
 import { engulfZones, rsiExtreme, trailingRun, divergenceOf, zoneSideOf } from './sig';
-import type { Pivot } from './trd';
+import type { Pivot, TrendModel } from './trd';
 import type { Anchor, Candidate, Check, CheckState, FormationBar, Side } from './types';
 
 type Bars = readonly FormationBar[];
@@ -322,7 +322,12 @@ export function unmeasurable(code: string, tf: ContextTimeframe, checkIds: reado
 function candidateOf(env: Env, tf: ContextTimeframe, bars: Bars, pivots: readonly Pivot[], base: XabcdBase, evaluate: Evaluate, pip: number): Candidate {
   const xi = pivots.findIndex((p) => p.idx === base.x.idx);
   const prev = xi > 0 ? pivots[xi - 1].idx : null;
-  const [xSide, aSide] = [pivots[xi].side, pivots[xi + 1].side];
+  return candidateOfBase(env, tf, bars, { base, prev, xSide: pivots[xi].side, aSide: pivots[xi + 1].side }, evaluate, pip);
+}
+
+/** Wie `candidateOf`, aber mit den Wendepunkten einer gegebenen (auch früheren) Zeit: `prev` begrenzt die Suche nach X (`deepestWickX`) */
+function candidateOfBase(env: Env, tf: ContextTimeframe, bars: Bars, h: Omit<HistoricBase, 'current'>, evaluate: Evaluate, pip: number): Candidate {
+  const { base, prev, xSide, aSide } = h;
   const picked = shiftBase(bars, base, xSide, aSide, prev);
   const candidate = evaluate(env, tf, shapeOfX(bars, picked), pip);
   if (picked.c === base.c) return candidate;
@@ -331,7 +336,6 @@ function candidateOf(env: Env, tf: ContextTimeframe, bars: Bars, pivots: readonl
   if (entryIdx === undefined || cut <= entryIdx) return candidate;
   return evaluate(env, tf, shapeOfX(bars, shiftBase(bars, base, xSide, aSide, prev, entryIdx)), pip);
 }
-
 
 /**
  * Sucht je geladener Zeiteinheit (hoch → tief) die Punkte X, A, B, C: unter den Kandidaten der letzten `lookbackPivots` Wendepunkte gilt der mit den
@@ -376,22 +380,33 @@ export function analyzeXabcd(
     if (last < 0) return top?.candidate ?? null;
     // Eingegangener Handel, der zum Schluss seiner Einstiegskerze nicht gezeigt war (1122-A3.2); Einstieg in der letzten Kerze: nicht verborgen
     const hidden = hiddenOf(tf, bars, tradeAt);
+    // derselbe Handel mit den Punkten, die zum Schluss seiner Einstiegskerze gezeigt waren (C und X frieren am Einstieg ein, 1121-A2.1)
+    const frozen = frozenOf(tf, bars, tradeAt);
     const best = top && hidden(top.candidate) ? bestRecent(pivots, candidateFor, misses, hidden) : top;
     const recent = new Set(selectBases(pivots).map((b) => b.c.idx));
     const windowStart = at - HISTORY_DAYS[tf] * DAY_SEC;
-    let kept: { candidate: Candidate; unmet: number; entryIdx: number } | null = null;
-    for (const b of allBases(pivots)) {
-      if (!recent.has(b.c.idx) && bars[b.x.idx].time < windowStart) continue;
-      const candidate = candidateFor(b);
+    // Basen aus den Wendepunkten JEDER früheren Kerze im Fenster: zeichnet der Trend B, C oder den Wendepunkt vor X nach dem Einstieg um,
+    // bleibt die Basis des laufenden Handels mit ihren damaligen Punkten erhalten (Basis und Einstieg frieren am Einstieg ein, 1122-A28.1)
+    const open: { candidate: Candidate; entryIdx: number }[] = [];
+    for (const h of historicBases(env.trends.get(tf)!, bars, windowStart, recent)) {
+      const candidate = h.current ? candidateFor(h.base) : candidateOfBase(env, tf, bars, h, evaluate, pip);
       const endIdx = candidate.trade?.status?.endIdx;
-      if (!enteredTrade(candidate) || (endIdx !== undefined && endIdx < last)) continue;
-      const entryIdx = candidate.trade!.entryIdx!;
+      const entryIdx = candidate.trade?.entryIdx;
       // in der letzten Kerze eingegangen: noch nie gezeigt, also kein Vorrang (gezeigt wird er nur als beste Basis)
-      if (entryIdx === last) continue;
-      const unmet = misses(candidate);
-      if (kept !== null && (entryIdx > kept.entryIdx || (entryIdx === kept.entryIdx && unmet >= kept.unmet))) continue;
-      if (hidden(candidate)) continue;
-      kept = { candidate, unmet, entryIdx };
+      if (!enteredTrade(candidate) || (endIdx !== undefined && endIdx < last) || entryIdx === last) continue;
+      open.push({ candidate, entryIdx: entryIdx! });
+    }
+    // der zuerst eingegangene nicht verborgene Handel; `hidden` (rechnet frühere Schlüsse) nur, bis er gefunden ist
+    open.sort((x, y) => x.entryIdx - y.entryIdx);
+    let kept: { candidate: Candidate; unmet: number; entryIdx: number; frozen: boolean } | null = null;
+    for (const o of open) {
+      if (kept !== null && o.entryIdx > kept.entryIdx) break;
+      if (hidden(o.candidate)) continue;
+      // nicht verborgen und gleiche Einstiegskerze: derselbe Handel (der gezeigte), also zuerst die beim Einstieg gezeigten Punkte, dann wenigste `misses`
+      const unmet = misses(o.candidate);
+      const isFrozen = frozen(o.candidate);
+      if (kept !== null && (kept.frozen > isFrozen || (kept.frozen === isFrozen && unmet >= kept.unmet))) continue;
+      kept = { candidate: o.candidate, unmet, entryIdx: o.entryIdx, frozen: isFrozen };
     }
     const shown = kept?.candidate ?? best?.candidate ?? null;
     recordShown(keys, tf, bars, shown);
@@ -420,11 +435,44 @@ function bestRecent(
   return best;
 }
 
-/** Alle Basen X, A, B, C aus vier aufeinanderfolgenden Wendepunkten, jüngstes C zuerst */
-function allBases(pivots: readonly Pivot[]): XabcdBase[] {
+/** Basis samt den Wendepunkt-Seiten von X und A und dem Wendepunkt vor X (`prev`), wie zu einer bestimmten Zeit gezeichnet */
+interface HistoricBase {
+  base: XabcdBase;
+  prev: number | null;
+  xSide: ZoneSide;
+  aSide: ZoneSide;
+  /** gleiche Punkte und gleicher Wendepunkt vor X wie in der letzten Kerze (dann gilt die Messung von `candidateFor`) */
+  current?: boolean;
+}
+
+/**
+ * Alle Basen X, A, B, C aus vier aufeinanderfolgenden Wendepunkten, wie sie zu IRGENDEINER Kerze im Trendzug standen (aus der Lebensdauer der
+ * Wendepunkte, `TrendModel.spans`), jüngste Zeit und jüngstes C zuerst, jede Basis einmal. Nur Kerzen bis zur letzten: kein Blick in die Zukunft.
+ * Eine Basis gilt, wenn ihr C unter den letzten Wendepunkten liegt (`recent`) oder ihr X im Fenster ab `windowStart`.
+ */
+function historicBases(m: TrendModel, bars: Bars, windowStart: number, recent: ReadonlySet<number>): HistoricBase[] {
   const pt = (p: Pivot): XPoint => ({ idx: p.idx, price: p.price });
-  const out: XabcdBase[] = [];
-  for (let j = pivots.length - 1; j >= 3; j--) out.push({ x: pt(pivots[j - 3]), a: pt(pivots[j - 2]), b: pt(pivots[j - 1]), c: pt(pivots[j]) });
+  const last = bars.length - 1;
+  const times = new Set<number>([last]);
+  for (const sp of m.spans) {
+    if (bars[sp.pivot.idx].time < windowStart) continue;
+    times.add(sp.from);
+    if (sp.to !== Infinity) times.add(sp.to);
+  }
+  const keyOf = (prev: Pivot | undefined, ps: readonly Pivot[]) => [prev?.idx ?? null, ...ps.map((p) => `${p.idx}@${p.price}`)].join('|');
+  const seen = new Set<string>();
+  const out: HistoricBase[] = [];
+  for (const k of [...times].sort((a, b) => b - a)) {
+    const alive = k === last ? m.pivots : m.spans.filter((sp) => sp.from <= k && k < sp.to).map((sp) => sp.pivot).sort((a, b) => a.idx - b.idx);
+    for (let j = alive.length - 1; j >= 3; j--) {
+      const [x, a, b, c] = [alive[j - 3], alive[j - 2], alive[j - 1], alive[j]];
+      if (!recent.has(c.idx) && bars[x.idx].time < windowStart) break;
+      const key = keyOf(alive[j - 4], [x, a, b, c]);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ base: { x: pt(x), a: pt(a), b: pt(b), c: pt(c) }, prev: j > 3 ? alive[j - 4].idx : null, xSide: x.side, aSide: a.side, current: k === last });
+    }
+  }
   return out;
 }
 
