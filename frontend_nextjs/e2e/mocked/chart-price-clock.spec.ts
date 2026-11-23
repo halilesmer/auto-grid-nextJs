@@ -83,12 +83,17 @@ test('Nach dem Scrollen folgt die Uhr dem Preislabel (sichtbare letzte Kerze)', 
   const chart = page.getByTestId('analysis-chart');
   await expect(chart).toHaveAttribute('data-price-clock', /^15:/);
   const num = async (name: string) => Number(await chart.getAttribute(name));
-  const before = await num('data-price-label-y');
+  // Both attributes are written in one draw, but two reads can fall on two draws: poll on the pair, not on single values
+  const gap = async () => (await num('data-price-clock-y')) - (await num('data-price-label-y'));
   // The label height of the library at the default font size (11 px)
-  expect(await num('data-price-clock-y') - before).toBeCloseTo(axisLabelHeight(11), 0);
+  await expect.poll(gap).toBeCloseTo(axisLabelHeight(11), 0);
+  // The view must be at rest before the reference value is read
+  let rest = NaN;
+  await expect.poll(async () => { const now = await num('data-price-label-y'); const same = now === rest; rest = now; return same; }, { intervals: [300] }).toBe(true);
+  const before = rest;
   // The user scrolls the last candle out of the view: the library label drops to the last visible candle, so the clock does too
   await dragLeft(page);
   await expect.poll(() => num('data-price-label-y')).not.toBeCloseTo(before, 0);
-  expect(await num('data-price-clock-y') - await num('data-price-label-y')).toBeCloseTo(axisLabelHeight(11), 0);
+  await expect.poll(gap).toBeCloseTo(axisLabelHeight(11), 0);
   await expect(chart).toHaveAttribute('data-price-clock', /^15:/);
 });
