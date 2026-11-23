@@ -58,6 +58,10 @@ test('Dar pencerede sığmayan formasyonlar ok menüsünde; seçili olan satırd
   // 520 px'te Satır 2 taşar: 9 zaman dilimi 367 px tutar, formasyonlar paketinin oku şerit altında kalır; 560 px
   await page.setViewportSize({ width: 560, height: 800 });
   await open(page);
+  // Die Formations-Knöpfe (nur Formen mit Treffer) und damit der Pfeil kommen erst mit dem Ende der Suche. Die kalte Suche über die Mock-Kerzen
+  // (D1, H4, H1, M15) dauert im Node-Lauf rund 10 s; unter Last (3 Worker) lag sie über den 7 s der Erwartung (1123-A15, gemessen: nach dem Ende
+  // der Suche ist der Pfeil bei 480–600 px da)
+  await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/, { timeout: 30_000 });
   const more = pkg(page, 'formations').getByTestId('dock-more');
   await expect(more).toBeVisible();
   // Seçili formasyon (GAR) satırda görünür

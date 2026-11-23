@@ -223,12 +223,17 @@ for (const side of ['sell', 'buy'] as const) {
 // crb-form-h4-01 (Kauf, Stand 2025-11-18 20:00): Einstieg 100,57, Start C 101,129, Stop 100,356 (Schluss), Not-SL 99,985. Der Docht 100,142 liegt
 // jenseits des Stops (ohne Schluss dort). Vor 1120-A35.1 zog er TP1 auf 100,519 unter den Einstieg und TP1 zählte dort; mit 1120-A35.1 zählte es nicht
 // und der Handel blieb offen. Seit 1121-A14.1 endet die Ziel-Fib am Stop: TP1 = Fib(C → Stop, 0.382) liegt über dem Einstieg und zählt dort.
+// Der Handel endet 2025-11-18 08:00 (tp12) mit CD = 1,77 × AB: seit 1123-A wählt die Suche ihn danach nicht mehr (Proportion verloren); gemessen
+// wird deshalb mit denselben Punkten über checkAbcdCandidate.
 frm('Ende am Stop, echte Kerzen (crb-form-h4-01): ein Docht jenseits des Stops zieht TP1 nicht unter den Einstieg; TP1 und TP2 zählen auf der Gewinnseite', () => {
   const fx = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/crb-form-h4-01.json', 'utf-8')));
   const now = 1763496000;
   const bars = fx.bars.filter((b) => b.time + 14400 <= now);
   const ctx = new FormationContext(fx.symbol, { H4: bars }, { trend: fixtureTrend('crb-form-h4-01') });
-  const c = analyzeAbcd(ctx, now).find((a) => a.tf === 'H4')!.candidate;
+  const points = { A: { time: 1763136000, price: 101.289 }, B: { time: 1763352000, price: 100.73 }, C: { time: 1763366400, price: 101.129 } };
+  // 1123-A: der beendete Handel mit CD > 1.618 × AB ist nicht mehr die Wahl der Suche
+  expect(analyzeAbcd(ctx, now).find((a) => a.tf === 'H4')!.candidate.points.A?.time).not.toBe(points.A.time);
+  const c = checkAbcdCandidate(ctx, now, { tf: 'H4', a: points.A, b: points.B, c: points.C });
   expect([c.side, c.points.C?.price, c.points.D?.price]).toEqual(['buy', 101.129, 100.142]);
   const t = c.trade!;
   expect(t.entry).toBeCloseTo(100.57, 9);
