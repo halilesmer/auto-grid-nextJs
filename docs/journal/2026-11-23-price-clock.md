@@ -17,8 +17,10 @@ The chart on `/chart` shows a second box under the last price label, as TradingV
 - `src/lib/chart-workspace/priceClock.ts`: `PriceClock` is a series primitive. Its price axis view has a fixed coordinate (last close + label height), so the box sits right under the last value and moves with the price. `alignLabels` does not move it. The format is `SS:DD:ss` from `brokerNow(offsetSec)` with the UTC getters. A one-second timer calls `requestUpdate()`; `detached()` removes it.
 - Setting `priceClock` (group `priceLines`, after `priceLabel`, default on, tr/en/de text and hint). The row is hidden in the dialog when the chart has no clock.
 - The input is separate from `clockNow` (that one is null in the calendar time zones W1 and MN): `OneChart` passes `priceClockOffsetSec` only when the screen is at least 1024 px wide, the chart does not look into the past and the broker offset is known. Backtest passes nothing. `priceLabel` off hides the clock too.
+- The box follows the bar of the library label: the last bar at or left of the right edge of the view, edge rounded up (`labelBar`). After a scroll that hides the last candle, the label and the clock drop together.
+- A fill under both labels (`priceAxisPaneViews`, bottom layer) gives them one width, the wider text sets it, so they look like one box. The library puts labels at the inner edge of the axis (left edge on a right axis). Text colour follows the library rule (`contrastText`).
 - The canvas holds the text, so the primitive writes it to `data-price-clock` on the chart host (tests).
 - The countdown setting and the seconds text at the bottom left are not changed.
 
 ## Check
-Tests `@ANA-28`: unit format, live, one-second step, setting off, price label off, past, phone width, W1. Screenshots light and dark with font sizes 11 and 16: `docs/journal/images/2026-11-23-price-clock-*.png`.
+Tests `@ANA-28`: unit format, live, one-second step, setting off, price label off, past, phone width, W1. Unit tests also cover the label bar at a fractional edge and the contrast colour. Screenshots light and dark with font sizes 11 and 16, and after a scroll: `docs/journal/images/2026-11-23-price-clock-*.png`.

@@ -414,7 +414,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   const priceClock = useRef<PriceClock | null>(null);
   useEffect(() => {
     if (!binding || binding.isDisposed()) return;
-    const clock = new PriceClock(binding.candles, binding.host);
+    const clock = new PriceClock(binding.chart, binding.candles, binding.host);
     priceClock.current = clock;
     binding.candles.attachPrimitive(clock);
     return () => { priceClock.current = null; if (!binding.isDisposed()) binding.candles.detachPrimitive(clock); clock.detached(); };
@@ -422,7 +422,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   useEffect(() => {
     if (!binding || binding.isDisposed()) return;
     const c = appearanceColors(appearance);
-    priceClock.current?.update({ offsetSec: appearance.priceClock && appearance.priceLabel ? priceClockOffsetSec : null, backColor: appearance.priceColor || c.text, textColor: c.background, fontSize: appearance.fontSize });
+    priceClock.current?.update({ offsetSec: appearance.priceClock && appearance.priceLabel ? priceClockOffsetSec : null, backColor: appearance.priceColor || c.text, fontSize: appearance.fontSize });
   }, [binding, appearance, priceClockOffsetSec, theme]);
   useEffect(() => { manager.current?.setMagnet(magnet); manager.current?.setStayInDrawingMode(keepDrawing); }, [magnet, keepDrawing, binding, drawingKey, state.hydrated]);
   useEffect(() => {

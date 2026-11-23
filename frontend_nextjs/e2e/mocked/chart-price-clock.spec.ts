@@ -1,6 +1,8 @@
 import type { Page } from '@playwright/test';
 import { DEMO_ID, test, expect } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
+import { dragLeft } from '../fixtures/chart-older';
+import { axisLabelHeight } from '../../src/lib/chart-workspace/priceClock';
 
 // 1123-A10.1 = B: under the last price label of the live chart a second box shows the broker time (SS:DD:ss, same colour).
 // The canvas draws it, so the primitive writes the text to `data-price-clock` on the chart host. Mock broker offset: +3 h.
@@ -72,4 +74,21 @@ test('W1 zeigt die Uhr auch im Kalender-Zeitraum', { tag: '@ANA-28' }, async ({ 
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`/chart?account=${DEMO_ID}&symbol=EURUSD&tf=W1&range=all`);
   await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-price-clock', /^15:/);
+});
+
+test('Nach dem Scrollen folgt die Uhr dem Preislabel (sichtbare letzte Kerze)', { tag: '@ANA-28' }, async ({ page, worker }) => {
+  void worker;
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(URL);
+  const chart = page.getByTestId('analysis-chart');
+  await expect(chart).toHaveAttribute('data-price-clock', /^15:/);
+  const num = async (name: string) => Number(await chart.getAttribute(name));
+  const before = await num('data-price-label-y');
+  // The label height of the library at the default font size (11 px)
+  expect(await num('data-price-clock-y') - before).toBeCloseTo(axisLabelHeight(11), 0);
+  // The user scrolls the last candle out of the view: the library label drops to the last visible candle, so the clock does too
+  await dragLeft(page);
+  await expect.poll(() => num('data-price-label-y')).not.toBeCloseTo(before, 0);
+  expect(await num('data-price-clock-y') - await num('data-price-label-y')).toBeCloseTo(axisLabelHeight(11), 0);
+  await expect(chart).toHaveAttribute('data-price-clock', /^15:/);
 });
