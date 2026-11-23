@@ -315,6 +315,16 @@ export function unmeasurable(code: string, tf: ContextTimeframe, checkIds: reado
   return { code, side: 'buy', tf, points: {}, checks, drawings: [], verdict: 'forming' };
 }
 
+/** Zähler der Suchlast für den Test (Arbeit statt Zeit, stabil unter Last): `evaluated` = Kandidatenmessungen, `keys` = Umgebungen für „beste Basis zum Zeitpunkt“, `bases` = geprüfte historische Basen, `entered`/`running` = darunter eingegangene bzw. laufende Handel, `keyBuilds` = Schlüssel, die `historicBases` aufbauen musste */
+export const xabcdWork = { evaluated: 0, keys: 0, bases: 0, entered: 0, running: 0, keyBuilds: 0 };
+
+/**
+ * Beendete Handel je Kontext und Prüfer, nur aus den Suchen früherer Schlüsse (ohne Zonen): Basis → Kerze, in der der Handel endete (`status.endIdx`).
+ * Nach dem Einstieg ist der Handel eingefroren (C und X, 1121-A2.1, 1122-A28.1) und sein Ende ändert sich mit späteren Kerzen nicht; eine spätere Suche
+ * lässt ihn ohnehin weg (kein laufender Handel), also misst sie ihn nicht noch einmal.
+ */
+const endedStore = new WeakMap<FormationContext, WeakMap<object, Map<string, number>>>();
+
 /**
  * Kandidat einer Basis: C wie beim Einstieg (1121-A2.1). Zuerst mit verschobenem C gemessen; liegt der erste Schluss jenseits von B
  * nach der Einstiegskerze, wird mit C am Pivot neu gemessen (der Einstieg hing dann noch nicht vom verschobenen C ab).
@@ -329,11 +339,13 @@ function candidateOf(env: Env, tf: ContextTimeframe, bars: Bars, pivots: readonl
 function candidateOfBase(env: Env, tf: ContextTimeframe, bars: Bars, h: Omit<HistoricBase, 'current'>, evaluate: Evaluate, pip: number): Candidate {
   const { base, prev, xSide, aSide } = h;
   const picked = shiftBase(bars, base, xSide, aSide, prev);
+  xabcdWork.evaluated++;
   const candidate = evaluate(env, tf, shapeOfX(bars, picked), pip);
   if (picked.c === base.c) return candidate;
   const entryIdx = candidate.trade?.entryIdx;
   const cut = closeBeyondBIdx(bars, base.c, picked.b, xSide);
   if (entryIdx === undefined || cut <= entryIdx) return candidate;
+  xabcdWork.evaluated++;
   return evaluate(env, tf, shapeOfX(bars, shiftBase(bars, base, xSide, aSide, prev, entryIdx)), pip);
 }
 
@@ -362,9 +374,13 @@ export function analyzeXabcd(
   const pip = pipOf(ctx.symbol);
   // gezeigter Handel je Kontext, Prüfer und Schluss (shownTrade.ts): hängt nur von den Kerzen bis dahin ab
   const keys = shownKeysOf(ctx, evaluate);
+  let endedByScope = endedStore.get(ctx);
+  if (!endedByScope) endedStore.set(ctx, (endedByScope = new WeakMap()));
+  let ended = endedByScope.get(evaluate);
+  if (!ended) endedByScope.set(evaluate, (ended = new Map()));
 
   /** Gezeigter Kandidat der Zeiteinheit zum Zeitpunkt `at`; merkt sich seinen Handel als Schlüssel */
-  const shownAt = (env: Env, tf: ContextTimeframe, at: number): Candidate | null => {
+  const shownAt = (env: Env, tf: ContextTimeframe, at: number, earlier = false): Candidate | null => {
     const bars = env.views.get(tf)!.bars;
     const pivots = env.trends.get(tf)!.pivots;
     // je Basis einmal gemessen (die Basen aus vier aufeinanderfolgenden Wendepunkten sind durch ihr C eindeutig)
@@ -389,11 +405,19 @@ export function analyzeXabcd(
     // bleibt die Basis des laufenden Handels mit ihren damaligen Punkten erhalten (Basis und Einstieg frieren am Einstieg ein, 1122-A28.1)
     const open: { candidate: Candidate; entryIdx: number }[] = [];
     for (const h of historicBases(env.trends.get(tf)!, bars, windowStart, recent)) {
+      // Suche eines früheren Schlusses: ein schon beendeter Handel dieser Basis fällt wieder weg, ohne neu gemessen zu werden
+      const endKey = earlier && !h.current ? `${tf}|${h.prev}|${h.xSide}${h.aSide}|${[h.base.x, h.base.a, h.base.b, h.base.c].map((p) => `${p.idx}@${p.price}`).join('|')}` : null;
+      const endedAt = endKey === null ? undefined : ended.get(endKey);
+      if (endedAt !== undefined && endedAt < last) continue;
       const candidate = h.current ? candidateFor(h.base) : candidateOfBase(env, tf, bars, h, evaluate, pip);
+      xabcdWork.bases++;
       const endIdx = candidate.trade?.status?.endIdx;
       const entryIdx = candidate.trade?.entryIdx;
+      if (endKey !== null && endIdx !== undefined && enteredTrade(candidate)) ended.set(endKey, endIdx);
       // in der letzten Kerze eingegangen: noch nie gezeigt, also kein Vorrang (gezeigt wird er nur als beste Basis)
+      if (enteredTrade(candidate)) xabcdWork.entered++;
       if (!enteredTrade(candidate) || (endIdx !== undefined && endIdx < last) || entryIdx === last) continue;
+      xabcdWork.running++;
       open.push({ candidate, entryIdx: entryIdx! });
     }
     // der zuerst eingegangene nicht verborgene Handel; `hidden` (rechnet frühere Schlüsse) nur, bis er gefunden ist
@@ -414,7 +438,7 @@ export function analyzeXabcd(
   };
   // Handel, den die Suche zu einem früheren Schluss zeigte: ohne Zonen gerechnet, einmal je Kontext. Zonen lesen in den Harmoniken nur Bonus-Zeilen
   // (Zone am D, Umkehr der tieferen Zeiteinheit) und SIG-29; der gezeigte Handel hängt an Form-Bedingungen, Punkt-Ausschlüssen, Variante, Einstieg, Stand
-  const tradeAt = tradeAtOf(ctx, keys, shownAt);
+  const tradeAt = tradeAtOf(ctx, keys, (e, tf, at) => shownAt(e, tf, at, true));
   return tfs.map((tf) => ({ tf, candidate: shownAt(envFor(base, ctx, t, tf), tf, t) ?? empty(tf) }));
 }
 
@@ -462,16 +486,48 @@ function historicBases(m: TrendModel, bars: Bars, windowStart: number, recent: R
   const keyOf = (prev: Pivot | undefined, ps: readonly Pivot[]) => [prev?.idx ?? null, ...ps.map((p) => `${p.idx}@${p.price}`)].join('|');
   const seen = new Set<string>();
   const out: HistoricBase[] = [];
+  // Lebende Wendepunkte je Zeit k (jüngste zuerst) durch Mitlaufen statt je Zeit alle Spannen zu filtern: eine Spanne lebt für from <= k < to,
+  // tritt beim Absinken von k unter `to` ein und verlässt die Menge unter `from` (danach nie wieder)
+  const spans = m.spans;
+  const byTo = spans.map((_, i) => i).sort((p, q) => spans[q].to - spans[p].to || p - q);
+  const byFrom = spans.map((_, i) => i).sort((p, q) => spans[q].from - spans[p].from || p - q);
+  let enter = 0;
+  let leave = 0;
+  const live = new Set<number>();
+  let prev: readonly Pivot[] = [];
+  let prevStop = Infinity;
+  let prevPos = new Map<Pivot, number>();
   for (const k of [...times].sort((a, b) => b - a)) {
-    const alive = k === last ? m.pivots : m.spans.filter((sp) => sp.from <= k && k < sp.to).map((sp) => sp.pivot).sort((a, b) => a.idx - b.idx);
+    let alive: readonly Pivot[];
+    if (k === last) {
+      alive = m.pivots;
+    } else {
+      while (enter < byTo.length && spans[byTo[enter]].to > k) {
+        if (spans[byTo[enter]].from <= k) live.add(byTo[enter]);
+        enter++;
+      }
+      while (leave < byFrom.length && spans[byFrom[leave]].from > k) live.delete(byFrom[leave++]);
+      alive = [...live].map((i) => spans[i].pivot).sort((a, b) => a.idx - b.idx);
+    }
+    let stop = 2;
     for (let j = alive.length - 1; j >= 3; j--) {
       const [x, a, b, c] = [alive[j - 3], alive[j - 2], alive[j - 1], alive[j]];
-      if (!recent.has(c.idx) && bars[x.idx].time < windowStart) break;
+      if (!recent.has(c.idx) && bars[x.idx].time < windowStart) {
+        stop = j;
+        break;
+      }
+      // dieselben fünf Wendepunkte standen schon in der vorigen Zeit im bearbeiteten Teil: ihr Schlüssel ist in `seen`
+      const q = prevPos.get(c);
+      if (q !== undefined && q > prevStop && prev[q - 1] === b && prev[q - 2] === a && prev[q - 3] === x && prev[q - 4] === alive[j - 4]) continue;
+      xabcdWork.keyBuilds++;
       const key = keyOf(alive[j - 4], [x, a, b, c]);
       if (seen.has(key)) continue;
       seen.add(key);
       out.push({ base: { x: pt(x), a: pt(a), b: pt(b), c: pt(c) }, prev: j > 3 ? alive[j - 4].idx : null, xSide: x.side, aSide: a.side, current: k === last });
     }
+    prev = alive;
+    prevStop = stop;
+    prevPos = new Map(alive.map((p, i) => [p, i]));
   }
   return out;
 }
