@@ -158,6 +158,58 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: n
   return evaluateFull(env, p, dInput, pip, atEntry).candidate;
 }
 
+/**
+ * Umfeld von Level 1: Nähe (ABCD_PARAMS.nearAtr × ATR am D bzw. an der letzten Kerze), innere Level (ABCD-09), zweite Level (ABCD-15) und
+ * harmonisches D (ABCD-16) im Band zwischen Level 1 und dem nächsten zweiten Level. Gemeinsam für die Prüfung und die Rechnung am Einstieg.
+ */
+function levelContextOf(env: Env, p: AbcdPoints, s: AbcdShape, dInput: AbcdPoint | undefined, pip: number) {
+  const { tf } = env;
+  const view = env.views.get(tf)!;
+  const last = view.bars.length - 1;
+  const atr = view.atr[s.d ? s.d.idx : last] ?? null;
+  const near = atr !== null ? ABCD_PARAMS.nearAtr * atr : null;
+  const inner = innerLevels(env.trends.get(tf)!, s);
+  const isNear = (level: number) => near !== null && Math.abs(level - s.level1) <= near;
+  // zweites Level nahe Level 1 (ABCD-15): −0.272 von A → B, 0.618 einer größeren Gegenbewegung, innere Bewegung
+  const higherTf = neighborTf(env, tf, -1);
+  const bigLegs: FibLeg[] = [...env.fibs.get(tf)!.legs, ...(higherTf ? (env.fibs.get(higherTf)?.legs ?? []) : [])].filter(
+    (leg) => (leg.dir === 'up') !== (s.es === 'resistance') && legLength(leg) > s.len,
+  );
+  const secondLevels = [extensionPrice(s, ABCD_PARAMS.minExtension), ...bigLegs.map((leg) => levelPrice(leg, ABCD_PARAMS.confluenceLevel)), ...inner];
+  const zonePrices = [s.level1, secondLevels.find(isNear) ?? extensionPrice(s, ABCD_PARAMS.minExtension)];
+  const zone: [number, number] = [Math.min(...zonePrices), Math.max(...zonePrices)];
+  const harmonic: CheckState = near === null ? U : harmonicD(env, p, dInput, pip, zone);
+  return { near, inner, isNear, secondLevels, zone, harmonic };
+}
+
+/** Stop eingefroren (HDL-14): `from` der Kerze, die Level 1 (mit Toleranz) zuerst erreicht; Divergenz und Harmonik gelten an dieser Kerze. Nur bei erreichtem D. */
+function frozenAt(env: Env, p: AbcdPoints, s: AbcdShape, near: number | null, zone: [number, number], pip: number): { idx: number; from: AbcdPoint } {
+  const bars = env.views.get(env.tf)!.bars;
+  const k = entryIdxOf(bars, s)!;
+  const dk: AbcdPoint = { idx: k, price: wickEnd(bars[k], s.es) };
+  const divK = divergenceOf(env.trends.get(env.tf)!, s.es, s.b.idx, k);
+  const divHolds = !!divK && divK.a.wave !== null && divK.b.wave !== null && divK.tie;
+  const harmonicK = !divHolds && near !== null && harmonicD(env, p, dk, pip, zone) === 'met';
+  return { idx: k, from: divHolds || harmonicK ? s.a : s.c };
+}
+
+/** 1114-A4.3: großes AB=CD-Ziel nur bei harmonischem D mit bekanntem X; Versatz = A − X (Kauf: nach oben, Verkauf: nach unten) */
+function bigTargetOf(env: Env, p: AbcdPoints, s: AbcdShape, harmonic: CheckState): BigTarget | null {
+  const xPrice = harmonic === 'met' ? harmonicXOf(env, p) : null;
+  return xPrice === null ? null : { offset: s.a.price - xPrice, activation: s.a.price };
+}
+
+/**
+ * Rechnung in der Einstiegsumgebung: großes Ziel und Stop-Anker, wie `evaluateFull` sie ohne `atEntry` liefert, ohne die übrigen Prüfungen
+ * (Zonen, Signale, Erken dönüş, Wiedereinstieg, Zeichnungen hängen nicht daran; 1122-B5).
+ */
+function entryFactsOf(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: number): { big: BigTarget | null; frozenFrom: AbcdPoint | null } {
+  const s = shapeOf(env.views.get(env.tf)!.bars, p, dInput);
+  const { near, zone, harmonic } = levelContextOf(env, p, s, dInput, pip);
+  const frozen = dReached(s) && s.d ? frozenAt(env, p, s, near, zone, pip) : null;
+  return { big: bigTargetOf(env, p, s, harmonic), frozenFrom: frozen?.from ?? null };
+}
+
 function evaluateFull(
   env: Env,
   p: AbcdPoints,
@@ -168,7 +220,6 @@ function evaluateFull(
   const { tf } = env;
   const view = env.views.get(tf)!;
   const trend = env.trends.get(tf)!;
-  const fib = env.fibs.get(tf)!;
   const { bars } = view;
   const last = bars.length - 1;
   const s = shapeOf(bars, p, dInput);
@@ -204,8 +255,7 @@ function evaluateFull(
   add('ABCD-08', flag(reached), shortfall(s) ?? undefined);
 
   // Ort und Kontext (gemessen an Level 1)
-  const atr = view.atr[d ? d.idx : last] ?? null;
-  const near = atr !== null ? ABCD_PARAMS.nearAtr * atr : null;
+  const { near, inner, isNear, secondLevels, zone, harmonic } = levelContextOf(env, p, s, dInput, pip);
   const tradeZone = zoneSideOf(side);
   const nearZones: NearZone[] = [];
   // Die Zone, die erst das D selbst bildet (fertiges Fraktal am D), zählt nicht als Ort des D (Zirkelschluss)
@@ -232,19 +282,8 @@ function evaluateFull(
   const higherTf = neighborTf(env, tf, -1);
   const lowerTf = neighborTf(env, tf, 1);
 
-  const inner = innerLevels(trend, s);
-  const isNear = (level: number) => near !== null && Math.abs(level - s.level1) <= near;
   add('ABCD-09', near === null ? U : flag(inner.some(isNear)));
 
-  // zweites Level nahe Level 1 (ABCD-15): −0.272 von A → B, 0.618 einer größeren Gegenbewegung, innere Bewegung
-  const bigLegs: FibLeg[] = [...fib.legs, ...(higherTf ? (env.fibs.get(higherTf)?.legs ?? []) : [])].filter(
-    (leg) => (leg.dir === 'up') !== (es === 'resistance') && legLength(leg) > s.len,
-  );
-  const secondLevels = [
-    extensionPrice(s, ABCD_PARAMS.minExtension),
-    ...bigLegs.map((leg) => levelPrice(leg, ABCD_PARAMS.confluenceLevel)),
-    ...inner,
-  ];
   const confluent = secondLevels.filter(isNear);
   const hasConfluence = confluent.length > 0;
 
@@ -262,8 +301,6 @@ function evaluateFull(
   const withTrend = higherDir ? dirSide(higherDir) === side : null;
   add('ABCD-14', tri(withTrend));
   add('ABCD-15', near === null ? U : flag(hasConfluence), confluent.length);
-  const zonePrices = [s.level1, secondLevels.find(isNear) ?? extensionPrice(s, ABCD_PARAMS.minExtension)];
-  const harmonic = near === null ? U : harmonicD(env, p, dInput, pip, [Math.min(...zonePrices), Math.max(...zonePrices)]);
   add('ABCD-16', harmonic);
 
   // Signal am D
@@ -320,18 +357,9 @@ function evaluateFull(
 
   // Ziel-Fib wie Z-ABCD-05 vor dem Einstieg: ab A bei Divergenz oder Harmonik, sonst ab C (danach `targetFrom`)
   const from = divState === 'met' || harmonic === 'met' ? s.a : s.c;
-  // Stop eingefroren (HDL-14): `from` der Kerze, die Level 1 (mit Toleranz) zuerst erreicht; Divergenz und Harmonik gelten an dieser Kerze
-  let frozenFrom: AbcdPoint | null = null;
-  let freezeIdx = d ? d.idx : last;
-  if (reached && d) {
-    const k = entryIdxOf(bars, s)!;
-    freezeIdx = k;
-    const dk: AbcdPoint = { idx: k, price: wickEnd(bars[k], es) };
-    const divK = divergenceOf(trend, es, s.b.idx, k);
-    const divHolds = !!divK && divK.a.wave !== null && divK.b.wave !== null && divK.tie;
-    const harmonicK = !divHolds && near !== null && harmonicD(env, p, dk, pip, [Math.min(...zonePrices), Math.max(...zonePrices)]) === 'met';
-    frozenFrom = divHolds || harmonicK ? s.a : s.c;
-  }
+  const frozen = reached && d ? frozenAt(env, p, s, near, zone, pip) : null;
+  let frozenFrom: AbcdPoint | null = frozen?.from ?? null;
+  const freezeIdx = frozen?.idx ?? (d ? d.idx : last);
   // Eingefroren am Einstieg (Halil 2026-11-16): Ob es das große Ziel gibt und von wo der Stop gemessen wird (A oder C),
   // entscheiden nur die Daten bis zur Einstiegskerze. Spätere Kerzen ändern X-Schluss (GAR-18), Zonen, innere Wendepunkte
   // und Wave-Werte der Divergenz; das darf einen offenen Handel nicht umdeuten. Eine Rechnung in der Einstiegsumgebung für beides.
@@ -343,7 +371,7 @@ function evaluateFull(
       const dk: AbcdPoint = { idx: freezeIdx, price: wickEnd(bars[freezeIdx], es) };
       const probeD = dInput && dInput.idx <= freezeIdx ? dInput : undefined;
       const entryD = dInput && !probeD ? dk : probeD;
-      const atK = evaluateFull(entryEnv, p, entryD, pip);
+      const atK = entryFactsOf(entryEnv, p, entryD, pip);
       entryRun = { big: atK.big };
       if (atK.frozenFrom) frozenFrom = atK.frozenFrom;
     }
@@ -384,9 +412,7 @@ function evaluateFull(
           ...(lowerView && lowerTf ? { lower: { bars: lowerView.bars, wide: lowerView.wide, sec: TIMEFRAME_SEC[lowerTf] } } : {}),
         })
       : null;
-  // 1114-A4.3: großes AB=CD-Ziel nur bei harmonischem D mit bekanntem X; Versatz = A − X (Kauf: nach oben, Verkauf: nach unten)
-  const xPrice = harmonic === 'met' ? harmonicXOf(env, p) : null;
-  let big: BigTarget | null = xPrice === null ? null : { offset: s.a.price - xPrice, activation: s.a.price };
+  let big = bigTargetOf(env, p, s, harmonic);
   if (entryRun) big = entryRun.big;
   const input = abcdTrade({
     from: targetFrom,
