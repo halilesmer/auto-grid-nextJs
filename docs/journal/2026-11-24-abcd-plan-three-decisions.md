@@ -4,7 +4,7 @@ author: Claude
 type: decision
 status: open
 pr: []
-features: [FRM-05, FRM-07, FRM-39, TRD-06]
+features: [FRM-05, FRM-07, FRM-39]
 areas: [frontend]
 ---
 
