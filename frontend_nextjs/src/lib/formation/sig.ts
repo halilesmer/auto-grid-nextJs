@@ -151,20 +151,30 @@ export interface EngulfZone {
   holds: boolean;
 }
 
-/** Engulf-Zonen der Kerzenliste (SIG-27): Engulf mit volumenstarker umschlossener Kerze (SIG-24) */
-export function engulfZones(bars: Bars, wide: Flags): EngulfZone[] {
+const engulfMemo = new WeakMap<Bars, WeakMap<Flags, readonly EngulfZone[]>>();
+
+/**
+ * Engulf-Zonen der Kerzenliste (SIG-27): Engulf mit volumenstarker umschlossener Kerze (SIG-24). Hängt nur von `bars` und `wide` ab; einmal je
+ * Kerzenliste gerechnet (die Suche fragt sie für jede Basis und jeden früheren Schluss derselben Kerzen ab).
+ */
+export function engulfZones(bars: Bars, wide: Flags): readonly EngulfZone[] {
+  let byWide = engulfMemo.get(bars);
+  const hit = byWide?.get(wide);
+  if (hit) return hit;
   const out: EngulfZone[] = [];
   for (let k = 1; k < bars.length; k++) {
     for (const side of ['buy', 'sell'] as const) {
       const e = engulfAt(bars, wide, k, side, 1);
       if (!e || e.prevWide !== true) continue;
       let holds = true;
-      for (let j = k + 1; j < bars.length; j++) {
+      for (let j = k + 1; j < bars.length && holds; j++) {
         if (side === 'sell' ? bars[j].close > e.zone.top : bars[j].close < e.zone.bottom) holds = false;
       }
       out.push({ side, idx: k, rect: e.zone, big: e.engulfWide === true, holds });
     }
   }
+  if (!byWide) engulfMemo.set(bars, (byWide = new WeakMap()));
+  byWide.set(wide, out);
   return out;
 }
 
