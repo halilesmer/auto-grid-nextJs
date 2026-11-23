@@ -8,13 +8,15 @@
  * Die Art von ABCD-19 und ABCD-20 hängt von anderen Bedingungen ab und steht im Feld `kind` des Ergebnisses.
  */
 import type { FormationContext } from './context';
-import { closesBeyond, countTests, outward, probeFractal, wickEnd, type Rect } from './frz';
+import { closesBeyond, countTests, outward, probeFractal, wickEnd, type Rect, type ZoneSide } from './frz';
 import {
+  depthOk,
   dReached,
+  entryIdxOf,
   extensionPrice,
   gapToRect,
   innerLevels,
-  selectPoints,
+  selectOrder,
   shapeOf,
   shortfall,
   timeframeExcluded,
@@ -32,16 +34,17 @@ import type { TradeStatus } from './tradeStatus';
 import { abcdIsCdt } from './cdt';
 import { evaluate as evaluateBat } from './batChecks';
 import { evaluate as evaluateGar } from './garChecks';
-import { buildEnv, dirSide, envFor, neighborTf, type Env } from './reasons';
+import { buildEnv, buildEnvWithoutZones, dirSide, envFor, neighborTf, type Env } from './reasons';
 import { reversalAt } from './reversal';
 import { earlyReversalOf, type EarlyReversal } from './earlyReversal';
 import { reentryOf } from './reentry';
+import { enteredTrade, entryInHistory, hiddenOf, historyStart, recordShown, shownKeysOf, tradeAtOf } from './shownTrade';
 import { cLegOf, lowerAbcdAt, lowerCandleAt, noPeakDivergence } from './cLeg';
 import { exemptFor, settle } from './settle';
 import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
 import { levelXA, ordered, pipOf, shapeOfX } from './xabcd';
 import { divergenceOf, engulfZones, rsiExtreme, zoneSideOf } from './sig';
-import { TRADE_RULES, type Anchor, type Candidate, type Check, type CheckState, type Drawing, type RuleKind, type RuleStatus, type Verdict } from './types';
+import { TRADE_RULES, type Anchor, type Candidate, type Check, type CheckState, type Drawing, type FormationBar, type RuleKind, type RuleStatus, type Verdict } from './types';
 
 const N = FRZ_PARAMS.neighbors;
 
@@ -90,6 +93,11 @@ export interface AbcdPointsInput {
 export interface AbcdAnalysis {
   tf: ContextTimeframe;
   candidate: Candidate;
+  /**
+   * Nur wenn ein laufender Handel Vorrang hat (1122-A1.3): der Kandidat, den die Punktwahl ohne Vorrang gezeigt hätte.
+   * Er ist verdeckt, solange der laufende Handel dauert (Messung im Verlaufsscan, keine Anzeige).
+   */
+  displaced?: Candidate;
 }
 
 const flag = (cond: boolean): CheckState => (cond ? 'met' : 'unmet');
@@ -150,6 +158,58 @@ function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: n
   return evaluateFull(env, p, dInput, pip, atEntry).candidate;
 }
 
+/**
+ * Umfeld von Level 1: Nähe (ABCD_PARAMS.nearAtr × ATR am D bzw. an der letzten Kerze), innere Level (ABCD-09), zweite Level (ABCD-15) und
+ * harmonisches D (ABCD-16) im Band zwischen Level 1 und dem nächsten zweiten Level. Gemeinsam für die Prüfung und die Rechnung am Einstieg.
+ */
+function levelContextOf(env: Env, p: AbcdPoints, s: AbcdShape, dInput: AbcdPoint | undefined, pip: number) {
+  const { tf } = env;
+  const view = env.views.get(tf)!;
+  const last = view.bars.length - 1;
+  const atr = view.atr[s.d ? s.d.idx : last] ?? null;
+  const near = atr !== null ? ABCD_PARAMS.nearAtr * atr : null;
+  const inner = innerLevels(env.trends.get(tf)!, s);
+  const isNear = (level: number) => near !== null && Math.abs(level - s.level1) <= near;
+  // zweites Level nahe Level 1 (ABCD-15): −0.272 von A → B, 0.618 einer größeren Gegenbewegung, innere Bewegung
+  const higherTf = neighborTf(env, tf, -1);
+  const bigLegs: FibLeg[] = [...env.fibs.get(tf)!.legs, ...(higherTf ? (env.fibs.get(higherTf)?.legs ?? []) : [])].filter(
+    (leg) => (leg.dir === 'up') !== (s.es === 'resistance') && legLength(leg) > s.len,
+  );
+  const secondLevels = [extensionPrice(s, ABCD_PARAMS.minExtension), ...bigLegs.map((leg) => levelPrice(leg, ABCD_PARAMS.confluenceLevel)), ...inner];
+  const zonePrices = [s.level1, secondLevels.find(isNear) ?? extensionPrice(s, ABCD_PARAMS.minExtension)];
+  const zone: [number, number] = [Math.min(...zonePrices), Math.max(...zonePrices)];
+  const harmonic: CheckState = near === null ? U : harmonicD(env, p, dInput, pip, zone);
+  return { near, inner, isNear, secondLevels, zone, harmonic };
+}
+
+/** Stop eingefroren (HDL-14): `from` der Kerze, die Level 1 (mit Toleranz) zuerst erreicht; Divergenz und Harmonik gelten an dieser Kerze. Nur bei erreichtem D. */
+function frozenAt(env: Env, p: AbcdPoints, s: AbcdShape, near: number | null, zone: [number, number], pip: number): { idx: number; from: AbcdPoint } {
+  const bars = env.views.get(env.tf)!.bars;
+  const k = entryIdxOf(bars, s)!;
+  const dk: AbcdPoint = { idx: k, price: wickEnd(bars[k], s.es) };
+  const divK = divergenceOf(env.trends.get(env.tf)!, s.es, s.b.idx, k);
+  const divHolds = !!divK && divK.a.wave !== null && divK.b.wave !== null && divK.tie;
+  const harmonicK = !divHolds && near !== null && harmonicD(env, p, dk, pip, zone) === 'met';
+  return { idx: k, from: divHolds || harmonicK ? s.a : s.c };
+}
+
+/** 1114-A4.3: großes AB=CD-Ziel nur bei harmonischem D mit bekanntem X; Versatz = A − X (Kauf: nach oben, Verkauf: nach unten) */
+function bigTargetOf(env: Env, p: AbcdPoints, s: AbcdShape, harmonic: CheckState): BigTarget | null {
+  const xPrice = harmonic === 'met' ? harmonicXOf(env, p) : null;
+  return xPrice === null ? null : { offset: s.a.price - xPrice, activation: s.a.price };
+}
+
+/**
+ * Rechnung in der Einstiegsumgebung: großes Ziel und Stop-Anker, wie `evaluateFull` sie ohne `atEntry` liefert, ohne die übrigen Prüfungen
+ * (Zonen, Signale, Erken dönüş, Wiedereinstieg, Zeichnungen hängen nicht daran; 1122-B5).
+ */
+function entryFactsOf(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: number): { big: BigTarget | null; frozenFrom: AbcdPoint | null } {
+  const s = shapeOf(env.views.get(env.tf)!.bars, p, dInput);
+  const { near, zone, harmonic } = levelContextOf(env, p, s, dInput, pip);
+  const frozen = dReached(s) && s.d ? frozenAt(env, p, s, near, zone, pip) : null;
+  return { big: bigTargetOf(env, p, s, harmonic), frozenFrom: frozen?.from ?? null };
+}
+
 function evaluateFull(
   env: Env,
   p: AbcdPoints,
@@ -160,7 +220,6 @@ function evaluateFull(
   const { tf } = env;
   const view = env.views.get(tf)!;
   const trend = env.trends.get(tf)!;
-  const fib = env.fibs.get(tf)!;
   const { bars } = view;
   const last = bars.length - 1;
   const s = shapeOf(bars, p, dInput);
@@ -196,8 +255,7 @@ function evaluateFull(
   add('ABCD-08', flag(reached), shortfall(s) ?? undefined);
 
   // Ort und Kontext (gemessen an Level 1)
-  const atr = view.atr[d ? d.idx : last] ?? null;
-  const near = atr !== null ? ABCD_PARAMS.nearAtr * atr : null;
+  const { near, inner, isNear, secondLevels, zone, harmonic } = levelContextOf(env, p, s, dInput, pip);
   const tradeZone = zoneSideOf(side);
   const nearZones: NearZone[] = [];
   // Die Zone, die erst das D selbst bildet (fertiges Fraktal am D), zählt nicht als Ort des D (Zirkelschluss)
@@ -224,19 +282,8 @@ function evaluateFull(
   const higherTf = neighborTf(env, tf, -1);
   const lowerTf = neighborTf(env, tf, 1);
 
-  const inner = innerLevels(trend, s);
-  const isNear = (level: number) => near !== null && Math.abs(level - s.level1) <= near;
   add('ABCD-09', near === null ? U : flag(inner.some(isNear)));
 
-  // zweites Level nahe Level 1 (ABCD-15): −0.272 von A → B, 0.618 einer größeren Gegenbewegung, innere Bewegung
-  const bigLegs: FibLeg[] = [...fib.legs, ...(higherTf ? (env.fibs.get(higherTf)?.legs ?? []) : [])].filter(
-    (leg) => (leg.dir === 'up') !== (es === 'resistance') && legLength(leg) > s.len,
-  );
-  const secondLevels = [
-    extensionPrice(s, ABCD_PARAMS.minExtension),
-    ...bigLegs.map((leg) => levelPrice(leg, ABCD_PARAMS.confluenceLevel)),
-    ...inner,
-  ];
   const confluent = secondLevels.filter(isNear);
   const hasConfluence = confluent.length > 0;
 
@@ -254,8 +301,6 @@ function evaluateFull(
   const withTrend = higherDir ? dirSide(higherDir) === side : null;
   add('ABCD-14', tri(withTrend));
   add('ABCD-15', near === null ? U : flag(hasConfluence), confluent.length);
-  const zonePrices = [s.level1, secondLevels.find(isNear) ?? extensionPrice(s, ABCD_PARAMS.minExtension)];
-  const harmonic = near === null ? U : harmonicD(env, p, dInput, pip, [Math.min(...zonePrices), Math.max(...zonePrices)]);
   add('ABCD-16', harmonic);
 
   // Signal am D
@@ -312,23 +357,9 @@ function evaluateFull(
 
   // Ziel-Fib wie Z-ABCD-05 vor dem Einstieg: ab A bei Divergenz oder Harmonik, sonst ab C (danach `targetFrom`)
   const from = divState === 'met' || harmonic === 'met' ? s.a : s.c;
-  // Stop eingefroren (HDL-14): `from` der Kerze, die Level 1 (mit Toleranz) zuerst erreicht; Divergenz und Harmonik gelten an dieser Kerze
-  let frozenFrom: AbcdPoint | null = null;
-  let freezeIdx = d ? d.idx : last;
-  if (reached && d) {
-    // Gleiche Rechnung wie `shortfall` (Anteil von AB), damit Schleife und `reached` an der Toleranzgrenze nicht auseinanderlaufen
-    const missAt = (k: number) => Math.max(0, outward(es, s.level1) - outward(es, wickEnd(bars[k], es))) / s.len;
-    let k = s.c.idx + 1;
-    while (k <= last && missAt(k) > ABCD_PARAMS.tolerance) k++;
-    // Ein eigenes D, dessen Preis nicht auf einem Docht liegt, kann keine Kerze treffen: dann gilt die Kerze des D
-    if (k > last) k = d.idx;
-    freezeIdx = k;
-    const dk: AbcdPoint = { idx: k, price: wickEnd(bars[k], es) };
-    const divK = divergenceOf(trend, es, s.b.idx, k);
-    const divHolds = !!divK && divK.a.wave !== null && divK.b.wave !== null && divK.tie;
-    const harmonicK = !divHolds && near !== null && harmonicD(env, p, dk, pip, [Math.min(...zonePrices), Math.max(...zonePrices)]) === 'met';
-    frozenFrom = divHolds || harmonicK ? s.a : s.c;
-  }
+  const frozen = reached && d ? frozenAt(env, p, s, near, zone, pip) : null;
+  let frozenFrom: AbcdPoint | null = frozen?.from ?? null;
+  const freezeIdx = frozen?.idx ?? (d ? d.idx : last);
   // Eingefroren am Einstieg (Halil 2026-11-16): Ob es das große Ziel gibt und von wo der Stop gemessen wird (A oder C),
   // entscheiden nur die Daten bis zur Einstiegskerze. Spätere Kerzen ändern X-Schluss (GAR-18), Zonen, innere Wendepunkte
   // und Wave-Werte der Divergenz; das darf einen offenen Handel nicht umdeuten. Eine Rechnung in der Einstiegsumgebung für beides.
@@ -340,7 +371,7 @@ function evaluateFull(
       const dk: AbcdPoint = { idx: freezeIdx, price: wickEnd(bars[freezeIdx], es) };
       const probeD = dInput && dInput.idx <= freezeIdx ? dInput : undefined;
       const entryD = dInput && !probeD ? dk : probeD;
-      const atK = evaluateFull(entryEnv, p, entryD, pip);
+      const atK = entryFactsOf(entryEnv, p, entryD, pip);
       entryRun = { big: atK.big };
       if (atK.frozenFrom) frozenFrom = atK.frozenFrom;
     }
@@ -381,9 +412,7 @@ function evaluateFull(
           ...(lowerView && lowerTf ? { lower: { bars: lowerView.bars, wide: lowerView.wide, sec: TIMEFRAME_SEC[lowerTf] } } : {}),
         })
       : null;
-  // 1114-A4.3: großes AB=CD-Ziel nur bei harmonischem D mit bekanntem X; Versatz = A − X (Kauf: nach oben, Verkauf: nach unten)
-  const xPrice = harmonic === 'met' ? harmonicXOf(env, p) : null;
-  let big: BigTarget | null = xPrice === null ? null : { offset: s.a.price - xPrice, activation: s.a.price };
+  let big = bigTargetOf(env, p, s, harmonic);
   if (entryRun) big = entryRun.big;
   const input = abcdTrade({
     from: targetFrom,
@@ -477,7 +506,10 @@ function evaluateFull(
   };
   if (d) points.D = { time: bars[d.idx].time, price: d.price };
   const candidate: Candidate = { code: 'ABCD', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
-  return { candidate: withTrade(candidate, env, tf, input, false), big, frozenFrom };
+  const traded = withTrade(candidate, env, tf, input, false);
+  // Einstiegskerze für den Vorrang laufender Handel in `analyzeAbcd` (1122-A1.3)
+  if (status && traded.trade) traded.trade = { ...traded.trade, entryIdx: freezeIdx };
+  return { candidate: traded, big, frozenFrom };
 }
 
 function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolean, from: AbcdPoint, second: number | undefined, stop: number | null, freezeIdx: number, status: TradeStatus | null, early: EarlyReversal | null, bigTarget: number | null): Drawing[] {
@@ -544,19 +576,140 @@ function unmeasurable(tf: ContextTimeframe): Candidate {
 
 /** Umgebung zum Ende der Einstiegskerze (Schlusszeit = Beginn + Dauer der Zeiteinheit) für das eingefrorene große Ziel */
 function entryEnvOf(ctx: FormationContext, tf: ContextTimeframe): AtEntry {
-  return (entryTime) => buildEnv(ctx, entryTime + TIMEFRAME_SEC[tf], tf);
+  // Ohne Zonen (1122-A41.1): am Einstieg zählen nur das große Ziel und der Stop-Anker (A oder C); beide hängen an Divergenz und harmonischem D
+  // (Urteil von Gartley/Bat, deren Zonenzeilen nur Bonus sind), nicht an Zonen. Wie `tradeAtOf`: in einer Suche einmal je Zeitpunkt gerechnet
+  return (entryTime) => buildEnvWithoutZones(ctx, entryTime + TIMEFRAME_SEC[tf], tf);
 }
 
-/** Sucht je geladener Zeiteinheit (hoch → tief) die letzten Punkte A, B, C und misst D */
+/**
+ * Basen ohne Vorrang je Kontext (`${tf}|A|B|C` → Öffnungszeit der Kerze, ab der sie ausscheiden): beendeter Handel (ab der Kerze nach dem Ende)
+ * oder beim Einstieg nicht gezeigt (ab der Kerze nach dem Einstieg). Beides hängt nur von Kerzen bis dahin ab und ändert sich danach nicht;
+ * frühere Zeiten rechnen weiter voll. Spart die Neubewertung alter Basen in jedem Scan.
+ */
+const noPriority = new WeakMap<FormationContext, Map<string, number>>();
+
+/** Schlüsselraum der AB=CD-Suche in den gezeigten Handeln je Kontext (`shownKeysOf`) */
+const ABCD_SCOPE = {};
+
+/**
+ * Frühere C eines Tripels: Dochtspitzen auf der Seite von C zwischen B und dem jetzigen C mit gültiger Korrekturtiefe (1122-A1.4 c).
+ * War eine davon beim Einstieg das C der Wahl, hat der Trend den Wendepunkt danach auf das jetzige C gerückt.
+ */
+function earlierCs(bars: readonly FormationBar[], p: AbcdPoints): AbcdPoints[] {
+  const cSide: ZoneSide = p.b.price > p.a.price ? 'support' : 'resistance';
+  const out: AbcdPoints[] = [];
+  for (let k = p.b.idx + 1; k < p.c.idx; k++) {
+    const price = wickEnd(bars[k], cSide);
+    const tip = (j: number) => j > p.b.idx && j < p.c.idx && outward(cSide, wickEnd(bars[j], cSide)) >= outward(cSide, price);
+    if (tip(k - 1) || tip(k + 1)) continue;
+    const q = { a: p.a, b: p.b, c: { idx: k, price } };
+    if (depthOk(q)) out.push(q);
+  }
+  return out;
+}
+
+/**
+ * Sucht je geladener Zeiteinheit (hoch → tief) die Punkte A, B, C in der Reihenfolge von `selectOrder` und misst D.
+ * Ein eingegangener Handel, der zum Schluss seiner Einstiegskerze nicht gezeigt war, wird nie gezeigt: trägt die Wahl einen solchen Handel, gilt die
+ * nächste in der Reihenfolge ohne ihn (1122-A1.4 b, wie 1122-A3.2 der Harmoniken). „Gezeigt“ ist das Ergebnis dieser Suche zu jenem Schluss (nach
+ * Auslassen und Vorrang, `shownTrade.ts`); die Identität des Handels hat keine Wendepunkte (1122-A1.4 c).
+ * Vorrang hat ein eingegangener Handel, der vor der letzten Kerze einging, noch läuft oder in der letzten Kerze endet und nicht verborgen ist. So fällt
+ * er erst nach seinem Ende weg und zeigt sein Ende einmal (1122-A1.3 = Regel 1121-A1.3 der Harmoniken, Entscheidung 1120-A42.1). Gesucht wird unter
+ * allen drei aufeinanderfolgenden Wendepunkten und ihren früheren C (`earlierCs`: das C beim Einstieg, wenn der Trend den Wendepunkt danach rückt),
+ * deren Einstieg im Verlaufsfenster liegt (`HISTORY_DAYS`, 1122-A1.4 a); die Suche endet bei einem C, das ein weiteres Fenster davor liegt.
+ * Unter mehreren gilt der zuerst eingegangene, bei gleicher Einstiegskerze der jüngste.
+ */
 export function analyzeAbcd(ctx: FormationContext, t: number): AbcdAnalysis[] {
   const tfs = ctx.timeframes();
   const base = tfs.length > 0 ? buildEnv(ctx, t, tfs[0]) : null;
   if (!base) return [];
   const pip = pipOf(ctx.symbol);
+  const keys = shownKeysOf(ctx, ABCD_SCOPE);
+  let skipMap = noPriority.get(ctx);
+  if (!skipMap) noPriority.set(ctx, (skipMap = new Map()));
+  const skip = skipMap;
+
+  /** Gezeigter Kandidat der Zeiteinheit zum Zeitpunkt `at` und die Wahl ohne Vorrang; merkt sich den gezeigten Handel */
+  const shownAt = (env: Env, tf: ContextTimeframe, at: number): { shown: Candidate | null; picked: Candidate | null } => {
+    const pivots = env.trends.get(tf)!.pivots;
+    const bars = env.views.get(tf)!.bars;
+    const order = selectOrder(pivots);
+    if (order.length === 0) {
+      recordShown(keys, tf, bars, null);
+      return { shown: null, picked: null };
+    }
+    const atEntry = entryEnvOf(ctx, tf);
+    const last = bars.length - 1;
+    const pointsKey = (p: AbcdPoints) => `${tf}|${bars[p.a.idx].time}|${bars[p.b.idx].time}|${bars[p.c.idx].time}`;
+    // je Tripel einmal gemessen
+    const measured = new Map<string, Candidate>();
+    const candidateFor = (p: AbcdPoints) => {
+      const key = pointsKey(p);
+      let c = measured.get(key);
+      if (!c) measured.set(key, (c = evaluate(env, p, undefined, pip, atEntry)));
+      return c;
+    };
+    const hidden = hiddenOf(tf, bars, tradeAt);
+    let picked: Candidate | null = null;
+    for (const p of order) {
+      const c = candidateFor(p);
+      if (!hidden(c)) {
+        picked = c;
+        break;
+      }
+    }
+    const pt = (q: (typeof pivots)[number]): AbcdPoint => ({ idx: q.idx, price: q.price });
+    // Vorrang: unter allen Tripeln (und ihren früheren C) mit Einstieg im Fenster vor der letzten Kerze der zuerst eingegangene, der läuft und nicht
+    // verborgen ist. Die Einstiegskerze kommt ohne Messung aus der Form (`entryIdxOf`); gemessen wird in Einstiegsreihenfolge bis zum ersten Treffer.
+    const start = historyStart(tf, at);
+    const queue: { p: AbcdPoints; key: string; entryIdx: number; order: number }[] = [];
+    const enqueue = (p: AbcdPoints) => {
+      const key = pointsKey(p);
+      const from = skip.get(key);
+      if (from !== undefined && bars[last].time >= from) return;
+      const entryIdx = entryIdxOf(bars, shapeOf(bars, p));
+      if (entryIdx === null || entryIdx >= last || bars[entryIdx].time < start) return;
+      queue.push({ p, key, entryIdx, order: queue.length });
+    };
+    const searchFrom = historyStart(tf, start);
+    for (let j = pivots.length - 1; j >= 2; j--) {
+      const p: AbcdPoints = { a: pt(pivots[j - 2]), b: pt(pivots[j - 1]), c: pt(pivots[j]) };
+      if (bars[p.c.idx].time < searchFrom) break;
+      enqueue(p);
+      for (const q of earlierCs(bars, p)) enqueue(q);
+    }
+    // gleiche Einstiegskerze: das jüngere Tripel zuerst (Reihenfolge der Suche)
+    queue.sort((x, y) => x.entryIdx - y.entryIdx || x.order - y.order);
+    let found: Candidate | null = null;
+    for (const { p, key } of queue) {
+      const candidate = candidateFor(p);
+      if (!enteredTrade(candidate)) continue;
+      const endIdx = candidate.trade!.status!.endIdx;
+      const entryIdx = candidate.trade!.entryIdx!;
+      if (endIdx !== undefined && endIdx < last) {
+        skip.set(key, bars[endIdx + 1].time);
+        continue;
+      }
+      // in der letzten Kerze eingegangen: noch nie gezeigt, also kein Vorrang (gezeigt wird er nur als Wahl)
+      if (entryIdx === last || !entryInHistory(tf, bars, candidate, at)) continue;
+      if (hidden(candidate)) {
+        skip.set(key, bars[entryIdx + 1].time);
+        continue;
+      }
+      found = candidate;
+      break;
+    }
+    const shown = found ?? picked;
+    recordShown(keys, tf, bars, shown);
+    return { shown, picked };
+  };
+  const tradeAt = tradeAtOf(ctx, keys, shownAt);
+
   return tfs.map((tf) => {
-    const env = envFor(base, ctx, t, tf);
-    const points = selectPoints(env.trends.get(tf)!.pivots);
-    return { tf, candidate: points ? evaluate(env, points, undefined, pip, entryEnvOf(ctx, tf)) : unmeasurable(tf) };
+    const { shown, picked } = shownAt(envFor(base, ctx, t, tf), tf, t);
+    if (!shown) return { tf, candidate: unmeasurable(tf) };
+    if (shown === picked || !picked) return { tf, candidate: shown };
+    return { tf, candidate: shown, displaced: picked };
   });
 }
 

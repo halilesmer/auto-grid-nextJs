@@ -6,12 +6,14 @@
  * der Stop 4669.91 kommt daraus. TP1 zählt in der Kerze 05-14 17:00, dieselbe Kerze schließt unter dem Einstieg (Rest am Einstieg).
  * Danach läuft D weiter (05-14 22:00: 4653.15) und ABCD-19 wird ☐. Vor 1120-A35.1 sprang `from` dann auf C (4710.02) und
  * `tradeStatusOf` rechnete den beendeten Handel neu: TP1 zählte 4683.32, unter dem Einstieg eines Kaufs (fillOnLossSide).
+ * Seit 1122-A1.4 zeigt die Suche dieses Tripel nie: zum Schluss der Einstiegskerze war C noch der Docht 05-14 13:00 (4705.54). Die Tests messen
+ * das Tripel daher direkt (`checkAbcdCandidate`); der letzte Test hält fest, was die Suche zeigt.
  */
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { FormationContext } from '../../src/lib/formation/context';
 import { DEFAULT_TREND_SETTINGS } from '../../src/lib/formation/params';
-import { analyzeAbcd } from '../../src/lib/formation/abcdChecks';
+import { analyzeAbcd, checkAbcdCandidate } from '../../src/lib/formation/abcdChecks';
 import { fibPrice, targetEnd } from '../../src/lib/formation/trade';
 import { tradeStatusOf } from '../../src/lib/formation/tradeStatus';
 import { parseFixture } from '../../src/lib/formation/fixture';
@@ -110,10 +112,17 @@ const ROWS: [number, number, number, number, number][] = [
   [1778846400, 4554.56, 4563.82, 4532.03, 4545.78],];
 const BARS: FormationBar[] = ROWS.map(([time, open, high, low, close]) => ({ time, open, high, low, close }));
 const at = (iso: string) => Date.parse(`${iso}:00Z`) / 1000;
-const candidateAt = (iso: string): Candidate => {
-  const ctx = new FormationContext('XAUUSD', { H1: { bars: BARS, missing: [] } }, { trend: DEFAULT_TREND_SETTINGS });
-  return analyzeAbcd(ctx, at(iso)).find((a) => a.tf === 'H1')!.candidate;
-};
+const ctxOf = () => new FormationContext('XAUUSD', { H1: { bars: BARS, missing: [] } }, { trend: DEFAULT_TREND_SETTINGS });
+/** Das Tripel A 05-14 10:00, B 11:00, C 15:00 direkt gemessen: die Suche zeigt es nie (1122-A1.4 b, siehe letzter Test) */
+const candidateAt = (iso: string): Candidate =>
+  checkAbcdCandidate(ctxOf(), at(iso), {
+    tf: 'H1',
+    a: { time: 1778752800, price: 4718.75 },
+    b: { time: 1778756400, price: 4692.14 },
+    c: { time: 1778770800, price: 4710.02 },
+  });
+/** Was die Suche zum Schluss der Kerze vor `iso` zeigt */
+const shownAt = (ctx: FormationContext, iso: string): Candidate => analyzeAbcd(ctx, at(iso)).find((a) => a.tf === 'H1')!.candidate;
 const ENTRY = 4683.41;
 /** Stop = Level 1 − 0.382 × (A − Level 1), eingefroren mit `frozenFrom` = A */
 const STOP = ENTRY - 0.382 * (4718.75 - ENTRY);
@@ -164,6 +173,20 @@ test.describe('AB=CD: Ziel-Fib-Start nach dem Einstieg (XAUUSD H1, Kauf 2026-05-
       // Die Zeichnung endet wie TP1 am begrenzten Ende; die Zeit bleibt die des Punkts D
       expect(fib.anchors[1].price, `Z-ABCD-05 Ende bei ${iso}`).toBeCloseTo(end, 6);
       expect(fib.anchors[1].time).toBe(c.points.D!.time);
+    }
+  });
+
+  frm('Suche (1122-A1.4 b, c): beim Einstieg zeigt sie C 4705.54 mit Einstieg 4678.93, das Tripel mit C 4710.02 zeigt sie nie', () => {
+    const ctx = ctxOf();
+    // zum Schluss der Einstiegskerze 05-14 16:00: das C der Wahl ist der Docht 05-14 13:00; der Docht 15:00 ist noch kein Wendepunkt
+    const atEntry = shownAt(ctx, '2026-05-14T17:00');
+    expect([atEntry.side, atEntry.points.A?.price, atEntry.points.B?.price, atEntry.points.C?.price]).toEqual(['buy', 4718.75, 4692.14, 4705.54]);
+    expect(atEntry.trade!.entry).toBeCloseTo(4678.93, 2);
+    expect(atEntry.trade!.status?.kind).toBe('open');
+    for (let t = at('2026-05-14T15:00'); t <= at('2026-05-15T13:00'); t += 3600) {
+      const c = analyzeAbcd(ctx, t).find((a) => a.tf === 'H1')!.candidate;
+      const iso = new Date(t * 1000).toISOString().slice(0, 16);
+      expect(c.points.C?.time === 1778770800 && c.points.A?.price === 4718.75, `Tripel mit C 4710.02 gezeigt zur Zeit ${iso}`).toBe(false);
     }
   });
 });

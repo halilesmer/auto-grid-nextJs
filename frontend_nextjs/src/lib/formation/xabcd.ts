@@ -11,7 +11,8 @@ import { DAY_SEC } from '@/lib/serverTime';
 import type { FormationContext } from './context';
 import { closesBeyond, outward, probeFractal, wickEnd, type Rect, type ZoneSide } from './frz';
 import { CONTEXT_TIMEFRAMES, HARMONIC_PARAMS, FRZ_PARAMS, HISTORY_DAYS, type ContextTimeframe } from './params';
-import { buildEnv, buildEnvWithoutZones, dirSide, envFor, neighborTf, type Env } from './reasons';
+import { buildEnv, dirSide, envFor, neighborTf, type Env } from './reasons';
+import { enteredTrade, hiddenOf, recordShown, shownKeysOf, tradeAtOf } from './shownTrade';
 import { reversalAt } from './reversal';
 import { engulfZones, rsiExtreme, trailingRun, divergenceOf, zoneSideOf } from './sig';
 import type { Pivot } from './trd';
@@ -314,9 +315,6 @@ export function unmeasurable(code: string, tf: ContextTimeframe, checkIds: reado
   return { code, side: 'buy', tf, points: {}, checks, drawings: [], verdict: 'forming' };
 }
 
-/** Handel eingegangen (Einstieg mit Stand und Einstiegskerze) */
-const enteredTrade = (c: Candidate): boolean => c.trade?.entry != null && c.trade.status !== undefined && c.trade.entryIdx !== undefined;
-
 /**
  * Kandidat einer Basis: C wie beim Einstieg (1121-A2.1). Zuerst mit verschobenem C gemessen; liegt der erste Schluss jenseits von B
  * nach der Einstiegskerze, wird mit C am Pivot neu gemessen (der Einstieg hing dann noch nicht vom verschobenen C ab).
@@ -334,15 +332,6 @@ function candidateOf(env: Env, tf: ContextTimeframe, bars: Bars, pivots: readonl
   return evaluate(env, tf, shapeOfX(bars, shiftBase(bars, base, xSide, aSide, prev, entryIdx)), pip);
 }
 
-/**
- * Eingegangener Handel als Schlüssel: Seite, Einstiegskerze, Einstieg. Ohne Wendepunkte: verschiebt der Trend X oder C nach dem Einstieg und bleibt
- * der Einstieg gleich, ist es derselbe Handel (1121-A2.1). Der Preis gehört dazu: eine andere Basis mit einem Einstieg in derselben Kerze ist ein anderer
- * Handel. Ohne eingegangenen Handel `null`.
- */
-const tradeKey = (c: Candidate, bars: Bars): string | null => (enteredTrade(c) ? `${c.side}|${bars[c.trade!.entryIdx!].time}|${c.trade!.entry}` : null);
-
-/** Gezeigter Handel je Kontext, Prüfer und Zeit (`${tf}|${Zeit}`): hängt nur von den Kerzen bis zu der Zeit ab, ein Lauf Kerze für Kerze rechnet jede Zeit einmal */
-const shownKeys = new WeakMap<FormationContext, Map<Evaluate, Map<string, string | null>>>();
 
 /**
  * Sucht je geladener Zeiteinheit (hoch → tief) die Punkte X, A, B, C: unter den Kandidaten der letzten `lookbackPivots` Wendepunkte gilt der mit den
@@ -367,11 +356,8 @@ export function analyzeXabcd(
   const base = tfs.length > 0 ? buildEnv(ctx, t, tfs[0]) : null;
   if (!base) return [];
   const pip = pipOf(ctx.symbol);
-  let byEvaluate = shownKeys.get(ctx);
-  if (!byEvaluate) shownKeys.set(ctx, (byEvaluate = new Map()));
-  let cache = byEvaluate.get(evaluate);
-  if (!cache) byEvaluate.set(evaluate, (cache = new Map()));
-  const keys = cache;
+  // gezeigter Handel je Kontext, Prüfer und Schluss (shownTrade.ts): hängt nur von den Kerzen bis dahin ab
+  const keys = shownKeysOf(ctx, evaluate);
 
   /** Gezeigter Kandidat der Zeiteinheit zum Zeitpunkt `at`; merkt sich seinen Handel als Schlüssel */
   const shownAt = (env: Env, tf: ContextTimeframe, at: number): Candidate | null => {
@@ -388,9 +374,8 @@ export function analyzeXabcd(
     const last = bars.length - 1;
     // leere Zeiteinheit (keine Kerzen geladen): kein Schlüssel, keine Verlaufssuche
     if (last < 0) return top?.candidate ?? null;
-    const dur = TIMEFRAME_SEC[tf];
-    /** Eingegangener Handel, der zum Schluss seiner Einstiegskerze nicht gezeigt war (1122-A3.2); Einstieg in der letzten Kerze: nicht verborgen */
-    const hidden = (c: Candidate) => enteredTrade(c) && c.trade!.entryIdx! < last && tradeAt(tf, bars[c.trade!.entryIdx!].time + dur) !== tradeKey(c, bars);
+    // Eingegangener Handel, der zum Schluss seiner Einstiegskerze nicht gezeigt war (1122-A3.2); Einstieg in der letzten Kerze: nicht verborgen
+    const hidden = hiddenOf(tf, bars, tradeAt);
     const best = top && hidden(top.candidate) ? bestRecent(pivots, candidateFor, misses, hidden) : top;
     const recent = new Set(selectBases(pivots).map((b) => b.c.idx));
     const windowStart = at - HISTORY_DAYS[tf] * DAY_SEC;
@@ -409,23 +394,12 @@ export function analyzeXabcd(
       kept = { candidate, unmet, entryIdx };
     }
     const shown = kept?.candidate ?? best?.candidate ?? null;
-    keys.set(`${tf}|${bars[last].time + dur}`, shown ? tradeKey(shown, bars) : null);
+    recordShown(keys, tf, bars, shown);
     return shown;
   };
-  /**
-   * Handel, den die Suche zum Schluss `at` zeigte (rechnet frühere Schlüsse nur einmal je Kontext). Ohne Zonen gerechnet: welcher Handel gezeigt ist,
-   * hängt nur an Form-Bedingungen, Punkt-Ausschlüssen, der Variante (Crab), Einstieg und Stand; keine davon liest eine Zone. Zonen lesen nur
-   * Bonus-Zeilen (Zone am D, Umkehr der tieferen Zeiteinheit) und SIG-29.
-   */
-  const tradeAt = (tf: ContextTimeframe, at: number): string | null => {
-    const id = `${tf}|${at}`;
-    if (!keys.has(id)) {
-      const e = buildEnvWithoutZones(ctx, at, tf);
-      if (e) shownAt(e, tf, at);
-      if (!keys.has(id)) keys.set(id, null);
-    }
-    return keys.get(id)!;
-  };
+  // Handel, den die Suche zu einem früheren Schluss zeigte: ohne Zonen gerechnet, einmal je Kontext. Zonen lesen in den Harmoniken nur Bonus-Zeilen
+  // (Zone am D, Umkehr der tieferen Zeiteinheit) und SIG-29; der gezeigte Handel hängt an Form-Bedingungen, Punkt-Ausschlüssen, Variante, Einstieg, Stand
+  const tradeAt = tradeAtOf(ctx, keys, shownAt);
   return tfs.map((tf) => ({ tf, candidate: shownAt(envFor(base, ctx, t, tf), tf, t) ?? empty(tf) }));
 }
 

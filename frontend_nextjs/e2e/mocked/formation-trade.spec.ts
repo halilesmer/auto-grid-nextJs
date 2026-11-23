@@ -134,8 +134,11 @@ test.describe('FRM-39 Handelsblock AB=CD (TP2, Ergebnisse in R)', () => {
     await expect(block.getByTestId('trade-outcome-tp12')).toContainText('+1,31');
   });
 
+  // TP1 und TP2 alındı: Kauf, Einstieg 0.82389, Stop 0.82235054, endet in der letzten Kerze (2025-06-12 16:00). Bis 1122-A1.4 stand hier
+  // 2025-07-16 00:00 mit dem Verkauf A 07-10 16:00 / C 07-11 00:00; dieser war beim Einstieg nicht gezeigt und wird nach Regel B nie gezeigt
+  // (formation-abcd-vanish-classes-lib.spec.ts hält das für 07-16 00:00 fest).
   test('Status TP1 und TP2 alındı: Stop auf dem Einstieg, beide Ziele erreicht, Ergebnis-Kasten hervorgehoben', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    await openPage(page, worker, 'abcd-buy-h4-02', 1752624000, 'ABCD');
+    await openPage(page, worker, 'abcd-buy-h4-02', 1749744000, 'ABCD');
     const block = page.getByTestId('trade-block');
     await expect(block.getByTestId('trade-status')).toHaveAttribute('data-status', 'tp12');
     await expect(block.getByTestId('trade-status')).toContainText(msg('formation.trade.status.tp12'));
@@ -149,11 +152,13 @@ test.describe('FRM-39 Handelsblock AB=CD (TP2, Ergebnisse in R)', () => {
   });
 
   test('Status TP1 und TP2 alındı: der hervorgehobene Kasten zeigt das tatsächliche Ergebnis, die blassen bleiben beim Einstiegswert', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    await openPage(page, worker, 'abcd-buy-h4-02', 1752624000, 'ABCD');
+    await openPage(page, worker, 'abcd-buy-h4-02', 1749744000, 'ABCD');
     const block = page.getByTestId('trade-block');
     await expect(block.getByTestId('trade-outcome-tp12')).toHaveAttribute('data-active', 'true');
-    // Das mitlaufende Ziel lag beim Erreichen näher am Einstieg als am Einstieg selbst: 1,08 statt 1,31
-    await expect(block.getByTestId('trade-outcome-tp12')).toContainText('+1,08');
+    // Das mitlaufende Ziel lag beim Erreichen näher am Einstieg als am Einstieg selbst: 0,81 statt 1,31 (bis 1122-A1.4: 1,08 mit dem alten Zeitpunkt).
+    // Handrechnung: Risiko 0.82389 − 0.82235054 = 0.00153946; am Einstieg TP1 0.82542946 (1,000 R), TP2 0.82638054 (1,618 R): ½ · 1 + ½ · 1,618 = 1,31;
+    // gefüllt TP1 0.82447807 (0,382 R), TP2 0.82579247 (1,236 R): ½ · 0,382 + ½ · 1,236 = 0,81
+    await expect(block.getByTestId('trade-outcome-tp12')).toContainText('+0,81');
     await expect(block.getByTestId('trade-outcome-stop')).toContainText('-1,00');
     await expect(block.getByTestId('trade-outcome-tp1')).toContainText('+0,50');
   });

@@ -79,25 +79,77 @@ export function buildEnvWithoutZones(ctx: FormationContext, t: number, tf: Conte
   return env && (env.tf === tf ? env : { ...env, tf });
 }
 
+/**
+ * Map mit festen Schlüsseln, deren Werte erst beim ersten Lesen gerechnet werden (danach gemerkt). Für die Umgebung ohne Zonen: ein Trend, den
+ * niemand liest (oft der lange M15-Trend bei einem H4- oder H1-Einstieg), kostet nichts. Ergebnis gleich wie bei sofortiger Rechnung.
+ */
+class LazyMap<K, V> extends Map<K, V> {
+  private readonly pending: Map<K, () => V>;
+  constructor(pending: Map<K, () => V>) {
+    super();
+    this.pending = pending;
+  }
+  private load(key: K): void {
+    const make = this.pending.get(key);
+    if (!make) return;
+    this.pending.delete(key);
+    super.set(key, make());
+  }
+  private loadAll(): void {
+    for (const key of [...this.pending.keys()]) this.load(key);
+  }
+  override get(key: K): V | undefined {
+    this.load(key);
+    return super.get(key);
+  }
+  override has(key: K): boolean {
+    return this.pending.has(key) || super.has(key);
+  }
+  override get size(): number {
+    return this.pending.size + super.size;
+  }
+  override keys(): MapIterator<K> {
+    this.loadAll();
+    return super.keys();
+  }
+  override values(): MapIterator<V> {
+    this.loadAll();
+    return super.values();
+  }
+  override entries(): MapIterator<[K, V]> {
+    this.loadAll();
+    return super.entries();
+  }
+  override [Symbol.iterator](): MapIterator<[K, V]> {
+    return this.entries();
+  }
+  override forEach(fn: (value: V, key: K, map: Map<K, V>) => void, thisArg?: unknown): void {
+    this.loadAll();
+    super.forEach(fn, thisArg);
+  }
+}
+
 function computeEnv(ctx: FormationContext, t: number, tf: ContextTimeframe, frzOptions: FrzOptions, zones = true): Env | null {
   if (!ctx.timeframes().includes(tf)) return null;
   const views = new Map<TrendTimeframe, TimeframeView>();
-  const trends = new Map<TrendTimeframe, TrendModel>();
-  const fibs = new Map<ContextTimeframe, FibModel>();
+  const makeTrend = new Map<TrendTimeframe, () => TrendModel>();
+  const makeFib = new Map<ContextTimeframe, () => FibModel>();
   for (const x of ctx.timeframes()) {
     const view = ctx.view(x, t);
     if (!view) continue;
     views.set(x, view);
-    const trend = formationTrend(view);
-    trends.set(x, trend);
-    fibs.set(x, buildFib(trend));
+    makeTrend.set(x, () => formationTrend(view));
   }
   // W1 (aus D1 gebildet) liefert nur Trend, RSI und Divergenz: keine Fib, keine Zonen
   const w1 = ctx.view('W1', t);
   if (w1) {
     views.set('W1', w1);
-    trends.set('W1', formationTrend(w1));
+    makeTrend.set('W1', () => formationTrend(w1));
   }
+  // mit Zonen sofort gerechnet (die Zonen lesen alle Fibs), ohne Zonen erst beim ersten Lesen
+  const trends: Map<TrendTimeframe, TrendModel> = zones ? new Map([...makeTrend].map(([x, make]) => [x, make()])) : new LazyMap(makeTrend);
+  for (const x of ctx.timeframes()) if (views.has(x)) makeFib.set(x, () => buildFib(trends.get(x)!));
+  const fibs: Map<ContextTimeframe, FibModel> = zones ? new Map([...makeFib].map(([x, make]) => [x, make()])) : new LazyMap(makeFib);
   const frz = zones ? analyzeFrz(ctx, t, { entryTf: tf, fibTargets: fibTargetsOf(fibs), ...frzOptions }) : { zones: [], reversed: [] };
   return { t, tf, views, trends, fibs, frz };
 }

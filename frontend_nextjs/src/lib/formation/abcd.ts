@@ -48,19 +48,32 @@ export interface AbcdShape extends AbcdPoints {
  * Weniger als drei Wendepunkte: null.
  */
 export function selectPoints(pivots: readonly Pivot[]): AbcdPoints | null {
+  return selectOrder(pivots)[0] ?? null;
+}
+
+/** Korrekturtiefe von C in AB im erlaubten Bereich (ABCD_PARAMS.minCorrection bis maxCorrection) */
+export function depthOk(p: AbcdPoints): boolean {
+  const len = Math.abs(p.b.price - p.a.price);
+  if (len === 0) return false;
+  const side: ZoneSide = p.b.price > p.a.price ? 'resistance' : 'support';
+  const depth = (outward(side, p.b.price) - outward(side, p.c.price)) / len;
+  return depth >= ABCD_PARAMS.minCorrection && depth <= ABCD_PARAMS.maxCorrection;
+}
+
+/**
+ * Reihenfolge der Wahl: unter den letzten `lookbackPivots` Wendepunkten jedes C mit gültiger Korrekturtiefe, jüngstes zuerst; danach die
+ * letzten drei Wendepunkte, wenn ihre Tiefe nicht gültig ist (ohne gültiges Tripel sind sie die Wahl). `selectPoints` ist das erste; die folgenden gelten, wenn das erste einen beim Einstieg nicht gezeigten Handel trägt (1122-A1.4 b).
+ */
+export function selectOrder(pivots: readonly Pivot[]): AbcdPoints[] {
   const n = pivots.length;
-  if (n < 3) return null;
+  if (n < 3) return [];
   const pt = (p: Pivot): AbcdPoint => ({ idx: p.idx, price: p.price });
   const at = (j: number): AbcdPoints => ({ a: pt(pivots[j - 2]), b: pt(pivots[j - 1]), c: pt(pivots[j]) });
-  for (let j = n - 1; j >= Math.max(2, n - ABCD_PARAMS.lookbackPivots); j--) {
-    const p = at(j);
-    const len = Math.abs(p.b.price - p.a.price);
-    if (len === 0) continue;
-    const side: ZoneSide = p.b.price > p.a.price ? 'resistance' : 'support';
-    const depth = (outward(side, p.b.price) - outward(side, p.c.price)) / len;
-    if (depth >= ABCD_PARAMS.minCorrection && depth <= ABCD_PARAMS.maxCorrection) return p;
-  }
-  return at(n - 1);
+  const out: AbcdPoints[] = [];
+  for (let j = n - 1; j >= Math.max(2, n - ABCD_PARAMS.lookbackPivots); j--) if (depthOk(at(j))) out.push(at(j));
+  // ohne gültige Tiefe an n − 1: die letzten drei Wendepunkte zuletzt (ohne gültiges Tripel die Wahl selbst)
+  if (!depthOk(at(n - 1))) out.push(at(n - 1));
+  return out;
 }
 
 /** Äußerster Docht auf der Seite `es` nach Kerze `from` (ohne `from`); null ohne spätere Kerze */
@@ -103,6 +116,20 @@ export const dReached = (s: AbcdShape): boolean => {
   const miss = shortfall(s);
   return miss !== null && miss <= ABCD_PARAMS.tolerance;
 };
+
+/**
+ * Einstiegskerze (HDL-14): die erste Kerze nach C, die Level 1 mit Toleranz erreicht; ohne erreichtes D null. Gleiche Rechnung wie `shortfall`
+ * (Anteil von AB), damit Schleife und `dReached` an der Toleranzgrenze nicht auseinanderlaufen. Ein eigenes D, dessen Preis nicht auf einem Docht
+ * liegt, kann keine Kerze treffen: dann gilt die Kerze des D.
+ */
+export function entryIdxOf(bars: Bars, s: AbcdShape): number | null {
+  if (!s.d || !dReached(s)) return null;
+  const last = bars.length - 1;
+  const missAt = (k: number) => Math.max(0, outward(s.es, s.level1) - outward(s.es, wickEnd(bars[k], s.es))) / s.len;
+  let k = s.c.idx + 1;
+  while (k <= last && missAt(k) > ABCD_PARAMS.tolerance) k++;
+  return k > last ? s.d.idx : k;
+}
 
 /**
  * Level 1 innerer AB=CD-Bewegungen im D-Bein (ABCD-09, ABCD-15): je drei aufeinanderfolgende Wendepunkte nach C

@@ -17,10 +17,11 @@ import path from 'node:path';
 import { barsOf, TIMEFRAME_SEC, type MissingRange } from '../../src/lib/analysis/candles';
 import type { RatesResponse } from '../../src/services/marketApi';
 import { FormationContext, type ContextInput } from '../../src/lib/formation/context';
-import { ABCD_PARAMS, DEFAULT_TREND_SETTINGS, HISTORY_DAYS } from '../../src/lib/formation/params';
+import { ABCD_PARAMS, DEFAULT_TREND_SETTINGS, HISTORY_DAYS, type ContextTimeframe } from '../../src/lib/formation/params';
 import { setFormationDiag, type DiagEvent } from '../../src/lib/formation/diag';
 import { scanFormations, type ScanFormation, type ScanHit } from '../../src/lib/formation/scan';
 import { analyzeAbcd } from '../../src/lib/formation/abcdChecks';
+import { remeasureAtVanish, vanishVerdict, type VanishForm } from '../fixtures/formation-vanish';
 import { dReached, shapeOf } from '../../src/lib/formation/abcd';
 import { cLegOf, lowerAbcdAt, lowerCandleAt, noPeakDivergence } from '../../src/lib/formation/cLeg';
 import { closesBeyond, outward, probeFractal, wickEnd, otherSide } from '../../src/lib/formation/frz';
@@ -243,7 +244,9 @@ function checkRun(tally: InstanceType<typeof Tally>, k: RunState, c: { side: Sid
  * Alle Zeiteinheiten des Kontexts (1120-A13.8): jeder Kandidat mit A, B, C wird über die Scans verfolgt (Schlüssel: Zeiteinheit, Form, Seite, Punkte).
  * - `entryChanged`: nach dem Einstieg (Stand oder Erken dönüş gesetzt) ändern sich Einstieg, Stop oder Einstiegsart (früher Rückkehr / normal) nicht;
  * - `candidateVanished`: ein Kandidat mit Einstieg fehlt in einem späteren Scan ganz; fällt sein erster Punkt aus dem Verlaufsfenster der Zeiteinheit
- *   (`HISTORY_DAYS`), zählt das nicht;
+ *   (`HISTORY_DAYS`), zählt das nicht. Ob der Handel beendet war, zählt zur Zeit des Verschwindens: neu gemessen mit denselben Punkten und nur mit
+ *   Kerzen bis dahin (1122-A1.3.2, `remeasureAtVanish`); die Neben-Zeiteinheiten sieht der Scan nur bei jedem Schritt;
+ * - `hiddenTrades`: AB=CD-Kandidaten mit eingegangenem Handel, die ein laufender Handel derselben Zeiteinheit verdeckt (1122-A1.3, nur Zähler);
  * - die Invarianten von `checkRun` gelten auch für die Zeiteinheiten neben der Haupt-Zeiteinheit.
  */
 interface Track extends RunState {
@@ -261,17 +264,25 @@ interface Track extends RunState {
   lastEntry?: number | null;
   lastStop?: number | null;
   entered?: { fp: string; at: number };
+  /** Punkte, wie die Suche sie zeigte (für die Neumessung beim Verschwinden) */
+  points: { X?: { time: number; price: number }; A: { time: number; price: number }; B: { time: number; price: number }; C: { time: number; price: number } };
 }
 
-function trackAll(tally: InstanceType<typeof Tally>, tracks: Map<string, Track>, all: ScanHit[], mainTf: MainTf, symbol: string, at: number, scanNo: number) {
+function trackAll(tally: InstanceType<typeof Tally>, tracks: Map<string, Track>, all: ScanHit[], mainTf: MainTf, symbol: string, at: number, scanNo: number, ctx: FormationContext, hidden: Set<string>) {
   for (const hit of all) {
     const { candidate: c, form } = hit;
     const p = c.points;
     if (!p.A || !p.B || !p.C) continue;
     const key = `${hit.tf}|${form}|${c.side}|${p.X?.time ?? ''}|${p.A.time}|${p.B.time}|${p.C.time}`;
+    const d = hit.displaced;
+    if (d?.trade?.entry != null && d.trade.status !== undefined && d.points.A && d.points.B && d.points.C) {
+      tally.inc('hiddenTrades.states');
+      hidden.add(`${hit.tf}|${form}|${d.side}|${d.points.A.time}|${d.points.B.time}|${d.points.C.time}`);
+    }
     let k = tracks.get(key);
     if (!k) {
-      k = { tf: hit.tf, form, side: c.side, firstTime: Math.min(p.X?.time ?? Infinity, p.A.time), seen: scanNo, prices: [p.A.price, p.B.price, p.C.price] };
+      const pt = (a: { time: number; price: number }) => ({ time: a.time, price: a.price });
+      k = { tf: hit.tf, form, side: c.side, firstTime: Math.min(p.X?.time ?? Infinity, p.A.time), seen: scanNo, prices: [p.A.price, p.B.price, p.C.price], points: { ...(p.X ? { X: pt(p.X) } : {}), A: pt(p.A), B: pt(p.B), C: pt(p.C) } };
       tracks.set(key, k);
       tally.inc(`tf.${hit.tf}.candidates`);
     }
@@ -308,10 +319,15 @@ function trackAll(tally: InstanceType<typeof Tally>, tracks: Map<string, Track>,
     if (k.seen === scanNo) continue;
     const windowStart = at - HISTORY_DAYS[k.tf as keyof typeof HISTORY_DAYS] * DAY;
     if (k.entered && k.firstTime >= windowStart) {
-      // Entscheidung 1120-A42.1: ein beendeter Handel darf aus dem Rückblick fallen (die Geschichte wird nicht neu geschrieben): Zähler, kein Verstoß
-      tally.inc(`vanished.${k.lastFinished ? 'finished' : 'running'}.${k.lastState}`);
-      if (k.lastFinished) tally.inc('finishedVanished');
-      else tally.violate('candidateVanished', { label: `${k.tf}:${k.form}`, side: k.side, symbol, tf: k.tf, key, enteredAt: iso(k.entered.at), vanishedAt: iso(at), lastSeenAt: k.lastSeenAt !== undefined ? iso(k.lastSeenAt) : null, lastState: k.lastState, abcPrices: k.prices, entry: k.lastEntry, stop: k.lastStop, firstPoint: iso(k.firstTime), kind: JSON.parse(k.entered.fp).kind });
+      // Entscheidung 1120-A42.1: ein beendeter Handel darf aus dem Rückblick fallen (die Geschichte wird nicht neu geschrieben): Zähler, kein Verstoß.
+      // Beendet heißt: schon beim letzten Scan beendet oder neu gemessen zur Zeit des Verschwindens beendet (1122-A1.3.2)
+      const re = k.lastFinished ? null : remeasureAtVanish(ctx, at, { tf: k.tf as ContextTimeframe, form: k.form as VanishForm, points: k.points });
+      const verdict = vanishVerdict(!!k.lastFinished, re ?? { state: null, finished: false, endTime: null });
+      tally.inc(`vanished.${verdict === 'finished' ? 'finished' : 'running'}.${re?.state ?? k.lastState}`);
+      if (verdict === 'finished') {
+        tally.inc('finishedVanished');
+        if (re) tally.inc('finishedBetweenScans');
+      } else tally.violate('candidateVanished', { label: `${k.tf}:${k.form}`, side: k.side, symbol, tf: k.tf, key, enteredAt: iso(k.entered.at), vanishedAt: iso(at), lastSeenAt: k.lastSeenAt !== undefined ? iso(k.lastSeenAt) : null, lastState: k.lastState, stateAtVanish: re?.state ?? null, abcPrices: k.prices, entry: k.lastEntry, stop: k.lastStop, firstPoint: iso(k.firstTime), kind: JSON.parse(k.entered.fp).kind });
     }
     tracks.delete(key);
   }
@@ -646,6 +662,8 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
   const abcd = new Map<string, AbcdKey>();
   const harm = new Map<string, HarmKey>();
   const tracks = new Map<string, Track>();
+  /** AB=CD-Kandidaten mit Handel, die ein laufender Handel verdeckt (1122-A1.3) */
+  const hidden = new Set<string>();
   const exampleKinds = new Map<string, number>();
   const addExample = (kind: string, hit: ScanHit, at: number, note?: string) => {
     const n = exampleKinds.get(kind) ?? 0;
@@ -693,7 +711,7 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
         ? shareEnv(ctx, () => {
             const found = analyzeAbcd(ctx, at)
               .filter((a) => Object.keys(a.candidate.points).length > 0)
-              .map((a): ScanHit => ({ form: 'ABCD', tf: a.tf, candidate: a.candidate }));
+              .map((a): ScanHit => ({ form: 'ABCD', tf: a.tf, candidate: a.candidate, ...(a.displaced ? { displaced: a.displaced } : {}) }));
             pc?.step(at, found.filter((h) => h.tf === tf));
             return found;
           })
@@ -712,7 +730,7 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
       }
     }
     events.clear();
-    trackAll(tally, tracks, allHits, tf, symbol, at, scans);
+    trackAll(tally, tracks, allHits, tf, symbol, at, scans, ctx, hidden);
     for (const hit of hits) {
       const { candidate: c, form } = hit;
       const p = c.points;
@@ -961,6 +979,8 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
     ...(probableC ? { probableC } : {}),
     harmonics,
     finishedVanished: tally.counts.finishedVanished ?? 0,
+    finishedBetweenScans: tally.counts.finishedBetweenScans ?? 0,
+    hiddenTrades: { states: tally.counts['hiddenTrades.states'] ?? 0, keys: hidden.size },
     vanishedByState: Object.fromEntries(Object.entries(tally.counts).filter(([n]) => n.startsWith('vanished.')).map(([n, v]) => [n.slice('vanished.'.length), v])),
     timeframes: Object.fromEntries(['D1', 'H4', 'H1', 'M15'].map((x) => [x, { candidates: tally.counts[`tf.${x}.candidates`] ?? 0, entered: tally.counts[`tf.${x}.entered`] ?? 0 }])),
     violations: tally.violations,

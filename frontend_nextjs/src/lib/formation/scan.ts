@@ -53,9 +53,11 @@ export interface ScanHit {
   form: ScanFormation;
   tf: ContextTimeframe;
   candidate: Candidate;
+  /** AB=CD: der durch einen laufenden Handel verdeckte Kandidat (1122-A1.3; nur Messung im Verlaufsscan) */
+  displaced?: Candidate;
 }
 
-type Analysis = { tf: ContextTimeframe; candidate: Candidate };
+type Analysis = { tf: ContextTimeframe; candidate: Candidate; displaced?: Candidate };
 /** Ergebnis einer Formation im selben Suchlauf; jede wird höchstens einmal gerechnet */
 type Results = (form: ScanFormation) => Analysis[];
 
@@ -92,8 +94,8 @@ export function scanFormations(ctx: FormationContext, t: number): ScanHit[] {
   // Alle Formationen rechnen auf derselben Umgebung je Zeiteinheit (Befund 49)
   shareEnv(ctx, () => {
     for (const form of SCAN_FORMATIONS) {
-      for (const { tf, candidate } of results(form)) {
-        if (Object.keys(candidate.points).length > 0) hits.push({ form, tf, candidate });
+      for (const { tf, candidate, displaced } of results(form)) {
+        if (Object.keys(candidate.points).length > 0) hits.push({ form, tf, candidate, ...(displaced ? { displaced } : {}) });
       }
     }
   });
