@@ -100,6 +100,8 @@ export interface ChartCoreProps {
   workspace?: WorkspaceContext;
   workspaceOverlays?: React.ReactNode;
   clockNow?: number | null;
+  /** Broker offset in s for the clock under the last price label (only the live chart page passes it) */
+  priceClockOffsetSec?: number | null;
   data: ChartData;
   timeframeSec: number;
   digits: number | null;
@@ -225,7 +227,7 @@ function toneColor(c: ChartColors, tone: LineTone) {
  * grauer Schraffur, nie erfundene Kerzen.
  */
 export function ChartCore({
-  workspace, workspaceOverlays, clockNow,
+  workspace, workspaceOverlays, clockNow, priceClockOffsetSec,
   data,
   timeframeSec,
   digits,
@@ -898,7 +900,7 @@ export function ChartCore({
     'data-pauses': data.pauses.length,
   };
   return (
-    <ChartWorkspace context={workspace ?? { key: viewKey, symbol: '', view: 'analysis' }} binding={binding} interactionReady={followTail || data.points.length === 0 || alignedView === viewKey} bars={effectiveBars} missing={data.missing} timeframeSec={timeframeSec} digits={digits} until={until ?? clockNow ?? (effectiveBars.at(-1)?.time ?? 0) + timeframeSec} countdownNow={clockNow} overlays={workspaceOverlays} showRsi={showRsi} toolbarActions={toolbarActions} viewActions={viewActions} overlayLayout={overlayLayout} fullscreenOfPage={fullscreenOfPage} systemSeries={systemSeries}>
+    <ChartWorkspace context={workspace ?? { key: viewKey, symbol: '', view: 'analysis' }} binding={binding} interactionReady={followTail || data.points.length === 0 || alignedView === viewKey} bars={effectiveBars} missing={data.missing} timeframeSec={timeframeSec} digits={digits} until={until ?? clockNow ?? (effectiveBars.at(-1)?.time ?? 0) + timeframeSec} countdownNow={clockNow} priceClockOffsetSec={priceClockOffsetSec} overlays={workspaceOverlays} showRsi={showRsi} toolbarActions={toolbarActions} viewActions={viewActions} overlayLayout={overlayLayout} fullscreenOfPage={fullscreenOfPage} systemSeries={systemSeries}>
     <DrawingToolBridge toolRef={toolRef} />
     {overlayLayout ? (
       // Eigener Stapelkontext: die Canvases des Charts tragen z-index

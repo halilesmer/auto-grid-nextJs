@@ -5,6 +5,7 @@
  * FRM-37 Seitenleiste mit Reitern · FRM-18 Leisten und Badges · FRM-19 Liste und Checkliste · FRM-20 Chart-Overlay · FRM-21 Hintergrundsuche · FRM-22 schmale Ansicht · FRM-25 freie Produktwahl · FRM-26 Bild der Formation · FRM-27 Formationsalarm · FRM-28 Favoriten-Fahne · FRM-29 Favoriten-Suche und Seitenleiste · FRM-31 laufende Kerze · FRM-32 Meldungsverlauf · FRM-35 Wave-Unterfenster · FRM-45 Schalter Formasyon çizimleri
  */
 import { readFileSync } from 'node:fs';
+import { noPriceClock } from '../fixtures/no-price-clock';
 import type { Page } from '@playwright/test';
 import { parseFixture } from '../../src/lib/formation/fixture';
 import { SCAN_FORMATIONS } from '../../src/lib/formation/scan';
@@ -19,6 +20,8 @@ import { named, seedFixtureTrend, trendOf } from '../fixtures/formation-trend';
 
 // Formationen rechnen auf dem Trendzug des Nutzers (FRM-41); die Fixtures zeigen ihre Formation mit FIXTURE_TREND
 test.beforeEach(({ page }) => seedFixtureTrend(page, trendOf(fixtureBars)));
+// Tests here move the fake clock by minutes: the price clock timer would run hundreds of times (ANA-28)
+test.beforeEach(({ page }) => noPriceClock(page));
 
 
 /** "Anzeigen" button of the alarm card. The "search done" card (1114-A1) has a button with the same Turkish name, so the locator skips that card */
