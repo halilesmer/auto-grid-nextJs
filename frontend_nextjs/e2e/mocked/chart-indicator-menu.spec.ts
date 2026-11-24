@@ -8,6 +8,9 @@ import { msg } from '../fixtures/i18n';
 
 const CHART_URL = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
 const STORE_KEY = 'grid-robot-chart-workspaces-v1';
+// The mock candles follow the time of day (sine curve), so the RSI line moves in the pane with the clock. With the real clock the
+// search below needed 32 to 246 mouse steps, and at 07:13 UTC two searches took more than the 30 s test limit. The fixed clock keeps the line at one place.
+test.use({ fakeNow: '2026-11-20T12:00:00Z' });
 const rowOf = (page: Page, kind: string) => page.locator(`[data-indicator-row="${kind}"]`);
 const menu = (page: Page) => page.getByTestId('indicator-line-menu');
 const paneBoxOf = (page: Page, kind: string) => rowOf(page, kind).first().evaluate((row) => {
@@ -35,10 +38,13 @@ async function findRsiLine(page: Page) {
   const pane = await paneBoxOf(page, 'RSI');
   for (const fraction of [0.5, 0.35, 0.65, 0.2, 0.8, 0.42, 0.58, 0.28, 0.72]) {
     const x = pane.x + pane.width * fraction;
-    for (let y = pane.y + 4; y < pane.y + pane.height - 4; y += 1) {
-      await page.mouse.move(x, y);
-      await page.waitForTimeout(15);
-      if (await rowOf(page, 'RSI').getAttribute('data-emphasis') === 'hover') return { x, y };
+    // Every 3rd pixel first (the hit area of a line is wider than 3 px), then the pixels in between: a line is found in a third of the steps
+    for (const offset of [0, 1, 2]) {
+      for (let y = pane.y + 4 + offset; y < pane.y + pane.height - 4; y += 3) {
+        await page.mouse.move(x, y);
+        await page.waitForTimeout(15);
+        if (await rowOf(page, 'RSI').getAttribute('data-emphasis') === 'hover') return { x, y };
+      }
     }
   }
   throw new Error('RSI line not found under the mouse');
