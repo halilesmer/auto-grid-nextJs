@@ -7,6 +7,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { FormationContext, type ContextInput } from '../../src/lib/formation/context';
 import { parseFixture } from '../../src/lib/formation/fixture';
+import { HARMONIC_PARAMS } from '../../src/lib/formation/params';
 import { formationTrend } from '../../src/lib/formation/trdFormation';
 import { historicBases, historicBasesRef, selectBases } from '../../src/lib/formation/xabcd';
 import { named, trendOf } from '../fixtures/formation-trend';
@@ -27,8 +28,11 @@ for (const name of names) {
       const recent = new Set(selectBases(trend.pivots).map((b) => b.c.idx));
       for (const start of [0, 0.3, 0.6, 0.9, 1]) {
         const windowStart = view.bars[Math.floor((view.bars.length - 1) * start)].time;
-        const got = JSON.stringify(historicBases(trend, view.bars, windowStart, recent));
-        expect(got, `${name}@${share} Fenster ${start}`).toBe(JSON.stringify(historicBasesRef(trend, view.bars, windowStart, recent)));
+        // lookback: C unter den letzten Wendepunkten einer Zeit, deren Wendepunkte bis ins Fenster gelten (X auch vor dem Fenster, 1122-A1.4 a)
+        for (const lookback of [0, HARMONIC_PARAMS.lookbackPivots]) {
+          const got = JSON.stringify(historicBases(trend, view.bars, windowStart, recent, lookback));
+          expect(got, `${name}@${share} Fenster ${start} lookback ${lookback}`).toBe(JSON.stringify(historicBasesRef(trend, view.bars, windowStart, recent, lookback)));
+        }
       }
     }
   });
