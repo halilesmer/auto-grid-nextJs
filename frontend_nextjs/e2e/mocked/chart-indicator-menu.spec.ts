@@ -6,6 +6,10 @@ import type { Page } from '@playwright/test';
 import { DEMO_ID, test, expect } from '../fixtures/test';
 import { msg } from '../fixtures/i18n';
 
+// The mock computes its candles from the clock (sine curve), so the place of the RSI line in its pane moves with the time of the run.
+// Measured on 2026-11-24: the search found the line at 05:50 UTC and ran into the 30 s limit at 07:01 UTC. A fixed clock keeps the place.
+test.use({ fakeNow: '2026-11-24T05:50:00Z' });
+
 const CHART_URL = `/chart?account=${DEMO_ID}&symbol=EURUSD&tf=H1&range=7d`;
 const STORE_KEY = 'grid-robot-chart-workspaces-v1';
 const rowOf = (page: Page, kind: string) => page.locator(`[data-indicator-row="${kind}"]`);
@@ -30,12 +34,15 @@ async function openChart(page: Page) {
   await expect.poll(async () => (await page.locator('[data-indicator-value="RSI"]').innerText()).length).toBeGreaterThan(0);
 }
 
+/** Vertical step of the search. The chart hits a line within a few pixels, so 3 px does not skip it, and the search is three times faster. */
+const HIT_STEP = 3;
+
 /** Sucht die RSI-Linie unter der Maus (Treffer meldet das Fadenkreuz; ANA-22 macht es genauso) und gibt den Punkt zurück */
 async function findRsiLine(page: Page) {
   const pane = await paneBoxOf(page, 'RSI');
   for (const fraction of [0.5, 0.35, 0.65, 0.2, 0.8, 0.42, 0.58, 0.28, 0.72]) {
     const x = pane.x + pane.width * fraction;
-    for (let y = pane.y + 4; y < pane.y + pane.height - 4; y += 1) {
+    for (let y = pane.y + 4; y < pane.y + pane.height - 4; y += HIT_STEP) {
       await page.mouse.move(x, y);
       await page.waitForTimeout(15);
       if (await rowOf(page, 'RSI').getAttribute('data-emphasis') === 'hover') return { x, y };
