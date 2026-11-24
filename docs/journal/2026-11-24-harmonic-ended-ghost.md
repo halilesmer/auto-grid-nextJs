@@ -60,7 +60,7 @@ Blast radius (`hooks/RULES.md` §4.10): 25 golden hashes in 1 file and 2 side as
 
 ## Open points
 - [ ] An ended trade with the base shown at the entry can come back as the choice without priority with its end (same points, same stop). The fixture dump counts 17,513 such scans on the branch (17,325 on main); XAUUSD H1 2,130 on both. This is not changed here; it is a question for 1120-A42.1 ("the end shows one time").
-- [ ] The two remaining running cases of `vanishedOutsideWindow` on M15 (BUT and CRB sell, X 10-29 23:00) are not examined here.
+- [x] The two remaining running cases of `vanishedOutsideWindow` on M15 (BUT and CRB sell, X 10-29 23:00): examined 2026-11-24 in `2026-11-24-formation-window-lead-in.md` (X leaves the history window; fix is step 2b).
 
 ## Lessons
 A trade key without stop and points cannot tell two bases apart after the shown one ends. A check that compares only the key with the key shown at the entry must also compare the outcome when the shown base is gone.

@@ -44,12 +44,12 @@ Live scan, XAUUSD, DEMO account, read-only, under the heavy lock. H1: `FORMATION
 Other violations: none in the four runs. The chart-mode runs are red on purpose. The cause of the 6 cases is not investigated yet.
 
 ## Open points
-- [ ] Chart context H1: 1 `candidateVanished` (running trade vanishes while the first point is inside the M15 window of 10 days). Not investigated.
+- [x] Chart context H1: 1 `candidateVanished` (fixed 2026-11-24: trend lead-in, `2026-11-24-formation-window-lead-in.md`; chart-context scan H1 0) (running trade vanishes while the first point is inside the M15 window of 10 days). Not investigated.
   1. M15 ABCD buy, first point 2026-09-22 03:00, entered 09-24 13:00, last seen 09-26 00:00 (TP1), gone 09-28 02:00. Entry 4249.36, stop 4200.95.
-- [ ] Chart context H4: 5 `candidateVanished` (H4 GAR sell, D1 BAT sell, H1 GAR sell, H4 BUT buy, H4 CRB buy). All first points are inside the window. Examples (times are scan times, UTC):
+- [x] Chart context H4: 5 `candidateVanished` (fixed 2026-11-24: trend lead-in, `2026-11-24-formation-window-lead-in.md`; chart-context scan H4 0) (H4 GAR sell, D1 BAT sell, H1 GAR sell, H4 BUT buy, H4 CRB buy). All first points are inside the window. Examples (times are scan times, UTC):
   1. H4 GAR sell, first point 2025-10-20 20:00, entered 2025-12-12 16:00, last seen 12-13 00:00 (open), gone 12-15 04:00. Entry 4342.72, stop 4517.04.
   2. D1 BAT sell, first point 2025-10-20 00:00, entered 2025-12-13 00:00, last seen 12-22 20:00 (open), gone 12-23 00:00. Entry 4324.92, stop 4492.44.
   3. H1 GAR sell, first point 2026-03-17 16:00, entered 2026-04-20 08:00, last seen 04-22 08:00 (open), gone 04-22 12:00. Entry 4739.28, stop 4983.99.
   The same cases are green in `full` mode. So the loaded window changes the result, not only the window edge. A guess (not verified): trend, wave or ATR start at the first loaded candle, so a turning point can move when the window start moves.
-- [ ] The M15 BUT sell of the request (entered 11-05 03:00) is in the H1 chart run as `vanishedOutsideWindow.running` (2 cases). Not checked against the chart screen.
+- [x] The M15 BUT sell of the request (examined 2026-11-24: X leaves the M15 history window, `xabcd.ts` `historicBases`; fix is step 2b, see `2026-11-24-formation-window-lead-in.md`) (entered 11-05 03:00) is in the H1 chart run as `vanishedOutsideWindow.running` (2 cases). Not checked against the chart screen.
 - [ ] One symbol only. Other symbols are not measured in `chart` mode.
