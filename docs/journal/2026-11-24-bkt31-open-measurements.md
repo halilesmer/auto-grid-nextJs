@@ -49,7 +49,7 @@ All below the 2 s limit of the earlier decision. Decision: the route stays out o
 - Data completeness (1110-K3.3): the first run had missing candles. The cause was never proven. Since 2026-11-12 the run log has a WARN for each unexplained hole (BKT-27) and a page with `syncing` is requested again. Not reproducible now. Closed as mitigated.
 
 ## Open points
-- [x] Owner decision: fill latency producer or fixed 5 ms (see above). (done: B, fixed 5 ms, PR <n>)
+- [x] Owner decision: fill latency producer or fixed 5 ms (see above). (done: B, fixed 5 ms, PR 675)
 
 ## Why
 
