@@ -97,7 +97,7 @@ In all 9 W3 cases the neighbor candle t−1 is still a pivot at t+2.
 - Not verified: the distribution of the 168 records outside the fixtures. The sample is not random (mostly November and December 2025, no AUDUSD and NZDCAD).
 
 ## Open points
-- [ ] Decision of the project owner (same as in `2026-11-13-ewo-rule-pivot-one-bar-late.md`): keep W2, or test the EWO color from `idx` to `doneAt`. In this sample it changes 5 of 20 W2 cases. A red test and a measurement over all records come first.
+- [x] Decision of the project owner (same as in `2026-11-13-ewo-rule-pivot-one-bar-late.md`): keep W2, or test the EWO color from `idx` to `doneAt`. In this sample it changes 5 of 20 W2 cases. A red test and a measurement over all records come first. (done: decision 1119-A6.1.2, PR 622, see 2026-11-19-ewo-color-window.md)
 - [ ] Probable C definition (if the measurement runs again): skip a candle when its left neighbor has a wick further out on the C side. That removes the W3 cases.
 - [ ] Classify all 197 records with the live bars (needs a scan; not done because of machine load).
 

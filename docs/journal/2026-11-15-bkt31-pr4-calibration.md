@@ -38,5 +38,5 @@ Rules kept:
 - Acceptance measurement (GET only): the profile derived from W_c gives op cost pending 0.228-0.229 s (+3/+4 ms to the default), remove 0.103-0.105 s (+1/+3 ms); the thresholds stay 0.8 and 0.7. Σ|ΔNet| / unmatched / K4f with the flag on equals the BKT-30 baseline in every window, also per setup: P6+ 0.01/0/0, P7 1.78/0/0, NFP 57.72/4/2, telemetry window 0.00/0/0. No setup regression. In the telemetry window `headS` derived to 0.070 s (default 0.105 s); `z0`/`nsl0` were missing in W_c, so zone overhead and SLTP stay at the default with a mark.
 
 ## Open points
-- [ ] Default decision for the two flags (needs the measurement on a window with telemetry in W_c). The REPLAY_LOOP arm is not measured yet.
+- [x] Default decision for the two flags (needs the measurement on a window with telemetry in W_c). The REPLAY_LOOP arm is not measured yet. (done: 2026-11-17-bkt31-calibration-default.md)
 - [ ] `fillLatencyMs` is not measured by the page yet (needs ticks). It stays at the default with a mark.

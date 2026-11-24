@@ -36,5 +36,5 @@ Step 2 (PR-B, frontend) of plan 1111-K1, decision 1111-K2. The worker endpoint i
 
 ## Open points
 - [ ] Risk 2 (session start): the K55 evidence shows the BT retried at 22:05:00, not 22:04:30. The snapshot session of USDJPY and GBPUSD may open at 22:05. Print `trade_sessions` for Sunday in the acceptance step. If it differs, open a separate item. BKT-21 is not changed here.
-- [ ] K2.5: the live compare page does not pass start state to the run (`runJob.ts`). Separate step with its own acceptance.
+- [x] K2.5: the live compare page does not pass start state to the run (`runJob.ts`). Separate step with its own acceptance. (done: PR 507)
 - [ ] Acceptance measurement (windows P6+, P7, P8).
