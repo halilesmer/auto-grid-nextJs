@@ -349,9 +349,9 @@
   },
   "ANA-27": {
     "e2e": {
-      "datum": "2026-11-15",
-      "status": "failed",
-      "tests": 9
+      "datum": "2026-11-24",
+      "status": "passed",
+      "tests": 13
     }
   },
   "BKT-01": {
@@ -1887,16 +1887,16 @@
   },
   "UI-22": {
     "e2e": {
-      "datum": "2026-11-15",
-      "status": "failed",
+      "datum": "2026-11-24",
+      "status": "passed",
       "tests": 55
     }
   },
   "UI-23": {
     "e2e": {
-      "datum": "2026-11-15",
+      "datum": "2026-11-24",
       "status": "passed",
-      "tests": 1
+      "tests": 4
     }
   },
   "UI-24": {
@@ -2116,16 +2116,16 @@
   },
   "USR-12": {
     "e2e": {
-      "datum": "2026-11-15",
+      "datum": "2026-11-24",
       "status": "passed",
-      "tests": 7
+      "tests": 1
     }
   },
   "USR-14": {
     "e2e": {
-      "datum": "2026-11-15",
-      "status": "failed",
-      "tests": 10
+      "datum": "2026-11-24",
+      "status": "passed",
+      "tests": 12
     }
   },
   "USR-15": {
