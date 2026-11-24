@@ -111,9 +111,9 @@ const LIMITS = JSON.parse(readFileSync('e2e/fixtures/formation-scan-golden.json'
 const KEY_MAX = LIMITS.__keyBuildsMax;
 const EVALUATED_MAX = LIMITS.__evaluatedMax;
 // AB=CD-Suche (1124-C1): je Tripel genügt der Handel (`tradeOnlyOf`), voll gemessen wird nur das Ergebnis; der Trend am Einstieg läuft aus einem
-// angehaltenen Lauf (`TrendRun`). Vorher (Stand 6461b065) rechnete ein Seitenlauf 620 bis 638 volle Messungen und 312 000 bis 336 000 Trendkerzen.
+// angehaltenen Lauf (`TrendRun`). Vorher (Stand 21210c5b) rechnete ein Seitenlauf 655 bis 669 volle Messungen und 874 000 bis 916 000 Trendkerzen; jetzt höchstens 5 und 106 000 bis 113 000 (Verhältnis 8×; Grenze 200 000 = 4× unter dem alten Mindestwert, 1,8× über dem neuen Höchstwert).
 const ABCD_FULL_MAX = 20;
-const TREND_STEPS_MAX = 90_000;
+const TREND_STEPS_MAX = 200_000;
 for (const [now, sym] of PAGE) {
   test(`Seitenlauf ${sym} ${now}: gleiche Treffer, begrenzte Arbeit`, { tag: '@FRM-08' }, () => {
     const r = pageScan(now, sym);

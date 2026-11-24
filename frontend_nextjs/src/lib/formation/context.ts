@@ -79,6 +79,11 @@ export class FormationContext {
     }
   }
 
+  /** Ganze Reihe der Zeiteinheit (alle Kerzen); jede Ansicht `view(tf, t)` ist ihr vorderer Teil */
+  series(tf: TrendTimeframe): TimeframeView | null {
+    return this.full.get(tf) ?? null;
+  }
+
   /** Zeiteinheiten, für die Kerzen geladen sind (hoch → tief) */
   timeframes(): ContextTimeframe[] {
     return CONTEXT_TIMEFRAMES.filter((tf) => this.full.has(tf));

@@ -8,7 +8,7 @@ import { analyzeFrz, type FrzAnalysis, type FrzOptions } from './frzChecks';
 import type { Rect } from './frz';
 import { CONTEXT_TIMEFRAMES, FIB_PARAMS, type ContextTimeframe, type TrendTimeframe } from './params';
 import { divergenceOf, engulfAt, engulfZones, rsiExtreme, zoneSideOf } from './sig';
-import type { TrendDir, TrendModel } from './trd';
+import { TrendRun, type TrendDir, type TrendModel } from './trd';
 import { formationTrend, withTrendDirMemo } from './trdFormation';
 import type { FormationBar, Side } from './types';
 
@@ -140,8 +140,40 @@ function trendOf(ctx: FormationContext, tf: TrendTimeframe, view: TimeframeView)
   if (!byKey) trendStore.set(ctx, (byKey = new Map()));
   const key = `${tf}|${view.bars.length}`;
   let trend = byKey.get(key);
-  if (!trend) byKey.set(key, (trend = formationTrend(view)));
+  if (!trend) byKey.set(key, (trend = prefixTrend(ctx, tf, view) ?? formationTrend(view)));
   return trend;
+}
+
+/** Höchstens so viele angehaltene Läufe je Kontext und Zeiteinheit (die Suchen fragen in mehreren steigenden Folgen an) */
+const MAX_RUNS = 4;
+const runStore = new WeakMap<FormationContext, Map<TrendTimeframe, TrendRun[]>>();
+
+/**
+ * Trend über den vorderen Teil der ganzen Reihe aus einem angehaltenen Lauf (`TrendRun`): gleich `formationTrend(view)`, aber ein Lauf, der schon
+ * bis vor die Ansicht kam, läuft nur die fehlenden Kerzen weiter (die Umgebungen am Einstieg fragen viele frühere Kerzenzahlen an).
+ * null, wenn die Ansicht nicht der vordere Teil der Reihe des Kontexts ist oder die ganze Reihe zeigt.
+ */
+function prefixTrend(ctx: FormationContext, tf: TrendTimeframe, view: TimeframeView): TrendModel | null {
+  const full = ctx.series(tf);
+  const n = view.bars.length;
+  if (!full || n === 0 || n >= full.bars.length || view.bars[n - 1] !== full.bars[n - 1] || view.trend !== full.trend) return null;
+  let byTf = runStore.get(ctx);
+  if (!byTf) runStore.set(ctx, (byTf = new Map()));
+  let runs = byTf.get(tf);
+  if (!runs) byTf.set(tf, (runs = []));
+  let run: TrendRun | undefined;
+  for (const r of runs) if (r.position <= n && (!run || r.position > run.position)) run = r;
+  if (!run) {
+    // wie `formationTrend`: W1 rechnet mit dem Etikett D1
+    run = new TrendRun(full.tf === 'W1' ? 'D1' : full.tf, full.bars, full.wave, full.trend, true);
+    if (runs.length >= MAX_RUNS) runs.shift();
+    runs.push(run);
+  } else {
+    runs.splice(runs.indexOf(run), 1);
+    runs.push(run);
+  }
+  run.advanceTo(n);
+  return run.snapshot(view.bars, view.wave);
 }
 
 function computeEnv(ctx: FormationContext, t: number, tf: ContextTimeframe, frzOptions: FrzOptions, zones = true): Env | null {
