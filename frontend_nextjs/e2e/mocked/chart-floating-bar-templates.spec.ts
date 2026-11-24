@@ -162,3 +162,23 @@ test('UI-29: geänderte hazır şablon: Kopie ersetzt sie, nicht als eigene Zeil
   await expect(page.getByTestId('fbar-template-preset')).not.toContainText(msg('fib.changed'));
   await expect(page.getByTestId('fbar-template-preset-reset')).toHaveCount(0);
 });
+
+test('UI-29: Fibonacci dışı türde „Geniş Fib seti“ adı serbest, yeniden yüklenince kalır (1124-A7.1.5)', { tag: '@UI-29' }, async ({ page, worker }) => {
+  void worker;
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.goto(URL);
+  await ready(page);
+  const first = await drawLine(page, 100);
+  await expect.poll(async () => (await lines(page)).length).toBe(1);
+  await select(page, first);
+  await page.getByTestId('fbar-template').click();
+  await page.getByTestId('fbar-template-save').click();
+  await page.getByTestId('fib-template-name').fill('Geniş Fib seti');
+  await expect(page.getByTestId('fib-save-warning')).toHaveCount(0);
+  await page.getByTestId('fib-save-confirm').click();
+  const names = () => page.evaluate((key) => Object.keys(JSON.parse(localStorage.getItem(key) || '{}').drawingTemplates?.['trend-line'] ?? {}), KEY);
+  await expect.poll(names).toEqual(['Geniş Fib seti']);
+  await page.reload();
+  await ready(page);
+  expect(await names()).toEqual(['Geniş Fib seti']);
+});

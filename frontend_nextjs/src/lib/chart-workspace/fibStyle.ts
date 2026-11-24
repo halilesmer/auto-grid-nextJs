@@ -123,7 +123,7 @@ export function parseDrawingTemplates(raw: unknown): DrawingTemplates {
     const named: Record<string, Partial<DrawingStyle>> = {};
     for (const [name, style] of Object.entries(byKind as Record<string, unknown>).slice(0, 100)) {
       const n = name.trim();
-      if (!n || n.length > 80 || (isReservedName(n) && !(kind === FIB_KIND && n === PRESET_ID)) || !style || typeof style !== 'object') continue;
+      if (!n || n.length > 80 || (kind === FIB_KIND ? isReservedName(n) && n !== PRESET_ID : n === PRESET_ID) || !style || typeof style !== 'object') continue;
       const picked = templateStyleOf(kind, style as Partial<DrawingStyle>);
       if (kind === FIB_KIND || Object.keys(picked).length) named[n] = picked;
     }

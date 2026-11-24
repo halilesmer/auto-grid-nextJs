@@ -205,7 +205,7 @@ export function FibSettingsDialog({ drawing, initialTab = 'style', scaleLog, loc
         </div>
       </div>
     </Modal>
-    {saveOpen && <SaveTemplateModal id={id} names={userNames} preset onClose={() => setSaveOpen(false)} onSave={n => { store().saveDrawingTemplate(n, style); setApplied(n); setSaveOpen(false); }} />}
+    {saveOpen && <SaveTemplateModal id={id} names={userNames} preset onClose={() => setSaveOpen(false)} onSave={n => { store().saveDrawingTemplate(n, style); setApplied(isReservedName(n) ? PRESET_ID : n); setSaveOpen(false); }} />}
     {closing && <ConfirmModal open variant="warning" title={t(k('unsaved.title'))} message={t(k('unsaved.message'))} confirmLabel={t(k('unsaved.save'))} confirmHint={t(k('unsaved.save.hint'))} cancelLabel={t(k('unsaved.stay'))} secondary={{ label: t(k('unsaved.discard')), hint: t(k('unsaved.discard.hint')), onClick: cancel }} onClose={() => setClosing(false)} onConfirm={ok} />}
     {deleting && <ConfirmModal open title={t(k('deleteTitle'))} message={t(k('deleteMessage'), { name: deleting })} confirmHint={t(k('deleteConfirm.hint'))} variant="danger" onClose={() => setDeleting(null)} onConfirm={() => { store().deleteDrawingTemplate(deleting); if (applied === deleting) setApplied(''); setDeleting(null); }} />}
   </>;

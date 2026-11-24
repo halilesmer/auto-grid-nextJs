@@ -249,6 +249,7 @@ test('UI-27: hazır şablonun üzerine yaz, uygula yeni stili verir, Orijinal ay
   await expect(page.getByTestId('fib-template-row')).toHaveCount(0);
   await expect(page.getByTestId('fib-template-preset')).toContainText(msg('fib.changed'));
   await expect(page.getByTestId('fib-template-preset-reset')).toBeVisible();
+  await expect(page.getByTestId('fib-template-preset').locator('svg').first()).not.toHaveClass(/opacity-0/); // 1124-A7.1.4: Haken steht auf der festen Zeile
   // Fabrikwerte, sonra hazır şablonu uygula: kullanıcının kopyası gelir
   await page.getByTestId('fib-apply-defaults').click();
   await menu().click();
