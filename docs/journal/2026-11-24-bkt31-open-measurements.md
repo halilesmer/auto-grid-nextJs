@@ -2,7 +2,7 @@
 date: 2026-11-24
 author: Claude
 type: diagnosis
-status: open
+status: done
 pr: []
 features: [BKT-31, BKT-23, BKT-24, BKT-29]
 areas: [backtest, worker]
@@ -49,4 +49,9 @@ All below the 2 s limit of the earlier decision. Decision: the route stays out o
 - Data completeness (1110-K3.3): the first run had missing candles. The cause was never proven. Since 2026-11-12 the run log has a WARN for each unexplained hole (BKT-27) and a page with `syncing` is requested again. Not reproducible now. Closed as mitigated.
 
 ## Open points
-- [ ] Owner decision: fill latency producer or fixed 5 ms (see above).
+- [x] Owner decision: fill latency producer or fixed 5 ms (see above). (done: B, fixed 5 ms, PR 675)
+
+## Why
+
+Owner chose B on 2026-11-24: the real median is 1 ms, but 5 ms gave results closer to live in N2 and P7 (Σ|ΔNet| −1.02, no regression).
+So 5 ms stays fixed, the unused `fillLatencySamplesMs` input and its fallback entry are removed, and results do not change.

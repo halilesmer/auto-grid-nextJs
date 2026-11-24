@@ -46,7 +46,7 @@ test.describe('BKT-31 deriveProfile', () => {
     expect(d.profile.broker.opCost.remove).toBeCloseTo(0.12, 3);
     expect(d.profile.derived.clusterGapS).toBeCloseTo(0.9, 6); // 3 · 0,3
     expect(d.profile.measured).toEqual({ from, to: EVAL, source: 'orders' });
-    expect(d.fallbacks).toEqual(expect.arrayContaining(['headS', 'opCost.sltp', 'clockShiftS', 'fillLatencyMs']));
+    expect(d.fallbacks).toEqual(expect.arrayContaining(['headS', 'opCost.sltp', 'clockShiftS']));
     expect(d.fallbacks).not.toContain('opCost.pending');
     // Telemetrie fehlt: Vorgabewerte bleiben
     expect(d.profile.vps.headS).toBe(DEFAULT_PROFILE.vps.headS);

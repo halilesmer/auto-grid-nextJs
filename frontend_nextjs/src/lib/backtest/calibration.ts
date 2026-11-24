@@ -22,6 +22,8 @@ export const DEFAULT_PROFILE: CalibrationProfile = {
   id: 'default-2026-11',
   measured: null,
   vps: { headS: 0.105, zoneOverheadS: 0, clockShiftS: null },
+  // fillLatencyMs 5 ist ein Einstellwert, kein gemessener Wert: echter Median 1 ms (99 Füllungen, 2026-11-24).
+  // N2-Messung (2026-11-13): 1 → 5 ms senkte Σ|ΔNet| in P7 um 1,02, ohne Rückgang. Quelle: Journal 2026-11-24-bkt31-open-measurements.md
   broker: { opCost: { pending: 0.225, remove: 0.102, sltp: 0.1 }, fillLatencyMs: 5 },
   derived: { clusterGapS: 0.8, chainSlackS: 0.7 },
 };

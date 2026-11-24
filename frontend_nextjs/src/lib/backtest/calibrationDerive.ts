@@ -13,7 +13,6 @@ export const MIN_OP_SAMPLES = 30;
 export const MIN_QUIET_TURNS = 50;
 export const MIN_SLTP_TURNS = 30;
 export const MIN_SLTP_ACTIVE = 10;
-export const MIN_FILL_SAMPLES = 20;
 /** Cluster-Abstand der Messung: fest wie die Vorgabe, damit die Messung nicht vom Ergebnis abhängt */
 const MEASURE_GAP_S = DEFAULT_PROFILE.derived.clusterGapS;
 /** plausibler Bereich der SLTP-Steigung (s je Änderung); außerhalb = unbrauchbar */
@@ -31,8 +30,6 @@ export interface CalibrationInput {
   evalFrom: number;
   /** Brokeruhr minus UTC, ganze Stunden; null = Telemetrie nicht auswertbar */
   tzOffsetSec: number | null;
-  /** optional: Verzögerung Auslöse-Tick → Füll-Kurs je Deal in ms (bt-d1-Verfahren), aus W_c */
-  fillLatencySamplesMs?: readonly number[];
 }
 
 export interface DerivedProfile {
@@ -132,14 +129,11 @@ export function deriveProfile(input: CalibrationInput): DerivedProfile {
     fallbacks.push('headS', 'zoneOverheadS', 'opCost.sltp', 'clockShiftS');
   }
 
-  // Füllverzögerung (nur wenn die Seite Messwerte liefert)
-  let fillLatencyMs = DEFAULT_PROFILE.broker.fillLatencyMs;
-  const fills = input.fillLatencySamplesMs ?? [];
-  samples.fillLatencyMs = fills.length;
-  if (fills.length >= MIN_FILL_SAMPLES) fillLatencyMs = Math.round(p50(fills));
-  else fallbacks.push('fillLatencyMs');
+  // Füllverzögerung: fester Einstellwert (1124-D1.4), keine Messung; siehe DEFAULT_PROFILE
+  const fillLatencyMs = DEFAULT_PROFILE.broker.fillLatencyMs;
 
-  if (fallbacks.length >= 7) return { profile: DEFAULT_PROFILE, fallbacks: ['all'], samples };
+  // 6 = alle messbaren Größen (ohne fillLatencyMs) blieben beim Vorgabewert
+  if (fallbacks.length >= 6) return { profile: DEFAULT_PROFILE, fallbacks: ['all'], samples };
   return {
     profile: {
       id: 'derived',
