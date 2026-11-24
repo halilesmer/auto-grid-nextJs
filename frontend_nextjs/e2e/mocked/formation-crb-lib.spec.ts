@@ -366,8 +366,9 @@ test.describe('CRB: echte Kerzen', () => {
     for (const [name, iso] of [['gar-buy-h4-01', '2025-11-17T12:00'], ['bat-buy-h4-01', '2025-12-16T16:00'], ['cyp-buy-h4-01', '2025-12-17T00:00'], ['cyp-sell-h4-01', '2025-11-10T08:00']]) {
       expect(analyzeAt(name, iso).verdict).not.toBe('valid');
     }
-    // gar-sell-h4-01: seit 1122-A3.2 zeigt die Suche um 01-09 08:00 einen laufenden Crab-Verkauf (Einstieg 12-19 08:00, beim Einstieg gezeigt);
-    // die Gartley-Punkte, die sie vorher zeigte, werden direkt geprüft
+    // gar-sell-h4-01: der beim Einstieg gezeigte Crab-Verkauf (Einstieg 12-19 08:00, X 12-12 20:00) endet 12-23 20:00. Bis zur Hayalet-Korrektur
+    // (2026-11-24) zeigte die Suche danach dieselbe Einstiegskerze mit X 11-20 16:00 und Stop 185.786 als laufenden Handel; jetzt zeigt sie um
+    // 01-09 08:00 wieder die Gartley-Punkte, die direkt geprüft werden
     const fixture = loadFixture('gar-sell-h4-01');
     const ctx = new FormationContext(fixture.symbol, { H4: fixture.bars }, { trend: trendOf(fixture.bars) });
     const pt = (t: string, price: number) => ({ time: at(t), price });
@@ -381,7 +382,8 @@ test.describe('CRB: echte Kerzen', () => {
     });
     expect(gartley.verdict).not.toBe('valid');
     const shown = analyzeAt('gar-sell-h4-01', '2026-01-09T08:00');
-    expect([shown.side, shown.trade?.entry, shown.trade?.status?.endIdx]).toEqual(['sell', 184.12, undefined]);
+    expect([shown.side, shown.points.X?.time, shown.points.D?.time, shown.trade?.entry ?? null]).toEqual(['sell', at('2026-01-06T20:00'), at('2026-01-09T04:00'), null]);
+    expect(shown.verdict).not.toBe('valid');
   });
 });
 

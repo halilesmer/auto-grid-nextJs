@@ -38,7 +38,7 @@ import { buildEnv, buildEnvWithoutZones, dirSide, envFor, neighborTf, type Env }
 import { reversalAt } from './reversal';
 import { earlyReversalOf, type EarlyReversal } from './earlyReversal';
 import { reentryOf } from './reentry';
-import { enteredTrade, entryInHistory, hiddenOf, historyStart, recordShown, shownKeysOf, tradeAtOf } from './shownTrade';
+import { enteredTrade, entryInHistory, hiddenOf, historyStart, pointsKey as shownPointsKey, recordShown, shownKeysOf, tradeAtOf, tradeKey } from './shownTrade';
 import { cLegOf, lowerAbcdAt, lowerCandleAt, noPeakDivergence } from './cLeg';
 import { exemptFor, settle } from './settle';
 import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
@@ -588,6 +588,12 @@ function entryEnvOf(ctx: FormationContext, tf: ContextTimeframe): AtEntry {
  */
 const noPriority = new WeakMap<FormationContext, Map<string, number>>();
 
+/**
+ * Beendete Handel je Kontext: Handels-Schlüssel (`tradeKey`) → Punkte (`pointsKey` aus shownTrade.ts) und Öffnungszeit der Endkerze. Das Ende
+ * hängt nur von Kerzen bis dahin ab; eine Suche zählt nur Enden vor ihrer letzten Kerze (kein Blick in die Zukunft).
+ */
+const endedTradesStore = new WeakMap<FormationContext, Map<string, { points: string; stop: number | null; endTime: number }[]>>();
+
 /** Schlüsselraum der AB=CD-Suche in den gezeigten Handeln je Kontext (`shownKeysOf`) */
 const ABCD_SCOPE = {};
 
@@ -642,6 +648,9 @@ export function analyzeAbcd(ctx: FormationContext, t: number): AbcdAnalysis[] {
   let skipMap = noPriority.get(ctx);
   if (!skipMap) noPriority.set(ctx, (skipMap = new Map()));
   const skip = skipMap;
+  let endedTrades = endedTradesStore.get(ctx);
+  if (!endedTrades) endedTradesStore.set(ctx, (endedTrades = new Map()));
+  const endedOf = endedTrades;
 
   /** Gezeigter Kandidat der Zeiteinheit zum Zeitpunkt `at` und die Wahl ohne Vorrang; merkt sich den gezeigten Handel */
   const shownAt = (env: Env, tf: ContextTimeframe, at: number): { shown: Candidate | null; picked: Candidate | null } => {
@@ -660,10 +669,33 @@ export function analyzeAbcd(ctx: FormationContext, t: number): AbcdAnalysis[] {
     const candidateFor = (p: AbcdPoints) => {
       const key = pointsKey(p);
       let c = measured.get(key);
-      if (!c) measured.set(key, (c = evaluate(env, p, undefined, pip, atEntry)));
+      if (!c) {
+        measured.set(key, (c = evaluate(env, p, undefined, pip, atEntry)));
+        noteEnded(c);
+      }
       return c;
     };
+    // beendeter Handel: Schlüssel, Punkte und Endzeit für die Hayalet-Prüfung
+    const noteEnded = (c: Candidate) => {
+      const endIdx = c.trade?.status?.endIdx;
+      if (!enteredTrade(c) || endIdx === undefined) return;
+      const k = tradeKey(c, bars)!;
+      const e = { points: shownPointsKey(c), stop: c.trade!.stop ?? null, endTime: bars[endIdx].time };
+      const list = endedOf.get(k) ?? [];
+      if (!list.some((x) => x.points === e.points && x.endTime === e.endTime)) endedOf.set(k, [...list, e]);
+    };
     const hidden = hiddenOf(tf, bars, tradeAt);
+    // Hayalet (1120-A42.1, wie bei den Harmoniken): derselbe Handel mit anderen Punkten, nachdem der beim Einstieg gezeigte vor der letzten Kerze
+    // endete. Die Identität hat keine Wendepunkte (1122-A1.4 c), also ließe Regel B ihn durch; er käme mit anderem Stand wieder.
+    const ghost = (c: Candidate): boolean => {
+      const list = enteredTrade(c) && c.trade!.entryIdx! < last ? endedOf.get(tradeKey(c, bars)!) : undefined;
+      if (!list) return false;
+      const atEntryPoints = tradeAt(tf, bars[c.trade!.entryIdx!].time + TIMEFRAME_SEC[tf]).points;
+      // derselbe Ausgang (gleicher Stop, gleiche Endkerze) mit verschobenem Wendepunkt ist derselbe Handel (1122-A1.4 c)
+      const endIdx = c.trade!.status!.endIdx;
+      const sameOutcome = (e: { stop: number | null; endTime: number }) => c.trade!.stop === e.stop && endIdx !== undefined && bars[endIdx].time === e.endTime;
+      return atEntryPoints !== shownPointsKey(c) && list.some((e) => e.points === atEntryPoints && e.endTime < bars[last].time && !sameOutcome(e));
+    };
     let picked: Candidate | null = null;
     for (const p of order) {
       const c = candidateFor(p);
@@ -710,8 +742,21 @@ export function analyzeAbcd(ctx: FormationContext, t: number): AbcdAnalysis[] {
         skip.set(key, bars[entryIdx + 1].time);
         continue;
       }
+      // die übrigen Tripel derselben Einstiegskerze zuerst messen: ein beendeter, beim Einstieg gezeigter steht dann in `endedOf`
+      for (const q of queue) if (q.entryIdx === entryIdx) candidateFor(q.p);
+      if (ghost(candidate)) continue;
       found = candidate;
       break;
+    }
+    if (picked && ghost(picked)) {
+      picked = null;
+      for (const p of order) {
+        const c = candidateFor(p);
+        if (!hidden(c) && !ghost(c) && !proportionLost(c, last)) {
+          picked = c;
+          break;
+        }
+      }
     }
     const shown = found ?? picked;
     recordShown(keys, tf, bars, shown);
