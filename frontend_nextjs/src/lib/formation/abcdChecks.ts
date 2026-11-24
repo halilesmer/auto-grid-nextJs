@@ -48,6 +48,9 @@ import { TRADE_RULES, type Anchor, type Candidate, type Check, type CheckState, 
 
 const N = FRZ_PARAMS.neighbors;
 
+/** Arbeitszähler der AB=CD-Suche (Arbeitsgrenze im Test, nicht Zeit): `full` = volle Kandidatenmessungen (`evaluateFull`) */
+export const abcdWork = { full: 0 };
+
 const RULES: Record<string, [RuleKind, RuleStatus]> = {
   'ABCD-01': ['required', 'confirmed'],
   'ABCD-02': ['required', 'assumption'],
@@ -217,6 +220,7 @@ function evaluateFull(
   pip: number,
   atEntry?: AtEntry,
 ): { candidate: Candidate; big: BigTarget | null; frozenFrom: AbcdPoint | null } {
+  abcdWork.full++;
   const { tf } = env;
   const view = env.views.get(tf)!;
   const trend = env.trends.get(tf)!;

@@ -17,6 +17,8 @@ import { LOAD_DAYS } from '../../src/lib/formation/requests';
 import { splitDaily } from '../../src/lib/formation/weekly';
 import { DAY_SEC } from '../../src/lib/serverTime';
 import type { FormationBar } from '../../src/lib/formation/types';
+import { abcdWork } from '../../src/lib/formation/abcdChecks';
+import { trendWork } from '../../src/lib/formation/trd';
 import { xabcdWork } from '../../src/lib/formation/xabcd';
 import { fixtureTrend, named, trendOf } from '../fixtures/formation-trend';
 
@@ -28,7 +30,11 @@ const names = readdirSync(DIR).filter((f) => f.endsWith('.json')).map((f) => f.r
 const golden: Record<string, string> = existsSync(GOLDEN) && !UPDATE ? JSON.parse(readFileSync(GOLDEN, 'utf-8')) : {};
 const written: Record<string, string> = {};
 
-const resetWork = () => Object.assign(xabcdWork, { evaluated: 0, keys: 0, bases: 0, entered: 0, running: 0, keyBuilds: 0 });
+const resetWork = () => {
+  Object.assign(xabcdWork, { evaluated: 0, keys: 0, bases: 0, entered: 0, running: 0, keyBuilds: 0 });
+  abcdWork.full = 0;
+  trendWork.steps = 0;
+};
 /** Treffer mit Handelsblock (Einstieg gesetzt) */
 const blocksOf = (hits: readonly { candidate: { trade?: { entry?: number | null } } }[]) => hits.filter((h) => h.candidate.trade?.entry != null).length;
 /** Hash des vollen Ergebnisses; mit GOLDEN_FULL_DIR liegt das volle JSON dort (Vorher/Nachher-Vergleich mit diff -r) */
@@ -96,7 +102,7 @@ export function pageScan(nowIso: string, symbol: string) {
   resetWork();
   const started = performance.now();
   const hits = scanFormations(ctx, at);
-  return { hash: hashOf(`page:${symbol}@${nowIso}`, hits), ms: Math.round(performance.now() - started), work: { ...xabcdWork }, hits: hits.length, blocks: blocksOf(hits) };
+  return { hash: hashOf(`page:${symbol}@${nowIso}`, hits), ms: Math.round(performance.now() - started), work: { ...xabcdWork }, abcdFull: abcdWork.full, trendSteps: trendWork.steps, hits: hits.length, blocks: blocksOf(hits) };
 }
 
 // Seitenläufe (alle vier Zeiteinheiten wie der Chart, Mock-Kerzen, feste Uhr): Treffer wie aufgezeichnet; Arbeit begrenzt (Zahl der Messungen, nicht Zeit)
@@ -104,6 +110,10 @@ const PAGE = [['2026-11-12T16:21:00Z', 'USOUSD'], ['2026-11-12T05:00:00Z', 'EURU
 const LIMITS = JSON.parse(readFileSync('e2e/fixtures/formation-scan-golden.json', 'utf-8')) as { __keyBuildsMax?: number; __evaluatedMax?: number };
 const KEY_MAX = LIMITS.__keyBuildsMax;
 const EVALUATED_MAX = LIMITS.__evaluatedMax;
+// AB=CD-Suche (1124-C1): je Tripel genügt der Handel (`tradeOnlyOf`), voll gemessen wird nur das Ergebnis; der Trend am Einstieg läuft aus einem
+// angehaltenen Lauf (`TrendRun`). Vorher (Stand 6461b065) rechnete ein Seitenlauf 620 bis 638 volle Messungen und 312 000 bis 336 000 Trendkerzen.
+const ABCD_FULL_MAX = 20;
+const TREND_STEPS_MAX = 90_000;
 for (const [now, sym] of PAGE) {
   test(`Seitenlauf ${sym} ${now}: gleiche Treffer, begrenzte Arbeit`, { tag: '@FRM-08' }, () => {
     const r = pageScan(now, sym);
@@ -117,6 +127,8 @@ for (const [now, sym] of PAGE) {
       expect(r.work.keyBuilds, 'Schlüssel in historicBases').toBeLessThanOrEqual(KEY_MAX ?? 0);
       // PR 647/648 messten ~18 000 bis ~24 000 Kandidaten je Seitenlauf (die meisten beendete oder nie eingegangene Handel); bitte nicht wieder dorthin
       expect(r.work.evaluated, 'Kandidatenmessungen').toBeLessThanOrEqual(EVALUATED_MAX ?? 0);
+      expect(r.abcdFull, 'volle AB=CD-Messungen').toBeLessThanOrEqual(ABCD_FULL_MAX);
+      expect(r.trendSteps, 'gelaufene Trendkerzen').toBeLessThanOrEqual(TREND_STEPS_MAX);
     }
   });
 }

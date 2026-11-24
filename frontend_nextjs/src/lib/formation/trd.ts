@@ -15,6 +15,9 @@ type Bars = readonly FormationBar[];
 
 const N = FRZ_PARAMS.neighbors;
 
+/** Arbeitszähler (Arbeitsgrenze im Test, nicht Zeit): `steps` = gelaufene Kerzen des Trendzugs über alle Läufe */
+export const trendWork = { steps: 0 };
+
 /** Richtung eines Zugs, der an einem Punkt dieser Seite endet (Hoch → aufwärts) */
 export const legDir = (side: ZoneSide): TrendDir => (side === 'resistance' ? 'up' : 'down');
 /** Seite des Extrems in Trendrichtung (Aufwärtstrend: Hochs) */
@@ -186,6 +189,7 @@ export function buildTrend(
   const byPoint: CandIndex = new Map();
 
   for (let k = 0; k < bars.length; k++) {
+    trendWork.steps++;
     // 1. Trendwechsel: Schlüsse jenseits des Gegenpunkts, an dem der Impuls begann (TRD-15 bis TRD-17)
     if (m.dir) {
       const ref = changeRef(m);
