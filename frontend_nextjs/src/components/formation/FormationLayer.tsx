@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { TIMEFRAME_SEC, type Bar } from '@/lib/analysis/candles';
-import { useFormat, useT } from '@/i18n';
+import { useFormat, useLocale, useT } from '@/i18n';
+import { layoutDArrow, type DArrowModel } from '@/lib/formation/dArrow';
+import { ruleText } from '@/lib/formation/ruleTexts';
+import { pipOf } from '@/lib/formation/xabcd';
 import { Tooltip } from '@/components/ui/tooltip';
 import { layoutDrawings, layoutExpectedD, type DLayout, type DrawingGroup, type Prim, type Tone } from '@/lib/formation/drawingLayout';
 import { UPPER_TIMEFRAME, type ScanHit } from '@/lib/formation/scan';
@@ -121,6 +124,72 @@ function PrimView({ prim, side, style, onMenu, toolActive }: { prim: Prim; side:
   }
 }
 
+const D_ARROW_PILL_CHAR = 6.4;
+
+/** D-Pfeil (1124-F2): D-Niveau, Pfeil zum D (oder zu B), Grund bei Ungültig und das Abzeichen; der Hover nennt Bedingungen und Rest */
+function DArrowView({ model, aria }: { model: DArrowModel; aria: string }) {
+  const { level, arrow, ring, reason, pill, hit, tip } = model;
+  const pillW = (pill.main.length + pill.badge.length) * D_ARROW_PILL_CHAR + 30;
+  const pillX = Math.max(2, pill.x - pillW);
+  const halo = { stroke: 'var(--card)', strokeWidth: 3, strokeLinejoin: 'round' as const, paintOrder: 'stroke' as const };
+  const faint = level?.strength === 'faint';
+  return (
+    <g data-testid="formation-d-arrow" data-state={model.state} data-side={model.side}>
+      {level && (
+        <g data-testid="formation-d-level" data-strength={level.strength} opacity={faint ? 0.5 : 1}>
+          <line x1={level.x1} x2={level.x2} y1={level.y} y2={level.y} stroke={model.state === 'invalid' ? 'var(--muted-foreground)' : 'var(--info)'} strokeWidth={faint ? 1 : 2} strokeDasharray={model.state === 'invalid' ? '5 4' : undefined} />
+          <text x={level.x1 + 6} y={level.y - 6} fontSize={11} fontWeight={600} fill={model.state === 'invalid' ? 'var(--muted-foreground)' : 'var(--info)'} {...halo}>{level.label}</text>
+        </g>
+      )}
+      {reason && (
+        <g data-testid="formation-d-reason">
+          <rect x={reason.x1} y={reason.fill.y} width={Math.max(0, reason.x2 - reason.x1)} height={reason.fill.h} fill="var(--danger)" fillOpacity={0.1} />
+          <rect x={reason.x1} y={reason.lineY - 1} width={Math.max(0, reason.x2 - reason.x1)} height={2} fill="var(--danger)" />
+          {/* Die Schrift der Linie steht auf der Seite der Linie, die von B wegzeigt; die von B auf der anderen: sie treffen sich nie */}
+          <text x={reason.x2} y={reason.lineY + (reason.dir > 0 ? 14 : -6)} textAnchor="end" fontSize={11} fontWeight={600} fill="var(--danger)" {...halo}>{reason.lineLabel}</text>
+          {reason.arrow && reason.arrowLabel && (
+            <g data-testid="formation-d-reason-arrow">
+              <line x1={reason.arrow.x} x2={reason.arrow.x} y1={reason.arrow.y1} y2={reason.arrow.y2 - reason.dir * 6} stroke="var(--danger)" strokeWidth={1.8} strokeLinecap="round" />
+              <polygon points={`${reason.arrow.x},${reason.arrow.y2} ${reason.arrow.x - 4},${reason.arrow.y2 - reason.dir * 9} ${reason.arrow.x + 4},${reason.arrow.y2 - reason.dir * 9}`} fill="var(--danger)" />
+              <text x={reason.arrowLabel.x} y={reason.arrowLabel.y} textAnchor="end" fontSize={11} fontWeight={700} fill="var(--danger)" {...halo}>{reason.arrowLabel.text}</text>
+            </g>
+          )}
+          <circle cx={reason.b.x} cy={reason.b.y} r={6} fill="none" stroke="var(--danger)" strokeWidth={2} />
+          <text x={reason.b.x + 10} y={reason.b.y + (reason.dir > 0 ? -9 : 17)} fontSize={11} fontWeight={700} fill="var(--danger)" {...halo}>{reason.b.label}</text>
+        </g>
+      )}
+      {arrow && (() => {
+        const a = Math.atan2(arrow.y2 - arrow.y1, arrow.x2 - arrow.x1);
+        const p1 = [arrow.x2 - 10 * Math.cos(a - 0.45), arrow.y2 - 10 * Math.sin(a - 0.45)];
+        const p2 = [arrow.x2 - 10 * Math.cos(a + 0.45), arrow.y2 - 10 * Math.sin(a + 0.45)];
+        return (
+          <g data-testid="formation-d-arrow-line" data-x2={Math.round(arrow.x2)} data-y2={Math.round(arrow.y2)}>
+            <line x1={arrow.x1} y1={arrow.y1} x2={arrow.x2 - Math.cos(a) * 8} y2={arrow.y2 - Math.sin(a) * 8} stroke={arrow.color} strokeWidth={2.2} strokeDasharray="6 5" strokeLinecap="round" />
+            <polygon points={`${arrow.x2},${arrow.y2} ${p1.join(',')} ${p2.join(',')}`} fill={arrow.color} />
+          </g>
+        );
+      })()}
+      {ring && <circle data-testid="formation-d-ring-near" cx={ring.x} cy={ring.y} r={8} fill="none" stroke="var(--info)" strokeWidth={2} className="motion-safe:animate-pulse" />}
+      <g data-testid="formation-d-pill" data-main={pill.main}>
+        <rect x={pillX} y={pill.y - 11} width={pillW} height={22} rx={11} fill="var(--card)" stroke={pill.color} strokeWidth={1.4} />
+        <text x={pillX + 9} y={pill.y + 4} fontSize={11} fontWeight={700} fill={pill.color}>{pill.main}</text>
+        <text x={pillX + 9 + pill.main.length * D_ARROW_PILL_CHAR + 8} y={pill.y + 4} fontSize={10.5} fontWeight={600} fill={pill.color}>{pill.badge}</text>
+      </g>
+      <g data-testid="formation-d-arrow-hit" data-tooltip-scope style={{ pointerEvents: 'all' }}>
+        <foreignObject x={hit.x} y={hit.y} width={hit.w} height={hit.h}>
+          <Tooltip
+            content={<span className="block max-w-72 whitespace-pre-line text-xs"><b className="mb-0.5 block">{tip.title}</b>{tip.body}{'\n\n'}<span className="font-mono text-muted-foreground">{tip.meta}</span></span>}
+            side="bottom"
+            className="block size-full"
+          >
+            <span className="block size-full" aria-label={aria} />
+          </Tooltip>
+        </foreignObject>
+      </g>
+    </g>
+  );
+}
+
 /** Eingabe der Formationsschicht: der Treffer, die Kerzen und Punkte des Charts und die Szene von `ChartView.renderOverlay` */
 export interface FormationLayerProps {
   hit: ScanHit;
@@ -131,6 +200,8 @@ export interface FormationLayerProps {
   points: readonly { time: number }[];
   /** ATR der letzten Kerze (Band „D? bölgesi“) */
   atr: number | null;
+  /** Symbol des Charts: bestimmt die Pip-Größe des D-Pfeils (1124-F2) */
+  symbol?: string | null;
   /** Laufende Kerze mit dem aktuellen Preis, nur zur Anzeige */
   running: Bar | null;
   /** Stand in der Vergangenheit (FRM-38): gestrichelte Linie „Stand“ am Ende der Kerzen */
@@ -156,8 +227,9 @@ const NO_D: DLayout = { badges: [], rings: [], bands: [] };
 const NO_HITS: readonly ScanHit[] = [];
 
 /** Zeichnungen der Erkennung als SVG über dem Chart (für `renderOverlay` jedes `ChartView`); das Overlay endet vor der Preisachse. */
-export function FormationLayer({ scene, hit, bars, points, running, asOf, active, onActive, onCapture, onPriceBottom, visible, rsiVisible, others = NO_HITS, onSelectHit, atr }: FormationLayerProps) {
+export function FormationLayer({ scene, hit, bars, points, running, asOf, active, onActive, onCapture, onPriceBottom, visible, rsiVisible, others = NO_HITS, onSelectHit, atr, symbol }: FormationLayerProps) {
   const t = useT();
+  const locale = useLocale();
   const { number } = useFormat();
   const { binding, rsi } = scene;
   const appearance = useChartWorkspaceStore(s => s.preview ?? s.appearance);
@@ -185,7 +257,7 @@ export function FormationLayer({ scene, hit, bars, points, running, asOf, active
   const clipId = `formation-price-clip-${useId().replace(/:/g, '')}`;
   const overlayRef = useRef<SVGSVGElement>(null);
   const redrawRef = useRef<(() => void) | null>(null);
-  const [overlay, setOverlay] = useState<{ width: number; height: number; left: number; priceHeight: number; groups: DrawingGroup[]; asOfX: number | null; d: DLayout }>({ width: 0, height: 0, left: 0, priceHeight: 0, groups: [], asOfX: null, d: NO_D });
+  const [overlay, setOverlay] = useState<{ width: number; height: number; left: number; priceHeight: number; groups: DrawingGroup[]; asOfX: number | null; d: DLayout; dArrow: DArrowModel | null }>({ width: 0, height: 0, left: 0, priceHeight: 0, groups: [], asOfX: null, d: NO_D, dArrow: null });
 
   useEffect(() => {
     const { chart, host } = binding;
@@ -254,11 +326,25 @@ export function FormationLayer({ scene, hit, bars, points, running, asOf, active
         text: (key, params) => t(key as never, { tf: hit.tf, up: UPPER_TIMEFRAME[hit.tf], ...params }),
         fmt: (n) => number(n, { maximumFractionDigits: 3 }),
       });
+      const dArrow = layoutDArrow({
+        candidate: hit.candidate,
+        form: hit.form,
+        width,
+        lastBar: { time: lastBar.time, close: lastBar.close },
+        barSec: TIMEFRAME_SEC[hit.tf],
+        pip: pipOf(symbol ?? ''),
+        x,
+        y,
+        text: label,
+        fmt: fmtN,
+        pips: (n) => number(n, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+        ruleName: (id) => ruleText(locale, id) ?? id,
+      });
       onPriceBottom(top);
       // Ende der letzten Kerze: halbe Kerzenbreite hinter ihrer Mitte (der logische Index zählt Kerzen und Leerstellen)
       const lastX = chart.timeScale().logicalToCoordinate((points.length - 1) as never);
       const asOfX = lastX === null ? null : lastX + chart.timeScale().options().barSpacing / 2;
-      setOverlay({ width, left, height: top + subHeight, priceHeight: top, groups, asOfX, d });
+      setOverlay({ width, left, height: top + subHeight, priceHeight: top, groups, asOfX, d, dArrow });
     };
     chart.timeScale().subscribeVisibleLogicalRangeChange(redraw);
     chart.timeScale().subscribeSizeChange(redraw);
@@ -293,7 +379,7 @@ export function FormationLayer({ scene, hit, bars, points, running, asOf, active
     // ChartCore baut den Chart beim Unmount vor diesem Effekt ab
     const unregister = binding.onDispose(dispose);
     return () => { unregister(); dispose(); };
-  }, [binding, rsi, bars, points, hit, others, atr, t, number, onPriceBottom]);
+  }, [binding, rsi, bars, points, hit, others, atr, symbol, locale, t, number, onPriceBottom]);
 
   // Die Preisachse kann sich mit der laufenden Kerze oder den Einstellungen ändern: Zeichnungen folgen im nächsten Frame
   useEffect(() => {
@@ -350,6 +436,7 @@ export function FormationLayer({ scene, hit, bars, points, running, asOf, active
       height={overlay.priceHeight}
       style={{ pointerEvents: 'none', left: overlay.left, display: visible ? undefined : 'none' }}
     >
+      {overlay.dArrow && <DArrowView model={overlay.dArrow} aria={t('formation.dArrow.aria', { title: overlay.dArrow.tip.title })} />}
       {overlay.d.bands.map((b, i) => (
         <g key={`band-${i}`} data-testid="formation-d-band">
           <rect x={b.x} y={b.top} width={Math.max(0, overlay.width - b.x)} height={Math.max(2, b.bottom - b.top)} fill="var(--info)" fillOpacity={0.14} stroke="var(--info)" strokeDasharray="6 5" />
