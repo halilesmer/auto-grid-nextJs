@@ -78,6 +78,16 @@ def validate(cats: list[dict]) -> list[str]:
             for key in ("titel", "beschreibung", "tiers", "pruefung", "erwartet"):
                 if not f.get(key):
                     problems.append(f"{fid}: Feld '{key}' fehlt")
+            steps = f.get("pruefung")
+            if isinstance(steps, list):
+                for n, step in enumerate(steps, 1):
+                    if not isinstance(step, str):
+                        problems.append(
+                            f"{fid}: pruefung Schritt {n} ist kein Text ({type(step).__name__}: {step!r}); "
+                            f"enthält der Text ': '? Dann in Anführungszeichen setzen"
+                        )
+            elif steps:
+                problems.append(f"{fid}: pruefung muss eine Liste sein")
             for t in f.get("tiers", []):
                 if t not in ALL_TIERS:
                     problems.append(f"{fid}: unbekannte Ebene '{t}'")
