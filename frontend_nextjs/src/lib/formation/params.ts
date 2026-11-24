@@ -105,6 +105,14 @@ export interface TrendOptions {
 /** Tage Verlauf je Zeiteinheit: genug Wendepunkte für die Suche, wenig genug für eine schnelle Antwort (Annahme) */
 export const D1_VIEW_DAYS = 400;
 export const HISTORY_DAYS = { D1: D1_VIEW_DAYS, H4: 120, H1: 40, M15: 10 } as const satisfies Record<ContextTimeframe, number>;
+/**
+ * Vorlauf vor dem Verlaufsfenster (1114-A4): der Trendzug beginnt an der ersten geladenen Kerze; ohne Vorlauf zeichnet er die Wendepunkte im
+ * Fenster neu, sobald der Anfang weiterrückt, und ein laufender Handel verschwindet. Ein Fenster Vorlauf: gemessen (XAUUSD, 2026-11-24) sind die
+ * Wendepunkte im Fenster dann dieselben wie mit einem Jahr Kerzen (H4 1063, H1 709, M15 449 Zeitpunkte); „beim Einstieg gezeigt“ rechnet den
+ * Einstiegsschluss eines laufenden Handels, dessen Fenster bis zu einem Fenster vor dem jetzigen beginnt. D1 hat keinen eigenen Vorlauf: die D1-Ansicht
+ * ist der ganze D1-Verlauf für W1 (`W1_HISTORY_DAYS`, splitDaily).
+ */
+export const TREND_LEAD_DAYS = { H4: HISTORY_DAYS.H4, H1: HISTORY_DAYS.H1, M15: HISTORY_DAYS.M15 } as const;
 
 /** Trend (TRD). Mit „Annahme“ markierte Zahlen sind gewählt, nicht gemessen. */
 export const TRD_PARAMS = {

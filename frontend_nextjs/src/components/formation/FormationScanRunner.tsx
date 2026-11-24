@@ -15,7 +15,7 @@ import { announce, batchOf } from '@/lib/formation/alarmNotify';
 import { save, serverSnapshot, snapshot, subscribe } from '@/lib/formation/alarmStore';
 import { FormationContext, type ContextInput } from '@/lib/formation/context';
 import { CONTEXT_TIMEFRAMES } from '@/lib/formation/params';
-import { formationRequests } from '@/lib/formation/requests';
+import { formationRequests, gapInHistory } from '@/lib/formation/requests';
 import { trendFingerprint } from '@/lib/formation/trdPath';
 import { splitDaily } from '@/lib/formation/weekly';
 import { formedHits, scanFormations, scanTime, type FormedHit, type ScanHit } from '@/lib/formation/scan';
@@ -85,16 +85,15 @@ async function scanSymbol(accountId: string, symbol: string, to: number, signal:
   const input: ContextInput = {};
   let gap: ScanGap | null = null;
   for (const [tf, res] of loaded) {
+    // Lücken vor dem Verlaufsfenster (Vorlauf des Trendzugs, D1-Verlauf für W1) setzen den Lückenhinweis nicht
+    if (gapInHistory(tf, res.missing, to)) gap = 'missing';
     if (tf === 'D1') {
-      // Lücken nur im Zusatzteil für W1 (vor der D1-Ansicht) setzen den Lückenhinweis nicht
-      const { d1, w1 } = splitDaily(res.bars, res.missing, to);
+      const { d1, w1 } = splitDaily(res.bars, res.missing);
       input.D1 = d1;
       input.W1 = w1;
-      if (d1.missing.length > 0) gap = 'missing';
       continue;
     }
     input[tf] = { bars: res.bars, missing: res.missing };
-    if (res.missing.length > 0) gap = 'missing';
   }
   const m15 = loaded.find(([tf]) => tf === 'M15')?.[1];
   const last: Bar | undefined = m15?.bars[m15.bars.length - 1];

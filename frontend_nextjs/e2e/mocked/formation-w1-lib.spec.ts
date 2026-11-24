@@ -6,6 +6,7 @@
 import { expect, test } from '@playwright/test';
 import { FormationContext } from '../../src/lib/formation/context';
 import { analyzeFrz } from '../../src/lib/formation/frzChecks';
+import { gapInHistory } from '../../src/lib/formation/requests';
 import { splitDaily, weeklyFromDaily } from '../../src/lib/formation/weekly';
 import type { FormationBar } from '../../src/lib/formation/types';
 import { FIXTURE_TREND } from '../fixtures/formation-trend';
@@ -85,18 +86,23 @@ test.describe('W1 aus D1', () => {
   });
 });
 
-test.describe('D1-Zusatzteil für W1', () => {
-  frm('splitDaily: D1 behält die letzten 400 Tage, W1 entsteht aus allen; Lücke im Zusatzteil meldet keinen Lückenhinweis', () => {
+test.describe('D1-Verlauf für W1', () => {
+  frm('splitDaily: D1 und W1 aus dem ganzen D1-Verlauf (1114-A4); eine Lücke vor dem Verlaufsfenster setzt keinen Lückenhinweis', () => {
     const to = SUN3 + 2000 * DAY;
     const old = { time: to - 600 * DAY, open: 1, high: 2, low: 0, close: 1 };
     const recent = { time: to - 10 * DAY, open: 5, high: 6, low: 4, close: 5 };
-    const r = splitDaily([old, recent], [{ from: to - 700 * DAY, to: to - 650 * DAY }], to);
-    expect(r.d1.bars).toEqual([recent]);
-    expect(r.d1.missing).toEqual([]);
+    const before = [{ from: to - 700 * DAY, to: to - 650 * DAY }];
+    const r = splitDaily([old, recent], before);
+    // die D1-Ansicht ist der ganze Verlauf: der D1-Trendzug beginnt nicht am Anfang des Verlaufsfensters
+    expect(r.d1.bars).toEqual([old, recent]);
+    expect(r.d1.missing).toEqual(before);
     expect(r.w1.bars.length).toBe(2);
     expect(r.w1.bars[1].gapBefore).toBeUndefined();
-    const r2 = splitDaily([old, recent], [{ from: to - 100 * DAY, to: to - 90 * DAY }], to);
-    expect(r2.d1.missing).toEqual([{ from: to - 100 * DAY, to: to - 90 * DAY }]);
+    expect(gapInHistory('D1', before, to)).toBe(false);
+    const inside = [{ from: to - 100 * DAY, to: to - 90 * DAY }];
+    const r2 = splitDaily([old, recent], inside);
+    expect(r2.d1.missing).toEqual(inside);
     expect(r2.w1.bars[1].gapBefore).toBe(true);
+    expect(gapInHistory('D1', inside, to)).toBe(true);
   });
 });

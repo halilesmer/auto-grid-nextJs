@@ -8,8 +8,8 @@
  *
  * Bağlam kipi (FORMATION_HISTORY_CONTEXT, varsayılan `chart`; PROBABLE=1 iken `full`):
  * - `chart`: her taramada her zaman dilimi yalnız grafiğin o an için yükleyeceği aralığı görür. Kurulum grafiğin geçmiş modunun aynısı
- *   (`useFormationScan`, `pastAt = at`): `formationRequests(…, pastRequestEnd(at))` aralığı, `ratesWindow` ile hizalama, D1 için `splitDaily`
- *   (`pastDayEnd(at)`) ve W1. Her taramada yeni bir `FormationContext` kurulur. Ölçülen şey ekrandır.
+ *   (`useFormationScan`, `pastAt = at`): `formationRequests(…, pastRequestEnd(at))` aralığı (geçmiş penceresi artı trend ısınması), `ratesWindow` ile
+ *   hizalama, D1 için `splitDaily` ve W1. Her taramada yeni bir `FormationContext` kurulur. Ölçülen şey ekrandır.
  * - `full`: bütün geçmiş tek bir `FormationContext`'te; `view()` her anda `slice(0, n)` alır (M15'te bir yıl). Eski kip; pencere etkisini
  *   mantık etkisinden ayırmak için teşhis aracıdır, ekranı ölçmez.
  *
@@ -26,7 +26,7 @@ import type { RatesResponse } from '../../src/services/marketApi';
 import { FormationContext, type ContextInput } from '../../src/lib/formation/context';
 import { ABCD_PARAMS, D1_VIEW_DAYS, DEFAULT_TREND_SETTINGS, HISTORY_DAYS, type ContextTimeframe } from '../../src/lib/formation/params';
 import { pastDayEnd, pastRequestEnd } from '../../src/lib/formation/asOf';
-import { formationRequests } from '../../src/lib/formation/requests';
+import { formationRequests, LOAD_DAYS } from '../../src/lib/formation/requests';
 import { setFormationDiag, type DiagEvent } from '../../src/lib/formation/diag';
 import { scanFormations, type ScanFormation, type ScanHit } from '../../src/lib/formation/scan';
 import { analyzeAbcd } from '../../src/lib/formation/abcdChecks';
@@ -139,7 +139,7 @@ async function loadRates(
 
 /**
  * Grafiğin geçmiş modundaki bağlam girdisi (`useFormationScan` ile `pastAt = at`): her zaman dilimi için `formationRequests`'in verdiği aralık,
- * `ratesWindow` ile hizalı (`useMarketRates` aynısını sorar); eksik aralıklar o aralığa kırpılır. D1: `splitDaily` + W1 (`pastDayEnd(at)`).
+ * `ratesWindow` ile hizalı (`useMarketRates` aynısını sorar); eksik aralıklar o aralığa kırpılır. D1: `splitDaily` + W1 (D1 görünümü bütün D1 geçmişi).
  * Yalnız yüklenmiş zaman dilimleri girer; hangi komşuların yükleneceği spec'in kendi seçimidir (ana zaman dilimine göre).
  */
 function chartInput(d: Partial<Record<'D1' | 'H4' | 'H1' | 'M15', Loaded>>, at: number): ContextInput {
@@ -151,7 +151,7 @@ function chartInput(d: Partial<Record<'D1' | 'H4' | 'H1' | 'M15', Loaded>>, at: 
     const bars = loaded.bars.filter((b) => b.time >= win.from && b.time < win.to);
     const missing = loaded.missing.filter((m) => m.to > win.from && m.from < win.to).map((m) => ({ ...m, from: Math.max(m.from, win.from), to: Math.min(m.to, win.to) }));
     if (ctf === 'D1') {
-      const daily = splitDaily(bars, missing, pastDayEnd(at));
+      const daily = splitDaily(bars, missing);
       input.D1 = daily.d1;
       input.W1 = daily.w1;
     } else input[ctf] = { bars, missing };
@@ -159,7 +159,11 @@ function chartInput(d: Partial<Record<'D1' | 'H4' | 'H1' | 'M15', Loaded>>, at: 
   return input;
 }
 
-/** İlk noktası bu andan önce olan aday, grafiğin yüklediği pencerenin dışındadır (chart kipinde pencerenin gerçek başı; full kipinde `HISTORY_DAYS` ile günler) */
+/**
+ * İlk noktası bu andan önce olan aday, aramanın geçmiş penceresinin (`HISTORY_DAYS`) dışındadır. chart kipinde pencerenin zaman dilimine hizalı başı
+ * (D1: `pastDayEnd(at)` eksi D1 görünümü); full kipinde `HISTORY_DAYS` ile günler. Grafik pencereden önce trend için ısınma da yükler (1114-A4,
+ * `TREND_LEAD_DAYS`); ısınma bu istisnayı genişletmez.
+ */
 function windowStartOf(tf: string, at: number): number {
   if (CONTEXT_MODE === 'full') return at - HISTORY_DAYS[tf as keyof typeof HISTORY_DAYS] * DAY;
   if (tf === 'D1') return pastDayEnd(at) - D1_VIEW_DAYS * DAY;
@@ -1097,8 +1101,9 @@ test('Formasyon geçmiş taraması: işlem durumları canlı mumlarla (salt okun
     result[symbol] = {};
     const loadStarted = Date.now();
     const need: Record<MainTf, Span> = {
-      H4: { D1: daysOf('H4', BARS.H4) + Math.max(HISTORY_DAYS.D1, 1100), H4: daysOf('H4', BARS.H4) + HISTORY_DAYS.H4, H1: daysOf('H4', BARS.H4) + HISTORY_DAYS.H1 },
-      H1: { H4: daysOf('H1', BARS.H1) + HISTORY_DAYS.H4, H1: daysOf('H1', BARS.H1) + HISTORY_DAYS.H1, M15: daysOf('H1', BARS.H1) + HISTORY_DAYS.M15 },
+      // grafiğin yüklediği gün sayısı (`LOAD_DAYS`: geçmiş penceresi artı trend ısınması, D1 W1 geçmişi); full kipi de aynı veriyi görür
+      H4: { D1: daysOf('H4', BARS.H4) + LOAD_DAYS.D1, H4: daysOf('H4', BARS.H4) + LOAD_DAYS.H4, H1: daysOf('H4', BARS.H4) + LOAD_DAYS.H1 },
+      H1: { H4: daysOf('H1', BARS.H1) + LOAD_DAYS.H4, H1: daysOf('H1', BARS.H1) + LOAD_DAYS.H1, M15: daysOf('H1', BARS.H1) + LOAD_DAYS.M15 },
     };
     const data: Partial<Record<MainTf, Partial<Record<'D1' | 'H4' | 'H1' | 'M15', Loaded>>>> = {};
     for (const tf of MAIN_TFS) {
