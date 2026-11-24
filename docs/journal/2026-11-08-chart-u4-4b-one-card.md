@@ -60,4 +60,4 @@ Note on the order: the new tests were written after the code. I did not run them
 ## Open points
 - [x] **The open card covers the formation (known conflict).** At 1024 × 768 the card lies at x 620–940, y 134–669; at 1440 × 900 at x 1036–1356, y 134–748. All 8 drawn formation elements (zigzag, ratios, target, zone) of the H4 fixture lie inside the card box (see the 1440 screenshot: points D and the target are hidden). Below 1024 px the card is closed, so nothing is covered. The rule "open from 1024" was applied as the plan says; I did not change it. Needs a decision (for example: closed while a formation is drawn, as in U4-4a, or a card that docks to the chart). The line-menu tests start the card closed for this reason. (done: PR 464, 480)
 - [ ] A21.12, A21.13, A21.14, A21.17: not touched (waiting for the owner).
-- [ ] U4-4b is marked in the plan journal. U4-5 removes `ChartPanel.tsx`, `FormationSidebarTabs.tsx` and `FormationView` (they still use the side bar).
+- [x] U4-4b is marked in the plan journal. U4-5 removes `ChartPanel.tsx`, `FormationSidebarTabs.tsx` and `FormationView` (they still use the side bar). (done: PR 462)

@@ -2,7 +2,7 @@
 date: 2026-11-06
 author: Claude
 type: fix
-status: open
+status: done
 pr: [398]
 features: [SYS-11, SYS-10]
 areas: [tests, tooling]
@@ -47,7 +47,7 @@ Reproduction before the fix (own temporary lock directory, 15 parallel wrappers 
 - Not verified: the real EPERM case as a sandboxed process (only a root-owned process as a normal user).
 
 ## Open points
-- [ ] Part 2 of the R3 fixes: R3-06, R3-07, R3-08, R3-09, R3-11 (scripts `e2e_server.sh`, `precheck.sh`, `run.sh`, `e2e/fixtures/env.ts`).
+- [x] Part 2 of the R3 fixes: R3-06, R3-07, R3-08, R3-09, R3-11 (scripts `e2e_server.sh`, `precheck.sh`, `run.sh`, `e2e/fixtures/env.ts`). (done: PR 404)
 
 ## Lessons
 - Compare-then-delete on a shared directory needs a mutex around both steps. A re-read is not enough.

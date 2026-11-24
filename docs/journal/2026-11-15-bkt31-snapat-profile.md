@@ -2,7 +2,7 @@
 date: 2026-11-15
 author: Claude
 type: feature
-status: open
+status: done
 pr: []
 features: [BKT-31]
 areas: [frontend, backtest]
@@ -29,4 +29,4 @@ Plan 1114-M1 (two-phase turn). PR-1 is the pure base: carry the telemetry fields
 - The engine and the runner do not read `snapAt`. A run with the same input gives the same result as before.
 
 ## Open points
-- [ ] PR-2 uses `snapAt` (flag `turnPhases`, off by default).
+- [x] PR-2 uses `snapAt` (flag `turnPhases`, off by default). (done: PR 593)
