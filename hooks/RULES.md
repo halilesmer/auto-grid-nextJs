@@ -124,6 +124,20 @@ Katalog: `docs/features/features.yaml` (tek doğru kaynak) → `docs/features/FE
     gh run view <run-id> --log | grep -A10 -E ' [0-9]+ (flaky|failed)$'   # PR run, then each id of: gh run list --branch main --workflow tests.yml --limit 3
     ```
 
+18. **[otomatik]** (in `hooks/claude/pre-bash-shared-git.sh`, SYS-17) Do not change shared Git state. All sessions use one repository, so two things leak between sessions. `refs/stash` is shared by all worktrees: a `git stash` of one session ends up in the `git stash pop` of another. The main checkout carries `localhost:3000`, the work in progress of the owner, and many sessions: a branch change, `git add -A`, or `git reset --hard` there takes, deletes, or commits the files of others. The hook stops these Bash commands (exit 2, also with `run_in_background`):
+
+    | Where | Stopped |
+    |---|---|
+    | Everywhere | `git stash` (only `list` and `show` run) |
+    | Main checkout only | `checkout`/`switch` that changes the branch or restores a file, `reset --hard/--merge/--keep`, `clean`, `restore` of files, `add -A/--all/./-u/*`, `commit -a`, `rebase`, `cherry-pick`, `revert`, `merge` and `pull` without `--ff-only` |
+
+    The target directory is `git -C <path>`, else the last `cd <path>` of the command, else the `cwd` of the session. If a `cd` target cannot be resolved (`cd "$X"`), only the stash rule applies. In a worktree, every other command runs. Work that is not a quick read goes to a worktree. To set work aside, use a temporary WIP commit, not a stash.
+
+    ```bash
+    # blocked in the main checkout:  git add -A    git checkout -b new    git stash
+    # permitted there:               git add path/file.ts    git pull --ff-only    git checkout main
+    ```
+
 ## 5. Arayüz: bilgi ipuçları (tooltip) zorunlu
 
 Her ayar, alan, anahtar, buton, sekme ve menü öğesi ne işe yaradığını kendisi anlatır; kullanıcı belgeye bakmak zorunda kalmaz.
