@@ -86,7 +86,7 @@ Workers (same 107 tests, `E2E_REUSE=1`, load average falling from approx. 90 aft
 Not verified: the memory thresholds against a real out-of-memory state. The values come from the measurements above (four parallel sessions: free memory 26–35 %, swap 97 %), not from a crash.
 
 ## Open points
-- [ ] Measure the full `precheck.sh` with 3 and 4 workers more than once, when the Mac is idle and awake.
+- [x] Measure the full `precheck.sh` with 3 and 4 workers more than once, when the Mac is idle and awake. (done: PR 606, 2026-11-18-heavy-lock-scope-and-worker-count.md)
 - [ ] Check the memory threshold when the next `Exit code 137` occurs (`sysctl kern.memorystatus_level vm.swapusage`).
 - [ ] Known local red test, not related to this change: `test_haengendes_pip_install_ergibt_klares_zeitlimit_ergebnis` (UPD-07) can fail on this Mac. The fake pip script needs 0.6–2.8 s for its first start, the pip limit of the test is 1 s, and the script stops before it writes `grandchild.pid` (`FileNotFoundError`). It passed in the first precheck of this change (`worker ok (193s)`). `test_lock_eines_beendeten_prozesses_blockiert_nicht` in the same file (`tests/unit/test_self_updater_hardening.py`) is also time-dependent and unstable on this Mac. The lock does not hide or skip these tests. The session `upd07-pip-test` makes them robust.
 

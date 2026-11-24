@@ -63,9 +63,9 @@ Each step is one PR, in this order.
 
 ## Open points
 - [ ] Owner approves the design (Artifact above). Code starts only after this.
-- [ ] A13.6.1 Hide the candles after the moment (proposal), or show them pale to see the outcome?
-- [ ] A13.6.2 Back/forward by one candle of the selected timeframe (proposal), or always by 15 min?
-- [ ] A13.6.3 Click on a favorite in the past state: open it live (proposal), or keep the moment?
-- [ ] A13.6.4 Bell in the past state: disabled (proposal), or usable because it is live anyway?
-- [ ] A13.6.5 Earliest moment: as far as candles exist, with the gap notice (proposal), or a fixed limit?
-- [ ] A13.3.1 Free and Setup without a reliable broker clock: count candles that end before `UTC now - 12 h` as closed (proposal)?
+- [x] A13.6.1 Hide the candles after the moment (proposal), or show them pale to see the outcome? (done: PR 352, 355)
+- [x] A13.6.2 Back/forward by one candle of the selected timeframe (proposal), or always by 15 min? (done: PR 352, 355)
+- [x] A13.6.3 Click on a favorite in the past state: open it live (proposal), or keep the moment? (done: PR 352, 355)
+- [x] A13.6.4 Bell in the past state: disabled (proposal), or usable because it is live anyway? (done: PR 352, 355)
+- [x] A13.6.5 Earliest moment: as far as candles exist, with the gap notice (proposal), or a fixed limit? (done: PR 352, 355)
+- [x] A13.3.1 Free and Setup without a reliable broker clock: count candles that end before `UTC now - 12 h` as closed (proposal)? (done: PR 358)
