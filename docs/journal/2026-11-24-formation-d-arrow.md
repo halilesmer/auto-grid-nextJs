@@ -25,7 +25,20 @@ New pure module `frontend_nextjs/src/lib/formation/dArrow.ts` (`layoutDArrow`). 
 | Invalid, B too shallow (BUT-02) | Also: red line at the needed level (XA 0,786), red arrow from B, "n pip eksik", B ringed red. |
 | D formed | No arrow. The entry and stop drawing is unchanged. |
 
-- Rules wired to the arrow: B break for Butterfly (BUT-06), Crab (CRB-05), Cypher (CYP-15). The reason drawing for a shallow B only for Butterfly (BUT-02). Other patterns (AB=CD, Gartley, Bat) show the D arrow from the existing D level, and "Geçersiz · rule" when invalid. The B depth of Crab, Cypher, Gartley and Bat is not wired yet.
+- Rules wired to the arrow (Halil's decision: the B reason drawing also for Gartley and Bat):
+
+| Pattern | B break (arrow to B) | B too shallow (reason drawing) | B too deep (reason drawing) | D level |
+|---|---|---|---|---|
+| Butterfly | BUT-06 | BUT-02 (XA 0,786) | none (BUT-03 gives only the pill) | XA 1,272 |
+| Gartley | none | GAR-03 (XA 0,618) | GAR-15 (XA 0,786) | AB 1,272 |
+| Bat | none | BAT-05 (XA 0,5) | BAT-14 (XA 0,618) | XA 0,886 |
+| Crab | CRB-05 | CRB-06 (XA 0,382) | no rule | XA 1,618 |
+| Cypher | CYP-15 | CYP-03 (XA, first level of Z-CYP-01) | no rule | XC 0,786 |
+| AB=CD | none | no rule: there is no point X | none | existing D line |
+
+- Each level comes from the drawing of the pattern itself: `Z-GAR-02`, `Z-BAT-02`, `Z-CRB-01`, `Z-CYP-01`, `Z-BUT-01` (fib X → A, price = A + ratio × (X − A)). Too deep shows the red line at the limit, the arrow from B back to it and "n pip fazla".
+- If a pattern is invalid for several reasons, the B depth wins as the drawn reason; the other rules stay in the side panel.
+- Real series: Gartley GAR-03 `gar-buy-h4-01` 2025-11-21T04:00, GAR-15 `gar-buy-h4-02` 2025-10-16T04:00, Bat BAT-05 `bat-bad-h4-01` 2025-10-20T20:00, BAT-14 `bat-buy-h4-01` 2025-10-15T04:00. Crab CRB-06 and Cypher CYP-03 have the rule wired and are covered by the same code path, but have no own test (no series with only that cause was found for Crab, Cypher was not scanned).
 - The pip size comes from `pipOf(symbol)`; `FormationLayer` got a `symbol` prop from `OneChart` and `FormationChart`.
 - Not changed: "D follows the extreme wick after the trade stopped" is a separate defect.
 
@@ -33,7 +46,7 @@ New pure module `frontend_nextjs/src/lib/formation/dArrow.ts` (`layoutDArrow`). 
 When B is less than 30 px from the needed level, the red arrow and its text do not fit. Then the arrow is not drawn and "n pip eksik" joins the one line of the level label. The level label stands on the side of the line away from B; the B label stands on the other side, so they never touch. Labels are right-aligned, so they do not leave the chart. Both cases have a real series: 0.2 pip short (AUDUSD) and 217.9 pip short (EURJPY).
 
 ## Screenshots
-All in `docs/journal/images/`, name `2026-11-24-formation-d-arrow-<state>.png` (`wait`, `near`, `bBreak`, `invalid`, `invalidShort`, `done`; `-hover` is the same with the hover text).
+All in `docs/journal/images/`, name `2026-11-24-formation-d-arrow-<state>.png` (`wait`, `near`, `bBreak`, `invalid`, `invalidShort`, `invalidGar`, `invalidGarDeep`, `invalidBat`, `invalidBatDeep`, `done`; `-hover` is the same with the hover text).
 
 ## Tests
 - `e2e/mocked/formation-d-arrow-lib.spec.ts` (@FRM-49): states on real candles of the Butterfly fixtures, texts in tr, en, de.

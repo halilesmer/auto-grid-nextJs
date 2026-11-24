@@ -25,14 +25,40 @@ export const MIN_REASON_ARROW_PX = 30;
 interface FormRules {
   /** Pflicht „eine Kerze schließt jenseits von B“ */
   bBreak?: string;
-  /** B-Tiefe (Pflicht): Regel, Zeichnung mit dem Fib von X nach A und die Stelle der Stufen in `levels`; `dLevel` ist die Stufe des D-Niveaus */
-  bDepth?: { rule: string; drawing: string; level: number; dLevel: number; leg: string };
+  /** B-Tiefe: je Regel die Zeichnung mit dem Fib X → A, die Stelle der Stufe in `levels` und die Art (`min` = B muss mindestens bis dorthin, `max` = B darf nicht darüber hinaus) */
+  bDepth?: DepthRule[];
+  /** D-Niveau als Stufe eines Fibs (Zeichnung, Stelle in `levels`, Name der Strecke) */
+  dFib?: { drawing: string; level: number; leg: string };
+}
+
+interface DepthRule {
+  rule: string;
+  drawing: string;
+  level: number;
+  leg: string;
+  kind: 'min' | 'max';
 }
 
 const RULES: Partial<Record<ScanFormation, FormRules>> = {
-  BUT: { bBreak: 'BUT-06', bDepth: { rule: 'BUT-02', drawing: 'Z-BUT-01', level: 0, dLevel: 2, leg: 'XA' } },
-  CRB: { bBreak: 'CRB-05' },
-  CYP: { bBreak: 'CYP-15' },
+  BUT: { bBreak: 'BUT-06', bDepth: [{ rule: 'BUT-02', drawing: 'Z-BUT-01', level: 0, leg: 'XA', kind: 'min' }], dFib: { drawing: 'Z-BUT-01', level: 2, leg: 'XA' } },
+  // Gartley: B bis 0,618 (GAR-03), nicht tiefer als 0,786 (GAR-15); D an der AB-Ausdehnung (GAR-05)
+  GAR: {
+    bDepth: [
+      { rule: 'GAR-03', drawing: 'Z-GAR-02', level: 1, leg: 'XA', kind: 'min' },
+      { rule: 'GAR-15', drawing: 'Z-GAR-02', level: 2, leg: 'XA', kind: 'max' },
+    ],
+    dFib: { drawing: 'Z-GAR-03', level: 3, leg: 'AB' },
+  },
+  // Bat: B bis 0,5 (BAT-05), nicht tiefer als 0,618 (BAT-14); D bei 0,886 (BAT-07)
+  BAT: {
+    bDepth: [
+      { rule: 'BAT-05', drawing: 'Z-BAT-02', level: 0, leg: 'XA', kind: 'min' },
+      { rule: 'BAT-14', drawing: 'Z-BAT-02', level: 1, leg: 'XA', kind: 'max' },
+    ],
+    dFib: { drawing: 'Z-BAT-02', level: 2, leg: 'XA' },
+  },
+  CRB: { bBreak: 'CRB-05', bDepth: [{ rule: 'CRB-06', drawing: 'Z-CRB-01', level: 0, leg: 'XA', kind: 'min' }] },
+  CYP: { bBreak: 'CYP-15', bDepth: [{ rule: 'CYP-03', drawing: 'Z-CYP-01', level: 0, leg: 'XA', kind: 'min' }] },
 };
 
 export interface DArrowInput {
@@ -95,9 +121,9 @@ function fibLevel(c: Candidate, drawing: string, index: number): { price: number
 /** D-Niveau: Fib der Formation (wenn sie eins nennt), sonst Ziellinie, Mitte der D-Zone oder Einstieg */
 function dLevelOf(c: Candidate, form: ScanFormation): { price: number; ratio: number | null } | null {
   const rules = RULES[form];
-  if (rules?.bDepth) {
-    const f = fibLevel(c, rules.bDepth.drawing, rules.bDepth.dLevel);
-    if (f) return f;
+  if (rules?.dFib) {
+    const f = fibLevel(c, rules.dFib.drawing, rules.dFib.level);
+    if (f) return { price: f.price, ratio: Math.abs(f.ratio) };
   }
   const hline = c.drawings.find((d) => d.tool === 'hline')?.anchors[0]?.price;
   const zone = c.drawings.find((d) => d.tool === 'zone')?.anchors;
@@ -119,7 +145,7 @@ export function layoutDArrow(input: DArrowInput): DArrowModel | null {
   const dLevel = dLevelOf(c, form);
   const sideWord = text(side === 'buy' ? 'formation.dArrow.buy' : 'formation.dArrow.sell');
   const targetLabel = (ratio: number | null) =>
-    ratio !== null && rules?.bDepth ? text('formation.dArrow.targetRatio', { leg: rules.bDepth.leg, ratio: fmt(ratio) }) : text('formation.dArrow.target');
+    ratio !== null && rules?.dFib ? text('formation.dArrow.targetRatio', { leg: rules.dFib.leg, ratio: fmt(ratio) }) : text('formation.dArrow.target');
   const levelX1 = (() => {
     const p = c.points.X ?? c.points.A;
     const px = p ? x(p.time) : null;
@@ -129,11 +155,13 @@ export function layoutDArrow(input: DArrowInput): DArrowModel | null {
   // ---- Ungültig: kein D-Pfeil, der Grund steht dort, wo er entsteht ----
   if (c.verdict === 'invalid') {
     const causes = c.invalidBy ?? [];
-    const cause = causes[0];
+    // Die B-Tiefe zeigt den Grund am B, auch wenn davor eine andere Pflicht fehlt
+    const cause = causes.find((id) => rules?.bDepth?.some((r) => r.rule === id)) ?? causes[0];
     const dy = dLevel ? y(dLevel.price) : null;
     const level: DArrowModel['level'] = dLevel && dy !== null ? { y: dy, x1: levelX1, x2: width - 6, label: text('formation.dArrow.notSearched'), strength: 'faint' } : null;
-    const depth = rules?.bDepth;
-    const need = depth && cause === depth.rule ? fibLevel(c, depth.drawing, depth.level) : null;
+    const depth = rules?.bDepth?.find((r) => r.rule === cause);
+    const need = depth ? fibLevel(c, depth.drawing, depth.level) : null;
+    const deep = depth?.kind === 'max';
     const B = c.points.B;
     const A = c.points.A;
     const bx = B ? x(B.time) : null;
@@ -144,7 +172,7 @@ export function layoutDArrow(input: DArrowInput): DArrowModel | null {
     const pillY = ly + 22;
     const missing = need && B ? Math.abs(B.price - need.price) / pip : null;
     const rB = depth ? c.checks.find((k) => k.id === depth.rule)?.value : undefined;
-    const depthBadge = need && rB !== undefined && depth ? `B ${fmt(rB)} < ${fmt(need.ratio)}` : null;
+    const depthBadge = need && rB !== undefined && depth ? `B ${fmt(rB)} ${deep ? '>' : '<'} ${fmt(need.ratio)}` : null;
     const shortName = name.length > 30 ? `${name.slice(0, 29)}…` : name;
     const base = {
       state: 'invalid' as const,
@@ -160,8 +188,8 @@ export function layoutDArrow(input: DArrowInput): DArrowModel | null {
       const gap = Math.abs(ny - by);
       const long = gap >= MIN_REASON_ARROW_PX;
       const dir = ny >= by ? 1 : -1;
-      const levelText = text('formation.dArrow.reasonLine', { leg: depth.leg, ratio: fmt(need.ratio), price: fmt(need.price) });
-      const missingText = text('formation.dArrow.missing', { pips: pips(missing) });
+      const levelText = text(deep ? 'formation.dArrow.reasonLineMax' : 'formation.dArrow.reasonLine', { leg: depth.leg, ratio: fmt(need.ratio), price: fmt(need.price) });
+      const missingText = text(deep ? 'formation.dArrow.missingMax' : 'formation.dArrow.missing', { pips: pips(missing) });
       return {
         ...base,
         reason: {
@@ -177,9 +205,9 @@ export function layoutDArrow(input: DArrowInput): DArrowModel | null {
         },
         hit: { x: x1, y: Math.min(by, ny) - 24, w: Math.max(40, right - x1), h: Math.abs(ny - by) + 48 },
         tip: {
-          title: text('formation.dArrow.tip.invalidDepth.title'),
-          body: text('formation.dArrow.tip.invalidDepth.body', { rule: name, leg: depth.leg, ratio: fmt(need.ratio), pips: pips(missing) }),
-          meta: text('formation.dArrow.tip.invalidDepth.meta', { b: fmt(B.price), need: fmt(need.price) }),
+          title: text(deep ? 'formation.dArrow.tip.invalidDeep.title' : 'formation.dArrow.tip.invalidDepth.title'),
+          body: text(deep ? 'formation.dArrow.tip.invalidDeep.body' : 'formation.dArrow.tip.invalidDepth.body', { rule: name, leg: depth.leg, ratio: fmt(need.ratio), pips: pips(missing) }),
+          meta: text(deep ? 'formation.dArrow.tip.invalidDeep.meta' : 'formation.dArrow.tip.invalidDepth.meta', { b: fmt(B.price), need: fmt(need.price) }),
         },
       };
     }

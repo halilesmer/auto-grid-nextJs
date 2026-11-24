@@ -8,6 +8,8 @@ import { expect, test } from '@playwright/test';
 import { FormationContext } from '../../src/lib/formation/context';
 import { parseFixture } from '../../src/lib/formation/fixture';
 import { analyzeBut } from '../../src/lib/formation/butChecks';
+import { analyzeGar } from '../../src/lib/formation/garChecks';
+import { analyzeBat } from '../../src/lib/formation/batChecks';
 import { layoutDArrow, MIN_REASON_ARROW_PX, NEAR_PIPS, type DArrowModel } from '../../src/lib/formation/dArrow';
 import { ruleText } from '../../src/lib/formation/ruleTexts';
 import { pipOf } from '../../src/lib/formation/xabcd';
@@ -19,12 +21,16 @@ const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-49' }, fn)
 const H4 = 14400;
 const at = (iso: string) => Date.parse(`${iso}:00Z`) / 1000;
 
-function modelAt(name: string, iso: string, opts: { lang?: Lang; close?: (price: number | null) => number; width?: number } = {}) {
+type Form = 'BUT' | 'GAR' | 'BAT';
+const ANALYZE = { BUT: analyzeBut, GAR: analyzeGar, BAT: analyzeBat } as const;
+
+function modelAt(name: string, iso: string, opts: { lang?: Lang; close?: (price: number | null) => number; width?: number; form?: Form } = {}) {
+  const form = opts.form ?? 'BUT';
   const path = `e2e/fixtures/formation/${name}.json`;
   const fixture = named(path, parseFixture(JSON.parse(readFileSync(path, 'utf-8'))));
   const ctx = new FormationContext(fixture.symbol, { H4: fixture.bars }, { trend: trendOf(fixture.bars) });
   const t = at(iso);
-  const candidate = analyzeBut(ctx, t).find((a) => a.tf === 'H4')!.candidate;
+  const candidate = ANALYZE[form](ctx, t).find((a) => a.tf === 'H4')!.candidate;
   const closed = fixture.bars.filter((b) => b.time + H4 <= t);
   const last = closed[closed.length - 1];
   const lang = opts.lang ?? 'tr';
@@ -35,7 +41,7 @@ function modelAt(name: string, iso: string, opts: { lang?: Lang; close?: (price:
   const build = (close: number) =>
     layoutDArrow({
       candidate,
-      form: 'BUT',
+      form,
       width: 2000,
       lastBar: { time: last.time, close },
       barSec: H4,
@@ -56,7 +62,54 @@ const needModel = (m: DArrowModel | null): DArrowModel => {
   return m!;
 };
 
+// Gartley und Bat (Halil, 1124-F2): B zu flach (Pflicht) und B zu tief (Ausschluss) zeigen den Grund am B, je mit Linie, Pfeil und Pips
+const DEPTH_CASES = [
+  { form: 'GAR', fixture: 'gar-buy-h4-01', iso: '2025-11-21T04:00', rule: 'GAR-03', deep: false, leg: 'XA', ratio: 0.618 },
+  { form: 'GAR', fixture: 'gar-buy-h4-02', iso: '2025-10-16T04:00', rule: 'GAR-15', deep: true, leg: 'XA', ratio: 0.786 },
+  { form: 'BAT', fixture: 'bat-bad-h4-01', iso: '2025-10-20T20:00', rule: 'BAT-05', deep: false, leg: 'XA', ratio: 0.5 },
+  { form: 'BAT', fixture: 'bat-buy-h4-01', iso: '2025-10-15T04:00', rule: 'BAT-14', deep: true, leg: 'XA', ratio: 0.618 },
+] as const;
+
 test.describe('FRM-49 D-Pfeil', () => {
+  for (const k of DEPTH_CASES) {
+    frm(`${k.form} ${k.rule}: Grund am B (${k.deep ? 'zu tief' : 'zu flach'}) mit Linie am Level, Pfeil und Pips`, () => {
+      const r = modelAt(k.fixture, k.iso, { form: k.form });
+      expect(r.candidate.verdict).toBe('invalid');
+      expect(r.candidate.invalidBy).toEqual([k.rule]);
+      const m = needModel(r.model);
+      expect(m.state).toBe('invalid');
+      expect(m.arrow).toBeNull();
+      expect(m.ring).toBeNull();
+      const reason = m.reason!;
+      expect(reason).not.toBeNull();
+      const { X, A, B } = r.candidate.points;
+      // Linie am Level der Fib X → A: A + Stufe × (X − A)
+      const need = A.price + k.ratio * (X.price - A.price);
+      expect(reason.lineY).toBeCloseTo(r.y(need), 5);
+      expect(reason.b.y).toBeCloseTo(r.y(B.price), 5);
+      // zu flach: B liegt zwischen A und der Linie; zu tief: B liegt jenseits der Linie
+      const beyond = Math.abs(B.price - X.price) < Math.abs(need - X.price);
+      expect(beyond).toBe(k.deep);
+      const pips = (Math.abs(B.price - need) / r.pip).toFixed(1);
+      const word = k.deep ? 'pip fazla' : 'pip eksik';
+      const levelText = `${k.deep ? 'B bu seviyeyi aşmamalı' : 'B en az buraya inmeli'} · ${k.leg} ${k.ratio} = ${Number(need.toFixed(5))}`;
+      const gap = Math.abs(reason.lineY - reason.b.y);
+      if (gap >= MIN_REASON_ARROW_PX) {
+        expect(reason.lineLabel).toBe(levelText);
+        expect(reason.arrowLabel!.text).toBe(`${pips} ${word}`);
+      } else {
+        expect(reason.arrow).toBeNull();
+        expect(reason.lineLabel).toBe(`${levelText} · ${pips} ${word}`);
+      }
+      expect(m.tip.body).toContain(ruleText('tr', k.rule)!);
+      expect(m.tip.title).toBe(k.deep ? 'Geçersiz · B fazla derin' : 'Geçersiz · B yeterince derin değil');
+      expect(m.pill.badge).toContain(k.deep ? '>' : '<');
+      // Das D-Niveau der Formation bleibt als blasse Linie stehen
+      expect(m.level).toMatchObject({ strength: 'faint', label: 'D aranmıyor · formasyon geçersiz' });
+    });
+  }
+
+
   frm('D wartet: D-Niveau kräftig, Pfeil vom Schluss zum D-Ring, Abzeichen mit Kauf, Preis und Pips', () => {
     const r = modelAt('but-buy-h4-02', '2025-11-19T04:00');
     expect(r.candidate.verdict).toBe('forming');

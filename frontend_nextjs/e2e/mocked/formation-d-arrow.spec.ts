@@ -25,9 +25,11 @@ interface Case {
   state: string;
   fixture: string;
   iso: string;
+  /** Formation in der Adresse, Vorgabe BUT */
+  form?: string;
   /** Nur „D nah“: Schluss der letzten Kerze in Pips über dem D-Niveau */
   nearPips?: number;
-  expect: { state: string; level?: 'strong' | 'faint'; reason?: boolean; reasonArrow?: boolean; ring?: boolean; arrow?: boolean; pill?: RegExp };
+  expect: { state: string; level?: 'strong' | 'faint'; reason?: boolean; reasonArrow?: boolean; word?: string; ring?: boolean; arrow?: boolean; pill?: RegExp };
 }
 
 const CASES: Case[] = [
@@ -36,6 +38,10 @@ const CASES: Case[] = [
   { state: 'bBreak', fixture: 'but-buy-h4-02', iso: '2025-10-23T16:00', expect: { state: 'bBreak', level: 'faint', arrow: true, ring: false, pill: /^B / } },
   { state: 'invalidShort', fixture: 'but-form-h4-01', iso: '2025-10-06T08:00', expect: { state: 'invalid', level: 'faint', arrow: false, reason: true, reasonArrow: false, pill: /^Geçersiz/ } },
   { state: 'invalid', fixture: 'but-sell-h4-01', iso: '2026-01-27T20:00', expect: { state: 'invalid', level: 'faint', arrow: false, reason: true, reasonArrow: true, pill: /^Geçersiz/ } },
+  { state: 'invalidGar', form: 'GAR', fixture: 'gar-buy-h4-01', iso: '2025-11-21T04:00', expect: { state: 'invalid', level: 'faint', arrow: false, reason: true, reasonArrow: false, word: 'eksik', pill: /^Geçersiz/ } },
+  { state: 'invalidGarDeep', form: 'GAR', fixture: 'gar-buy-h4-02', iso: '2025-10-16T04:00', expect: { state: 'invalid', level: 'faint', arrow: false, reason: true, reasonArrow: false, word: 'fazla', pill: /^Geçersiz/ } },
+  { state: 'invalidBat', form: 'BAT', fixture: 'bat-bad-h4-01', iso: '2025-10-20T20:00', expect: { state: 'invalid', level: 'faint', arrow: false, reason: true, reasonArrow: false, word: 'eksik', pill: /^Geçersiz/ } },
+  { state: 'invalidBatDeep', form: 'BAT', fixture: 'bat-buy-h4-01', iso: '2025-10-15T04:00', expect: { state: 'invalid', level: 'faint', arrow: false, reason: true, reasonArrow: false, word: 'fazla', pill: /^Geçersiz/ } },
   { state: 'done', fixture: 'but-buy-h4-02', iso: '2025-11-19T12:00', expect: { state: 'none' } },
 ];
 
@@ -66,7 +72,7 @@ async function serve(worker: MockWorker, c: Case) {
 async function open(page: Page, worker: MockWorker, c: Case) {
   const f = await serve(worker, c);
   await seedFixtureTrend(page, trendOf(f.bars), true);
-  await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}&form=BUT&tf=H4`);
+  await page.goto(`/chart?account=${DEMO_ID}&zone=${ZONE_ID}&form=${c.form ?? 'BUT'}&tf=H4`);
   await expect(page.getByTestId('chart-topbar')).toBeVisible();
   await expect(page.getByTestId('chart-page')).toHaveAttribute('data-scan-ms', /^\d+$/);
 }
@@ -91,9 +97,10 @@ test.describe('FRM-49 D-Pfeil auf der Seite', () => {
         await expect(page.getByTestId('formation-d-reason')).toHaveCount(e.reason ? 1 : 0);
         if (e.reason) {
           await expect(page.getByTestId('formation-d-reason-arrow')).toHaveCount(e.reasonArrow ? 1 : 0);
-          // „n pip eksik“ steht genau einmal: neben dem Pfeil oder in der Zeile der Linie
-          await expect(page.getByTestId('formation-d-reason')).toContainText('pip eksik');
-          expect(((await page.getByTestId('formation-d-reason').textContent()) ?? '').split('pip eksik').length - 1).toBe(1);
+          // „n pip eksik/fazla“ steht genau einmal: neben dem Pfeil oder in der Zeile der Linie
+          const word = `pip ${e.word ?? 'eksik'}`;
+          await expect(page.getByTestId('formation-d-reason')).toContainText(word);
+          expect(((await page.getByTestId('formation-d-reason').textContent()) ?? '').split(word).length - 1).toBe(1);
         }
         await expect(page.getByTestId('formation-d-pill')).toHaveAttribute('data-main', e.pill!);
         await page.mouse.move(5, 5);
