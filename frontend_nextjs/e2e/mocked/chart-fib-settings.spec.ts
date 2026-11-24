@@ -243,6 +243,7 @@ test('UI-27: hazır şablonun üzerine yaz, uygula yeni stili verir, Orijinal ay
   await expect(page.getByTestId('fib-save-confirm')).toHaveText(msg('fib.overwrite'));
   await page.getByTestId('fib-template-name').press('Enter');
   await expect.poll(async () => (await copy())?.levels[0].visible).toBe(!presetFirstVisible);
+  await expect(page.getByTestId('fib-save-dialog')).toHaveCount(0);
   // Kopya ayrı satır olmaz; hazır satır "değiştirildi" etiketi ve geri dönüş düğmesi taşır
   await menu().click();
   await expect(page.getByTestId('fib-template-row')).toHaveCount(0);

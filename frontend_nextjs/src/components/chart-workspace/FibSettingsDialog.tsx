@@ -186,7 +186,7 @@ export function FibSettingsDialog({ drawing, initialTab = 'style', scaleLog, loc
           </fieldset>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border px-5 py-3">
-          <DropdownMenu label={t(k('template'))} hint={t(locked ? k('locked') : k('template.hint'))} side="top" align="left" size="sm" panelClassName="max-h-[60dvh] w-[26rem] max-w-[calc(100vw-2rem)] overflow-y-auto" triggerProps={{ disabled: locked, 'data-testid': 'fib-template-menu' }} icon={<span className="inline-flex items-center gap-2">{t(k('template'))}<ChevronDown className="size-3.5" aria-hidden="true" /></span>}>
+          <DropdownMenu label={t(k('template'))} hint={t(locked ? k('locked') : k('template.hint'))} side="top" align="left" size="sm" panelClassName="max-h-[60dvh] w-72 sm:w-[26rem] max-w-[calc(100vw-2rem)] overflow-y-auto" triggerProps={{ disabled: locked, 'data-testid': 'fib-template-menu' }} icon={<span className="inline-flex items-center gap-2">{t(k('template'))}<ChevronDown className="size-3.5" aria-hidden="true" /></span>}>
             <DropdownMenuGroup>
               <DropdownMenuItem data-testid="fib-save-as" icon={<Save className="size-4" aria-hidden="true" />} hint={t(k('saveAs.hint'))} onSelect={() => setSaveOpen(true)}>{t(k('saveAs'))}</DropdownMenuItem>
               <DropdownMenuItem data-testid="fib-apply-defaults" icon={<RotateCcw className="size-4" aria-hidden="true" />} hint={t(k('applyDefaults.hint'))} onSelect={() => adopt(factoryFibStyle(), '')}>{t(k('applyDefaults'))}</DropdownMenuItem>
