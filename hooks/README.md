@@ -18,6 +18,7 @@ Bu, `git config core.hooksPath hooks` ayarlar. Claude Code hook'ları `.claude/s
 | `pre-push` | `git push` | yasaklı dosya, gizli veri, sürüm dosyaları, `tsc` + `eslint`, worker `.py` sözdizimi, uyumluluk uyarıları, proje günlüğü uyarısı (kod değişip `docs/journal/` kaydı yoksa, RULES §7) | ~5 sn |
 | `claude/pre-bash-wait.sh` | Claude her `Bash` öncesi | ön planda bekleme döngüsü (`until/while` + `sleep`) veya ≥60 s `sleep` → engeller; `run_in_background` ya da `timeout ≤120` serbest (RULES §4.15, SYS-14) | <0,2 sn |
 | `claude/pre-bash-kill.sh` | Claude her `Bash` öncesi | `pkill`/`killall`/`pgrep`+`kill`, kalıpta bu checkout'un yolu yoksa → engeller; kendi koşunu `scripts/features/precheck.sh --stop` durdurur (RULES §4.16, SYS-16) | <0,2 sn |
+| `claude/pre-bash-shared-git.sh` | Claude her `Bash` öncesi | `git stash` her yerde; ana checkout'ta dal değiştirme, `add -A`, `reset --hard`, `clean`, `commit -a`, `rebase`, `--ff-only`'suz `pull`/`merge` → engeller; worktree'de yalnız stash (RULES §4.18, SYS-17) | <0,3 sn |
 | `claude/post-edit.sh` | Claude her `Edit`/`Write` sonrası | düzenlenen dosya: `eslint` / Python sözdizimi / gizli veri | ~3 sn |
 | `claude/stop-check.sh` | Claude her tur sonunda | tüm değişiklikler: `tsc` + `eslint` + worker + gizli veri. Hata varsa Claude durmaz, düzeltir. Aynı değişiklik seti temiz geçtiyse tekrar çalışmaz. | ~5 sn |
 
