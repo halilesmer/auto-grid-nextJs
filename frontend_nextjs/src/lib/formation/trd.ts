@@ -15,6 +15,9 @@ type Bars = readonly FormationBar[];
 
 const N = FRZ_PARAMS.neighbors;
 
+/** Arbeitszähler (Arbeitsgrenze im Test, nicht Zeit): `steps` = gelaufene Kerzen des Trendzugs über alle Läufe */
+export const trendWork = { steps: 0 };
+
 /** Richtung eines Zugs, der an einem Punkt dieser Seite endet (Hoch → aufwärts) */
 export const legDir = (side: ZoneSide): TrendDir => (side === 'resistance' ? 'up' : 'down');
 /** Seite des Extrems in Trendrichtung (Aufwärtstrend: Hochs) */
@@ -138,13 +141,17 @@ export function changeRef(m: TrendModel): Pivot | undefined {
   return pos > 0 ? m.pivots[pos - 1] : undefined;
 }
 
-/** Kandidaten nach Kerze und Seite (der erste, wie `m.cands.find`) */
-type CandIndex = Map<number, TrdCand>;
+/** Position in `m.cands` des Kandidaten je Kerze und Seite (der erste, wie `m.cands.find`) */
+type CandIndex = Map<number, number>;
 const candKey = (idx: number, side: ZoneSide): number => idx * 2 + (side === 'resistance' ? 1 : 0);
 
-function setDrawn(byPoint: CandIndex, p: ZugPoint, drawn: boolean): void {
-  const cand = byPoint.get(candKey(p.idx, p.side));
-  if (cand) cand.drawn = drawn;
+/**
+ * Der Lauf ändert keinen Kandidaten, Wendepunkt oder Lebensdauer-Eintrag einer früheren Kerze: er ersetzt ihn durch eine Kopie. So teilt
+ * `TrendRun.snapshot` die Objekte, ohne dass ein späterer Schritt einen Stand ändert.
+ */
+function setDrawn(m: TrendModel, byPoint: CandIndex, p: ZugPoint, drawn: boolean): void {
+  const pos = byPoint.get(candKey(p.idx, p.side));
+  if (pos !== undefined && m.cands[pos].drawn !== drawn) m.cands[pos] = { ...m.cands[pos], drawn };
 }
 
 function appendPivot(m: TrendModel, f: ZugPoint, byPoint: CandIndex, k: number): void {
@@ -155,37 +162,95 @@ function appendPivot(m: TrendModel, f: ZugPoint, byPoint: CandIndex, k: number):
   const pivot: Pivot = { ...f, kind, len: prev ? Math.abs(f.price - prev.price) : 0 };
   m.pivots.push(pivot);
   m.spans.push({ pivot, from: k, to: Infinity });
-  setDrawn(byPoint, f, true);
+  setDrawn(m, byPoint, f, true);
 }
 
 function applyEdit(m: TrendModel, edit: ZugEdit, byPoint: CandIndex, k: number): void {
   for (const gone of m.pivots.splice(m.pivots.length - edit.cut)) {
-    setDrawn(byPoint, gone, false);
-    for (let i = m.spans.length - 1; i >= 0; i--) if (m.spans[i].pivot === gone) { m.spans[i].to = k; break; }
+    setDrawn(m, byPoint, gone, false);
+    for (let i = m.spans.length - 1; i >= 0; i--) if (m.spans[i].pivot === gone) { m.spans[i] = { ...m.spans[i], to: k }; break; }
   }
   for (const f of edit.add) appendPivot(m, f, byPoint, k);
   // die Regel `filter` kann den Punkt streichen, an dem der laufende Trend beginnt
   m.originPos = Math.min(m.originPos, m.pivots.length - 1);
 }
 
-export function buildTrend(
-  tf: ContextTimeframe,
-  bars: Bars,
-  wave: (number | null)[],
-  options: Partial<TrendOptions> = {},
-): TrendModel {
-  const opt: TrendOptions = { ...TRD_PARAMS.trend, changeCloses: TRD_PARAMS.changeCloses, ...options };
-  const byDone = fractalsByDone(bars);
-  const atr = wilderAtr(bars, opt.atrPeriod);
-  const minLeg = (idx: number) => opt.minSize * atr[idx];
-  const nextEdit = zugRule(opt, bars, minLeg);
+/** Fraktale je fertiger Kerze und ATR je Reihe und ATR-Periode; beide liest der Lauf nur */
+const prepared = new WeakMap<Bars, { byDone: Map<number, { idx: number; side: ZoneSide }[]>; atr: Map<number, number[]> }>();
+function preparedOf(bars: Bars, atrPeriod: number): { byDone: Map<number, { idx: number; side: ZoneSide }[]>; atr: number[] } {
+  let p = prepared.get(bars);
+  if (!p) prepared.set(bars, (p = { byDone: fractalsByDone(bars), atr: new Map() }));
+  let atr = p.atr.get(atrPeriod);
+  if (!atr) p.atr.set(atrPeriod, (atr = wilderAtr(bars, atrPeriod)));
+  return { byDone: p.byDone, atr };
+}
 
-  const m = emptyTrend(tf, bars, wave);
+/**
+ * Lauf von `buildTrend` über eine Reihe, der nach jeder Kerze anhält (`advanceTo`). Bei Kerze k liest er nur Kerzen bis k (ATR, Fraktale, die mit k fertig
+ * werden, EWO der Regel), also ist der Stand nach n Kerzen derselbe wie `buildTrend` über die ersten n Kerzen. `snapshot` gibt diesen Stand als
+ * eigenes Modell zurück (Kopie; der Lauf kann danach weiterlaufen).
+ */
+export class TrendRun {
+  readonly model: TrendModel;
+  private readonly opt: TrendOptions;
+  private readonly bars: Bars;
+  private readonly byDone: Map<number, { idx: number; side: ZoneSide }[]>;
+  private readonly minLeg: (idx: number) => number;
+  private readonly nextEdit: ReturnType<typeof zugRule>;
   /** Kandidaten mit `isCorrection` und ohne `accepted` je Seite, alt → neu: nur sie zählen für `folded` */
-  const rejected: Record<ZoneSide, TrdCand[]> = { resistance: [], support: [] };
-  const byPoint: CandIndex = new Map();
+  private readonly rejected: Record<ZoneSide, TrdCand[]> = { resistance: [], support: [] };
+  private readonly byPoint: CandIndex = new Map();
+  private k = 0;
 
-  for (let k = 0; k < bars.length; k++) {
+  /** `shared`: Fraktale und ATR je Reihe (Objekt `bars`) nur einmal rechnen; nur für eine Reihe, die sich nicht ändert (die ganze Reihe eines Kontexts) */
+  constructor(tf: ContextTimeframe, bars: Bars, wave: (number | null)[], options: Partial<TrendOptions> = {}, shared = false) {
+    const opt: TrendOptions = { ...TRD_PARAMS.trend, changeCloses: TRD_PARAMS.changeCloses, ...options };
+    this.opt = opt;
+    this.bars = bars;
+    const prep = shared ? preparedOf(bars, opt.atrPeriod) : { byDone: fractalsByDone(bars), atr: wilderAtr(bars, opt.atrPeriod) };
+    this.byDone = prep.byDone;
+    const { atr } = prep;
+    this.minLeg = (idx: number) => opt.minSize * atr[idx];
+    this.nextEdit = zugRule(opt, bars, this.minLeg);
+    this.model = emptyTrend(tf, bars, wave);
+  }
+
+  /** Anzahl der gelaufenen Kerzen */
+  get position(): number {
+    return this.k;
+  }
+
+  /** Läuft bis einschließlich Kerze n − 1 */
+  advanceTo(n: number): void {
+    while (this.k < n) this.step(this.k++);
+  }
+
+  /**
+   * Stand nach den gelaufenen Kerzen als eigenes Modell, gleich `buildTrend` über diese Kerzen. Die Listen sind Kopien, ihre Einträge geteilt
+   * (keiner ändert sich nach seiner Kerze, `setDrawn`). `bars` und `wave` sind die ersten `position` Werte der Reihe (die Ansicht hat sie schon).
+   */
+  snapshot(bars: Bars = this.model.bars.slice(0, this.k), wave: (number | null)[] = this.model.wave.slice(0, this.k)): TrendModel {
+    const m = this.model;
+    return {
+      tf: m.tf,
+      bars,
+      wave,
+      cands: m.cands.slice(),
+      pivots: m.pivots.slice(),
+      dir: m.dir,
+      originPos: m.originPos,
+      changes: m.changes.slice(),
+      unconfirmedBreaks: m.unconfirmedBreaks,
+      pendingRun: m.pendingRun,
+      refCorrection: m.refCorrection,
+      impulseBars: m.impulseBars.slice(),
+      spans: m.spans.slice(),
+    };
+  }
+
+  private step(k: number): void {
+    trendWork.steps++;
+    const { model: m, opt, bars, byDone, minLeg, nextEdit, rejected, byPoint } = this;
     // 1. Trendwechsel: Schlüsse jenseits des Gegenpunkts, an dem der Impuls begann (TRD-15 bis TRD-17)
     if (m.dir) {
       const ref = changeRef(m);
@@ -200,7 +265,14 @@ export function buildTrend(
             m.originPos = refIdx;
             m.pendingRun = 0;
             // die Züge seit der Bezugszone gehören zum neuen Trend: Impuls und Korrektur tauschen
-            for (const p of m.pivots.slice(refIdx)) p.kind = legDir(p.side) === to ? 'impulse' : 'correction';
+            for (let i = refIdx < 0 ? Math.max(0, m.pivots.length + refIdx) : refIdx; i < m.pivots.length; i++) {
+              const p = m.pivots[i];
+              const kind: Pivot['kind'] = legDir(p.side) === to ? 'impulse' : 'correction';
+              if (p.kind === kind) continue;
+              const q: Pivot = { ...p, kind };
+              m.pivots[i] = q;
+              for (let j = m.spans.length - 1; j >= 0; j--) if (m.spans[j].pivot === p) { m.spans[j] = { ...m.spans[j], pivot: q }; break; }
+            }
           }
         } else if (m.pendingRun > 0) {
           m.unconfirmedBreaks++;
@@ -250,7 +322,7 @@ export function buildTrend(
         }
       }
       m.cands.push(cand);
-      if (!byPoint.has(candKey(c.idx, c.side))) byPoint.set(candKey(c.idx, c.side), cand);
+      if (!byPoint.has(candKey(c.idx, c.side))) byPoint.set(candKey(c.idx, c.side), m.cands.length - 1);
       const edit = nextEdit(m.pivots, { idx: c.idx, doneAt: k, side: c.side, price });
       if (edit) {
         cand.accepted = true;
@@ -261,7 +333,17 @@ export function buildTrend(
 
     noteImpulse(m, k);
   }
-  return m;
+}
+
+export function buildTrend(
+  tf: ContextTimeframe,
+  bars: Bars,
+  wave: (number | null)[],
+  options: Partial<TrendOptions> = {},
+): TrendModel {
+  const run = new TrendRun(tf, bars, wave, options);
+  run.advanceTo(bars.length);
+  return run.model;
 }
 
 /** Längen der Züge einer Art im laufenden Trend, alt → neu */

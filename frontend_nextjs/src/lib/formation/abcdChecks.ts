@@ -44,9 +44,12 @@ import { exemptFor, settle } from './settle';
 import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
 import { levelXA, ordered, pipOf, shapeOfX } from './xabcd';
 import { divergenceOf, engulfZones, rsiExtreme, zoneSideOf } from './sig';
-import { TRADE_RULES, type Anchor, type Candidate, type Check, type CheckState, type Drawing, type FormationBar, type RuleKind, type RuleStatus, type Verdict } from './types';
+import { TRADE_RULES, type Trade, type Anchor, type Candidate, type Check, type CheckState, type Drawing, type FormationBar, type RuleKind, type RuleStatus, type Verdict } from './types';
 
 const N = FRZ_PARAMS.neighbors;
+
+/** Arbeitszähler der AB=CD-Suche (Arbeitsgrenze im Test, nicht Zeit): `full` = volle Kandidatenmessungen (`evaluateFull`) */
+export const abcdWork = { full: 0 };
 
 const RULES: Record<string, [RuleKind, RuleStatus]> = {
   'ABCD-01': ['required', 'confirmed'],
@@ -116,12 +119,15 @@ interface NearZone {
   testsBeforeD: number;
 }
 
+/** Urteil „nicht ungültig“ von Gartley und Bat je Umgebung und Form (Code + Form als Schlüssel): Level-Umfeld und Stop-Anker am Einstieg fragen dieselbe Form oft zweimal */
+const harmonicHolds = new WeakMap<Env, Map<string, boolean>>();
+
 /**
  * ABCD-16: Gartley oder Bat auf denselben A, B, C (X = Wendepunkt vor A), nicht ungültig, mit D-Ziel in der Zone Z-ABCD-04.
  * Toleranz der Zone: HARMONIC_PARAMS.touchPips (wie GAR-05). Gartley-D-Ziel: 0.786 von X → A (GAR-07);
  * Bat-D-Ziel: 0.886 von X → A (BAT-07). Ohne X nicht messbar.
  */
-function harmonicD(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: number, zone: [number, number]): CheckState {
+function harmonicD(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: number, zoneOf: () => [number, number]): CheckState {
   const { tf } = env;
   const { pivots } = env.trends.get(tf)!;
   const bars = env.views.get(tf)!.bars;
@@ -130,12 +136,22 @@ function harmonicD(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: 
   if (!x) return U;
   const s = shapeOfX(bars, { x: { idx: x.idx, price: x.price }, a: p.a, b: p.b, c: p.c }, dInput);
   if (!ordered(s)) return 'unmet';
+  const zone = zoneOf();
   const tol = HARMONIC_PARAMS.touchPips * pip;
   const inZone = (price: number) => price >= zone[0] - tol && price <= zone[1] + tol;
   const gartley = inZone(levelXA(s, GAR_PARAMS.dAtX.level));
   const bat = inZone(levelXA(s, BAT_PARAMS.dLevel));
-  const holds = (hit: boolean, evaluate: typeof evaluateGar) => hit && evaluate(env, tf, s, pip).verdict !== 'invalid';
-  return flag(holds(gartley, evaluateGar) || holds(bat, evaluateBat));
+  let memo = harmonicHolds.get(env);
+  if (!memo) harmonicHolds.set(env, (memo = new Map()));
+  const known = memo;
+  const holds = (hit: boolean, code: 'GAR' | 'BAT', evaluate: typeof evaluateGar) => {
+    if (!hit) return false;
+    const key = `${code}|${pip}|${JSON.stringify(s)}`;
+    let ok = known.get(key);
+    if (ok === undefined) known.set(key, (ok = evaluate(env, tf, s, pip).verdict !== 'invalid'));
+    return ok;
+  };
+  return flag(holds(gartley, 'GAR', evaluateGar) || holds(bat, 'BAT', evaluateBat));
 }
 
 /** X der harmonischen Formation auf denselben A, B, C: der Wendepunkt vor A; null, wenn es keinen gibt */
@@ -154,7 +170,7 @@ interface BigTarget {
 /** Stellt die Umgebung zum Zeitpunkt der Einstiegskerze her; der Aufrufer wertet dort das große Ziel aus */
 type AtEntry = (entryTime: number) => Env | null;
 
-function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: number, atEntry?: AtEntry): Candidate {
+export function evaluate(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pip: number, atEntry?: AtEntry): Candidate {
   return evaluateFull(env, p, dInput, pip, atEntry).candidate;
 }
 
@@ -171,19 +187,27 @@ function levelContextOf(env: Env, p: AbcdPoints, s: AbcdShape, dInput: AbcdPoint
   const inner = innerLevels(env.trends.get(tf)!, s);
   const isNear = (level: number) => near !== null && Math.abs(level - s.level1) <= near;
   // zweites Level nahe Level 1 (ABCD-15): −0.272 von A → B, 0.618 einer größeren Gegenbewegung, innere Bewegung
-  const higherTf = neighborTf(env, tf, -1);
-  const bigLegs: FibLeg[] = [...env.fibs.get(tf)!.legs, ...(higherTf ? (env.fibs.get(higherTf)?.legs ?? []) : [])].filter(
-    (leg) => (leg.dir === 'up') !== (s.es === 'resistance') && legLength(leg) > s.len,
-  );
-  const secondLevels = [extensionPrice(s, ABCD_PARAMS.minExtension), ...bigLegs.map((leg) => levelPrice(leg, ABCD_PARAMS.confluenceLevel)), ...inner];
-  const zonePrices = [s.level1, secondLevels.find(isNear) ?? extensionPrice(s, ABCD_PARAMS.minExtension)];
-  const zone: [number, number] = [Math.min(...zonePrices), Math.max(...zonePrices)];
+  let second: number[] | undefined;
+  const secondLevels = (): number[] => {
+    if (second) return second;
+    const higherTf = neighborTf(env, tf, -1);
+    const bigLegs: FibLeg[] = [...env.fibs.get(tf)!.legs, ...(higherTf ? (env.fibs.get(higherTf)?.legs ?? []) : [])].filter(
+      (leg) => (leg.dir === 'up') !== (s.es === 'resistance') && legLength(leg) > s.len,
+    );
+    return (second = [extensionPrice(s, ABCD_PARAMS.minExtension), ...bigLegs.map((leg) => levelPrice(leg, ABCD_PARAMS.confluenceLevel)), ...inner]);
+  };
+  let zoneMemo: [number, number] | undefined;
+  const zone = (): [number, number] => {
+    if (zoneMemo) return zoneMemo;
+    const zonePrices = [s.level1, secondLevels().find(isNear) ?? extensionPrice(s, ABCD_PARAMS.minExtension)];
+    return (zoneMemo = [Math.min(...zonePrices), Math.max(...zonePrices)]);
+  };
   const harmonic: CheckState = near === null ? U : harmonicD(env, p, dInput, pip, zone);
   return { near, inner, isNear, secondLevels, zone, harmonic };
 }
 
 /** Stop eingefroren (HDL-14): `from` der Kerze, die Level 1 (mit Toleranz) zuerst erreicht; Divergenz und Harmonik gelten an dieser Kerze. Nur bei erreichtem D. */
-function frozenAt(env: Env, p: AbcdPoints, s: AbcdShape, near: number | null, zone: [number, number], pip: number): { idx: number; from: AbcdPoint } {
+function frozenAt(env: Env, p: AbcdPoints, s: AbcdShape, near: number | null, zone: () => [number, number], pip: number): { idx: number; from: AbcdPoint } {
   const bars = env.views.get(env.tf)!.bars;
   const k = entryIdxOf(bars, s)!;
   const dk: AbcdPoint = { idx: k, price: wickEnd(bars[k], s.es) };
@@ -210,6 +234,89 @@ function entryFactsOf(env: Env, p: AbcdPoints, dInput: AbcdPoint | undefined, pi
   return { big: bigTargetOf(env, p, s, harmonic), frozenFrom: frozen?.from ?? null };
 }
 
+/**
+ * Einstiegskerze und eingefrorene Fakten des Handels (Halil 2026-11-16): Ob es das große Ziel gibt und von wo der Stop gemessen wird (A oder C),
+ * entscheiden nur die Daten bis zur Einstiegskerze. Spätere Kerzen ändern X-Schluss (GAR-18), Zonen, innere Wendepunkte und Wave-Werte der
+ * Divergenz; das darf einen offenen Handel nicht umdeuten. Eine Rechnung in der Einstiegsumgebung für beides. `entryBig` fehlt ohne diese Rechnung
+ * (dann gilt das große Ziel der aktuellen Umgebung). `current` liefert das Umfeld von Level 1 der aktuellen Umgebung; gerechnet wird es nur,
+ * wenn die Einstiegsumgebung keinen Stop-Anker gibt.
+ */
+function frozenFactsOf(
+  env: Env,
+  p: AbcdPoints,
+  s: AbcdShape,
+  dInput: AbcdPoint | undefined,
+  pip: number,
+  atEntry: AtEntry | undefined,
+  current: () => { near: number | null; zone: () => [number, number] },
+): { freezeIdx: number; frozenFrom: AbcdPoint | null; entryBig: BigTarget | null | undefined } {
+  const { tf } = env;
+  const bars = env.views.get(tf)!.bars;
+  const last = bars.length - 1;
+  const { d } = s;
+  if (!dReached(s) || !d) return { freezeIdx: d ? d.idx : last, frozenFrom: null, entryBig: undefined };
+  const freezeIdx = entryIdxOf(bars, s)!;
+  let frozenFrom: AbcdPoint | null = null;
+  let entryBig: BigTarget | null | undefined;
+  if (atEntry && freezeIdx < last) {
+    const entryEnv = atEntry(bars[freezeIdx].time);
+    const entryBars = entryEnv?.views.get(tf)?.bars;
+    if (entryEnv && entryBars && entryBars.length > freezeIdx) {
+      const dk: AbcdPoint = { idx: freezeIdx, price: wickEnd(bars[freezeIdx], s.es) };
+      const probeD = dInput && dInput.idx <= freezeIdx ? dInput : undefined;
+      const entryD = dInput && !probeD ? dk : probeD;
+      const atK = entryFactsOf(entryEnv, p, entryD, pip);
+      entryBig = atK.big;
+      frozenFrom = atK.frozenFrom;
+    }
+  }
+  if (!frozenFrom) {
+    const { near, zone } = current();
+    frozenFrom = frozenAt(env, p, s, near, zone, pip).from;
+  }
+  return { freezeIdx, frozenFrom, entryBig };
+}
+
+/**
+ * Nur der Handel eines Tripels für die Wahl in `analyzeAbcd` (ohne D-Eingabe): Seite, Punkte A bis D, Einstieg, Stop, Stand und Einstiegskerze,
+ * dieselben Werte wie `evaluateFull`. Einstieg und Stand hängen nicht am Urteil, an Zonen, Signalen oder Zeichnungen, nur an der Form, der
+ * Einstiegsumgebung (`frozenFactsOf`) und der ATR. Prüfliste, Zeichnungen und Urteil fehlen: nie anzeigen, für die Anzeige `evaluate` rechnen.
+ */
+export function tradeOnlyOf(env: Env, p: AbcdPoints, pip: number, atEntry: AtEntry): Candidate {
+  const { tf } = env;
+  const view = env.views.get(tf)!;
+  const { bars } = view;
+  const s = shapeOf(bars, p);
+  const { d } = s;
+  const points: Candidate['points'] = {
+    A: { time: bars[s.a.idx].time, price: s.a.price },
+    B: { time: bars[s.b.idx].time, price: s.b.price },
+    C: { time: bars[s.c.idx].time, price: s.c.price },
+  };
+  if (d) points.D = { time: bars[d.idx].time, price: d.price };
+  const bare: Candidate = { code: 'ABCD', side: s.side, tf, points, checks: [], drawings: [], verdict: 'forming' };
+  if (!dReached(s) || !d) return bare;
+  let level: ReturnType<typeof levelContextOf> | undefined;
+  const current = () => (level ??= levelContextOf(env, p, s, undefined, pip));
+  const { freezeIdx, frozenFrom, entryBig } = frozenFactsOf(env, p, s, undefined, pip, atEntry, current);
+  const big = entryBig !== undefined ? entryBig : bigTargetOf(env, p, s, current().harmonic);
+  const input = abcdTrade({ from: frozenFrom, frozenFrom, d, level1: s.level1, reached: true, missed: 0, targets: ABCD_PARAMS.targets, divergence: false, big, strongZone: false, reachedRule: 'ABCD-08' });
+  if (input.entry === null || input.stop === null || !frozenFrom) return bare;
+  const status = tradeStatusOf({
+    bars,
+    entryIdx: freezeIdx,
+    side: s.side,
+    entry: input.entry,
+    stop: input.stop,
+    emergencyStop: emergencyStopOf(input.stop, s.side, bars.length > 0 ? (view.atr[freezeIdx - 1] ?? null) : null),
+    from: frozenFrom.price,
+    targets: ABCD_PARAMS.targets,
+    ...(big ? { big } : {}),
+  });
+  const trade = { entry: input.entry, stop: input.stop, emergencyStop: null, tp1: null, reason: {}, sig29: null, status, entryIdx: freezeIdx } as unknown as Trade;
+  return { ...bare, trade };
+}
+
 function evaluateFull(
   env: Env,
   p: AbcdPoints,
@@ -217,6 +324,7 @@ function evaluateFull(
   pip: number,
   atEntry?: AtEntry,
 ): { candidate: Candidate; big: BigTarget | null; frozenFrom: AbcdPoint | null } {
+  abcdWork.full++;
   const { tf } = env;
   const view = env.views.get(tf)!;
   const trend = env.trends.get(tf)!;
@@ -255,7 +363,9 @@ function evaluateFull(
   add('ABCD-08', flag(reached), shortfall(s) ?? undefined);
 
   // Ort und Kontext (gemessen an Level 1)
-  const { near, inner, isNear, secondLevels, zone, harmonic } = levelContextOf(env, p, s, dInput, pip);
+  const level = levelContextOf(env, p, s, dInput, pip);
+  const { near, inner, isNear, harmonic } = level;
+  const secondLevels = level.secondLevels();
   const tradeZone = zoneSideOf(side);
   const nearZones: NearZone[] = [];
   // Die Zone, die erst das D selbst bildet (fertiges Fraktal am D), zählt nicht als Ort des D (Zirkelschluss)
@@ -357,25 +467,8 @@ function evaluateFull(
 
   // Ziel-Fib wie Z-ABCD-05 vor dem Einstieg: ab A bei Divergenz oder Harmonik, sonst ab C (danach `targetFrom`)
   const from = divState === 'met' || harmonic === 'met' ? s.a : s.c;
-  const frozen = reached && d ? frozenAt(env, p, s, near, zone, pip) : null;
-  let frozenFrom: AbcdPoint | null = frozen?.from ?? null;
-  const freezeIdx = frozen?.idx ?? (d ? d.idx : last);
-  // Eingefroren am Einstieg (Halil 2026-11-16): Ob es das große Ziel gibt und von wo der Stop gemessen wird (A oder C),
-  // entscheiden nur die Daten bis zur Einstiegskerze. Spätere Kerzen ändern X-Schluss (GAR-18), Zonen, innere Wendepunkte
-  // und Wave-Werte der Divergenz; das darf einen offenen Handel nicht umdeuten. Eine Rechnung in der Einstiegsumgebung für beides.
-  let entryRun: { big: BigTarget | null } | null = null;
-  if (atEntry && reached && d && freezeIdx < last) {
-    const entryEnv = atEntry(bars[freezeIdx].time);
-    const entryBars = entryEnv?.views.get(tf)?.bars;
-    if (entryEnv && entryBars && entryBars.length > freezeIdx) {
-      const dk: AbcdPoint = { idx: freezeIdx, price: wickEnd(bars[freezeIdx], es) };
-      const probeD = dInput && dInput.idx <= freezeIdx ? dInput : undefined;
-      const entryD = dInput && !probeD ? dk : probeD;
-      const atK = entryFactsOf(entryEnv, p, entryD, pip);
-      entryRun = { big: atK.big };
-      if (atK.frozenFrom) frozenFrom = atK.frozenFrom;
-    }
-  }
+  const facts = frozenFactsOf(env, p, s, dInput, pip, atEntry, () => level);
+  const { frozenFrom, freezeIdx } = facts;
   // Decision 1120-A35.1: nach dem Einstieg läuft die Ziel-Fib (TP1, TP2, TP3, Stand, Z-ABCD-05) ab dem eingefrorenen `from` der Einstiegskerze;
   // eine spätere Divergenz oder Harmonik am weitergelaufenen D ändert den Start nicht mehr. Vor dem Einstieg gilt das aktuelle `from`.
   const targetFrom = frozenFrom ?? from;
@@ -412,8 +505,7 @@ function evaluateFull(
           ...(lowerView && lowerTf ? { lower: { bars: lowerView.bars, wide: lowerView.wide, sec: TIMEFRAME_SEC[lowerTf] } } : {}),
         })
       : null;
-  let big = bigTargetOf(env, p, s, harmonic);
-  if (entryRun) big = entryRun.big;
+  const big = facts.entryBig !== undefined ? facts.entryBig : bigTargetOf(env, p, s, harmonic);
   const input = abcdTrade({
     from: targetFrom,
     frozenFrom,
@@ -575,7 +667,7 @@ function unmeasurable(tf: ContextTimeframe): Candidate {
 }
 
 /** Umgebung zum Ende der Einstiegskerze (Schlusszeit = Beginn + Dauer der Zeiteinheit) für das eingefrorene große Ziel */
-function entryEnvOf(ctx: FormationContext, tf: ContextTimeframe): AtEntry {
+export function entryEnvOf(ctx: FormationContext, tf: ContextTimeframe): AtEntry {
   // Ohne Zonen (1122-A41.1): am Einstieg zählen nur das große Ziel und der Stop-Anker (A oder C); beide hängen an Divergenz und harmonischem D
   // (Urteil von Gartley/Bat, deren Zonenzeilen nur Bonus sind), nicht an Zonen. Wie `tradeAtOf`: in einer Suche einmal je Zeitpunkt gerechnet
   return (entryTime) => buildEnvWithoutZones(ctx, entryTime + TIMEFRAME_SEC[tf], tf);
@@ -653,7 +745,7 @@ export function analyzeAbcd(ctx: FormationContext, t: number): AbcdAnalysis[] {
   const endedOf = endedTrades;
 
   /** Gezeigter Kandidat der Zeiteinheit zum Zeitpunkt `at` und die Wahl ohne Vorrang; merkt sich den gezeigten Handel */
-  const shownAt = (env: Env, tf: ContextTimeframe, at: number): { shown: Candidate | null; picked: Candidate | null } => {
+  const search = (env: Env, tf: ContextTimeframe, at: number, full: boolean): { shown: Candidate | null; picked: Candidate | null } => {
     const pivots = env.trends.get(tf)!.pivots;
     const bars = env.views.get(tf)!.bars;
     const order = selectOrder(pivots);
@@ -664,13 +756,15 @@ export function analyzeAbcd(ctx: FormationContext, t: number): AbcdAnalysis[] {
     const atEntry = entryEnvOf(ctx, tf);
     const last = bars.length - 1;
     const pointsKey = (p: AbcdPoints) => `${tf}|${bars[p.a.idx].time}|${bars[p.b.idx].time}|${bars[p.c.idx].time}`;
-    // je Tripel einmal gemessen
+    // je Tripel einmal gemessen; für die Wahl genügt der Handel (`tradeOnlyOf`), voll gemessen wird nur das Ergebnis
     const measured = new Map<string, Candidate>();
+    const pointsOf = new Map<Candidate, AbcdPoints>();
     const candidateFor = (p: AbcdPoints) => {
       const key = pointsKey(p);
       let c = measured.get(key);
       if (!c) {
-        measured.set(key, (c = evaluate(env, p, undefined, pip, atEntry)));
+        measured.set(key, (c = tradeOnlyOf(env, p, pip, atEntry)));
+        pointsOf.set(c, p);
         noteEnded(c);
       }
       return c;
@@ -760,12 +854,17 @@ export function analyzeAbcd(ctx: FormationContext, t: number): AbcdAnalysis[] {
     }
     const shown = found ?? picked;
     recordShown(keys, tf, bars, shown);
-    return { shown, picked };
+    if (!full) return { shown, picked };
+    const fullOf = (c: Candidate | null) => (c ? evaluate(env, pointsOf.get(c)!, undefined, pip, atEntry) : null);
+    const shownFull = fullOf(shown);
+    return { shown: shownFull, picked: picked === shown ? shownFull : fullOf(picked) };
   };
+  /** Suche zu einem früheren Schluss: nur der gezeigte Handel zählt (`recordShown`) */
+  const shownAt = (env: Env, tf: ContextTimeframe, at: number) => search(env, tf, at, false);
   const tradeAt = tradeAtOf(ctx, keys, shownAt);
 
   return tfs.map((tf) => {
-    const { shown, picked } = shownAt(envFor(base, ctx, t, tf), tf, t);
+    const { shown, picked } = search(envFor(base, ctx, t, tf), tf, t, true);
     if (!shown) return { tf, candidate: unmeasurable(tf) };
     if (shown === picked || !picked) return { tf, candidate: shown };
     return { tf, candidate: shown, displaced: picked };
