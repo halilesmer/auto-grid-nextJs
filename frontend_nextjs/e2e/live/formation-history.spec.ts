@@ -6,6 +6,13 @@
  * `/chart` sayfasının kullandığı kurulumun aynısı. Ana zaman dilimi H4 ve H1; bağlam için komşuları da yüklenir
  * (H4: D1 ve H1, H1: H4 ve M15).
  *
+ * Bağlam kipi (FORMATION_HISTORY_CONTEXT, varsayılan `chart`; PROBABLE=1 iken `full`):
+ * - `chart`: her taramada her zaman dilimi yalnız grafiğin o an için yükleyeceği aralığı görür. Kurulum grafiğin geçmiş modunun aynısı
+ *   (`useFormationScan`, `pastAt = at`): `formationRequests(…, pastRequestEnd(at))` aralığı, `ratesWindow` ile hizalama, D1 için `splitDaily`
+ *   (`pastDayEnd(at)`) ve W1. Her taramada yeni bir `FormationContext` kurulur. Ölçülen şey ekrandır.
+ * - `full`: bütün geçmiş tek bir `FormationContext`'te; `view()` her anda `slice(0, n)` alır (M15'te bir yıl). Eski kip; pencere etkisini
+ *   mantık etkisinden ayırmak için teşhis aracıdır, ekranı ölçmez.
+ *
  * Sayımlar bilgi olarak yazdırılır ve test-results/formation-history/ altına JSON olarak kaydedilir (commit edilmez).
  * Değişmez ihlali varsa spec kırmızı olur.
  *
@@ -14,10 +21,12 @@
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { barsOf, TIMEFRAME_SEC, type MissingRange } from '../../src/lib/analysis/candles';
+import { barsOf, ratesWindow, TIMEFRAME_SEC, type MissingRange } from '../../src/lib/analysis/candles';
 import type { RatesResponse } from '../../src/services/marketApi';
 import { FormationContext, type ContextInput } from '../../src/lib/formation/context';
-import { ABCD_PARAMS, DEFAULT_TREND_SETTINGS, HISTORY_DAYS, type ContextTimeframe } from '../../src/lib/formation/params';
+import { ABCD_PARAMS, D1_VIEW_DAYS, DEFAULT_TREND_SETTINGS, HISTORY_DAYS, type ContextTimeframe } from '../../src/lib/formation/params';
+import { pastDayEnd, pastRequestEnd } from '../../src/lib/formation/asOf';
+import { formationRequests } from '../../src/lib/formation/requests';
 import { setFormationDiag, type DiagEvent } from '../../src/lib/formation/diag';
 import { scanFormations, type ScanFormation, type ScanHit } from '../../src/lib/formation/scan';
 import { analyzeAbcd } from '../../src/lib/formation/abcdChecks';
@@ -30,7 +39,7 @@ import { reversalCandleAt } from '../../src/lib/formation/reversal';
 import { engulfZones } from '../../src/lib/formation/sig';
 import { pipOf } from '../../src/lib/formation/xabcd';
 import { outcomesOf, realizedOutcomesOf } from '../../src/lib/formation/trade';
-import { weeklyFromDaily } from '../../src/lib/formation/weekly';
+import { splitDaily, weeklyFromDaily } from '../../src/lib/formation/weekly';
 import type { FormationBar, Side, Trade } from '../../src/lib/formation/types';
 import { expect, test } from './live';
 
@@ -74,6 +83,19 @@ const FLAG_DEFS: Record<string, string> = {
 const PROBABLE = process.env.FORMATION_HISTORY_PROBABLE === '1';
 const EARLY_BAND = process.env.FORMATION_HISTORY_EARLY === '1';
 const ABCD_ONLY = PROBABLE || EARLY_BAND || process.env.FORMATION_HISTORY_ABCD_ONLY === '1';
+/**
+ * Bağlam kipi. Varsayılan `chart`: bu spec "o tarihte ekranda ne görünürdü" sorusunu ölçer; `full` bağlamı ekranda hiç olmayan bir yıllık
+ * M15 geçmişi görür, onun "ihlal yok" sonucu ekranı ölçmez. `full` korunur (pencere etkisini mantık etkisinden ayırmak için).
+ * "olası C" ölçümü tek bağlama bağlıdır: PROBABLE=1 iken varsayılan `full`, açık `chart` hata verir.
+ */
+type ContextMode = 'chart' | 'full';
+const CONTEXT_MODE: ContextMode = (() => {
+  const raw = process.env.FORMATION_HISTORY_CONTEXT?.trim().toLowerCase();
+  if (raw !== undefined && raw !== '' && raw !== 'chart' && raw !== 'full') throw new Error(`FORMATION_HISTORY_CONTEXT must be chart or full (got ${raw})`);
+  if (PROBABLE && raw === 'chart') throw new Error('FORMATION_HISTORY_PROBABLE=1 needs FORMATION_HISTORY_CONTEXT=full (olası C tek bağlamı mum mum izler)');
+  if (raw === 'chart' || raw === 'full') return raw;
+  return PROBABLE ? 'full' : 'chart';
+})();
 const OUT_DIR = process.env.FORMATION_HISTORY_OUT || path.resolve(__dirname, '../../test-results/formation-history');
 
 /** [tf, geçmiş gün] */
@@ -113,6 +135,35 @@ async function loadRates(
     cursor = page.next_from !== null && page.next_from > cursor && page.next_from < chunkEnd ? page.next_from : chunkEnd;
   }
   return { bars, missing, liveFrom };
+}
+
+/**
+ * Grafiğin geçmiş modundaki bağlam girdisi (`useFormationScan` ile `pastAt = at`): her zaman dilimi için `formationRequests`'in verdiği aralık,
+ * `ratesWindow` ile hizalı (`useMarketRates` aynısını sorar); eksik aralıklar o aralığa kırpılır. D1: `splitDaily` + W1 (`pastDayEnd(at)`).
+ * Yalnız yüklenmiş zaman dilimleri girer; hangi komşuların yükleneceği spec'in kendi seçimidir (ana zaman dilimine göre).
+ */
+function chartInput(d: Partial<Record<'D1' | 'H4' | 'H1' | 'M15', Loaded>>, at: number): ContextInput {
+  const reqs = formationRequests('', '', pastRequestEnd(at));
+  const input: ContextInput = {};
+  for (const [ctf, loaded] of Object.entries(d) as ['D1' | 'H4' | 'H1' | 'M15', Loaded][]) {
+    const r = reqs[ctf];
+    const win = ratesWindow(r.from, r.to, TIMEFRAME_SEC[ctf]);
+    const bars = loaded.bars.filter((b) => b.time >= win.from && b.time < win.to);
+    const missing = loaded.missing.filter((m) => m.to > win.from && m.from < win.to).map((m) => ({ ...m, from: Math.max(m.from, win.from), to: Math.min(m.to, win.to) }));
+    if (ctf === 'D1') {
+      const daily = splitDaily(bars, missing, pastDayEnd(at));
+      input.D1 = daily.d1;
+      input.W1 = daily.w1;
+    } else input[ctf] = { bars, missing };
+  }
+  return input;
+}
+
+/** İlk noktası bu andan önce olan aday, grafiğin yüklediği pencerenin dışındadır (chart kipinde pencerenin gerçek başı; full kipinde `HISTORY_DAYS` ile günler) */
+function windowStartOf(tf: string, at: number): number {
+  if (CONTEXT_MODE === 'full') return at - HISTORY_DAYS[tf as keyof typeof HISTORY_DAYS] * DAY;
+  if (tf === 'D1') return pastDayEnd(at) - D1_VIEW_DAYS * DAY;
+  return Math.floor((at - HISTORY_DAYS[tf as keyof typeof HISTORY_DAYS] * DAY) / TIMEFRAME_SEC[tf as MainTf | 'M15']) * TIMEFRAME_SEC[tf as MainTf | 'M15'];
 }
 
 // ---------- sayaçlar ----------
@@ -323,7 +374,7 @@ function trackAll(tally: InstanceType<typeof Tally>, tracks: Map<string, Track>,
   }
   for (const [key, k] of tracks) {
     if (k.seen === scanNo) continue;
-    const windowStart = at - HISTORY_DAYS[k.tf as keyof typeof HISTORY_DAYS] * DAY;
+    const windowStart = windowStartOf(k.tf, at);
     if (k.entered) {
       // Entscheidung 1120-A42.1: ein beendeter Handel darf aus dem Rückblick fallen (die Geschichte wird nicht neu geschrieben): Zähler, kein Verstoß.
       // Beendet heißt: schon beim letzten Scan beendet oder neu gemessen zur Zeit des Verschwindens beendet (1122-A1.3.2)
@@ -678,7 +729,7 @@ class ProbableC {
   }
 }
 
-function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars: FormationBar[], examples: Example[], tp12: unknown[]) {
+function scanSeries(symbol: string, tf: MainTf, ctxAt: (at: number) => FormationContext, mainBars: FormationBar[], examples: Example[], tp12: unknown[]) {
   const tfSec = TIMEFRAME_SEC[tf];
   const tally = new Tally();
   const abcd = new Map<string, AbcdKey>();
@@ -717,7 +768,7 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
     if (e.fn === 'early' && typeof prev === 'number' && typeof e.step === 'number' && prev >= e.step) return;
     events.set(k, e.step);
   });
-  const pc = PROBABLE ? new ProbableC(ctx, symbol, tf) : null;
+  const pc = PROBABLE ? new ProbableC(ctxAt(0), symbol, tf) : null;
   const first = Math.max(0, mainBars.length - BARS[tf]);
   const STEP = STEPS[tf];
   if (PROBABLE && STEP !== 1) throw new Error('FORMATION_HISTORY_PROBABLE=1 needs step 1 (olası C t+2 sonucunu mum mum izler)');
@@ -727,6 +778,7 @@ function scanSeries(symbol: string, tf: MainTf, ctx: FormationContext, mainBars:
     const at = mainBars[i].time + tfSec;
     bandNow.clear();
     const started = performance.now();
+    const ctx = ctxAt(at);
     // ABCD_ONLY: `scanFormations`in AB=CD kolu (ANALYZERS.ABCD) tek başına; aynı hitler, harmonikler hesaplanmaz
     const allHits = (
       ABCD_ONLY
@@ -1038,7 +1090,7 @@ test('Formasyon geçmiş taraması: işlem durumları canlı mumlarla (salt okun
   const result: Record<string, Record<string, ReturnType<typeof scanSeries>>> = {};
   const examples: Example[] = [];
   const tp12: unknown[] = [];
-  const info: Record<string, unknown> = { symbols, bars: BARS, step: STEPS, trend: 'DEFAULT_TREND_SETTINGS', flagDefs: FLAG_DEFS, loadMs: {}, scanMs: {} };
+  const info: Record<string, unknown> = { symbols, bars: BARS, step: STEPS, trend: 'DEFAULT_TREND_SETTINGS', contextMode: CONTEXT_MODE, flagDefs: FLAG_DEFS, loadMs: {}, scanMs: {} };
   mkdirSync(OUT_DIR, { recursive: true });
 
   for (const symbol of symbols) {
@@ -1059,13 +1111,6 @@ test('Formasyon geçmiş taraması: işlem durumları canlı mumlarla (salt okun
 
     for (const tf of MAIN_TFS) {
       const d = data[tf]!;
-      const input: ContextInput = {};
-      for (const [ctf, loaded] of Object.entries(d) as ['D1' | 'H4' | 'H1' | 'M15', Loaded][]) {
-        if (ctf === 'D1') {
-          input.D1 = { bars: loaded.bars, missing: loaded.missing };
-          input.W1 = { bars: weeklyFromDaily(loaded.bars, loaded.missing), missing: [] };
-        } else input[ctf] = { bars: loaded.bars, missing: loaded.missing };
-      }
       const main = d[tf]!;
       // Laufan mum (live_from) kapalı değildir: ana mumlar yalnız kapalıları sayar
       const closed = main.bars.filter((b) => main.liveFrom === null || b.time < main.liveFrom);
@@ -1084,12 +1129,27 @@ test('Formasyon geçmiş taraması: işlem durumları canlı mumlarla (salt okun
         };
       }
       ((info.coverage ??= {}) as Record<string, unknown>)[`${symbol}.${tf}`] = coverage;
-      const ctx = new FormationContext(symbol, input, { trend: DEFAULT_TREND_SETTINGS });
+      const trendOpt = { trend: DEFAULT_TREND_SETTINGS };
+      let ctxAt: (at: number) => FormationContext;
+      if (CONTEXT_MODE === 'chart') {
+        // Her taramada yeni bağlam: o ana kadar grafiğin yükleyeceği aralık (chartInput)
+        ctxAt = (at) => new FormationContext(symbol, chartInput(d, at), trendOpt);
+      } else {
+        const input: ContextInput = {};
+        for (const [ctf, loaded] of Object.entries(d) as ['D1' | 'H4' | 'H1' | 'M15', Loaded][]) {
+          if (ctf === 'D1') {
+            input.D1 = { bars: loaded.bars, missing: loaded.missing };
+            input.W1 = { bars: weeklyFromDaily(loaded.bars, loaded.missing), missing: [] };
+          } else input[ctf] = { bars: loaded.bars, missing: loaded.missing };
+        }
+        const full = new FormationContext(symbol, input, trendOpt);
+        ctxAt = () => full;
+      }
       const t0 = Date.now();
-      result[symbol][tf] = scanSeries(symbol, tf, ctx, closed, examples, tp12);
+      result[symbol][tf] = scanSeries(symbol, tf, ctxAt, closed, examples, tp12);
       (info.scanMs as Record<string, number>)[`${symbol}.${tf}`] = Date.now() - t0;
       const row = result[symbol][tf];
-      console.log(`[formation-history] ${symbol} ${tf}: ${row.scans} tarama, ${row.msPerScan} ms/tarama, ABCD aday ${row.abcd.candidates}, C ayağı ${row.cleg.born}, ihlal ${Object.keys(row.violations).length}, bitişi hiç gösterilmeyen ana/bağlam ${row.endNeverShown.mainTf}/${row.endNeverShown.contextTf}, pencere dışı kayboluş koşan/biten ${row.vanishedOutsideWindow.running}/${row.vanishedOutsideWindow.finished}`);
+      console.log(`[formation-history] ${symbol} ${tf} (${CONTEXT_MODE}): ${row.scans} tarama, ${row.msPerScan} ms/tarama, ABCD aday ${row.abcd.candidates}, C ayağı ${row.cleg.born}, ihlal ${Object.keys(row.violations).length}, bitişi hiç gösterilmeyen ana/bağlam ${row.endNeverShown.mainTf}/${row.endNeverShown.contextTf}, pencere dışı kayboluş koşan/biten ${row.vanishedOutsideWindow.running}/${row.vanishedOutsideWindow.finished}`);
       if (row.endNeverShown.mainTf > 0 || row.vanishedOutsideWindow.running > 0) console.log(`[formation-history] ${symbol} ${tf} örnekler: ${JSON.stringify({ endNeverShownMainTf: row.endNeverShown.mainTfExamples, vanishedOutsideWindowRunning: row.vanishedOutsideWindow.runningExamples, byTfForm: row.vanishedOutsideWindow.byTfForm })}`);
       writeFileSync(path.join(OUT_DIR, `summary-${override ? symbols.join('+') : 'all'}.json`), JSON.stringify({ info, result, examples, tp12 }, null, 2));
     }
