@@ -10,7 +10,8 @@ import { FormationContext, type ContextInput } from '../../src/lib/formation/con
 import { parseFixture } from '../../src/lib/formation/fixture';
 import { formationRequests } from '../../src/lib/formation/requests';
 import { scanFormations } from '../../src/lib/formation/scan';
-import { splitDaily, weeklyFromDaily } from '../../src/lib/formation/weekly';
+import { HISTORY_DAYS, TREND_LEAD_DAYS } from '../../src/lib/formation/params';
+import { splitDaily, W1_HISTORY_DAYS, weeklyFromDaily } from '../../src/lib/formation/weekly';
 import type { FormationBar } from '../../src/lib/formation/types';
 import { DAY_SEC, dayStart } from '../../src/lib/serverTime';
 import { FIXTURE_TREND, named } from '../fixtures/formation-trend';
@@ -51,15 +52,20 @@ frm('stepAsOf geht um eine Kerze der Zeiteinheit auf deren Raster', () => {
   expect(stepAsOf(DAY + 9 * 3600 + 15 * 60, h4, 1)).toBe(DAY + 12 * 3600);
 });
 
-frm('Anfragen enden bei at, splitDaily am Ende des Brokertags von at', () => {
+frm('Anfragen enden bei at und beginnen Verlaufsfenster plus Vorlauf davor; die D1-Ansicht ist der ganze D1-Verlauf', () => {
   const at = DAY + 14 * 3600 + 30 * 60;
   const req = formationRequests('1', 'EURUSD', at);
   for (const tf of ['D1', 'H4', 'H1', 'M15'] as const) expect(req[tf].to).toBe(at);
+  // 1114-A4: ein Fenster Vorlauf für den Trendzug (H4 120 + 120, H1 40 + 40, M15 10 + 10 Tage); D1 lädt den Verlauf für W1
+  expect((at - (req.H4.from ?? NaN)) / DAY_SEC).toBe(HISTORY_DAYS.H4 + TREND_LEAD_DAYS.H4);
+  expect((at - (req.H1.from ?? NaN)) / DAY_SEC).toBe(HISTORY_DAYS.H1 + TREND_LEAD_DAYS.H1);
+  expect((at - (req.M15.from ?? NaN)) / DAY_SEC).toBe(HISTORY_DAYS.M15 + TREND_LEAD_DAYS.M15);
+  expect((at - (req.D1.from ?? NaN)) / DAY_SEC).toBe(Math.max(HISTORY_DAYS.D1, W1_HISTORY_DAYS));
   expect(pastDayEnd(at)).toBe(DAY + DAY_SEC);
   const bars: FormationBar[] = [-400, -399, 0].map((d) => ({ time: DAY + d * DAY_SEC, open: 1, high: 2, low: 0.5, close: 1.5 }));
-  const { d1 } = splitDaily(bars, [], pastDayEnd(at));
-  // D1-Ansicht: 400 Tage bis zum Ende des Brokertags von at; die Kerze 400 Tage davor fällt heraus
-  expect(d1.bars.map((b) => b.time)).toEqual([DAY - 399 * DAY_SEC, DAY]);
+  const { d1 } = splitDaily(bars, []);
+  // D1-Ansicht: alle geladenen Tage; der D1-Trendzug beginnt nicht am Anfang des Verlaufsfensters (400 Tage)
+  expect(d1.bars.map((b) => b.time)).toEqual([DAY - 400 * DAY_SEC, DAY - 399 * DAY_SEC, DAY]);
 });
 
 /** Fixture-Kerzen der Zeiteinheit: nach `at` stehen noch Kerzen im Kontext (die „Zukunft“) */

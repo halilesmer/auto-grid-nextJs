@@ -102,7 +102,7 @@ export function useFormationScan(
   const latest = useRef<ContextInput>({});
   useEffect(() => {
     const input = (d: { bars: Bar[]; missing: MissingRange[] } | null) => ({ bars: d?.bars ?? [], missing: d?.missing ?? [] });
-    const daily = splitDaily(d1.data?.bars ?? [], d1.data?.missing ?? [], dayEnd);
+    const daily = splitDaily(d1.data?.bars ?? [], d1.data?.missing ?? []);
     latest.current = { D1: daily.d1, W1: daily.w1, H4: input(h4.data), H1: input(h1.data), M15: input(m15.data) };
   });
 

@@ -4,8 +4,6 @@
  */
 import type { MissingRange } from '@/lib/analysis/candles';
 import { weeklyFromDaily } from '@/lib/analysis/calendarBars';
-import { DAY_SEC } from '@/lib/serverTime';
-import { D1_VIEW_DAYS } from './params';
 import type { FormationBar } from './types';
 
 export { W1_SEC, weekStart, weeklyFromDaily } from '@/lib/analysis/calendarBars';
@@ -21,13 +19,14 @@ export interface DailyData {
 }
 
 /**
- * Teilt die langen D1-Daten: die D1-Ansicht behält die letzten `D1_VIEW_DAYS` Tage (bis `to`, Ende des laufenden Brokertags),
- * W1 entsteht aus allen. Ein fehlender Bereich, der ganz vor der D1-Ansicht endet, betrifft nur W1 und setzt keinen Lückenhinweis.
+ * D1 und W1 aus denselben langen D1-Daten (`W1_HISTORY_DAYS`): die D1-Ansicht ist der ganze Verlauf, damit der D1-Trendzug nicht am Anfang des
+ * Verlaufsfensters (`D1_VIEW_DAYS`) beginnt (1114-A4: mit 400 Tagen zeichnete er Wendepunkte im Fenster jeden Tag neu; mit dem ganzen Verlauf
+ * ändert er sich von Tag zu Tag nicht öfter als mit festem Anfang). Die Suche selbst bleibt im Verlaufsfenster; den Lückenhinweis setzt nur ein
+ * fehlender Bereich im Fenster (`gapInHistory`).
  */
-export function splitDaily(bars: readonly FormationBar[], missing: readonly GapRange[], to: number): { d1: DailyData; w1: DailyData } {
-  const from = to - D1_VIEW_DAYS * DAY_SEC;
+export function splitDaily(bars: readonly FormationBar[], missing: readonly GapRange[]): { d1: DailyData; w1: DailyData } {
   return {
-    d1: { bars: bars.filter((b) => b.time >= from), missing: missing.filter((m) => m.to > from) },
+    d1: { bars: [...bars], missing: [...missing] },
     w1: { bars: weeklyFromDaily(bars, missing), missing: [] },
   };
 }
