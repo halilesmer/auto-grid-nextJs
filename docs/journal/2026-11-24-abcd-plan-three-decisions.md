@@ -56,7 +56,7 @@ Measurement after PR 653 (local year data XAUUSD, DEMO, read-only; H4 each candl
 - [ ] Fix S1: running harmonic trade vanishes when X leaves the history window (in work).
 - [ ] S2 and S1 on other symbols (only XAUUSD measured).
 - [ ] S5 speed plan, S6 badge design (Halil).
-- [ ] `scripts/features/run.sh render` fails on main: items of `pruefung` without quotes in FRM-05, FRM-18 and FRM-39 become YAML maps (found in PR 658).
+- [x] `scripts/features/run.sh render` fails on main: items of `pruefung` without quotes in FRM-05, FRM-18 and FRM-39 become YAML maps (found in PR 658). (done: PR 660)
 
 ## Correction (2026-11-24, 06:00)
 - 1124-A3: "Plan 1114-A4 is closed" is wrong. The zeros came from the history scan with the full context (one year of candles in one context). The chart loads only the `HISTORY_DAYS` window. With the chart context (PR 660), `candidateVanished` is 1 (main time frame H1) and 5 (main time frame H4). `candidateVanished` is a target class, so 1114-A4 stays open until it is zero in the chart context or each case has a written cause. Rule (a) does not change.
