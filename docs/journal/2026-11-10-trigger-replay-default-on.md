@@ -46,9 +46,9 @@ The first failure came from missing data, not from the replay. So K57.3 and K57.
 - VPS acceptance: the two runs above.
 
 ## Open points
-- [ ] c2: orders that wait at the start of the window.
-- [ ] b: placement delay of the bot.
-- [ ] Data completeness before an acceptance run (1110-K3.3).
+- [x] c2: orders that wait at the start of the window. (Closed 2026-11-24, see `2026-11-24-bkt31-open-measurements.md`.)
+- [x] b: placement delay of the bot. (Closed 2026-11-24, BKT-29.)
+- [x] Data completeness before an acceptance run (1110-K3.3). (Mitigated by BKT-27, see the 2026-11-24 entry.)
 
 ## Lessons
 Check that the candle data is complete before you read a failed acceptance run as a code fault.
