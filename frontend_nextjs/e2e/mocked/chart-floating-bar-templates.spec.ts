@@ -126,3 +126,39 @@ test('UI-29: alte Fibonacci-Vorlagen werden aus dem Speicher unverändert gelese
   await expect(page.getByTestId('fbar-template-user')).toHaveText('Alt');
   await expect(page.getByTestId('fbar-template-defaults')).toBeVisible();
 });
+
+test('UI-29: geänderte hazır şablon: Kopie ersetzt sie, nicht als eigene Zeile, Orijinal ayarlara dön löscht sie (1124-A7)', { tag: '@UI-29' }, async ({ page, worker }) => {
+  void worker;
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.goto(URL);
+  await page.evaluate((key) => {
+    const store = JSON.parse(localStorage.getItem(key) || '{}');
+    store.drawingTemplates = { 'fib-retracement': { Alt: { lineStyle: 'dashed', width: 3 }, __preset__: { lineStyle: 'dotted', width: 2 } } };
+    localStorage.setItem(key, JSON.stringify(store));
+  }, KEY);
+  await page.reload();
+  await chartReady(page); // fixed pixels below: wait for the formation search first (journal 2026-11-16-chart-drawing-tests-scan-race)
+  await hideFormationDrawings(page);
+  await page.getByRole('button', { name: msg('cw.rail.fibMenu'), exact: true }).click();
+  await page.getByTestId('tool-fib-retracement').click();
+  const box = (await page.getByTestId('analysis-chart').boundingBox())!;
+  const top = (await page.getByTestId('chart-topbar').boundingBox())!;
+  const y1 = top.y + top.height + 90, x1 = box.x + box.width * .35, x2 = box.x + box.width * .6;
+  await page.mouse.click(x1, y1);
+  await page.mouse.move((x1 + x2) / 2, y1 + 80);
+  await page.mouse.click(x2, y1 + 160);
+  await page.waitForTimeout(800);
+  await page.keyboard.press('Escape');
+  await page.mouse.move((x1 + x2) / 2 - box.width * .01, y1 + 80);
+  await page.waitForTimeout(150);
+  await page.mouse.click((x1 + x2) / 2 - box.width * .01, y1 + 80);
+  await expect(bar(page)).toBeVisible();
+  await page.getByTestId('fbar-template').click();
+  await expect(page.getByTestId('fbar-template-preset')).toContainText(msg('fib.changed'));
+  await expect(page.getByTestId('fbar-template-user')).toHaveText('Alt');
+  await page.getByTestId('fbar-template-preset-reset').click();
+  await expect.poll(() => page.evaluate((key) => Object.keys(JSON.parse(localStorage.getItem(key) || '{}').drawingTemplates?.['fib-retracement'] ?? {}), KEY)).toEqual(['Alt']);
+  await page.getByTestId('fbar-template').click();
+  await expect(page.getByTestId('fbar-template-preset')).not.toContainText(msg('fib.changed'));
+  await expect(page.getByTestId('fbar-template-preset-reset')).toHaveCount(0);
+});
