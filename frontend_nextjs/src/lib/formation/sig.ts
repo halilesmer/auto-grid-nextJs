@@ -61,6 +61,17 @@ function pointAt(trend: TrendModel, side: ZoneSide, idx: number): DivPoint {
  * null, wenn es keine zwei Punkte gibt.
  */
 export function divergenceOf(trend: TrendModel, side: ZoneSide, idxA?: number, idxB?: number): Divergence | null {
+  let byArgs = divMemo.get(trend);
+  if (!byArgs) divMemo.set(trend, (byArgs = new Map()));
+  const key = `${side}|${idxA}|${idxB}`;
+  if (!byArgs.has(key)) byArgs.set(key, divergenceCalc(trend, side, idxA, idxB));
+  return byArgs.get(key)!;
+}
+
+/** Ergebnisse je Trendmodell und Eingabe: das Modell ist nach dem Bau unveränderlich, die Rechnung hängt nur an ihm und den Argumenten */
+const divMemo = new WeakMap<TrendModel, Map<string, Divergence | null>>();
+
+function divergenceCalc(trend: TrendModel, side: ZoneSide, idxA?: number, idxB?: number): Divergence | null {
   let a = idxA;
   let b = idxB;
   if (a === undefined || b === undefined) {

@@ -123,7 +123,9 @@ export const emptyTrend = (tf: ContextTimeframe, bars: Bars, wave: (number | nul
 /** Neuer Impuls: erster Schluss jenseits des vorigen Extrems in Trendrichtung (TRD-12) */
 export function noteImpulse(m: TrendModel, k: number): void {
   if (!m.dir) return;
-  const ext = [...m.pivots].reverse().find((p) => p.side === extremeSide(m.dir!));
+  const side = extremeSide(m.dir);
+  let ext: Pivot | undefined;
+  for (let i = m.pivots.length - 1; i >= 0; i--) if (m.pivots[i].side === side) { ext = m.pivots[i]; break; }
   if (ext && closesBeyond(m.bars[k], ext.price, extremeSide(m.dir))) m.impulseBars.push(k);
 }
 
@@ -131,7 +133,8 @@ export function noteImpulse(m: TrendModel, k: number): void {
 export function changeRef(m: TrendModel): Pivot | undefined {
   if (!m.dir) return undefined;
   const side = extremeSide(m.dir);
-  const pos = m.pivots.map((p) => p.side).lastIndexOf(side);
+  let pos = -1;
+  for (let i = m.pivots.length - 1; i >= 0; i--) if (m.pivots[i].side === side) { pos = i; break; }
   return pos > 0 ? m.pivots[pos - 1] : undefined;
 }
 
