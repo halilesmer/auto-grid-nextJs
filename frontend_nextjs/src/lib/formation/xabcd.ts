@@ -12,7 +12,7 @@ import type { FormationContext } from './context';
 import { closesBeyond, outward, probeFractal, wickEnd, type Rect, type ZoneSide } from './frz';
 import { CONTEXT_TIMEFRAMES, HARMONIC_PARAMS, FRZ_PARAMS, HISTORY_DAYS, type ContextTimeframe } from './params';
 import { buildEnv, dirSide, envFor, neighborTf, type Env } from './reasons';
-import { enteredTrade, frozenOf, hiddenOf, recordShown, shownKeysOf, tradeAtOf } from './shownTrade';
+import { enteredTrade, frozenOf, hiddenOf, pointsKey, recordShown, shownKeysOf, tradeAtOf, tradeKey } from './shownTrade';
 import { reversalAt } from './reversal';
 import { engulfZones, rsiExtreme, trailingRun, divergenceOf, zoneSideOf } from './sig';
 import type { Pivot, TrendModel } from './trd';
@@ -323,7 +323,16 @@ export const xabcdWork = { evaluated: 0, keys: 0, bases: 0, entered: 0, running:
  * Nach dem Einstieg ist der Handel eingefroren (C und X, 1121-A2.1, 1122-A28.1) und sein Ende ändert sich mit späteren Kerzen nicht; eine spätere Suche
  * lässt ihn ohnehin weg (kein laufender Handel), also misst sie ihn nicht noch einmal.
  */
-const endedStore = new WeakMap<FormationContext, WeakMap<object, Map<string, number>>>();
+const endedStore = new WeakMap<FormationContext, WeakMap<object, Map<string, EndedTrade>>>();
+
+/** Beendeter Handel einer Basis: Endkerze, Handel (`tradeKey`), Punkte (`pointsKey`), Stop und Einstiegskerze */
+interface EndedTrade {
+  endIdx: number;
+  key: string;
+  points: string;
+  stop: number | null;
+  entryIdx: number;
+}
 
 /**
  * Kandidat einer Basis: C wie beim Einstieg (1121-A2.1). Zuerst mit verschobenem C gemessen; liegt der erste Schluss jenseits von B
@@ -360,6 +369,8 @@ function candidateOfBase(env: Env, tf: ContextTimeframe, bars: Bars, h: Omit<His
  * zeigt sein Ende einmal (1121-A1.3, Entscheidung 1120-A42.1). Gesucht wird er unter allen Basen, deren X im Verlaufsfenster der Zeiteinheit liegt
  * (`HISTORY_DAYS`). Unter mehreren gilt der zuerst eingegangene (ein späterer Einstieg verdrängt ihn nicht), bei gleicher Einstiegskerze der mit den
  * wenigsten `misses`, dann der jüngste.
+ * Endete die beim Einstieg gezeigte Basis eines Handels vor der letzten Kerze, gilt derselbe Handel (gleicher Schlüssel) auf einer anderen Basis als
+ * verborgen: der beendete Handel kommt nicht mit anderem Stop wieder (das Ende zeigt sich einmal, 1120-A42.1; Basis friert am Einstieg ein, 1122-A28.1).
  */
 export function analyzeXabcd(
   ctx: FormationContext,
@@ -398,34 +409,59 @@ export function analyzeXabcd(
     const hidden = hiddenOf(tf, bars, tradeAt);
     // derselbe Handel mit den Punkten, die zum Schluss seiner Einstiegskerze gezeigt waren (C und X frieren am Einstieg ein, 1121-A2.1)
     const frozen = frozenOf(tf, bars, tradeAt);
-    const best = top && hidden(top.candidate) ? bestRecent(pivots, candidateFor, misses, hidden) : top;
+    const bestShown = top && hidden(top.candidate) ? bestRecent(pivots, candidateFor, misses, hidden) : top;
     const recent = new Set(selectBases(pivots).map((b) => b.c.idx));
     const windowStart = at - HISTORY_DAYS[tf] * DAY_SEC;
     // Basen aus den Wendepunkten JEDER früheren Kerze im Fenster: zeichnet der Trend B, C oder den Wendepunkt vor X nach dem Einstieg um,
     // bleibt die Basis des laufenden Handels mit ihren damaligen Punkten erhalten (Basis und Einstieg frieren am Einstieg ein, 1122-A28.1)
     const open: { candidate: Candidate; entryIdx: number }[] = [];
+    // vor der letzten Kerze beendete Handel je Handels-Schlüssel (Punkte und Einstiegskerze)
+    const endedByKey = new Map<string, EndedTrade[]>();
+    const noteEnded = (e: EndedTrade) => {
+      if (e.endIdx < last) endedByKey.set(e.key, [...(endedByKey.get(e.key) ?? []), e]);
+    };
     for (const h of historicBases(env.trends.get(tf)!, bars, windowStart, recent)) {
       // Suche eines früheren Schlusses: ein schon beendeter Handel dieser Basis fällt wieder weg, ohne neu gemessen zu werden
       const endKey = earlier && !h.current ? `${tf}|${h.prev}|${h.xSide}${h.aSide}|${[h.base.x, h.base.a, h.base.b, h.base.c].map((p) => `${p.idx}@${p.price}`).join('|')}` : null;
       const endedAt = endKey === null ? undefined : ended.get(endKey);
-      if (endedAt !== undefined && endedAt < last) continue;
+      if (endedAt !== undefined && endedAt.endIdx < last) {
+        noteEnded(endedAt);
+        continue;
+      }
       const candidate = h.current ? candidateFor(h.base) : candidateOfBase(env, tf, bars, h, evaluate, pip);
       xabcdWork.bases++;
       const endIdx = candidate.trade?.status?.endIdx;
       const entryIdx = candidate.trade?.entryIdx;
-      if (endKey !== null && endIdx !== undefined && enteredTrade(candidate)) ended.set(endKey, endIdx);
+      if (endIdx !== undefined && enteredTrade(candidate)) {
+        const e: EndedTrade = { endIdx, key: tradeKey(candidate, bars)!, points: pointsKey(candidate), stop: candidate.trade!.stop ?? null, entryIdx: entryIdx! };
+        if (endKey !== null) ended.set(endKey, e);
+        noteEnded(e);
+      }
       // in der letzten Kerze eingegangen: noch nie gezeigt, also kein Vorrang (gezeigt wird er nur als beste Basis)
       if (enteredTrade(candidate)) xabcdWork.entered++;
       if (!enteredTrade(candidate) || (endIdx !== undefined && endIdx < last) || entryIdx === last) continue;
       xabcdWork.running++;
       open.push({ candidate, entryIdx: entryIdx! });
     }
+    // Hayalet (1120-A42.1, 1122-A28.1): derselbe Handel auf einer anderen Basis, nachdem die beim Einstieg gezeigte Basis vor der letzten Kerze endete.
+    // Die Identität hat keinen Stop (1122-A3.4.1), also ließe Regel B ihn durch; er käme mit anderem Stop und anderem Stand wieder.
+    const dur = TIMEFRAME_SEC[tf];
+    const ghost = (c: Candidate): boolean => {
+      const list = enteredTrade(c) && c.trade!.entryIdx! < last ? endedByKey.get(tradeKey(c, bars)!) : undefined;
+      if (!list) return false;
+      const atEntry = tradeAt(tf, bars[c.trade!.entryIdx!].time + dur).points;
+      // derselbe Ausgang (gleicher Stop, gleiche Endkerze) mit verschobenem Wendepunkt ist kein anderer Handel (1122-A3.2)
+      const sameOutcome = (e: EndedTrade) => c.trade!.stop === e.stop && c.trade!.status!.endIdx === e.endIdx;
+      return atEntry !== pointsKey(c) && list.some((e) => e.points === atEntry && !sameOutcome(e));
+    };
+    const skip = (c: Candidate) => hidden(c) || ghost(c);
+    const best = bestShown && ghost(bestShown.candidate) ? bestRecent(pivots, candidateFor, misses, skip) : bestShown;
     // der zuerst eingegangene nicht verborgene Handel; `hidden` (rechnet frühere Schlüsse) nur, bis er gefunden ist
     open.sort((x, y) => x.entryIdx - y.entryIdx);
     let kept: { candidate: Candidate; unmet: number; entryIdx: number; frozen: boolean } | null = null;
     for (const o of open) {
       if (kept !== null && o.entryIdx > kept.entryIdx) break;
-      if (hidden(o.candidate)) continue;
+      if (skip(o.candidate)) continue;
       // nicht verborgen und gleiche Einstiegskerze: derselbe Handel (der gezeigte), also zuerst die beim Einstieg gezeigten Punkte, dann wenigste `misses`
       const unmet = misses(o.candidate);
       const isFrozen = frozen(o.candidate);
