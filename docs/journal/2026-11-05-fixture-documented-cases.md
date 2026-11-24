@@ -64,7 +64,7 @@ The page tests read the fixture setting through `named`/`trendOf` and `seedFixtu
 ## Open points
 - [ ] Project owner: `abcd-double-h4-01` keeps the regenerated expectations (no single setting keeps both old statements).
 - [ ] Project owner: `bat-buy-h4-01` keeps the old Bat with B not at the wick end; the setting needs EWO 13/89.
-- [ ] Project owner: the 4 unreachable cases (`bat-sell-h4-01`, `enc-buy-h4-01`, `enc-bad-h4-01`, `fib-counter-d1-01`) need a new fixture or must stay unreachable.
+- [x] Project owner: the 4 unreachable cases (`bat-sell-h4-01`, `enc-buy-h4-01`, `enc-bad-h4-01`, `fib-counter-d1-01`) need a new fixture or must stay unreachable. (done: PR 400)
 - [ ] Project owner: decide on the global `FIXTURE_TREND`. With `FIXTURE_TREND` = `DEFAULT_TREND_SETTINGS` (2.5 ATR, 1 close; the entries in `FIXTURE_TRENDS` unchanged), 83 of 2820 mocked e2e tests fail: CRB 18, OBO 7, 2618 6, ABCD 6, CDT 6, T618 6, GAR/BAT 5, KEI 5, trade page 5, formation page 4, CYP 3, ENC 3, LIB 3, 2618 scan 2, BUT 2, TDF 2.
 - [ ] `cdt-top-h4-02` (other session): the old expectation on 2025-11-10 16:00 is reachable with no scanned setting.
 

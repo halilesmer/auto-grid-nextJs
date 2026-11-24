@@ -40,4 +40,4 @@ Example (sell): A 1.0000, B 1.0100, C 1.0050, level 1 = 1.0150, wick to 1.0180.
 - Changed expectations in existing tests: Z-ABCD-05 levels lost `-0.382` (3 places); the drawing list gains Z-ABCD-07 and Z-ABCD-08 after Z-ABCD-05.
 
 ## Open points
-- [ ] GAR, BAT, BUT and CRB still move entry and stop with D. Separate step.
+- [x] GAR, BAT, BUT and CRB still move entry and stop with D. Separate step. (done: PR 580, 651)
