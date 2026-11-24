@@ -3,7 +3,7 @@ date: 2026-11-24
 author: Claude
 type: diagnosis
 status: open
-pr: []
+pr: [678]
 features: [SYS-17, SYS-16]
 areas: [tooling]
 ---
