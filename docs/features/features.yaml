@@ -2907,8 +2907,8 @@ kategorien:
         code: [frontend_nextjs/src/lib/formation/dArrow.ts, frontend_nextjs/src/components/formation/FormationLayer.tsx, frontend_nextjs/src/i18n/messages/formation.ts]
         tiers: [e2e]
         pruefung:
-          - Playwright-Test e2e/mocked/formation-d-arrow.spec.ts (@FRM-49) ausführen (die fünf Zustände auf der Seite mit echten Kerzen: Pfeil, Ring, Grund, Abzeichen, Hover; reduzierte Bewegung ohne Blinken).
-          - Playwright-Test e2e/mocked/formation-d-arrow-lib.spec.ts (@FRM-49) ausführen (fünf Zustände auf echten Kerzen der Butterfly-Fixtures: D wartet, D nah, B-Bruch fehlt, ungültig mit Grund, D gebildet ohne Pfeil; Texte in tr, en und de).
+          - "Playwright-Test e2e/mocked/formation-d-arrow.spec.ts (@FRM-49) ausführen (die fünf Zustände auf der Seite mit echten Kerzen: Pfeil, Ring, Grund, Abzeichen, Hover; reduzierte Bewegung ohne Blinken)."
+          - "Playwright-Test e2e/mocked/formation-d-arrow-lib.spec.ts (@FRM-49) ausführen (fünf Zustände auf echten Kerzen der Butterfly-Fixtures: D wartet, D nah, B-Bruch fehlt, ungültig mit Grund, D gebildet ohne Pfeil; Texte in tr, en und de)."
         erwartet: Je Zustand ein anderer Pfeil oder Grund; ein ungültiges Muster hat nie einen D-Pfeil; der Grund steht am B.
 
   # ---------------------------------------------------------------------------
