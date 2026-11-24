@@ -42,9 +42,9 @@ Step U1 of `2026-11-01-unified-chart-page.md`. On `/chart` the trend path must c
 
 ## Open points
 - [x] Visual check on `main` (the coordinator, 2026-11-03): passed, see Verification.
-- [ ] Range in the past with an unsafe broker clock: open. Decision needed. See `2026-11-04-chart-trend-open-points.md`, point 1.
+- [x] Range in the past with an unsafe broker clock: open. Decision needed. See `2026-11-04-chart-trend-open-points.md`, point 1. (done: PR 358)
 - [ ] Clipped chart window (`MAX_CHART_BARS`) cuts the lead-in: open. Decision needed. See the same entry, point 2.
-- [ ] Cost of `buildTrendPath`: measured, and too high for long ranges. See the same entry, point 3.
+- [x] Cost of `buildTrendPath`: measured, and too high for long ranges. See the same entry, point 3. (done: PR 347)
 - [x] Tests check no value of `from`: done, two tests added (2026-11-04). See the same entry, point 4.
 
 ## Lessons

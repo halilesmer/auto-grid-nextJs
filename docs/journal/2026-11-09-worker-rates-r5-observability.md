@@ -2,7 +2,7 @@
 date: 2026-11-09
 author: Claude
 type: feature
-status: open
+status: done
 pr: []
 features: [ANA-04]
 areas: [worker, tests]
@@ -39,9 +39,9 @@ The thread and the task each tick every 250 ms. They log when a tick is more tha
 - Measurement on the VPS: not done yet. See open points.
 
 ## Open points
-- [ ] Merge the PR. Wait for the VPS update.
-- [ ] Request a cold D1 range (5 000 days) on a symbol that the terminal has not loaded. Poll `/api/system/platform` in parallel. Read the `[rates-timing]` and `[heartbeat]` lines.
-- [ ] Write the result (GIL: yes or no) in this entry in a second PR.
+- [x] Merge the PR. Wait for the VPS update. (done: PR 475)
+- [x] Request a cold D1 range (5 000 days) on a symbol that the terminal has not loaded. Poll `/api/system/platform` in parallel. Read the `[rates-timing]` and `[heartbeat]` lines. (done: PR 492, 2026-11-10-worker-mt5-reader-process.md)
+- [x] Write the result (GIL: yes or no) in this entry in a second PR. (done: PR 492, 2026-11-10-worker-mt5-reader-process.md)
 
 ## Follow-up fix (first VPS run)
 The first VPS run wrote no `[rates-timing]` lines. `main.py` imports the routers before `console_tee` replaces `sys.stdout`. The `grid.obs` handler kept the old stream, so `worker_console.log` did not get the lines. The handler now writes to the current `sys.stdout`. A test covers it.
