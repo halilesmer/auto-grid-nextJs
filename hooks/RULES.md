@@ -164,6 +164,7 @@ Purpose: a colleague, or Claude in a new session, can continue the work without 
 3. **[elle]** After 3 hypotheses that failed, stop. Tell the user what you tested. Examine the assumptions before you try more fixes.
 4. **[elle]** Do not report "done", "fixed" or "passes" without new evidence from the same work session: the command and its result. If you cannot verify a change (worker code runs only on the VPS), write "not verified" and the reason.
 5. **[elle]** Before you write a name, a command or a log line in a document, find it in the code (`git grep`).
+6. **[elle]** A plan is done when each target class is zero and each remaining case has a written cause in the journal. A new class found during the plan goes into the journal as an open finding and becomes a separate plan. Exception: a running trade that leaves the screen is always fixed in the current plan. (Decision 1124-A3, approved 2026-11-24.)
 
 ## 9. Reviews and safety checks
 
