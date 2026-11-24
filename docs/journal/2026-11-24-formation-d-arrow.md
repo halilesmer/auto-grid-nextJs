@@ -3,7 +3,7 @@ date: 2026-11-24
 author: Claude
 type: feature
 status: done
-pr: []
+pr: [680]
 features: [FRM-49, FRM-44]
 areas: [formation, chart]
 ---
