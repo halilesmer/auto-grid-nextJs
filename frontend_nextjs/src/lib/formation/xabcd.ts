@@ -7,12 +7,11 @@
  */
 import { shapeOf, extremeAfter, gapToRect, type AbcdShape } from './abcd';
 import { TIMEFRAME_SEC } from '@/lib/analysis/candles';
-import { DAY_SEC } from '@/lib/serverTime';
 import type { FormationContext } from './context';
 import { closesBeyond, outward, probeFractal, wickEnd, type Rect, type ZoneSide } from './frz';
-import { CONTEXT_TIMEFRAMES, HARMONIC_PARAMS, FRZ_PARAMS, HISTORY_DAYS, type ContextTimeframe } from './params';
+import { CONTEXT_TIMEFRAMES, HARMONIC_PARAMS, FRZ_PARAMS, type ContextTimeframe } from './params';
 import { buildEnv, dirSide, envFor, neighborTf, type Env } from './reasons';
-import { enteredTrade, frozenOf, hiddenOf, pointsKey, recordShown, shownKeysOf, tradeAtOf, tradeKey } from './shownTrade';
+import { enteredTrade, entryInHistory, frozenOf, hiddenOf, historyStart, pointsKey, recordShown, shownKeysOf, tradeAtOf, tradeKey } from './shownTrade';
 import { reversalAt } from './reversal';
 import { engulfZones, rsiExtreme, trailingRun, divergenceOf, zoneSideOf } from './sig';
 import type { Pivot, TrendModel } from './trd';
@@ -423,7 +422,7 @@ export function analyzeXabcd(
     const frozen = frozenOf(tf, bars, tradeAt);
     const bestShown = top && hidden(top.candidate) ? bestRecent(pivots, candidateFor, misses, hidden) : top;
     const recent = new Set(selectBases(pivots).map((b) => b.c.idx));
-    const windowStart = at - HISTORY_DAYS[tf] * DAY_SEC;
+    const windowStart = historyStart(tf, at);
     // Basen aus den Wendepunkten JEDER früheren Kerze im Fenster: zeichnet der Trend B, C oder den Wendepunkt vor X nach dem Einstieg um,
     // bleibt die Basis des laufenden Handels mit ihren damaligen Punkten erhalten (Basis und Einstieg frieren am Einstieg ein, 1122-A28.1)
     const open: { candidate: Candidate; entryIdx: number }[] = [];
@@ -432,7 +431,17 @@ export function analyzeXabcd(
     const noteEnded = (e: EndedTrade) => {
       if (e.endIdx < last) endedByKey.set(e.key, [...(endedByKey.get(e.key) ?? []), e]);
     };
-    for (const h of historicBases(env.trends.get(tf)!, bars, windowStart, recent)) {
+    // Das Fenster gilt für einen laufenden Handel ab seinem Einstieg (1122-A1.4 a, wie AB=CD): auch Basen mit X vor dem Fenster, deren C zu einer
+    // Kerze im Fenster unter den letzten `lookbackPivots` Wendepunkten lag (nur dort kann ein Einstieg gezeigt worden sein, Regel B); sie zählen nur
+    // mit einem laufenden Handel, der im Fenster einging. Der Vorlauf (`TREND_LEAD_DAYS`) lädt die Kerzen vor dem Fenster
+    for (const h of historicBases(env.trends.get(tf)!, bars, windowStart, recent, HARMONIC_PARAMS.lookbackPivots)) {
+      // X vor dem Fenster: der Einstieg (erste Berührung des D-Levels, `harmonicFreeze`) liegt spätestens in der Kerze von D, dem äußersten Docht
+      // seit C; liegt D vor dem Fenster, liegt auch der Einstieg davor. Ohne Messung übersprungen
+      const beforeWindow = !h.current && !recent.has(h.base.c.idx) && bars[h.base.x.idx].time < windowStart;
+      if (beforeWindow) {
+        const d = shapeOfX(bars, shiftBase(bars, h.base, h.xSide, h.aSide, h.prev)).d;
+        if (!d || bars[d.idx].time < windowStart) continue;
+      }
       // Ein schon beendeter Handel dieser Basis fällt wieder weg, ohne neu gemessen zu werden; eine Basis ohne Einstieg bleibt ohne Einstieg, solange
       // die Kerzen nicht weiter reichen als bei der Messung (und C gleich verschoben ist)
       const endKey = `${tf}|${h.prev}|${h.xSide}${h.aSide}|${[h.base.x, h.base.a, h.base.b, h.base.c].map((p) => `${p.idx}@${p.price}`).join('|')}`;
@@ -471,6 +480,7 @@ export function analyzeXabcd(
       // in der letzten Kerze eingegangen: noch nie gezeigt, also kein Vorrang (gezeigt wird er nur als beste Basis)
       if (enteredTrade(candidate)) xabcdWork.entered++;
       if (!enteredTrade(candidate) || (endIdx !== undefined && endIdx < last) || entryIdx === last) continue;
+      if (beforeWindow && !entryInHistory(tf, bars, candidate, at)) continue;
       xabcdWork.running++;
       open.push({ candidate, entryIdx: entryIdx! });
     }
@@ -536,25 +546,30 @@ export interface HistoricBase {
   current?: boolean;
 }
 
+/** Die Wendepunkte der Zeit `k` gelten bis vor die nächstjüngere Zeit `upper` (Infinity: bis zur letzten Kerze); reicht das in das Fenster? */
+const inWindow = (bars: Bars, upper: number, windowStart: number): boolean =>
+  bars[Math.min(upper, bars.length) - 1].time >= windowStart;
+
 /** Ergebnisse je Trendmodell (unveränderlich nach dem Bau) und Eingabe: viele Suchen früherer Schlüsse teilen sich dasselbe Modell */
 const basesMemo = new WeakMap<TrendModel, Map<string, HistoricBase[]>>();
 
 /** Wie `historicBasesRef`, aber artig: je Zeit nur die Basen um die Wendepunkte, die sich gegenüber der nächsten Zeit änderten; Ergebnis je Modell gemerkt */
-export function historicBases(m: TrendModel, bars: Bars, windowStart: number, recent: ReadonlySet<number>): HistoricBase[] {
+export function historicBases(m: TrendModel, bars: Bars, windowStart: number, recent: ReadonlySet<number>, lookback = 0): HistoricBase[] {
   let byArgs = basesMemo.get(m);
   if (!byArgs) basesMemo.set(m, (byArgs = new Map()));
-  const key = `${bars.length}|${windowStart}|${[...recent].join(',')}`;
+  const key = `${bars.length}|${windowStart}|${lookback}|${[...recent].join(',')}`;
   let out = byArgs.get(key);
-  if (!out) byArgs.set(key, (out = historicBasesSweep(m, bars, windowStart, recent)));
+  if (!out) byArgs.set(key, (out = historicBasesSweep(m, bars, windowStart, recent, lookback)));
   return out;
 }
 
 /**
  * Alle Basen X, A, B, C aus vier aufeinanderfolgenden Wendepunkten, wie sie zu IRGENDEINER Kerze im Trendzug standen (aus der Lebensdauer der
  * Wendepunkte, `TrendModel.spans`), jüngste Zeit und jüngstes C zuerst, jede Basis einmal. Nur Kerzen bis zur letzten: kein Blick in die Zukunft.
- * Eine Basis gilt, wenn ihr C unter den letzten Wendepunkten liegt (`recent`) oder ihr X im Fenster ab `windowStart`.
+ * Eine Basis gilt, wenn ihr C unter den letzten Wendepunkten liegt (`recent`) oder ihr X im Fenster ab `windowStart`, oder wenn ihr C zu einer Zeit,
+ * deren Wendepunkte bis in das Fenster gelten, unter den letzten `lookback` Wendepunkten jener Zeit lag (0: nie).
  */
-export function historicBasesRef(m: TrendModel, bars: Bars, windowStart: number, recent: ReadonlySet<number>): HistoricBase[] {
+export function historicBasesRef(m: TrendModel, bars: Bars, windowStart: number, recent: ReadonlySet<number>, lookback = 0): HistoricBase[] {
   const pt = (p: Pivot): XPoint => ({ idx: p.idx, price: p.price });
   const last = bars.length - 1;
   const times = new Set<number>([last]);
@@ -577,7 +592,11 @@ export function historicBasesRef(m: TrendModel, bars: Bars, windowStart: number,
   let prev: readonly Pivot[] = [];
   let prevStop = Infinity;
   let prevPos = new Map<Pivot, number>();
+  let upper = Infinity;
   for (const k of [...times].sort((a, b) => b - a)) {
+    // die Wendepunkte dieser Zeit gelten für die Kerzen k bis vor der nächstjüngeren Zeit; reicht das in das Fenster, zählen die letzten `lookback`
+    const top = inWindow(bars, upper, windowStart) ? lookback : 0;
+    upper = k;
     let alive: readonly Pivot[];
     if (k === last) {
       alive = m.pivots;
@@ -592,7 +611,7 @@ export function historicBasesRef(m: TrendModel, bars: Bars, windowStart: number,
     let stop = 2;
     for (let j = alive.length - 1; j >= 3; j--) {
       const [x, a, b, c] = [alive[j - 3], alive[j - 2], alive[j - 1], alive[j]];
-      if (!recent.has(c.idx) && bars[x.idx].time < windowStart) {
+      if (!recent.has(c.idx) && bars[x.idx].time < windowStart && j < alive.length - top) {
         stop = j;
         break;
       }
@@ -617,7 +636,7 @@ export function historicBasesRef(m: TrendModel, bars: Bars, windowStart: number,
  * neu hinzu, deren fünf Wendepunkte (mit dem Vorgänger von X) sich gegenüber der nächstjüngeren Zeit änderten: an Stellen mit eingefügten oder entfernten
  * Wendepunkten und unterhalb des tiefsten bearbeiteten Wendepunkts der vorigen Zeit. Der Rest steht schon in `seen`.
  */
-function historicBasesSweep(m: TrendModel, bars: Bars, windowStart: number, recent: ReadonlySet<number>): HistoricBase[] {
+function historicBasesSweep(m: TrendModel, bars: Bars, windowStart: number, recent: ReadonlySet<number>, lookback: number): HistoricBase[] {
   const pt = (p: Pivot): XPoint => ({ idx: p.idx, price: p.price });
   const last = bars.length - 1;
   const times = new Set<number>([last]);
@@ -637,8 +656,9 @@ function historicBasesSweep(m: TrendModel, bars: Bars, windowStart: number, rece
     seen.add(key);
     out.push({ base: { x: pt(x), a: pt(a), b: pt(b), c: pt(c) }, prev: j > 3 ? alive[j - 4].idx : null, xSide: x.side, aSide: a.side, current });
   };
-  // größtes j, dessen C nicht unter den letzten Wendepunkten liegt und dessen X vor dem Fenster liegt; 2, wenn es keines gibt
-  const stopOf = (alive: readonly Pivot[]): number => {
+  // größtes j, dessen C nicht unter den letzten Wendepunkten liegt (auch nicht unter den letzten `top` dieser Zeit) und dessen X vor dem Fenster
+  // liegt; 2, wenn es keines gibt
+  const stopOf = (alive: readonly Pivot[], top: number): number => {
     let lo = 0;
     let hi = alive.length - 1;
     let pos = -1;
@@ -649,7 +669,7 @@ function historicBasesSweep(m: TrendModel, bars: Bars, windowStart: number, rece
         lo = mid + 1;
       } else hi = mid - 1;
     }
-    for (let j = Math.min(pos + 3, alive.length - 1); j >= 3; j--) if (!recent.has(alive[j].idx)) return j;
+    for (let j = Math.min(pos + 3, alive.length - 1 - top); j >= 3; j--) if (!recent.has(alive[j].idx)) return j;
     return 2;
   };
   const spans = m.spans;
@@ -672,7 +692,10 @@ function historicBasesSweep(m: TrendModel, bars: Bars, windowStart: number, rece
   };
   let first = true;
   let prevLow: Pivot | undefined;
+  let upper = Infinity;
   for (const k of [...times].sort((a, b) => b - a)) {
+    const topK = inWindow(bars, upper, windowStart) ? lookback : 0;
+    upper = k;
     const added: Pivot[] = [];
     const removed: Pivot[] = [];
     if (k !== last) {
@@ -699,7 +722,7 @@ function historicBasesSweep(m: TrendModel, bars: Bars, windowStart: number, rece
       }
     }
     const alive: readonly Pivot[] = k === last ? m.pivots : arr;
-    const stop = stopOf(alive);
+    const stop = stopOf(alive, topK);
     const top = alive.length - 1;
     if (first) {
       for (let j = top; j > stop; j--) emit(alive, j, k === last);

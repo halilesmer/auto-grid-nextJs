@@ -2,8 +2,8 @@
 date: 2026-11-24
 author: Claude
 type: fix
-status: open
-pr: []
+status: done
+pr: [670]
 features: [FRM-38, FRM-05, FRM-39]
 areas: [frontend, tests]
 ---
@@ -74,11 +74,11 @@ The search itself stays in the history window (`HISTORY_DAYS`). The checks and t
 
 ## Decision
 - Cost limit: decision 1122-B4 (`2026-11-23-abcd-shown-at-entry.md`, "Cost limit") sets absolute limits for the worst case of a cold `scanFormations`: H4 + H1 + M15 at most 15 s, D1 + W1 + H4 + H1 at most 3.2 s. "D1 + W1 + H4 + H1 not slower than main" was only the done criterion of the PR 648 speed-up, not a lasting limit.
-- Decision 1124-A5 (coordinator, under the full authority of this step, 2026-11-24): one window of lead-in (option "one window"). Worst cases 0.64 s and 0.55 s are far below the limits. Reasons: 1124-A3 (a running trade that leaves the screen is always fixed); only one window gave 0 pivot differences (half: 15 of 265 on H4); the AB=CD search of running trades and the rule-B search of the entry close both need one more window of candles; worker load is small (2 × candles, +10 to 20 ms per request with a warm cache; alarm runner 1.7 × candles). Confidence: medium to high. Evidence that changes it: half lead-in also gives 0 cases on other symbols and the cost becomes important.
+- Decision 1124-A11 (coordinator, under the full authority of this step, 2026-11-24): one window of lead-in (option "one window"). Worst cases 0.64 s and 0.55 s are far below the limits. Reasons: 1124-A3 (a running trade that leaves the screen is always fixed); only one window gave 0 pivot differences (half: 15 of 265 on H4); the AB=CD search of running trades and the rule-B search of the entry close both need one more window of candles; worker load is small (2 × candles, +10 to 20 ms per request with a warm cache; alarm runner 1.7 × candles). Confidence: medium to high. Evidence that changes it: half lead-in also gives 0 cases on other symbols and the cost becomes important.
 - Method note: the cost tables of `2026-11-22-harmonic-shown-at-entry-speed.md` and `2026-11-24-harmonic-ended-ghost.md` (H4 + H1 + M15 worst 13.10 s, D1 + W1 + H4 + H1 2.12 s) did not use the chart window, probably a context of one year. Measure the cost of a window change with the window of the chart (`formationRequests`, `ratesWindow`).
 
 ## Open points
-- [ ] Step 2b: a harmonic running trade vanishes when X leaves the history window. Cases: XAUUSD M15 BUT sell (entry 11-05 03:00, 4080.33, state TP1) and CRB sell (entry 11-05 04:00, 4135.07, TP1), both X 2026-10-29 23:00, A 10-30 22:45, B 11-02 18:30, C 11-03 11:00; both vanish at 2026-11-09 00:00 with the chart context, the lead-in context and the full context (H1 history scan: `vanishedOutsideWindow.running` 2).
+- [x] Step 2b (fixed 2026-11-24, `2026-11-24-harmonic-x-before-window.md`): a harmonic running trade vanishes when X leaves the history window. Cases: XAUUSD M15 BUT sell (entry 11-05 03:00, 4080.33, state TP1) and CRB sell (entry 11-05 04:00, 4135.07, TP1), both X 2026-10-29 23:00, A 10-30 22:45, B 11-02 18:30, C 11-03 11:00; both vanish at 2026-11-09 00:00 with the chart context, the lead-in context and the full context (H1 history scan: `vanishedOutsideWindow.running` 2).
   - Root: `frontend_nextjs/src/lib/formation/xabcd.ts` (main 6461b065). Line 426 `windowStart = at - HISTORY_DAYS[tf] * DAY_SEC`; line 435 `historicBases(…, windowStart, recent)`. `historicBasesSweep` (line 620) takes the times only from spans whose pivot is in the window (line 625) and stops at the largest j whose X is before `windowStart` and whose C is not recent (`stopOf`, lines 640 to 655). `historicBasesRef` has the same rule (line 595). So a base with X before the window is never measured, also when its entry is in the window.
   - Rule: 1122-A1.4 a, the window counts from the entry of a running trade (`entryInHistory` in `shownTrade.ts`). AB=CD already does this: `abcdChecks.ts` line 720 searches C back to `historyStart(tf, start)` (two windows) and line 740 keeps a trade only if `entryInHistory`.
   - Candles: X can lie up to one history window before the window start. The lead-in of this change loads exactly this (`LOAD_DAYS` = window + `TREND_LEAD_DAYS`); without it the X candle is not in the context.

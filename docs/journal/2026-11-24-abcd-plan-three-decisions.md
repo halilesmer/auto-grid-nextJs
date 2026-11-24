@@ -2,7 +2,7 @@
 date: 2026-11-24
 author: Claude
 type: decision
-status: open
+status: done
 pr: []
 features: [FRM-05, FRM-07, FRM-39]
 areas: [frontend]
@@ -18,7 +18,7 @@ Plan 1114-A4 (AB=CD) left three open points: the trend rule `welle` has no minim
 - Decision: (a). Confidence: high.
 - Evidence that changes it: a new class that hides a running trade that leaves the screen (then that class is an exception), or Halil wants a class in the current plan.
 - Result for 1114-A4: the target classes are zero in the last XAUUSD H1 history scan (`candidateVanished` 0, `entryChanged` 0, `targetNotOnProfitSide` 0; proportion rule PR 653). Plan 1114-A4 is closed.
-- Not done: the rule is not written into a rule file. Rule files change only when Halil asks (`hooks/RULES.md` §6). A proposed sentence is in the morning report.
+- Done: the rule is in `hooks/RULES.md` §8.6 (approved 2026-11-24, 1124-A6.2; PR 671).
 
 ## 1124-A2: new violation classes
 Sources: the `Open` sections of the journal entries 2026-11-20 to 2026-11-23 and the diagnosis notes of the plan.
@@ -53,7 +53,7 @@ Measurement after PR 653 (local year data XAUUSD, DEMO, read-only; H4 each candl
 - No code change.
 
 ## Open
-- [ ] Fix S1: running harmonic trade vanishes when X leaves the history window (in work).
+- [x] Fix S1: running harmonic trade vanishes when X leaves the history window (fixed 2026-11-24, step 2b, `2026-11-24-harmonic-x-before-window.md`).
 - [ ] S2 and S1 on other symbols (only XAUUSD measured).
 - [ ] S5 speed plan, S6 badge design (Halil).
 - [x] `scripts/features/run.sh render` fails on main: items of `pruefung` without quotes in FRM-05, FRM-18 and FRM-39 become YAML maps (found in PR 658). (done: PR 660)
@@ -61,4 +61,7 @@ Measurement after PR 653 (local year data XAUUSD, DEMO, read-only; H4 each candl
 ## Correction (2026-11-24, 06:00)
 - 1124-A3: "Plan 1114-A4 is closed" is wrong. The zeros came from the history scan with the full context (one year of candles in one context). The chart loads only the `HISTORY_DAYS` window. With the chart context (PR 660), `candidateVanished` is 1 (main time frame H1) and 5 (main time frame H4). `candidateVanished` is a target class, so 1114-A4 stays open until it is zero in the chart context or each case has a written cause. Rule (a) does not change.
 - 1124-A2, S1: of the 3 running cases, case 1 was not a running trade. It was an ended trade shown again with the same identity and another base (fixed in PR 661, `2026-11-24-harmonic-ended-ghost.md`). Cases 2 and 3 and the chart-context cases are in diagnosis.
-- 2026-11-24, after the trend lead-in (`2026-11-24-formation-window-lead-in.md`, decision 1124-A5): `candidateVanished` in the chart context is 0 for XAUUSD H1 and H4. The target classes of 1114-A4 are zero. The remaining running class (harmonic trade, X before the history window; M15 BUT and CRB sell) is step 2b.
+- 2026-11-24, after the trend lead-in (`2026-11-24-formation-window-lead-in.md`, decision 1124-A11): `candidateVanished` in the chart context is 0 for XAUUSD H1 and H4. The target classes of 1114-A4 are zero. The remaining running class (harmonic trade, X before the history window; M15 BUT and CRB sell) is step 2b.
+- 2026-11-24, after step 2b (`2026-11-24-harmonic-x-before-window.md`): XAUUSD H4 and H1 history scan in the chart context: `candidateVanished` 0, `vanishedOutsideWindow.running` 0. The target classes and the running class are zero. Plan 1114-A4 is closed. Other symbols (S1, S2) stay an open point.
+
+Halil confirmed 1124-A1, A2 and A3 without change (2026-11-24, 1124-A6.1).
