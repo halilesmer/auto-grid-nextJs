@@ -2,7 +2,7 @@
 date: 2026-11-08
 author: Claude
 type: feature
-status: open
+status: done
 pr: []
 features: [UI-10, ANA-05, ANA-06, ANA-11]
 areas: [frontend]
@@ -28,7 +28,7 @@ The hook takes the chart bars (`data`, `chart`), the symbol, the zone, the timef
 - No change to test ids, i18n keys, specs, `useMarketRates`, `candles.ts` or `ChartCore`.
 
 ## Open points
-- [ ] The `code:` lists of ZON-16, MET-02, ANA-03, ANA-05, ANA-06 and ANA-08 in `features.yaml` still name only `ZoneChartPanel.tsx`. Only step U4-3 edits `features.yaml`. Add the two new files there.
+- [x] The `code:` lists of ZON-16, MET-02, ANA-03, ANA-05, ANA-06 and ANA-08 in `features.yaml` still name only `ZoneChartPanel.tsx`. Only step U4-3 edits `features.yaml`. Add the two new files there. (done: features.yaml names useSetupLayers.ts and SetupCardTabs.tsx)
 
 ## Verification
 - `tsc` and `eslint` on the three files: no error.

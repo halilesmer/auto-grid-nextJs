@@ -35,7 +35,7 @@ Step 1 (PR-A, worker) of plan 1111-K1, decision 1111-K2. The browser backtest st
 
 ## Open points
 - [x] (Done 2026-11-24: 0.4 to 0.8 s, stays; see `2026-11-24-bkt31-open-measurements.md`.) Measure `GET /history/{id}/orders` on the VPS. If it takes more than 2 s, move it to `mt5_reader.run()`.
-- [ ] PR-B: frontend (`startState`, `seedOrder`, `initialOrders`), mock worker, lib spec, `docs/analyse-regeln.md`.
+- [x] PR-B: frontend (`startState`, `seedOrder`, `initialOrders`), mock worker, lib spec, `docs/analyse-regeln.md`. (done: PR 502)
 - [ ] Acceptance measurement (windows P6+, P7, P8).
 
 ## Lessons

@@ -42,7 +42,7 @@ The H1 `finishedBetweenScans` was 15 in the last earlier run; the extra case com
 `vanishedOutsideWindow` by time frame and form: H1 main: running M15 BUT 2, M15 CRB 1; finished M15 GAR 1, M15 BAT 1, M15 BUT 1. H4 main: finished H4 GAR 1. All 3 running cases are harmonic trades on M15 (context of the H1 scan; the M15 window is 10 days). Each was at TP1 at the last scan.
 
 ## Open points
-- [ ] 3 running harmonic trades on M15 vanish outside the window (H1 scan, XAUUSD). Coordinator decision needed: does the chart show these trades? Cases (times are scan times, UTC):
+- [x] 3 running harmonic trades on M15 vanish outside the window (H1 scan, XAUUSD). Coordinator decision needed: does the chart show these trades? Cases (times are scan times, UTC): (done: PR 672)
   1. M15 BUT buy, first point 2026-09-28 17:45, entered 2026-10-08 06:00, last seen 10-08 17:00 (TP1), gone 10-08 18:00. Entry 4080.3, stop 4027.21.
   2. M15 BUT sell, first point 2026-10-29 23:00, entered 2026-11-05 03:00, last seen 11-07 00:00 (TP1), gone 11-09 02:00. Entry 4080.33, stop 4160.61.
   3. M15 CRB sell, same X, A, B, C as case 2, entered 2026-11-05 04:00, last seen 11-07 00:00 (TP1), gone 11-09 02:00. Entry 4135.07, stop 4236.26.

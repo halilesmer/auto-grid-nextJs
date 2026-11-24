@@ -2,7 +2,7 @@
 date: 2026-11-08
 author: Claude
 type: feature
-status: open
+status: done
 pr: []
 features: [UI-22]
 areas: [frontend, tests, docs]
@@ -33,4 +33,4 @@ No component uses the model yet. U4-4a connects it. `lib/chart/mode.ts` and `use
 `scripts/features/run.sh e2e UI-22`: 12 passed. `run.sh check`: ok. `tsc --noEmit`: no error.
 
 ## Open points
-- [ ] U4-4a connects the model to the page.
+- [x] U4-4a connects the model to the page. (done: PR 458)

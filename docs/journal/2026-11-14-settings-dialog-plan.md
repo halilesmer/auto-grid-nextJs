@@ -2,7 +2,7 @@
 date: 2026-11-14
 author: Claude
 type: plan
-status: open
+status: done
 pr: []
 features: [USR-09, USR-10]
 areas: [worker, frontend, tests]
@@ -53,4 +53,4 @@ Keys: `locale`, `theme`, `tooltip_delay` = `{mode: instant|custom, ms}`, `toolti
 - Not verified: the dialog on the real VPS worker. The test needs the new worker version on the VPS.
 
 ## Open points
-- [ ] S2: Notifications and Chart sections.
+- [x] S2: Notifications and Chart sections. (done: PR 552)

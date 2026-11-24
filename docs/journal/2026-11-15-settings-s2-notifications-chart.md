@@ -28,6 +28,6 @@ Personal settings belong to the user, not to a device or an account (decision 11
 See the pull request: worker api tests, e2e specs `settings-dialog-s2.spec.ts` (USR-11, USR-12), changed news specs, `precheck.sh`.
 
 ## Open points
-- [ ] Open from S1 (not part of S2): focus trap and Escape in the dialog; a retry for `load()`.
+- [x] Open from S1 (not part of S2): focus trap and Escape in the dialog; a retry for `load()`. (done: PR 559)
 - [ ] `.claude/rules/worker.md` does not name the route `POST /api/me/prefs/import-account/{id}` yet. Rule files change only on the owner's request.
 - [ ] A news filter written by an older frontend to `ui_prefs` after the migration is not read.
