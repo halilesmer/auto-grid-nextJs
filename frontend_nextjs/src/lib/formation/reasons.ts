@@ -129,6 +129,21 @@ class LazyMap<K, V> extends Map<K, V> {
   }
 }
 
+/**
+ * Trendzug je Kontext, Zeiteinheit und Kerzenzahl nur einmal gebaut: die Ansicht ist die Vorderseite derselben Reihe (`FormationContext.view`),
+ * also gleicht dieselbe Kerzenzahl demselben Trend. Die Suchen früherer Schlüsse und die Umgebungen am Einstieg fragen ihn oft wieder an.
+ * Ein Trendmodell ist nach dem Bau unveränderlich (wie das geteilte Env).
+ */
+const trendStore = new WeakMap<FormationContext, Map<string, TrendModel>>();
+function trendOf(ctx: FormationContext, tf: TrendTimeframe, view: TimeframeView): TrendModel {
+  let byKey = trendStore.get(ctx);
+  if (!byKey) trendStore.set(ctx, (byKey = new Map()));
+  const key = `${tf}|${view.bars.length}`;
+  let trend = byKey.get(key);
+  if (!trend) byKey.set(key, (trend = formationTrend(view)));
+  return trend;
+}
+
 function computeEnv(ctx: FormationContext, t: number, tf: ContextTimeframe, frzOptions: FrzOptions, zones = true): Env | null {
   if (!ctx.timeframes().includes(tf)) return null;
   const views = new Map<TrendTimeframe, TimeframeView>();
@@ -138,13 +153,13 @@ function computeEnv(ctx: FormationContext, t: number, tf: ContextTimeframe, frzO
     const view = ctx.view(x, t);
     if (!view) continue;
     views.set(x, view);
-    makeTrend.set(x, () => formationTrend(view));
+    makeTrend.set(x, () => trendOf(ctx, x, view));
   }
   // W1 (aus D1 gebildet) liefert nur Trend, RSI und Divergenz: keine Fib, keine Zonen
   const w1 = ctx.view('W1', t);
   if (w1) {
     views.set('W1', w1);
-    makeTrend.set('W1', () => formationTrend(w1));
+    makeTrend.set('W1', () => trendOf(ctx, 'W1', w1));
   }
   // mit Zonen sofort gerechnet (die Zonen lesen alle Fibs), ohne Zonen erst beim ersten Lesen
   const trends: Map<TrendTimeframe, TrendModel> = zones ? new Map([...makeTrend].map(([x, make]) => [x, make()])) : new LazyMap(makeTrend);

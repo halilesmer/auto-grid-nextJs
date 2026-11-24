@@ -3,7 +3,7 @@
  * Formations-Fixtures zu mehreren Zeitpunkten genau dieselben Treffer (Kandidaten, Punkte, Prüfungen, Handelsblöcke) wie beim Stand
  * vor der Beschleunigung. Ein Hash je Fixture und Zeitpunkt (Datei formation-scan-golden.json). Neu schreiben nur nach einer Regeländerung:
  * GOLDEN_UPDATE=1 npx playwright test e2e/mocked/formation-scan-golden-lib.spec.ts --project=mocked
- * Arbeitsgrenze: die Suche zählt ihre Arbeit (`xabcdWork`); die Seitenläufe prüfen die Zahl der in `historicBases` gebauten Schlüssel, nicht die Zeit (stabil unter Last).
+ * Arbeitsgrenze: die Suche zählt ihre Arbeit (`xabcdWork`); die Seitenläufe prüfen die Zahl der Kandidatenmessungen (`evaluated`) und der in `historicBases` gebauten Schlüssel, nicht die Zeit (stabil unter Last).
  * FRM-08 Formationserkennung
  */
 import { createHash } from 'node:crypto';
@@ -64,7 +64,7 @@ for (const name of names) {
 }
 
 test.afterAll(() => {
-  if (UPDATE) writeFileSync(GOLDEN, `${JSON.stringify({ __keyBuildsMax: Number(process.env.KEY_MAX ?? 0), ...Object.fromEntries(Object.entries(written).sort()) }, null, 1)}\n`);
+  if (UPDATE) writeFileSync(GOLDEN, `${JSON.stringify({ __keyBuildsMax: Number(process.env.KEY_MAX ?? 0), __evaluatedMax: Number(process.env.EVALUATED_MAX ?? 0), ...Object.fromEntries(Object.entries(written).sort()) }, null, 1)}\n`);
 });
 
 /** Kerzen wie der Mock-Worker sie liefert (Sinuskurve, Wochenende nur bei D1), für die vier Zeiteinheiten der Seite; feste Uhr, daher stabil */
@@ -101,7 +101,9 @@ export function pageScan(nowIso: string, symbol: string) {
 
 // Seitenläufe (alle vier Zeiteinheiten wie der Chart, Mock-Kerzen, feste Uhr): Treffer wie aufgezeichnet; Arbeit begrenzt (Zahl der Messungen, nicht Zeit)
 const PAGE = [['2026-11-12T16:21:00Z', 'USOUSD'], ['2026-11-12T05:00:00Z', 'EURUSD'], ['2026-11-12T14:00:00Z', 'EURUSD']] as const;
-const KEY_MAX = JSON.parse(readFileSync('e2e/fixtures/formation-scan-golden.json', 'utf-8')).__keyBuildsMax as number | undefined;
+const LIMITS = JSON.parse(readFileSync('e2e/fixtures/formation-scan-golden.json', 'utf-8')) as { __keyBuildsMax?: number; __evaluatedMax?: number };
+const KEY_MAX = LIMITS.__keyBuildsMax;
+const EVALUATED_MAX = LIMITS.__evaluatedMax;
 for (const [now, sym] of PAGE) {
   test(`Seitenlauf ${sym} ${now}: gleiche Treffer, begrenzte Arbeit`, { tag: '@FRM-08' }, () => {
     const r = pageScan(now, sym);
@@ -113,6 +115,8 @@ for (const [now, sym] of PAGE) {
     if (!UPDATE) {
       expect(r.hash, `page:${sym}@${now}`).toBe(golden[`page:${sym}@${now}`]);
       expect(r.work.keyBuilds, 'Schlüssel in historicBases').toBeLessThanOrEqual(KEY_MAX ?? 0);
+      // PR 647/648 messten ~18 000 bis ~24 000 Kandidaten je Seitenlauf (die meisten beendete oder nie eingegangene Handel); bitte nicht wieder dorthin
+      expect(r.work.evaluated, 'Kandidatenmessungen').toBeLessThanOrEqual(EVALUATED_MAX ?? 0);
     }
   });
 }

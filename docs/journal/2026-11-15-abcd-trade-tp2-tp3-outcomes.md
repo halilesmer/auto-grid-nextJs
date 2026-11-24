@@ -34,8 +34,8 @@ Plan 1114-A4.2 step a (values only). The AB=CD trade block shows TP2, an extra t
 - Library tests in `formation-abcd-lib.spec.ts` and block tests in `formation-trade.spec.ts` (with 375 px).
 
 ## Open points
-- [ ] Step b: state per candle (open, TP1 hit, stopped) and the stop moved to the entry.
+- [x] Step b: state per candle (open, TP1 hit, stopped) and the stop moved to the entry. (done: PR 554)
 - [ ] The level label ("0.382") and "level 1" under the values of the design are not in the block.
-- [ ] The SIG-29 row in the AB=CD block always shows (ratio 1) and carries its ID and the text "CRV ≤ 1". Decide whether to hide or reword it in the block.
+- [x] The SIG-29 row in the AB=CD block always shows (ratio 1) and carries its ID and the text "CRV ≤ 1". Decide whether to hide or reword it in the block. (done: PR 601)
 - [ ] The strong-zone warning is wired in `abcdChecks.ts` but only the pure function `strongZoneAt` has a test.
 - [ ] Look at the block in a browser, in light and dark theme.
