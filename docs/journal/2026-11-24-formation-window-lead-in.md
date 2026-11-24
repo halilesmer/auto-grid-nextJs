@@ -83,7 +83,7 @@ The search itself stays in the history window (`HISTORY_DAYS`). The checks and t
   - Rule: 1122-A1.4 a, the window counts from the entry of a running trade (`entryInHistory` in `shownTrade.ts`). AB=CD already does this: `abcdChecks.ts` line 720 searches C back to `historyStart(tf, start)` (two windows) and line 740 keeps a trade only if `entryInHistory`.
   - Candles: X can lie up to one history window before the window start. The lead-in of this change loads exactly this (`LOAD_DAYS` = window + `TREND_LEAD_DAYS`); without it the X candle is not in the context.
   - Cost: more bases (X up to two windows back); the key-build guard of the golden spec (30,000) and the 1122-B4 limits apply.
-- [ ] Other symbols (S1, S2 of 1124-A2) are not measured in the chart context.
+- [x] Other symbols (S1, S2 of 1124-A2) are not measured in the chart context. (moved to `2026-11-24-harmonic-x-before-window.md`)
 
 ## Lessons
 A path-dependent indicator (here the trend) depends on the first loaded candle. A search over a moving window needs a lead-in, or the window start must not move. Measure the cost with the same window as the screen; a measurement on a larger context hides the change.

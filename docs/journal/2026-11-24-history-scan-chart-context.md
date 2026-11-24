@@ -52,4 +52,4 @@ Other violations: none in the four runs. The chart-mode runs are red on purpose.
   3. H1 GAR sell, first point 2026-03-17 16:00, entered 2026-04-20 08:00, last seen 04-22 08:00 (open), gone 04-22 12:00. Entry 4739.28, stop 4983.99.
   The same cases are green in `full` mode. So the loaded window changes the result, not only the window edge. A guess (not verified): trend, wave or ATR start at the first loaded candle, so a turning point can move when the window start moves.
 - [x] The M15 BUT sell of the request (examined 2026-11-24: X leaves the M15 history window, `xabcd.ts` `historicBases`; fixed in step 2b, `2026-11-24-harmonic-x-before-window.md`) (entered 11-05 03:00) is in the H1 chart run as `vanishedOutsideWindow.running` (2 cases). Not checked against the chart screen.
-- [ ] One symbol only. Other symbols are not measured in `chart` mode.
+- [x] One symbol only. Other symbols are not measured in `chart` mode. (moved to `2026-11-24-harmonic-x-before-window.md`)

@@ -2,7 +2,7 @@
 date: 2026-11-24
 author: Claude
 type: decision
-status: done
+status: open
 pr: []
 features: [FRM-05, FRM-07, FRM-39]
 areas: [frontend]
@@ -54,7 +54,7 @@ Measurement after PR 653 (local year data XAUUSD, DEMO, read-only; H4 each candl
 
 ## Open
 - [x] Fix S1: running harmonic trade vanishes when X leaves the history window (fixed 2026-11-24, step 2b, `2026-11-24-harmonic-x-before-window.md`).
-- [ ] S2 and S1 on other symbols (only XAUUSD measured).
+- [x] S2 and S1 on other symbols (only XAUUSD measured). (moved to `2026-11-24-harmonic-x-before-window.md`)
 - [ ] S5 speed plan, S6 badge design (Halil).
 - [x] `scripts/features/run.sh render` fails on main: items of `pruefung` without quotes in FRM-05, FRM-18 and FRM-39 become YAML maps (found in PR 658). (done: PR 660)
 
