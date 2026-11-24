@@ -3,7 +3,7 @@ date: 2026-11-24
 author: Claude
 type: fix
 status: closed
-pr: []
+pr: [667]
 features: [ANA-24]
 areas: [frontend, tests]
 ---
