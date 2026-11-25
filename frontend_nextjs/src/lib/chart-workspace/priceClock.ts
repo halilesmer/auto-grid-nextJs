@@ -1,11 +1,24 @@
 import type { IChartApi, IPrimitivePaneView, ISeriesApi, ISeriesPrimitive, ISeriesPrimitiveAxisView, MismatchDirection, SeriesAttachedParameter, Time } from 'lightweight-charts';
 import { brokerNow } from '@/lib/serverTime';
+import { barEnd } from '@/lib/analysis/calendarBars';
+import type { ChartTimeframe } from '@/lib/analysis/candles';
 
-/** `SS:DD:ss` of a broker time in MT5 seconds. MT5 seconds are the wall clock of the broker, so the UTC getters read it. */
-export function formatBrokerClock(brokerSec: number): string {
-  const d = new Date(Math.floor(brokerSec) * 1000);
+/**
+ * Time left to the bar close as text: `52:47` under one hour, `02:50:53` under one day, `3g 02:50` from one day on
+ * (`dayUnit` is the day letter of the language: g, d, T). The seconds are cut off, not rounded.
+ */
+export function formatCountdown(remainingSec: number, dayUnit: string): string {
+  const s = Math.max(0, Math.floor(remainingSec));
   const p = (n: number) => String(n).padStart(2, '0');
-  return `${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}`;
+  const days = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  if (days >= 1) return `${days}${dayUnit} ${p(h)}:${p(m)}`;
+  if (h >= 1) return `${p(h)}:${p(m)}:${p(sec)}`;
+  return `${p(m)}:${p(sec)}`;
+}
+
+/** Seconds from `brokerSec` (MT5 seconds) to the close of the bar that opened at `barOpen`; calendar-aware for W1 and MN. Not positive = the bar is closed. */
+export function secondsToClose(timeframe: ChartTimeframe, barOpen: number, brokerSec: number): number {
+  return barEnd(timeframe, barOpen) - brokerSec;
 }
 
 /** Height of one price axis label of lightweight-charts: font size plus the padding above and below (2.5 px per 12 px of font). */
@@ -68,10 +81,15 @@ export interface PriceClockState {
   /** Colour of the last value label (the box of the clock has the same one) */
   backColor: string;
   fontSize: number;
+  /** Open time of the last bar (MT5 seconds); `null` hides the clock */
+  lastBarTime: number | null;
+  timeframe: ChartTimeframe;
+  /** Day letter of the language (g, d, T) */
+  dayUnit: string;
 }
 
 /**
- * Second label under the last price label (as TradingView shows the countdown there). It is a price axis view of the candle
+ * Second label under the last price label: the time left to the close of the last bar (as TradingView shows it). It is a price axis view of the candle
  * series with a fixed coordinate, so the two boxes move together and the label alignment of the library does not shift it.
  * Both boxes follow the bar that the library uses for its label: the last bar at or left of the right edge of the view.
  * A fill under the two labels gives them one width (the wider text sets it), so they look like one box.
@@ -82,7 +100,7 @@ export class PriceClock implements ISeriesPrimitive<Time> {
   private align: number | null = null;
   /** The text of the last draw: a tick that finds the same second on screen needs no redraw (streaming and dragging draw anyway) */
   private drawn = '';
-  private state: PriceClockState = { offsetSec: null, backColor: '#000', fontSize: 12 };
+  private state: PriceClockState = { offsetSec: null, backColor: '#000', fontSize: 12, lastBarTime: null, timeframe: 'H1', dayUnit: 'd' };
   private readonly view: ISeriesPrimitiveAxisView;
   private readonly fill: IPrimitivePaneView;
   constructor(private readonly chart: IChartApi, private readonly series: ISeriesApi<'Candlestick'>, private readonly host: HTMLElement, private readonly now: () => number = Date.now) {
@@ -92,7 +110,7 @@ export class PriceClock implements ISeriesPrimitive<Time> {
       text: () => this.drawText(),
       textColor: () => contrastText(toRgb(this.state.backColor)),
       backColor: () => this.state.backColor,
-      visible: () => this.shown(),
+      visible: () => this.open(),
       tickVisible: () => false,
     };
     this.fill = {
@@ -107,7 +125,17 @@ export class PriceClock implements ISeriesPrimitive<Time> {
   paneViews(): readonly IPrimitivePaneView[] { return []; }
   update(state: PriceClockState) { this.state = state; this.sync(); }
   private drawText() { return (this.drawn = this.text()); }
-  private text() { return this.state.offsetSec === null ? '' : formatBrokerClock(brokerNow(this.state.offsetSec, this.now())); }
+  /** Time left to the close of the last bar; `null` when unknown or when the bar is closed and no new one came (weekend, market closed) */
+  private remaining(): number | null {
+    const { offsetSec, lastBarTime, timeframe } = this.state;
+    if (offsetSec === null || lastBarTime === null) return null;
+    const left = secondsToClose(timeframe, lastBarTime, brokerNow(offsetSec, this.now()));
+    return left > 0 ? left : null;
+  }
+  private text() {
+    const left = this.remaining();
+    return left === null ? '' : formatCountdown(left, this.state.dayUnit);
+  }
   /** y of the price label: the close of the bar that the library uses for it */
   private labelY(): number | null {
     const bar = labelBar(this.chart, this.series);
@@ -125,10 +153,12 @@ export class PriceClock implements ISeriesPrimitive<Time> {
     this.host.setAttribute('data-price-clock-y', clockY.toFixed(1));
     return clockY;
   }
-  private shown() { return this.state.offsetSec !== null && this.labelY() !== null; }
+  /** The clock is switched on and a price label exists (the timer runs); `visible` also needs an open bar */
+  private shown() { return this.state.offsetSec !== null && this.state.lastBarTime !== null && this.labelY() !== null; }
+  private open() { return this.shown() && this.remaining() !== null; }
   private drawFill(target: DrawTarget) {
     const y = this.labelY(), price = this.labelPrice();
-    if (!this.shown() || y === null || price === null) return;
+    if (!this.open() || y === null || price === null) return;
     const h = axisLabelHeight(this.state.fontSize);
     // The library puts the labels at the inner edge of the axis: the left edge on a right axis, the right edge on a left axis
     const leftAxis = this.series.options().priceScaleId === 'left';
@@ -150,7 +180,7 @@ export class PriceClock implements ISeriesPrimitive<Time> {
           this.tick();
         }, 1250 - (this.now() % 1000));
       }
-      this.host.setAttribute('data-price-clock', this.text());
+      this.mirror();
       this.publishY();
       this.param?.requestUpdate(); // colour, font or visibility may have changed
     } else {
@@ -164,8 +194,12 @@ export class PriceClock implements ISeriesPrimitive<Time> {
   /** One tick per second: ask for a redraw only when the last draw did not show this second (a full redraw of a big chart is costly) */
   tick() {
     const text = this.text();
-    this.host.setAttribute('data-price-clock', text);
+    this.mirror(text);
     if (text !== this.drawn) this.param?.requestUpdate();
+  }
+  /** Text to the chart host for tests; no attribute while the box is hidden */
+  private mirror(text = this.text()) {
+    if (text) this.host.setAttribute('data-price-clock', text); else this.host.removeAttribute('data-price-clock');
   }
   private stop() {
     if (this.timer !== null) { clearInterval(this.timer); this.timer = null; }

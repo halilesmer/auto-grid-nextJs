@@ -6,10 +6,11 @@
 #      `reset --hard` gibi komutlar başkasının dosyalarını alır, siler ya da başka dala commit'ler.
 # Engellenir (exit 2, stderr Claude'a döner, run_in_background olsa da):
 #   - her yerde: `git stash` (list ve show hariç)
-#   - yalnız ana checkout'ta: dal değiştiren checkout/switch, reset --hard/--merge/--keep, clean, restore (dosya),
-#     add -A / --all / . / -u, commit -a, rebase, cherry-pick, revert, merge ve pull (--ff-only olmadan)
-# İzinli: `git checkout main`, `pull --ff-only`, `add <açık dosya>`, `commit -m`, fetch, status, worktree add, push;
-# worktree'lerde (stash hariç) hepsi.
+#   - yalnız ana checkout'ta: her checkout/switch, pull, merge (--abort hariç), reset --hard/--merge/--keep, clean (-n hariç),
+#     restore (dosya), add -A / --all / . / -u, commit -a, rebase, cherry-pick, revert
+# İzinli ana checkout'ta: okuma (status, log, diff, show, fetch, branch --list), `add <açık dosya>`, `commit -m`,
+# worktree add, push; worktree'lerde (stash hariç) hepsi. Ana checkout'u yalnız Halil günceller (geliştirme paneli:
+# git pull --ff-only); oturumlar main'i `git fetch` + `origin/main` ile okur (CLAUDE.md, PR 677).
 # Hedef dizin: `git -C <yol>`, yoksa komuttaki son `cd <yol>`, yoksa hook JSON'undaki cwd.
 # Dizin çözülemezse (cd $DEĞİŞKEN) yalnız stash kuralı çalışır.
 # Girdi: stdin'de hook JSON'u (tool_input.command, cwd).
@@ -22,6 +23,8 @@ HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$HOOK_DIR/lib/checks.sh"
 # shellcheck source=../lib/cmdsplit.sh
 source "$HOOK_DIR/lib/cmdsplit.sh"
+# shellcheck source=../lib/gitscope.sh
+source "$HOOK_DIR/lib/gitscope.sh"
 
 cmd="$(json_get tool_input.command <<< "$input")"
 [ -z "$cmd" ] && exit 0
@@ -29,10 +32,6 @@ printf '%s' "$cmd" | grep -q 'git' || exit 0
 
 cur="$(json_get cwd <<< "$input")"
 [ -z "$cur" ] && cur="${CLAUDE_PROJECT_DIR:-$PWD}"
-
-# Bu deponun ortak git dizini (testlerde GUARD_REPO_DIR ile değişir)
-REPO_DIR="${GUARD_REPO_DIR:-$HOOK_DIR/..}"
-OWN_COMMON="$(git -C "$REPO_DIR" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"
 
 # Tırnak farkındalıklı kelime ayırıcı: TOK dizisini doldurur (komut yerine koyma yok; eval yok).
 tokenize() {
@@ -73,16 +72,6 @@ resolve_dir() {
   esac
 }
 
-# Ana checkout mu? (bu deponun ortak git dizinine bağlı ve git-dir == common-dir)
-is_main_checkout() {
-  local d="$1" gd cd_
-  [ -z "$d" ] && return 1
-  [ -d "$d" ] || return 1
-  gd="$(git -C "$d" rev-parse --path-format=absolute --git-dir 2>/dev/null)" || return 1
-  cd_="$(git -C "$d" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 1
-  [ -n "$OWN_COMMON" ] && [ "$cd_" = "$OWN_COMMON" ] && [ "$gd" = "$cd_" ]
-}
-
 has_tok() { # has_tok <jeton> <jeton…>: verilen jetonlardan biri tam olarak eşit mi
   local want="$1" t
   shift
@@ -121,23 +110,7 @@ check_git() { # TOK = git komutunun jetonları (git dahil), cur = çalışma diz
 
   case "$sub" in
     checkout | switch)
-      local pos="" dd=0
-      for t in "${args[@]}"; do
-        if [ "$t" = "--" ]; then dd=1; continue; fi
-        case "$t" in
-          -b | -B | -c | -C | --orphan | --detach | -d | --force | -f | --discard-changes)
-            reason="git $sub $t: ana checkout'ta dal değiştirir ya da dosya ezer."; return ;;
-          -*) ;;
-          *) [ -z "$pos" ] && pos="$t" ;;
-        esac
-      done
-      if [ "$dd" = 1 ] || { [ "$sub" = checkout ] && [ -n "$pos" ] && [ "$pos" != main ] && [ -e "$dir/$pos" ]; }; then
-        reason="git checkout ... -- <dosya>: ana checkout'ta başkasının yarım işini geri alır."
-        return
-      fi
-      if [ -n "$pos" ] && [ "$pos" != main ]; then
-        reason="git $sub $pos: ana checkout'ta dal değiştirir (localhost:3000 ve diğer oturumlar başka kodu görür)."
-      fi
+      reason="git $sub: ana checkout'ta yasak; dal değiştirmek ya da dosya geri almak başka oturumların ve localhost:3000'in kodunu değiştirir. main'i git fetch + origin/main ile oku."
       ;;
     reset)
       has_tok '--hard' "${args[@]}" || has_tok '--merge' "${args[@]}" || has_tok '--keep' "${args[@]}" \
@@ -171,8 +144,11 @@ check_git() { # TOK = git komutunun jetonları (git dahil), cur = çalışma diz
     rebase | cherry-pick | revert)
       has_tok '--abort' "${args[@]}" || has_tok '--quit' "${args[@]}" || reason="git $sub: ana checkout'ta dalı ve çalışma ağacını değiştirir."
       ;;
-    merge | pull)
-      has_tok '--abort' "${args[@]}" || has_tok '--ff-only' "${args[@]}" || reason="git $sub --ff-only olmadan: ana checkout'ta birleşme commit'i ya da çakışma üretir."
+    pull)
+      reason="git pull: ana checkout'u yalnız Halil günceller (geliştirme paneli). main'i git fetch + origin/main ile oku."
+      ;;
+    merge)
+      has_tok '--abort' "${args[@]}" || reason="git merge: ana checkout'ta birleşme commit'i ya da çakışma üretir."
       ;;
   esac
 }
@@ -217,7 +193,7 @@ cat >&2 <<EOF
   Oturumlar tek depoyu paylaşır; bu komut başka oturumun işini etkiler. Bunun yerine:
   - Ayrı iş için worktree aç (EnterWorktree ya da start_session use_worktree) ve orada çalış.
   - Işi kenara koymak için stash yerine geçici WIP commit kullan.
-  - Ana checkout'ta yalnız: git pull --ff-only, git checkout main, açık dosya adıyla add/commit.
+  - Ana checkout'ta yalnız okuma yap (status, log, diff, fetch); main'i origin/main ile oku. Güncellemeyi Halil yapar.
   Kural: hooks/RULES.md §4.18.
 EOF
 exit 2

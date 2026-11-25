@@ -10,7 +10,7 @@ import { InputField } from '@/components/ui/InputField';
 import { Modal } from '@/components/ui/modal';
 import { toast } from '@/components/ui/animated-toast';
 import { useFormat, useT, type MessageKey } from '@/i18n';
-import { CHART_TIMEFRAME_SEC, type Bar, type MissingRange } from '@/lib/analysis/candles';
+import { CHART_TIMEFRAME_SEC, type Bar, type ChartTimeframe, type MissingRange } from '@/lib/analysis/candles';
 import { alarmsAfterRemove, INDICATOR_KINDS, indicatorFormula, isOscillator, isSystemRsi, newIndicator, SYSTEM_RSI_ID, systemRsiIndicator, type Indicator, type Value } from '@/lib/chart-workspace/indicators';
 import { useChartWorkspaceStore, emptyChartDocument, type ChartDocument } from '@/store/useChartWorkspaceStore';
 import { useThemeStore } from '@/store';
@@ -422,8 +422,8 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   useEffect(() => {
     if (!binding || binding.isDisposed()) return;
     const c = appearanceColors(appearance);
-    priceClock.current?.update({ offsetSec: appearance.priceClock && appearance.priceLabel ? priceClockOffsetSec : null, backColor: appearance.priceColor || c.text, fontSize: appearance.fontSize });
-  }, [binding, appearance, priceClockOffsetSec, theme]);
+    priceClock.current?.update({ offsetSec: appearance.priceClock && appearance.priceLabel ? priceClockOffsetSec : null, backColor: appearance.priceColor || c.text, fontSize: appearance.fontSize, lastBarTime: (bars.at(-1)?.time as number | undefined) ?? null, timeframe: (TIMEFRAME_LABEL[timeframeSec] ?? 'H1') as ChartTimeframe, dayUnit: t('cw.priceClock.day') });
+  }, [binding, appearance, priceClockOffsetSec, theme, bars, timeframeSec, t]);
   useEffect(() => { manager.current?.setMagnet(magnet); manager.current?.setStayInDrawingMode(keepDrawing); }, [magnet, keepDrawing, binding, drawingKey, state.hydrated]);
   useEffect(() => {
     if (!binding || binding.isDisposed()) return;

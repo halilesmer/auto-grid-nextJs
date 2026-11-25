@@ -129,13 +129,20 @@ Katalog: `docs/features/features.yaml` (tek doğru kaynak) → `docs/features/FE
     | Where | Stopped |
     |---|---|
     | Everywhere | `git stash` (only `list` and `show` run) |
-    | Main checkout only | `checkout`/`switch` that changes the branch or restores a file, `reset --hard/--merge/--keep`, `clean`, `restore` of files, `add -A/--all/./-u/*`, `commit -a`, `rebase`, `cherry-pick`, `revert`, `merge` and `pull` without `--ff-only` |
+    | Main checkout only | every `checkout`/`switch`, every `pull`, `merge` (only `--abort` runs), `reset --hard/--merge/--keep`, `clean` (only `-n` runs), `restore` of files, `add -A/--all/./-u/*`, `commit -a`, `rebase`, `cherry-pick`, `revert` |
 
-    The target directory is `git -C <path>`, else the last `cd <path>` of the command, else the `cwd` of the session. If a `cd` target cannot be resolved (`cd "$X"`), only the stash rule applies. In a worktree, every other command runs. Work that is not a quick read goes to a worktree. To set work aside, use a temporary WIP commit, not a stash.
+    The target directory is `git -C <path>`, else the last `cd <path>` of the command, else the `cwd` of the session. If a `cd` target cannot be resolved (`cd "$X"`), only the stash rule applies. In a worktree, every other command runs. Only the owner updates the main checkout (dev panel, `git pull --ff-only`); a session reads `main` with `git fetch` and `origin/main` (`CLAUDE.md`, PR 677). Work that is not a quick read goes to a worktree. To set work aside, use a temporary WIP commit, not a stash.
 
     ```bash
     # blocked in the main checkout:  git add -A    git checkout -b new    git stash
-    # permitted there:               git add path/file.ts    git pull --ff-only    git checkout main
+    # permitted there:               git add path/file.ts    git fetch    git diff origin/main --stat
+    ```
+
+19. **[otomatik]** (in `hooks/claude/pre-edit-main.sh`, SYS-18) Do not change files in the main checkout. The main checkout is one working tree for all sessions, `localhost:3000`, and the work of the owner. The hook stops `Edit`, `Write`, and `NotebookEdit` (exit 2) for each file in the main checkout that Git does not ignore, tracked or new. It lets these through: every worktree, paths outside the repository, paths that `.gitignore` or `.git/info/exclude` ignore (`research/`, `.env.local`), and `.claude/artifacts/` (drafts of Artifacts). Bash writes (`sed -i`, `>`) are not checked. Only the owner can switch the hook off, with `GUARD_ALLOW_MAIN_EDIT=1` in the environment that starts the session.
+
+    ```text
+    blocked:   Edit  <main checkout>/frontend_nextjs/src/lib/x.ts
+    permitted: Edit  <worktree>/frontend_nextjs/src/lib/x.ts     Write  <main checkout>/.claude/artifacts/draft.html
     ```
 
 ## 5. Arayüz: bilgi ipuçları (tooltip) zorunlu
