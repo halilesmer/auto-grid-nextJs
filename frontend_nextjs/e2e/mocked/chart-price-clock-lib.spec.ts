@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { PriceClock, type PriceClockState, axisLabelHeight, axisLabelPadding, contrastText, formatCountdown, labelBar, secondsToClose } from '../../src/lib/chart-workspace/priceClock';
+import { PriceClock, type PriceClockState, axisLabelHeight, axisLabelPadding, contrastText, countdownLeft, formatCountdown, labelBar, NEXT_BAR_GRACE_SEC, secondsToClose } from '../../src/lib/chart-workspace/priceClock';
 
 // 1124-A9: the box under the last price label shows the time left to the close of the last bar.
 const at = (y: number, mo: number, d: number, h = 0, mi = 0, sec = 0) => Date.UTC(y, mo - 1, d, h, mi, sec) / 1000;
@@ -40,6 +40,17 @@ test('W1 schließt nach sieben Tagen, MN am Monatsende nach Kalender', { tag: '@
   expect(secondsToClose('MN', at(2026, 11, 1), at(2026, 11, 24))).toBe(7 * 86400);
   expect(secondsToClose('MN', at(2026, 12, 1), at(2026, 12, 24))).toBe(8 * 86400);
   expect(secondsToClose('MN', at(2028, 2, 1), at(2028, 2, 28))).toBe(2 * 86400);
+});
+
+test('Nach dem Kerzenschluss 60 s die nächste Kerze zählen, dann verstecken (M1, MN)', { tag: '@ANA-28' }, () => {
+  const m1 = Date.UTC(2026, 10, 25, 23, 45, 0) / 1000;
+  expect(countdownLeft('M1', m1, m1 + 48)).toBe(12);
+  expect(countdownLeft('M1', m1, m1 + 60)).toBe(60); // closed, the next minute runs
+  expect(countdownLeft('M1', m1, m1 + 119)).toBe(1);
+  expect(countdownLeft('M1', m1, m1 + 120)).toBeNull(); // 60 s without a new bar
+  const nov = Date.UTC(2026, 10, 1) / 1000, dec = Date.UTC(2026, 11, 1) / 1000;
+  expect(countdownLeft('MN', nov, dec + 10)).toBe(Date.UTC(2027, 0, 1) / 1000 - dec - 10); // the next bar is December
+  expect(countdownLeft('MN', nov, dec + NEXT_BAR_GRACE_SEC)).toBeNull();
 });
 
 test('Labelhöhe wächst mit der Schriftgröße', { tag: '@ANA-28' }, () => {
@@ -109,20 +120,38 @@ test('Tik ohne neue Sekunde im letzten Zeichnen löst kein Neuzeichnen aus', { t
   }
 });
 
-test('Bar geschlossen und keine neue Kerze (Wochenende): Box versteckt, Text leer', { tag: '@ANA-28' }, () => {
+test('Kerzenschluss: die Box zählt sofort die nächste Kerze, ohne auf ihren ersten Preis zu warten (1125-D1)', { tag: '@ANA-28' }, () => {
   const t = clockWith(Date.UTC(2026, 10, 23, 11, 59, 59));
   try {
     const axis = (t.clock as unknown as { view: { visible: () => boolean } }).view;
     expect(t.view.text()).toBe('00:01');
+    t.advance(1000); // 12:00:00: the bar is closed, the first price of the next one has not come yet
+    expect(t.view.text()).toBe('01:00:00');
     expect(axis.visible()).toBe(true);
-    t.advance(1000); // 12:00:00: the bar is closed
+    t.advance(59_000); // 12:00:59
+    expect(t.view.text()).toBe('59:01');
+    // the new bar arrives: the same count, no jump
+    t.clock.update({ offsetSec: 0, backColor: '#ffeb3b', fontSize: 11, lastBarTime: Date.UTC(2026, 10, 23, 12, 0, 0) / 1000, timeframe: 'H1', dayUnit: 'd' });
+    expect(t.view.text()).toBe('59:01');
+  } finally {
+    t.clock.detached();
+    delete (globalThis as { window?: unknown }).window;
+  }
+});
+
+test('Bar geschlossen und 60 s keine neue Kerze (Wochenende): Box versteckt, Text leer', { tag: '@ANA-28' }, () => {
+  const t = clockWith(Date.UTC(2026, 10, 23, 12, 0, 59));
+  try {
+    const axis = (t.clock as unknown as { view: { visible: () => boolean } }).view;
+    expect(t.view.text()).toBe('59:01');
+    t.advance(1000); // 12:01:00: 60 s after the close and still no new bar
     expect(t.view.text()).toBe('');
     expect(axis.visible()).toBe(false);
     t.clock.tick();
     expect(t.attrs.has('data-price-clock')).toBe(false);
     // a new bar arrives: the box is back
     t.clock.update({ offsetSec: 0, backColor: '#ffeb3b', fontSize: 11, lastBarTime: Date.UTC(2026, 10, 23, 12, 0, 0) / 1000, timeframe: 'H1', dayUnit: 'd' });
-    expect(t.view.text()).toBe('01:00:00');
+    expect(t.view.text()).toBe('59:00');
     expect(axis.visible()).toBe(true);
   } finally {
     t.clock.detached();

@@ -21,6 +21,21 @@ export function secondsToClose(timeframe: ChartTimeframe, barOpen: number, broke
   return barEnd(timeframe, barOpen) - brokerSec;
 }
 
+/** After the close of the last bar the clock counts the next bar this long before it decides that no new bar comes (weekend, market closed) */
+export const NEXT_BAR_GRACE_SEC = 60;
+
+/**
+ * Seconds to show under the price label, or `null` to hide the box. Before the close of the last bar: the time to that close. After the close the next bar
+ * runs already, but the chart shows it only with its first price (a tick, then the stream and a render): the clock counts the close of the next bar at once,
+ * as TradingView does, and hides when that bar has not come `NEXT_BAR_GRACE_SEC` after the close (1125-D1).
+ */
+export function countdownLeft(timeframe: ChartTimeframe, barOpen: number, brokerSec: number): number | null {
+  const close = barEnd(timeframe, barOpen);
+  if (brokerSec < close) return close - brokerSec;
+  if (brokerSec - close >= NEXT_BAR_GRACE_SEC) return null;
+  return barEnd(timeframe, close) - brokerSec;
+}
+
 /** Height of one price axis label of lightweight-charts: font size plus the padding above and below (2.5 px per 12 px of font). */
 export function axisLabelHeight(fontSize: number): number {
   return fontSize + 2 * (2.5 / 12) * fontSize;
@@ -125,12 +140,11 @@ export class PriceClock implements ISeriesPrimitive<Time> {
   paneViews(): readonly IPrimitivePaneView[] { return []; }
   update(state: PriceClockState) { this.state = state; this.sync(); }
   private drawText() { return (this.drawn = this.text()); }
-  /** Time left to the close of the last bar; `null` when unknown or when the bar is closed and no new one came (weekend, market closed) */
+  /** Time left to the close of the running bar; `null` when unknown or when no new bar came for a while (weekend, market closed) */
   private remaining(): number | null {
     const { offsetSec, lastBarTime, timeframe } = this.state;
     if (offsetSec === null || lastBarTime === null) return null;
-    const left = secondsToClose(timeframe, lastBarTime, brokerNow(offsetSec, this.now()));
-    return left > 0 ? left : null;
+    return countdownLeft(timeframe, lastBarTime, brokerNow(offsetSec, this.now()));
   }
   private text() {
     const left = this.remaining();
