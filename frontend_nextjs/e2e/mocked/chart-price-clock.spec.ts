@@ -132,3 +132,15 @@ test('Die Uhr tickt auch, wenn der Chart vor den Kerzen steht (späte Antwort)',
   const first = await clock(page);
   await expect.poll(() => clock(page), { timeout: 5000 }).not.toBe(first);
 });
+
+test('Akışta olmayan sembolde de saat koşan mumu sayar (live_from dolu)', { tag: '@ANA-28' }, async ({ page, worker }) => {
+  // 1125-C1: the stream carries only the symbol of the first zone (mock: USOUSD). For EURUSD the series leaves out the candle at live_from and the
+  // running candle comes from the search (common M15 price); the clock must count that candle, not the last closed one.
+  worker.state.ratesSeries = { ...worker.state.ratesSeries, M15: rows(900, WED + 14 * 3600 + 15 * 60, 400) };
+  worker.state.ratesLive = { H1: WED + 14 * 3600, D1: WED, M15: WED + 14 * 3600 + 15 * 60 };
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(URL);
+  await expect(page.getByTestId('analysis-chart')).toHaveAttribute('data-price-clock', H1_LEFT);
+  const first = await clock(page);
+  await expect.poll(() => clock(page), { timeout: 5000 }).not.toBe(first);
+});
