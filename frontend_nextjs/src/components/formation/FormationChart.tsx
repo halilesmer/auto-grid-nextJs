@@ -98,7 +98,7 @@ export function FormationChart({ accountId, hit, context, scanAt, running, asOf,
       trendPath={trendPath}
       toolbarActions={<TrendToggle timeframe={hit.tf} size="xs" />}
       surfaceProps={{ 'data-testid': 'formation-chart', 'data-final-point': hit.candidate.points[finalName] ? 'done' : 'open' }}
-      renderOverlay={(scene) => <FormationLayer scene={scene} hit={hit} bars={bars} points={data.points} running={running} asOf={asOf} active={active} onActive={onActive} onCapture={onCapture} onPriceBottom={onPriceBottom} visible={overlays.formations} rsiVisible={overlays.rsi && rsiMatches} others={others} onSelectHit={onSelectHit} atr={atr} />}
+      renderOverlay={(scene) => <FormationLayer scene={scene} hit={hit} bars={bars} points={data.points} running={running} asOf={asOf} active={active} onActive={onActive} onCapture={onCapture} onPriceBottom={onPriceBottom} visible={overlays.formations} rsiVisible={overlays.rsi && rsiMatches} others={others} onSelectHit={onSelectHit} atr={atr} symbol={context.symbol} />}
     />
   );
 }

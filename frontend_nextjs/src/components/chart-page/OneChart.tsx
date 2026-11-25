@@ -642,7 +642,7 @@ export function OneChart({ accountId, symbol: urlSymbol, zones, range, offsetSec
               renderOverlay={
                 formationTf && hit
                   ? (scene) => (
-                      <FormationLayer scene={scene} hit={hit} bars={signalBars.length > 0 ? signalBars : NO_BARS} points={shownData.points} running={scan.running[hit.tf]} asOf={pastAt !== null} active={active} onActive={setActive} onCapture={registerCapture} onPriceBottom={setPriceBottom} visible={overlays.formations && !formHidden} rsiVisible={overlays.rsi && rsiMatches} others={others} workspaceKey={contextKey} onSelectHit={(h: ScanHit) => { setView({ form: h.form, tf: h.tf }); setPicked(`${h.form}-${h.tf}`); }} atr={atr} />
+                      <FormationLayer scene={scene} hit={hit} bars={signalBars.length > 0 ? signalBars : NO_BARS} points={shownData.points} running={scan.running[hit.tf]} asOf={pastAt !== null} active={active} onActive={setActive} onCapture={registerCapture} onPriceBottom={setPriceBottom} visible={overlays.formations && !formHidden} rsiVisible={overlays.rsi && rsiMatches} others={others} workspaceKey={contextKey} onSelectHit={(h: ScanHit) => { setView({ form: h.form, tf: h.tf }); setPicked(`${h.form}-${h.tf}`); }} atr={atr} symbol={accepted ?? urlSymbol} />
                     )
                   : undefined
               }
