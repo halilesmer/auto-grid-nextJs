@@ -50,6 +50,7 @@ function modelAt(name: string, iso: string, opts: { lang?: Lang; close?: (price:
       y,
       text: (key, params) => translate(lang, key as never, params),
       fmt: (n) => String(Number(n.toFixed(5))),
+      ratio: (n) => n.toFixed(3).replace('.', ','),
       pips: (n) => n.toFixed(1),
       ruleName: (id) => ruleText(lang, id) ?? id,
     });
@@ -104,6 +105,8 @@ test.describe('FRM-49 D-Pfeil', () => {
       expect(m.tip.body).toContain(ruleText('tr', k.rule)!);
       expect(m.tip.title).toBe(k.deep ? 'Geçersiz · B fazla derin' : 'Geçersiz · B yeterince derin değil');
       expect(m.pill.badge).toContain(k.deep ? '>' : '<');
+      // 1124-F11.1: das Verhältnis steht mit drei Stellen, auch bei glatten Werten
+      expect(m.pill.badge).toMatch(/^B \d,\d{3} [<>] \d,\d{3}$/);
       // Das D-Niveau der Formation bleibt als blasse Linie stehen
       expect(m.level).toMatchObject({ strength: 'faint', label: 'D aranmıyor · formasyon geçersiz' });
     });

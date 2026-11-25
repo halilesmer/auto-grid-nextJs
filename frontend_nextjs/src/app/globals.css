@@ -373,3 +373,9 @@
 @media (prefers-reduced-motion: reduce) {
   .dock-row > .dock-wrap, .dock-ph, .dock-ghost-label { transition: none; }
 }
+
+/* 1124-F11.1: der gestrichelte D-Pfeil (dasharray "6 5" = 11 px) fließt zum Ziel; reduzierte Bewegung: er steht */
+@keyframes d-arrow-flow { to { stroke-dashoffset: -11; } }
+@media (prefers-reduced-motion: no-preference) {
+  .d-arrow-flow { animation: d-arrow-flow 1.2s linear infinite; }
+}

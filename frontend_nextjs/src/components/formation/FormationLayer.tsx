@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { TIMEFRAME_SEC, type Bar } from '@/lib/analysis/candles';
 import { useFormat, useLocale, useT } from '@/i18n';
 import { layoutDArrow, type DArrowModel } from '@/lib/formation/dArrow';
+import { CHAR_PX, pillWidth, separateLabels } from '@/lib/formation/labelFit';
 import { ruleText } from '@/lib/formation/ruleTexts';
 import { pipOf } from '@/lib/formation/xabcd';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -124,12 +125,11 @@ function PrimView({ prim, side, style, onMenu, toolActive }: { prim: Prim; side:
   }
 }
 
-const D_ARROW_PILL_CHAR = 6.4;
 
 /** D-Pfeil (1124-F2): D-Niveau, Pfeil zum D (oder zu B), Grund bei Ungültig und das Abzeichen; der Hover nennt Bedingungen und Rest */
 function DArrowView({ model, aria }: { model: DArrowModel; aria: string }) {
   const { level, arrow, ring, reason, pill, hit, tip } = model;
-  const pillW = (pill.main.length + pill.badge.length) * D_ARROW_PILL_CHAR + 30;
+  const pillW = pillWidth(pill);
   const pillX = Math.max(2, pill.x - pillW);
   const halo = { stroke: 'var(--card)', strokeWidth: 3, strokeLinejoin: 'round' as const, paintOrder: 'stroke' as const };
   const faint = level?.strength === 'faint';
@@ -138,7 +138,7 @@ function DArrowView({ model, aria }: { model: DArrowModel; aria: string }) {
       {level && (
         <g data-testid="formation-d-level" data-strength={level.strength} opacity={faint ? 0.5 : 1}>
           <line x1={level.x1} x2={level.x2} y1={level.y} y2={level.y} stroke={model.state === 'invalid' ? 'var(--muted-foreground)' : 'var(--info)'} strokeWidth={faint ? 1 : 2} strokeDasharray={model.state === 'invalid' ? '5 4' : undefined} />
-          <text x={level.x1 + 6} y={level.y - 6} fontSize={11} fontWeight={600} fill={model.state === 'invalid' ? 'var(--muted-foreground)' : 'var(--info)'} {...halo}>{level.label}</text>
+          <text x={level.x1 + 6} y={level.y - 6 + (level.labelDy ?? 0)} fontSize={11} fontWeight={600} fill={model.state === 'invalid' ? 'var(--muted-foreground)' : 'var(--info)'} {...halo}>{level.label}</text>
         </g>
       )}
       {reason && (
@@ -164,7 +164,7 @@ function DArrowView({ model, aria }: { model: DArrowModel; aria: string }) {
         const p2 = [arrow.x2 - 10 * Math.cos(a + 0.45), arrow.y2 - 10 * Math.sin(a + 0.45)];
         return (
           <g data-testid="formation-d-arrow-line" data-x2={Math.round(arrow.x2)} data-y2={Math.round(arrow.y2)}>
-            <line x1={arrow.x1} y1={arrow.y1} x2={arrow.x2 - Math.cos(a) * 8} y2={arrow.y2 - Math.sin(a) * 8} stroke={arrow.color} strokeWidth={2.2} strokeDasharray="6 5" strokeLinecap="round" />
+            <line x1={arrow.x1} y1={arrow.y1} x2={arrow.x2 - Math.cos(a) * 8} y2={arrow.y2 - Math.sin(a) * 8} stroke={arrow.color} strokeWidth={2.2} strokeDasharray="6 5" strokeLinecap="round" className="d-arrow-flow" />
             <polygon points={`${arrow.x2},${arrow.y2} ${p1.join(',')} ${p2.join(',')}`} fill={arrow.color} />
           </g>
         );
@@ -173,7 +173,7 @@ function DArrowView({ model, aria }: { model: DArrowModel; aria: string }) {
       <g data-testid="formation-d-pill" data-main={pill.main}>
         <rect x={pillX} y={pill.y - 11} width={pillW} height={22} rx={11} fill="var(--card)" stroke={pill.color} strokeWidth={1.4} />
         <text x={pillX + 9} y={pill.y + 4} fontSize={11} fontWeight={700} fill={pill.color}>{pill.main}</text>
-        <text x={pillX + 9 + pill.main.length * D_ARROW_PILL_CHAR + 8} y={pill.y + 4} fontSize={10.5} fontWeight={600} fill={pill.color}>{pill.badge}</text>
+        <text x={pillX + 9 + pill.main.length * CHAR_PX + 8} y={pill.y + 4} fontSize={10.5} fontWeight={600} fill={pill.color}>{pill.badge}</text>
       </g>
       <g data-testid="formation-d-arrow-hit" data-tooltip-scope style={{ pointerEvents: 'all' }}>
         <foreignObject x={hit.x} y={hit.y} width={hit.w} height={hit.h}>
@@ -337,6 +337,7 @@ export function FormationLayer({ scene, hit, bars, points, running, asOf, active
         y,
         text: label,
         fmt: fmtN,
+        ratio: (n) => number(n, { minimumFractionDigits: 3, maximumFractionDigits: 3 }),
         pips: (n) => number(n, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
         ruleName: (id) => ruleText(locale, id) ?? id,
       });
@@ -344,7 +345,9 @@ export function FormationLayer({ scene, hit, bars, points, running, asOf, active
       // Ende der letzten Kerze: halbe Kerzenbreite hinter ihrer Mitte (der logische Index zählt Kerzen und Leerstellen)
       const lastX = chart.timeScale().logicalToCoordinate((points.length - 1) as never);
       const asOfX = lastX === null ? null : lastX + chart.timeScale().options().barSpacing / 2;
-      setOverlay({ width, left, height: top + subHeight, priceHeight: top, groups, asOfX, d, dArrow });
+      // 1124-F11.1: Abzeichen, D?-Abzeichen und Niveau-Schrift weichen den festen Schriften und einander aus
+      const fitted = dArrow ? separateLabels(dArrow, d.badges, top) : null;
+      setOverlay({ width, left, height: top + subHeight, priceHeight: top, groups, asOfX, d: fitted ? { ...d, badges: fitted.badges } : d, dArrow: fitted ? fitted.model : null });
     };
     chart.timeScale().subscribeVisibleLogicalRangeChange(redraw);
     chart.timeScale().subscribeSizeChange(redraw);
