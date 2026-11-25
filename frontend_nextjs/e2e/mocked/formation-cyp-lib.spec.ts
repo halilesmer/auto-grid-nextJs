@@ -642,3 +642,18 @@ for (const buy of [true, false]) {
     expect(go([[entry + 1, entry + 1.5, mir(t.stop!) - 3, mir(t.stop!) - 2]]).status?.kind).toBe('stopped');
   });
 }
+
+// ---- Einstiegslevel schon überschritten (1125-A1) ---------------------------------------------------------------
+
+// Echte Form der 521 Fälle: C liegt auf der falschen Seite von X (Kauf: C 96.767 unter X 98.428), also liegt das Level 0.786 der Fib X → C
+// (98.07) zwischen C und X und damit nicht auf der D-Seite von C. Die Kerze nach C „berührt“ es sofort und der Handel endete eine Kerze später im Stop.
+frm('Cypher: liegt das Einstiegslevel nicht auf der D-Seite von C, gibt es keinen Handel (kein Einstieg, kein Stand)', () => {
+  const rows = cyp([98.428, 99.262, 95.709, 96.767, 95.46]);
+  const c = run({ H4: rows }, AT, { symbol: 'TEST' });
+  expect(c.trade?.entry, 'Einstieg').toBeNull();
+  expect(c.trade?.stop, 'Stop').toBeNull();
+  expect(c.trade?.status, 'Stand').toBeUndefined();
+  expect(c.trade?.entryIdx, 'Einstiegskerze').toBeUndefined();
+  // ein gültiger Kauf-Cypher (Level 108.35 jenseits von C 139) behält seinen Handel
+  expect(run({ H4: BASE }).trade?.entry).not.toBeNull();
+});

@@ -85,16 +85,18 @@ export interface HarmonicFreeze {
 
 /**
  * Friert die Harmonik an der ersten Kerze ein, deren Docht das D-Level erreicht (bis `tol` davor); beginnt wie die D-Suche nach dem Trend-Pivot von C.
- * Ohne Treffer (ein eigenes D liegt nicht auf einem Docht) gilt die Kerze des D. `atLevel`: Einstieg am Preis des Levels (Gartley, Bat).
+ * Ohne Treffer (ein eigenes D liegt nicht auf einem Docht) gilt die Kerze des D. Liegt das Level nicht auf der D-Seite von C, gibt es keine Einfrierung und keinen Handel. `atLevel`: Einstieg am Preis des Levels (Gartley, Bat).
  */
 export function harmonicFreeze(
   bars: readonly FormationBar[],
-  s: { es: ZoneSide; c: { idx: number; pivotIdx?: number }; d: { idx: number; price: number } | null },
+  s: { es: ZoneSide; c: { idx: number; price: number; pivotIdx?: number }; d: { idx: number; price: number } | null },
   level: number,
   tol: number,
   atLevel: boolean,
 ): HarmonicFreeze | null {
   if (!s.d) return null;
+  // Das Level muss auf der D-Seite von C liegen (1125-A1): liegt es zwischen C und der Gegenseite, ist es schon überschritten, die nächste Kerze „berührt“ es sofort und es entsteht ein Scheinhandel
+  if (outward(s.es, level) <= outward(s.es, s.c.price)) return null;
   let idx = -1;
   for (let k = Math.max(s.c.idx, s.c.pivotIdx ?? s.c.idx) + 1; k < bars.length; k++) {
     if (outward(s.es, wickEnd(bars[k], s.es)) >= outward(s.es, level) - tol) {
