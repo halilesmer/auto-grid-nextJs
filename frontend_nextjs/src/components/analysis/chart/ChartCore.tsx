@@ -874,6 +874,10 @@ export function ChartCore({
     // Stand der letzten Kerze am Element (Tests und Fehlersuche; der Chart zeichnet in <canvas>)
     surfaceRef.current?.setAttribute('data-last-price', `${runningBar.time}:${runningBar.close}`);
     surfaceRef.current?.setAttribute('data-last-range', `${bar.low}:${bar.high}`);
+    // The workspace (price label clock, drawings) also sees the running candle, as with the live price: without a stream for this symbol
+    // its last bar would be the last closed one and the clock would hide (1125-C1)
+    const frame = requestAnimationFrame(() => setWorkspaceTail({ key: viewKey, bar }));
+    return () => cancelAnimationFrame(frame);
   }, [runningBar, data, appearance, viewKey]);
 
   // Nur unter dem Fadenkreuz: ohne Maus würde die Legende die geladene statt der laufenden Kerze zeigen
