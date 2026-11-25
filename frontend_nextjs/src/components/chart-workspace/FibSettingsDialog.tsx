@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useState, type ReactNode } from 'react';
-import { Check, ChevronDown, Pencil, RotateCcw, Save, Trash2, X } from 'lucide-react';
+import { Check, ChevronDown, Info, Pencil, RotateCcw, Save, Trash2, X } from 'lucide-react';
 import type { Drawing } from 'lightweight-charts-drawing';
 import ConfirmModal from '@/components/ConfirmModal';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { DropdownMenu, DropdownMenuGroup, DropdownMenuItem, useDropdownClose } f
 import { Modal } from '@/components/ui/modal';
 import { FieldLabel, Tooltip } from '@/components/ui/tooltip';
 import { useT, type MessageKey } from '@/i18n';
-import { PRESET_ID, FIB_TEXT_MAX, isReservedName, joinColor, splitColor, presetFibStyle, coeffText, factoryFibStyle, FIB_FONT_SIZES, fibStyleEqual, FIB_KIND, normalizeFibStyle, type FibStyle } from '@/lib/chart-workspace/fibStyle';
+import { PRESET_ID, FIB_TEXT_MAX, presetStyleOf, userTemplateNames, isReservedName, joinColor, splitColor, presetFibStyle, coeffText, factoryFibStyle, FIB_FONT_SIZES, fibStyleEqual, FIB_KIND, normalizeFibStyle, type FibStyle } from '@/lib/chart-workspace/fibStyle';
 import { UNIT_KEYS, UNIT_MAX, barIndexOf, normalizeVisibility, timeAtBar, visibilityForDrawing, type FibVisibility, type UnitKey } from '@/lib/chart-workspace/fibCoords';
 import { cn } from '@/lib/utils';
 import { ColorPalette } from './ColorPalette';
@@ -71,8 +71,9 @@ export function FibSettingsDialog({ drawing, initialTab = 'style', scaleLog, loc
   const [deleting, setDeleting] = useState<string | null>(null);
   const [epoch, setEpoch] = useState(0);
   const [closing, setClosing] = useState(false);
-  const [applied, setApplied] = useState(() => { const s = normalizeFibStyle(drawing.style); if (fibStyleEqual(s, presetFibStyle())) return PRESET_ID; return Object.entries(templates ?? {}).find(([, v]) => fibStyleEqual(s, normalizeFibStyle(v)))?.[0] ?? ''; });
+  const [applied, setApplied] = useState(() => { const s = normalizeFibStyle(drawing.style); if (fibStyleEqual(s, presetStyleOf(templates))) return PRESET_ID; return Object.entries(templates ?? {}).find(([, v]) => fibStyleEqual(s, normalizeFibStyle(v)))?.[0] ?? ''; });
   const user = templates ?? {};
+  const userNames = userTemplateNames(user), hasCopy = !!user[PRESET_ID];
 
   const build = (nextStyle: FibStyle, nextName: string, nextPts = pts, nextVis = vis): Drawing => ({ ...drawing, name: nextName || undefined, style: { ...drawing.style, ...nextStyle }, points: [...nextPts.map(p => ({ time: p.time, price: p.price })), ...drawing.points.slice(nextPts.length)], visibility: visibilityForDrawing(nextVis) } as Drawing);
   const push = (nextStyle: FibStyle, nextName: string) => onPreview(build(nextStyle, nextName));
@@ -185,15 +186,15 @@ export function FibSettingsDialog({ drawing, initialTab = 'style', scaleLog, loc
           </fieldset>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border px-5 py-3">
-          <DropdownMenu label={t(k('template'))} hint={t(locked ? k('locked') : k('template.hint'))} side="top" align="left" size="sm" panelClassName="max-h-[60dvh] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto" triggerProps={{ disabled: locked, 'data-testid': 'fib-template-menu' }} icon={<span className="inline-flex items-center gap-2">{t(k('template'))}<ChevronDown className="size-3.5" aria-hidden="true" /></span>}>
+          <DropdownMenu label={t(k('template'))} hint={t(locked ? k('locked') : k('template.hint'))} side="top" align="left" size="sm" panelClassName="max-h-[60dvh] w-72 sm:w-[26rem] max-w-[calc(100vw-2rem)] overflow-y-auto" triggerProps={{ disabled: locked, 'data-testid': 'fib-template-menu' }} icon={<span className="inline-flex items-center gap-2">{t(k('template'))}<ChevronDown className="size-3.5" aria-hidden="true" /></span>}>
             <DropdownMenuGroup>
               <DropdownMenuItem data-testid="fib-save-as" icon={<Save className="size-4" aria-hidden="true" />} hint={t(k('saveAs.hint'))} onSelect={() => setSaveOpen(true)}>{t(k('saveAs'))}</DropdownMenuItem>
               <DropdownMenuItem data-testid="fib-apply-defaults" icon={<RotateCcw className="size-4" aria-hidden="true" />} hint={t(k('applyDefaults.hint'))} onSelect={() => adopt(factoryFibStyle(), '')}>{t(k('applyDefaults'))}</DropdownMenuItem>
             </DropdownMenuGroup>
             <div className="my-1 border-t border-border" role="separator" />
             <DropdownMenuGroup className="max-h-56 overflow-y-auto">
-              {[PRESET_ID, ...Object.keys(user)].sort((a, b) => label(a).localeCompare(label(b), 'tr')).map(n => n === PRESET_ID
-                ? <DropdownMenuItem key={n} data-testid="fib-template-preset" icon={<Check className={cn('size-4', applied !== n && 'opacity-0')} aria-hidden="true" />} hint={t(k('applyPreset.hint'))} onSelect={() => adopt(presetFibStyle(), n)}><span className="flex items-center gap-2">{label(n)}<span className="rounded-full border border-border px-1.5 text-[11px] text-muted-foreground">{t(k('builtin'))}</span></span></DropdownMenuItem>
+              {[PRESET_ID, ...userNames].sort((a, b) => label(a).localeCompare(label(b), 'tr')).map(n => n === PRESET_ID
+                ? <div key={n} className="flex flex-wrap items-center gap-1" data-testid="fib-template-preset-row"><div className="min-w-0 flex-1"><DropdownMenuItem data-testid="fib-template-preset" icon={<Check className={cn('size-4', applied !== n && 'opacity-0')} aria-hidden="true" />} hint={t(k(hasCopy ? 'applyPresetChanged.hint' : 'applyPreset.hint'))} onSelect={() => adopt(presetStyleOf(user), n)}><span className="flex items-center gap-2">{label(n)}<span className="rounded-full border border-border px-1.5 text-[11px] text-muted-foreground">{t(k(hasCopy ? 'changed' : 'builtin'))}</span></span></DropdownMenuItem></div>{hasCopy && <PresetReset onReset={() => { store().deleteDrawingTemplate(PRESET_ID); if (applied === PRESET_ID) adopt(presetFibStyle(), PRESET_ID); }} />}</div>
                 : <TemplateRow key={n} name={n} active={applied === n} onApply={() => adopt(normalizeFibStyle(user[n]), n)} onDelete={() => setDeleting(n)} />)}
             </DropdownMenuGroup>
           </DropdownMenu>
@@ -204,10 +205,16 @@ export function FibSettingsDialog({ drawing, initialTab = 'style', scaleLog, loc
         </div>
       </div>
     </Modal>
-    {saveOpen && <SaveTemplateModal id={id} names={Object.keys(user)} onClose={() => setSaveOpen(false)} onSave={n => { store().saveDrawingTemplate(n, style); setApplied(n); setSaveOpen(false); }} />}
+    {saveOpen && <SaveTemplateModal id={id} names={userNames} preset onClose={() => setSaveOpen(false)} onSave={n => { store().saveDrawingTemplate(n, style); setApplied(isReservedName(n) ? PRESET_ID : n); setSaveOpen(false); }} />}
     {closing && <ConfirmModal open variant="warning" title={t(k('unsaved.title'))} message={t(k('unsaved.message'))} confirmLabel={t(k('unsaved.save'))} confirmHint={t(k('unsaved.save.hint'))} cancelLabel={t(k('unsaved.stay'))} secondary={{ label: t(k('unsaved.discard')), hint: t(k('unsaved.discard.hint')), onClick: cancel }} onClose={() => setClosing(false)} onConfirm={ok} />}
     {deleting && <ConfirmModal open title={t(k('deleteTitle'))} message={t(k('deleteMessage'), { name: deleting })} confirmHint={t(k('deleteConfirm.hint'))} variant="danger" onClose={() => setDeleting(null)} onConfirm={() => { store().deleteDrawingTemplate(deleting); if (applied === deleting) setApplied(''); setDeleting(null); }} />}
   </>;
+}
+
+/** "Orijinal ayarlara dön": hazır şablonun kullanıcı kopyasını siler (1124-A7.1.2). */
+export function PresetReset({ onReset, testId = 'fib-template-preset-reset' }: { onReset: () => void; testId?: string }) {
+  const t = useT(), close = useDropdownClose();
+  return <Tooltip content={t(k('presetReset.hint'))}><button type="button" data-testid={testId} className="mr-1 flex h-7 items-center gap-1.5 rounded-lg border border-border bg-background px-2 text-xs text-foreground hover:bg-accent" onClick={() => { close(); onReset(); }}><RotateCcw className="size-3.5" aria-hidden="true" />{t(k('presetReset'))}</button></Tooltip>;
 }
 
 function TemplateRow({ name, active, onApply, onDelete }: { name: string; active: boolean; onApply: () => void; onDelete: () => void }) {
@@ -218,20 +225,19 @@ function TemplateRow({ name, active, onApply, onDelete }: { name: string; active
   </div>;
 }
 
-export function SaveTemplateModal({ id, names, onClose, onSave }: { id: string; names: string[]; onClose: () => void; onSave: (name: string) => void }) {
+export function SaveTemplateModal({ id, names, preset = false, onClose, onSave }: { id: string; names: string[]; /** Yalnız Fibonacci'de hazır şablon var */ preset?: boolean; onClose: () => void; onSave: (name: string) => void }) {
   const t = useT();
   const [value, setValue] = useState('');
-  const n = value.trim(), reserved = isReservedName(n), exists = !reserved && names.includes(n);
+  const n = value.trim(), builtin = preset && isReservedName(n), exists = builtin || names.includes(n);
   return <Modal open onClose={onClose} title={t(k('saveTitle'))} className="max-w-sm">
     <div data-testid="fib-save-dialog" className="grid gap-3">
       <label htmlFor={`${id}-name`} className="text-sm text-muted-foreground">{t(k('templateName'))}</label>
-      <Tooltip content={t(k('templateName.hint'))} className="w-full"><input id={`${id}-name`} autoFocus data-testid="fib-template-name" className={cn(field, 'h-9 w-full')} value={value} maxLength={80} autoComplete="off" onChange={e => setValue(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && n && !reserved) onSave(n); }} /></Tooltip>
-      <div className="max-h-36 overflow-y-auto rounded-md border border-border" aria-label={t(k('existing'))}>{sortTr([t(k('presetName')), ...names]).map(x => <Tooltip key={x} content={t(k('pickName.hint'))} className="w-full"><button type="button" className="block w-full px-3 py-1.5 text-left text-sm hover:bg-accent" onClick={() => setValue(x)}>{x}</button></Tooltip>)}</div>
-      {reserved && <p className="text-sm text-danger" data-testid="fib-save-warning">{t(k('reserved'))}</p>}
-      {exists && <p className="text-sm text-danger" data-testid="fib-save-warning">{t(k('exists'), { name: n })}</p>}
+      <Tooltip content={t(k('templateName.hint'))} className="w-full"><input id={`${id}-name`} autoFocus data-testid="fib-template-name" className={cn(field, 'h-9 w-full')} value={value} maxLength={80} autoComplete="off" onChange={e => setValue(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && n) { e.preventDefault(); onSave(n); } }} /></Tooltip>
+      <div className="max-h-36 overflow-y-auto rounded-md border border-border" aria-label={t(k('existing'))}>{sortTr([...(preset ? [t(k('presetName'))] : []), ...names]).map(x => <Tooltip key={x} content={t(k('pickName.hint'))} className="w-full"><button type="button" className="block w-full px-3 py-1.5 text-left text-sm hover:bg-accent" onClick={() => setValue(x)}>{x}</button></Tooltip>)}</div>
+      {exists && <p className="flex items-start gap-2 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground" data-testid="fib-save-info"><Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{t(k(builtin ? 'overwriteBuiltin' : 'overwriteUser'), { name: builtin ? t(k('presetName')) : n })}</p>}
       <div className="flex justify-end gap-2">
         <Button variant="outline" hint={t(k('saveCancel.hint'))} onClick={onClose}>{t(k('cancel'))}</Button>
-        <Button variant="primary" data-testid="fib-save-confirm" hint={t(exists ? k('overwrite.hint') : k('save.hint'))} disabled={!n || reserved} onClick={() => onSave(n)}>{t(exists ? k('overwrite') : k('save'))}</Button>
+        <Button variant="primary" data-testid="fib-save-confirm" hint={t(exists ? k('overwrite.hint') : k('save.hint'))} disabled={!n} onClick={() => onSave(n)}>{t(exists ? k('overwrite') : k('save'))}</Button>
       </div>
     </div>
   </Modal>;

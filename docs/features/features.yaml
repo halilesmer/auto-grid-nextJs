@@ -158,6 +158,17 @@ kategorien:
           - Denselben Befehl mit run_in_background ausführen lassen.
         erwartet: Der Vordergrund-Befehl startet nicht; Claude bekommt die Meldung „pre-bash-wait (SYS-14)“ mit dem Hinweis auf Hintergrund oder Monitor. Im Hintergrund startet er normal.
 
+      - id: SYS-17
+        titel: Kein gemeinsamer Git-Zustand zwischen Sitzungen (Claude-Hook)
+        beschreibung: "hooks/claude/pre-bash-shared-git.sh läuft als dritter PreToolUse-Hook vor jedem Bash-Aufruf von Claude Code (.claude/settings.json). Er lehnt ab (Exit 2, Begründung auf stderr, auch mit run_in_background): überall git stash (nur list und show laufen), weil refs/stash allen Worktrees gehört; nur im Haupt-Checkout checkout/switch mit Branch-Wechsel oder Datei-Restore, reset --hard/--merge/--keep, clean (außer -n), restore von Dateien, add -A/--all/./*/-u, commit -a, rebase, cherry-pick, revert sowie merge und pull ohne --ff-only. Erlaubt bleiben dort git checkout main, pull --ff-only, add <Datei>, commit -m, fetch, status, push, worktree add; in Worktrees läuft alles außer stash. Das Zielverzeichnis ist git -C <Pfad>, sonst das letzte cd <Pfad> des Befehls, sonst das cwd der Sitzung; ist ein cd-Ziel nicht auflösbar (cd \"$X\"), gilt nur die stash-Regel. Fremde Repositories bleiben unberührt. Jedes Teilkommando einer Kette (; && || | bash -c) wird einzeln geprüft; Trenner in Anführungszeichen trennen nichts. Grund (Diagnose 2026-11-24): zwei verwaiste Stashes einer Worktree-Sitzung liegen im gemeinsamen Stack (154 Zeilen Arbeit, Branch gelöscht); der Haupt-Checkout stand am 2026-11-20/21 gut 21 Stunden auf einem Feature-Branch (localhost:3000 läuft aus dem Haupt-Checkout, Sitzungen und Halils eigene Arbeit teilen ihn)."
+        code: [hooks/claude/pre-bash-shared-git.sh, hooks/lib/cmdsplit.sh, .claude/settings.json]
+        tiers: [e2e]
+        pruefung:
+          - In einer Claude-Code-Sitzung dieses Projekts im Haupt-Checkout git add -A ausführen lassen.
+          - Im Worktree git stash ausführen lassen.
+          - Im Haupt-Checkout git pull --ff-only und git add <Datei> ausführen lassen; im Worktree git add -A.
+        erwartet: Die ersten beiden Befehle starten nicht; Claude bekommt die Meldung „pre-bash-shared-git (SYS-17)“ mit dem Hinweis auf Worktree und WIP-Commit. Der dritte läuft.
+
       - id: SYS-16
         titel: Kein kapsamloses pkill (Claude-Hook) und precheck.sh --stop
         beschreibung: "hooks/claude/pre-bash-kill.sh läuft als zweiter PreToolUse-Hook vor jedem Bash-Aufruf von Claude Code (.claude/settings.json). Er lehnt pkill, killall und pgrep mit kill (pgrep … | xargs kill, kill $(pgrep …)) ab (Exit 2, Begründung auf stderr, auch mit run_in_background), wenn das Muster den Pfad des eigenen Checkouts nicht enthält (echter Pfad, logischer Pfad oder $CLAUDE_PROJECT_DIR). Jedes Teilkommando einer Kette (; && || | bash -c) wird einzeln geprüft; Trenner in Anführungszeichen trennen nichts (grep -E \"a|pkill\" und echo 'a; pkill' laufen). Der Befehlsname wird auch mit vollem Pfad (/usr/bin/pkill), nach env [VAR=..] oder VAR=.. und mit Backslash erkannt. Erlaubt bleiben kill <pid>, kill $(lsof -ti tcp:<Port>) und Befehle, die pkill nur als Text enthalten (echo, grep). Grund: pkill -f \"scripts/features/precheck.sh\" und pkill -f playwright trafen die Läufe aller Worktrees; ein Lauf mit der Sperre und zwei wartende Läufe starben in drei Sekunden (Diagnose 2026-11-15). scripts/features/precheck.sh --stop ist der sichere Ersatz: precheck.sh schreibt .feature-results/precheck.pid (PID und Checkout-Pfad); --stop beendet nur den Lauf, den diese Datei für diesen Checkout nennt und dessen Befehl precheck.sh ist, samt Kindprozessen. Sein Signal-Handler gibt Sperre und Testserver frei. Fehlt die Datei oder passt der Prozess nicht, beendet --stop nichts."
@@ -1758,8 +1769,9 @@ kategorien:
           - "Ein Level ändern und X drücken: Rückfrage; Pencerede kal lässt das Fenster offen, Kaydetme verwirft, Kaydet speichert; im Farbpanel „+“ eine Farbe wählen: sie steht nach dem Neuladen neben „+“. Playwright-Test e2e/mocked/chart-fib-unsaved.spec.ts (@UI-27)."
           - "/chart öffnen, eine Fibonacci-Zeichnung ziehen, doppelt darauf klicken: Fenster mit Tab Stil; ein Level abwählen und İptal drücken: Zeichnung unverändert; Şablon → Geniş Fib seti und Tamam: 18 Level an, 6 aus."
           - "Level-Text eintragen und Deckkraft auf 50 stellen, Tamam: der Text steht auf der Linie, die Linie ist halb durchsichtig; Zeile Text abwählen: der Text verschwindet. Playwright-Test e2e/mocked/chart-fib-text-opacity.spec.ts (@UI-27)."
+          - "Şablon → Farklı kaydet…, Namen „Geniş Fib seti“ eingeben: graue Infozeile statt roter Warnung, Knopf „Üzerine yaz“ (1124-A7); danach zeigt die feste Vorlage „değiştirildi“ und den Knopf „Orijinal ayarlara dön“, Anwenden gibt die eigenen Einstellungen, der Knopf stellt die feste Vorlage wieder her. Playwright-Test e2e/mocked/chart-fib-settings.spec.ts (@UI-27)."
           - "Tab Koordinatlar: Preis ändern, İptal verwirft, Tamam speichert; Tab Görünürlük: auf D1 die Zeile Günler abwählen, die Zeichnung verschwindet; auf W1 nur Haftalar, auf MN nur Aylar."
-        erwartet: "Das Fenster öffnet per Doppelklick; Änderungen wirken sofort, İptal verwirft sie, Tamam speichert; die feste Vorlage setzt alle 24 Plätze; Vorlagen lassen sich speichern, überschreiben und löschen; bei 375 px kein Überlauf; Schließen mit ungespeicherten Änderungen fragt nach."
+        erwartet: "Das Fenster öffnet per Doppelklick; Änderungen wirken sofort, İptal verwirft sie, Tamam speichert; die feste Vorlage setzt alle 24 Plätze; Vorlagen lassen sich speichern, überschreiben (auch die feste Vorlage: ihre Kopie ersetzt sie bis „Orijinal ayarlara dön“) und löschen; bei 375 px kein Überlauf; Schließen mit ungespeicherten Änderungen fragt nach."
 
       - id: UI-28
         titel: "Rechtsklick-Menü auf Zeichnungen und Kürzel Alt+F"
@@ -1780,6 +1792,7 @@ kategorien:
           - "Playwright-Tests e2e/mocked/chart-floating-bar.spec.ts und chart-floating-bar-lib.spec.ts (@UI-29) ausführen."
           - "/chart öffnen, eine Fibonacci-Zeichnung ziehen und anklicken: Leiste oben in der Mitte; Farbe wählen: alle Level haben die Farbe; Löschen und ⌘Z: Zeichnung ist zurück; Esc schließt die Leiste."
           - "Playwright-Test e2e/mocked/chart-floating-bar-templates.spec.ts (@UI-29): Trendlinie auf Stärke 4 stellen, Vorlage speichern, auf eine neue Linie anwenden, nach dem Neuladen steht die Liste noch, Löschen entfernt sie; alte Fibonacci-Vorlagen bleiben."
+          - "Geänderte feste Fibonacci-Vorlage in der Leiste: Zeile mit „değiştirildi“ und Knopf „Orijinal ayarlara dön“, die Kopie erscheint nicht als eigene Zeile. Playwright-Test e2e/mocked/chart-floating-bar-templates.spec.ts (@UI-29)."
           - "Griff ziehen, Seite neu laden, Zeichnung wählen: Leiste am gleichen Platz; Doppelklick auf den Griff: wieder oben in der Mitte. Bei 375 px: Leiste unten, kein Griff, kein seitliches Scrollen."
         erwartet: "Die Leiste folgt der Auswahl, die Knöpfe passen zur Art, Sperre schaltet die richtigen Knöpfe ab, der gezogene Platz bleibt nach dem Neuladen, bei 375 px sitzt sie unten ohne Überlauf."
 

@@ -2,11 +2,15 @@ import { factoryStyleFor, type DrawingStyle, type LevelDef } from 'lightweight-c
 
 /** Fibonacci düzeltmesi ayar penceresinin (1110-A4) stil modeli: pencere yalnız bu alanları okur ve yazar. */
 export const FIB_KIND = 'fib-retracement';
-/** Hazır şablonun adı: kodda durur, silinmez, üzerine yazılmaz, kullanıcı bu adı kullanamaz. */
+/** Hazır şablonun adı: kodda durur, silinmez; kullanıcı bu adla ayrı şablon kaydedemez. Üzerine yazılırsa kullanıcının kopyası `drawingTemplates[FIB_KIND][PRESET_ID]` altında durur (1124-A7.1.2). */
 export const PRESET_ID = '__preset__';
 /** Hazır şablonun üç dildeki adı (i18n `fib.presetName` ile aynı): kullanıcı bu adlardan birini kullanamaz. */
 export const PRESET_NAMES: readonly string[] = ['Geniş Fib seti', 'Extended Fib set', 'Erweitertes Fib-Set'];
 export const isReservedName = (n: string) => n === PRESET_ID || PRESET_NAMES.includes(n);
+/** Kullanıcı şablon listesindeki adlar: hazır şablonun kopyası ayrı satır değildir. */
+export const userTemplateNames = (t: Record<string, unknown> | undefined): string[] => Object.keys(t ?? {}).filter(n => n !== PRESET_ID);
+/** Hazır şablonun geçerli stili: önce kullanıcının kopyası, yoksa koddaki hazır set. */
+export const presetStyleOf = (t: Record<string, Partial<DrawingStyle>> | undefined): FibStyle => t?.[PRESET_ID] ? normalizeFibStyle(t[PRESET_ID]) : presetFibStyle();
 export const FIB_FONT_SIZES = [10, 11, 12, 14, 16, 20, 24, 28, 32, 40] as const;
 export const FIB_LEVEL_SLOTS = 24;
 
@@ -119,7 +123,7 @@ export function parseDrawingTemplates(raw: unknown): DrawingTemplates {
     const named: Record<string, Partial<DrawingStyle>> = {};
     for (const [name, style] of Object.entries(byKind as Record<string, unknown>).slice(0, 100)) {
       const n = name.trim();
-      if (!n || n.length > 80 || isReservedName(n) || !style || typeof style !== 'object') continue;
+      if (!n || n.length > 80 || (kind === FIB_KIND ? isReservedName(n) && n !== PRESET_ID : n === PRESET_ID) || !style || typeof style !== 'object') continue;
       const picked = templateStyleOf(kind, style as Partial<DrawingStyle>);
       if (kind === FIB_KIND || Object.keys(picked).length) named[n] = picked;
     }

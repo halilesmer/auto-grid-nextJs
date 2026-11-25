@@ -24,44 +24,8 @@ cmd="$(json_get tool_input.command <<< "$input")"
 ROOT="$(cd "$HOOK_DIR/.." && pwd -P)"
 ROOT_LOGICAL="$(cd "$HOOK_DIR/.." && pwd)"
 
-# Tırnak farkındalıklı bölücü: ; & | ( ` ve satır sonu yalnız tırnak DIŞINDA ayırıcıdır.
-# Çift tırnak içinde yalnız `$(` ve ` ayırıcı sayılır (komut yerine koyma çalışır); tek tırnak içinde hiçbiri.
-split_cmd() {
-  local str="$1" i ch nx q="" out="" len=${#1}
-  for ((i = 0; i < len; i++)); do
-    ch="${str:i:1}"
-    nx="${str:i+1:1}"
-    if [ "$q" = "'" ]; then
-      [ "$ch" = "'" ] && q=""
-      out+="$ch"
-      continue
-    fi
-    if [ "$ch" = "\\" ]; then
-      out+="$ch$nx"
-      i=$((i + 1))
-      continue
-    fi
-    if [ "$q" = '"' ]; then
-      if [ "$ch" = '"' ]; then
-        q=""
-        out+="$ch"
-      elif [ "$ch" = '`' ] || { [ "$ch" = '$' ] && [ "$nx" = '(' ]; }; then
-        out+=$'\n'
-        [ "$ch" = '$' ] && i=$((i + 1)) # `(` ayrıca eklenmesin
-      else
-        out+="$ch"
-      fi
-      continue
-    fi
-    case "$ch" in
-      "'") q="'"; out+="$ch" ;;
-      '"') q='"'; out+="$ch" ;;
-      ';' | '&' | '|' | '(' | '`' | $'\n') out+=$'\n' ;;
-      *) out+="$ch" ;;
-    esac
-  done
-  printf '%s\n' "$out"
-}
+# shellcheck source=../lib/cmdsplit.sh
+source "$HOOK_DIR/lib/cmdsplit.sh"
 
 has_kill=0
 printf '%s' "$cmd" | tr '\n\t' '  ' | grep -Eq '(^|[^[:alnum:]_.-])kill([[:space:]]|$)' && has_kill=1
