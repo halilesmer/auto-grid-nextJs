@@ -1,6 +1,6 @@
 /**
  * Claude-Hook für gemeinsamen Git-Zustand, ohne Browser (hooks/claude/pre-bash-shared-git.sh).
- * SYS-17: `git stash` überall und Branch-Wechsel, `add -A`, `reset --hard` u. a. im Haupt-Checkout → Exit 2.
+ * SYS-17: `git stash` überall und checkout/switch, pull, `add -A`, `reset --hard` u. a. im Haupt-Checkout → Exit 2.
  * Gebaut wird ein echtes Wegwerf-Repository mit Haupt-Checkout und Worktree (Pfad mit Leerzeichen, wie im Projekt).
  */
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -93,8 +93,14 @@ test.describe('pre-bash-shared-git: gemeinsamer Git-Zustand', { tag: '@SYS-17' }
     'git rebase origin/main',
     'git cherry-pick abc123',
     'git merge feature',
+    'git merge --ff-only origin/main',
     'git pull',
     'git pull --rebase',
+    'git pull --ff-only',
+    'git pull -q --ff-only origin main',
+    'git checkout main',
+    'git switch main',
+    'git switch -',
     // Umgehungen: -C, cd, Kette, bash -c, env (-C/cd werden unten aus dem Worktree geprüft)
     'echo hi; git reset --hard',
     "bash -c 'git add -A'",
@@ -123,10 +129,6 @@ test.describe('pre-bash-shared-git: gemeinsamer Git-Zustand', { tag: '@SYS-17' }
     'git log --oneline -3',
     'git diff',
     'git fetch origin',
-    'git pull --ff-only',
-    'git pull -q --ff-only origin main',
-    'git checkout main',
-    'git switch main',
     'git add a.txt',
     'git add -- a.txt docs/x.md',
     'git commit -m "msg"',
@@ -137,7 +139,10 @@ test.describe('pre-bash-shared-git: gemeinsamer Git-Zustand', { tag: '@SYS-17' }
     'git restore --staged a.txt',
     'git rebase --abort',
     'git merge --abort',
-    'git merge --ff-only origin/main',
+    'git fetch -q origin',
+    'git branch --list',
+    'git show origin/main:CLAUDE.md',
+    'git diff origin/main --stat',
     'git worktree add ../x -b y',
     'git branch -D old',
     'git push origin main',
