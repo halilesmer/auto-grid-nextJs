@@ -17,7 +17,7 @@
  */
 import { expect, test } from '@playwright/test';
 import { FormationContext } from '../../src/lib/formation/context';
-import { ABCD_PARAMS, BUT_PARAMS, CRB_PARAMS, DEFAULT_TREND_SETTINGS } from '../../src/lib/formation/params';
+import { ABCD_PARAMS, BUT_PARAMS, CRB_PARAMS } from '../../src/lib/formation/params';
 import { analyzeAbcd } from '../../src/lib/formation/abcdChecks';
 import { analyzeBat, checkBatCandidate } from '../../src/lib/formation/batChecks';
 import { checkGarCandidate } from '../../src/lib/formation/garChecks';
@@ -28,7 +28,7 @@ import { tradeStatusOf } from '../../src/lib/formation/tradeStatus';
 import type { Candidate, FormationBar } from '../../src/lib/formation/types';
 import { makeRun } from '../fixtures/formation-harmonic';
 import { barsOf, END, H4, mirror, plain, zig, type Row } from '../fixtures/formation-rows';
-import { FIXTURE_TREND } from '../fixtures/formation-trend';
+import { FIXTURE_TREND, CHART_TREND_HL2 } from '../fixtures/formation-trend';
 
 const bars = (rows: [number, number, number, number, number][]): FormationBar[] =>
   rows.map(([time, open, high, low, close]) => ({ time, open, high, low, close }));
@@ -139,7 +139,7 @@ const BAT_M15: [number, number, number, number, number][] = [
   [1775605500, 4708.6, 4713.72, 4704.92, 4705.56],];
 
 test('Bat alış: girişi geçen derin fitil koşan TP1’i girişin altına çekmez', { tag: '@FRM-07' }, () => {
-  const ctx = new FormationContext('XAUUSD', { M15: { bars: bars(BAT_M15), missing: [] } }, { trend: DEFAULT_TREND_SETTINGS });
+  const ctx = new FormationContext('XAUUSD', { M15: { bars: bars(BAT_M15), missing: [] } }, { trend: CHART_TREND_HL2 });
   const at = Date.parse('2026-04-08T00:00Z') / 1000;
   const bat = analyzeBat(ctx, at).find((h) => h.tf === 'M15' && h.candidate.side === 'buy' && h.candidate.points.A?.time === 1775574900);
   expect(bat, 'Bat alış adayı (A 2026-04-07 15:15)').toBeDefined();
@@ -217,7 +217,7 @@ const ABCD_H4: [number, number, number, number, number][] = [
 
 test('AB=CD alış (XAUUSD H4): stopun ötesine inen kapanışsız fitil koşan TP1’i girişin altına çekmez, TP1 kârda sayılır', { tag: '@FRM-05' }, () => {
   const at = Date.parse('2026-05-28T04:00Z') / 1000;
-  const ctx = new FormationContext('XAUUSD', { H4: { bars: bars(ABCD_H4), missing: [] } }, { trend: DEFAULT_TREND_SETTINGS });
+  const ctx = new FormationContext('XAUUSD', { H4: { bars: bars(ABCD_H4), missing: [] } }, { trend: CHART_TREND_HL2 });
   const hit = analyzeAbcd(ctx, at).find((a) => a.tf === 'H4' && a.candidate.side === 'buy' && a.candidate.points.A?.time === 1779753600);
   expect(hit, 'AB=CD alış adayı (A 2026-05-26 00:00)').toBeDefined();
   const c = hit!.candidate;

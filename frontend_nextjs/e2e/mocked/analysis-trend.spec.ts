@@ -8,6 +8,7 @@ import type { Page } from '@playwright/test';
 import { parseFixture } from '../../src/lib/formation/fixture';
 import { formationRequests } from '../../src/lib/formation/requests';
 import { DEMO_ID, expect, test, type MockWorker } from '../fixtures/test';
+import { msg } from '../fixtures/i18n';
 
 const bars = parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/trd-up-d1-01.json', 'utf-8'))).bars;
 const D1_SERIES = bars.map((b) => [b.time, b.open, b.high, b.low, b.close]);
@@ -174,6 +175,24 @@ test.describe('ANA-21 Trendzug im Chart', () => {
     // Entwurf und Bestätigen (UI-22): gespeichert wird erst mit „Anwenden“
     await page.getByTestId('trend-confirm-apply').click();
     expect((await stored(page)).trend.rule).toBe('filter');
+  });
+
+  test('EWO-Quelle: Standard Schluss, Wahl (Hoch + Tief) / 2 bleibt gespeichert, bei „Nur Mindestgröße“ gesperrt', { tag: '@ANA-21' }, async ({ page, worker }) => {
+    await open(page, worker, 'D1', false);
+    const panel = await openSettings(page);
+    const source = panel.getByTestId('trend-ewoSource');
+    const close = source.getByRole('button', { name: msg('cw.trend.ewoSource.close') });
+    const hl2 = source.getByRole('button', { name: msg('cw.trend.ewoSource.hl2') });
+    await expect(close).toHaveAttribute('aria-pressed', 'true');
+    await hl2.click();
+    await expect(hl2).toHaveAttribute('aria-pressed', 'true');
+    // Entwurf und Bestätigen (UI-22): gespeichert wird erst mit „Anwenden“
+    await page.getByTestId('trend-confirm-apply').click();
+    expect((await stored(page)).trend.ewoSource).toBe('hl2');
+    // die Regel „Nur Mindestgröße“ rechnet ohne EWO
+    await panel.getByTestId('trend-rule').selectOption('groesse');
+    await expect(close).toBeDisabled();
+    await expect(hl2).toBeDisabled();
   });
 
   test('EWO lang kleiner als EWO kurz: Hinweis, die Linie bleibt wie beim Standard, danach verschwindet der Hinweis', { tag: '@ANA-21' }, async ({ page, worker }) => {

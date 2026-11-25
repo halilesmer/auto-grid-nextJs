@@ -10,7 +10,7 @@ import { InputField } from '@/components/ui/InputField';
 import { Modal } from '@/components/ui/modal';
 import { toast } from '@/components/ui/animated-toast';
 import { useFormat, useT, type MessageKey } from '@/i18n';
-import { CHART_TIMEFRAME_SEC, type Bar, type MissingRange } from '@/lib/analysis/candles';
+import { CHART_TIMEFRAME_SEC, type Bar, type ChartTimeframe, type MissingRange } from '@/lib/analysis/candles';
 import { alarmsAfterRemove, INDICATOR_KINDS, indicatorFormula, isOscillator, isSystemRsi, newIndicator, SYSTEM_RSI_ID, systemRsiIndicator, type Indicator, type Value } from '@/lib/chart-workspace/indicators';
 import { useChartWorkspaceStore, emptyChartDocument, type ChartDocument } from '@/store/useChartWorkspaceStore';
 import { useThemeStore } from '@/store';
@@ -39,7 +39,7 @@ import { DrawingContextMenu } from './DrawingContextMenu';
 import { DrawingFloatingToolbar } from './DrawingFloatingToolbar';
 import ConfirmModal from '@/components/ConfirmModal';
 import { libraryInterval } from '@/lib/chart-workspace/fibCoords';
-import { FIB_KIND, templateStyleOf } from '@/lib/chart-workspace/fibStyle';
+import { FIB_KIND, templateStyleOf, userTemplateNames } from '@/lib/chart-workspace/fibStyle';
 import { defaultToolbar, toolGroup, type ChartGesture } from '@/lib/chart-workspace/toolbar';
 import { linkedDrawingKey, type DrawingIdentity } from '@/lib/chart-workspace/linkedDrawings';
 import { randomId } from '@/lib/randomId';
@@ -422,8 +422,8 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
   useEffect(() => {
     if (!binding || binding.isDisposed()) return;
     const c = appearanceColors(appearance);
-    priceClock.current?.update({ offsetSec: appearance.priceClock && appearance.priceLabel ? priceClockOffsetSec : null, backColor: appearance.priceColor || c.text, fontSize: appearance.fontSize });
-  }, [binding, appearance, priceClockOffsetSec, theme]);
+    priceClock.current?.update({ offsetSec: appearance.priceClock && appearance.priceLabel ? priceClockOffsetSec : null, backColor: appearance.priceColor || c.text, fontSize: appearance.fontSize, lastBarTime: (bars.at(-1)?.time as number | undefined) ?? null, timeframe: (TIMEFRAME_LABEL[timeframeSec] ?? 'H1') as ChartTimeframe, dayUnit: t('cw.priceClock.day') });
+  }, [binding, appearance, priceClockOffsetSec, theme, bars, timeframeSec, t]);
   useEffect(() => { manager.current?.setMagnet(magnet); manager.current?.setStayInDrawingMode(keepDrawing); }, [magnet, keepDrawing, binding, drawingKey, state.hydrated]);
   useEffect(() => {
     if (!binding || binding.isDisposed()) return;
@@ -646,7 +646,7 @@ export function ChartWorkspace({ context, binding, interactionReady = true, bars
     {ctxMenu && <DrawingContextMenu drawing={ctxMenu.drawing} position={ctxMenu} manager={ctxMenu.manager} allLocked={locked} onClose={() => { setCtxMenu(null); binding?.host.focus({ preventScroll: true }); }} onChange={checkpoint}
       onOpenSettings={(d, tab) => { setFibTab(tab ?? 'style'); setFibEdit(d); }}
       onOpenTree={d => { manager.current?.select([d.id]); setActiveObject(d.id); setTreeSection('drawings'); setIndicatorsOpen(true); }} />}
-    {tplModal?.type === 'save' && <SaveTemplateModal id="fbar-save" names={Object.keys(useChartWorkspaceStore.getState().drawingTemplates[tplModal.drawing.kind] ?? {})} onClose={() => setTplModal(null)}
+    {tplModal?.type === 'save' && <SaveTemplateModal id="fbar-save" names={userTemplateNames(useChartWorkspaceStore.getState().drawingTemplates[tplModal.drawing.kind])} preset={tplModal.drawing.kind === FIB_KIND} onClose={() => setTplModal(null)}
       onSave={n => { useChartWorkspaceStore.getState().saveDrawingTemplate(n, templateStyleOf(tplModal.drawing.kind, tplModal.drawing.style), tplModal.drawing.kind); setTplModal(null); }} />}
     {tplModal?.type === 'delete' && <ConfirmModal open title={t('fib.deleteTitle')} message={t('fib.deleteMessage', { name: tplModal.name })} confirmHint={t('fib.deleteConfirm.hint')} variant="danger" onClose={() => setTplModal(null)}
       onConfirm={() => { useChartWorkspaceStore.getState().deleteDrawingTemplate(tplModal.name, tplModal.kind); setTplModal(null); }} />}

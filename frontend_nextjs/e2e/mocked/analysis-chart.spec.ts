@@ -51,7 +51,7 @@ test.describe('ANA-11 Kerzen, fehlende Daten und Marktpausen', () => {
       // Zone USOUSD, Zeitrahmen M15 aus der Adresse, Konto aus der Adresse. Die Formationssuche (UI-22) holt daneben D1, H4, H1 und M15 mit eigenem
       // Zeitraum; die Anfrage des Charts ist die mit dem Zeitraum der Adresse.
       const fromSec = String(Date.parse(`${period.from}T00:00:00Z`) / 1000);
-      const chartCalls = ratesCalls(worker).filter((c) => c.query.get('from') === fromSec);
+      const chartCalls = ratesCalls(worker).filter((c) => c.query.get('from') === fromSec && c.query.get('timeframe') === 'M15'); // M15 dazu: die Formationssuche holt H1 ab einem Tag der Brokeruhr, der an manchen Tagen auf `from` fällt (1124, 2026-11-25)
       expect(chartCalls).toHaveLength(1);
       const call = chartCalls[0];
       expect(call.query.get('symbol')).toBe('USOUSD');
@@ -65,7 +65,7 @@ test.describe('ANA-11 Kerzen, fehlende Daten und Marktpausen', () => {
       await expect(chart).toHaveAttribute('data-gap-areas', '1');
       // Keine erfundenen Kerzen: der Chart hat genau die Kerzen, die der Worker geliefert hat. Ein Abruf:
       // der Zeitraum steht erst mit der Brokeruhr fest, vorher wird nichts geladen
-      const delivered = worker.ratesDelivered[worker.ratesQueries.findIndex((q) => new URLSearchParams(q).get('from') === fromSec)];
+      const delivered = worker.ratesDelivered[worker.ratesQueries.findIndex((q) => { const p = new URLSearchParams(q); return p.get('from') === fromSec && p.get('timeframe') === 'M15'; })];
       expect(delivered).toBeGreaterThan(0);
       await expect(chart).toHaveAttribute('data-bars', String(delivered));
       // Nur eingeschlossene Wochenenden: Randwochenenden haben nicht auf beiden Seiten echte Kerzen.

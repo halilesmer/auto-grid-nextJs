@@ -11,10 +11,10 @@
  */
 import { expect, test } from '@playwright/test';
 import { FormationContext } from '../../src/lib/formation/context';
-import { ABCD_PARAMS, DEFAULT_TREND_SETTINGS } from '../../src/lib/formation/params';
+import { ABCD_PARAMS } from '../../src/lib/formation/params';
 import { readdirSync, readFileSync } from 'node:fs';
 import { parseFixture } from '../../src/lib/formation/fixture';
-import { named, trendOf } from '../fixtures/formation-trend';
+import { named, trendOf, CHART_TREND_HL2 } from '../fixtures/formation-trend';
 import { analyzeAbcd } from '../../src/lib/formation/abcdChecks';
 import type { Candidate, FormationBar } from '../../src/lib/formation/types';
 import { XAUUSD_M15_1114_1120 } from '../fixtures/formation-abcd-overshoot-rows';
@@ -24,7 +24,7 @@ const frm = (title: string, fn: () => void) => test(title, { tag: '@FRM-05' }, f
 const bars: FormationBar[] = XAUUSD_M15_1114_1120.map(([time, open, high, low, close]) => ({ time, open, high, low, close }));
 const at = (iso: string) => Date.parse(`${iso}:00Z`) / 1000;
 /** Trendeinstellung des Charts am 2026-11-23 (Regel `welle`, Wechsel nach 2 Schlüssen) */
-const CHART_TREND = { ...DEFAULT_TREND_SETTINGS, rule: 'welle' as const, changeCloses: 2 };
+const CHART_TREND = { ...CHART_TREND_HL2, rule: 'welle' as const, changeCloses: 2 };
 const ctxOf = (list: FormationBar[]) => new FormationContext('XAUUSD', { M15: { bars: list, missing: [] } }, { trend: CHART_TREND });
 const ctx = ctxOf(bars);
 /** Kandidat zum Zeitpunkt `iso` = Schluss der letzten Kerze */

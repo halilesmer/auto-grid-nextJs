@@ -12,13 +12,12 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { FormationContext } from '../../src/lib/formation/context';
-import { DEFAULT_TREND_SETTINGS } from '../../src/lib/formation/params';
 import { analyzeAbcd, checkAbcdCandidate } from '../../src/lib/formation/abcdChecks';
 import { fibPrice, targetEnd } from '../../src/lib/formation/trade';
 import { tradeStatusOf } from '../../src/lib/formation/tradeStatus';
 import { parseFixture } from '../../src/lib/formation/fixture';
 import type { Candidate, FormationBar } from '../../src/lib/formation/types';
-import { fixtureTrend } from '../fixtures/formation-trend';
+import { fixtureTrend, CHART_TREND_HL2 } from '../fixtures/formation-trend';
 
 const frm = (title: string, fn: () => void) => test(title, { tag: '@FRM-05' }, fn);
 
@@ -112,7 +111,7 @@ const ROWS: [number, number, number, number, number][] = [
   [1778846400, 4554.56, 4563.82, 4532.03, 4545.78],];
 const BARS: FormationBar[] = ROWS.map(([time, open, high, low, close]) => ({ time, open, high, low, close }));
 const at = (iso: string) => Date.parse(`${iso}:00Z`) / 1000;
-const ctxOf = () => new FormationContext('XAUUSD', { H1: { bars: BARS, missing: [] } }, { trend: DEFAULT_TREND_SETTINGS });
+const ctxOf = () => new FormationContext('XAUUSD', { H1: { bars: BARS, missing: [] } }, { trend: CHART_TREND_HL2 });
 /** Das Tripel A 05-14 10:00, B 11:00, C 15:00 direkt gemessen: die Suche zeigt es nie (1122-A1.4 b, siehe letzter Test) */
 const candidateAt = (iso: string): Candidate =>
   checkAbcdCandidate(ctxOf(), at(iso), {

@@ -88,6 +88,10 @@ export const SIG_PARAMS = {
 export const TREND_RULES = ['groesse', 'welle', 'geruest', 'filter', 'welle382'] as const;
 export type TrendRule = (typeof TREND_RULES)[number];
 
+/** Preis, aus dem der EWO des Trendzugs rechnet: Mitte der Kerze (high + low) / 2 wie SIG-10 oder Schluss (Halil 2026-11-25, 1125-A1) */
+export const EWO_SOURCES = ['hl2', 'close'] as const;
+export type EwoSource = (typeof EWO_SOURCES)[number];
+
 /** Regeln ohne Mindestgröße in ATR: `welle` und `welle382` (EWO + Fibo 382) messen die Korrekturen nicht gegen ein ATR-Maß */
 export const ruleHasNoSize = (rule: TrendRule): boolean => rule === 'welle' || rule === 'welle382';
 
@@ -98,6 +102,7 @@ export interface TrendOptions {
   atrPeriod: number;
   ewoFast: number;
   ewoSlow: number;
+  ewoSource: EwoSource;
   ewoRetreat: number;
   changeCloses: number;
 }
@@ -127,6 +132,8 @@ export const TRD_PARAMS = {
     atrPeriod: ATR_PERIOD,
     ewoFast: WAVE_PARAMS.fast,
     ewoSlow: WAVE_PARAMS.slow,
+    /** Rechenbasis der Bibliothek wie SIG-10 */
+    ewoSource: 'hl2' as EwoSource,
     /** Regel `filter`: Eine Korrektur fällt weg, wenn der EWO in ihr weniger als diesen Anteil zurückkam */
     ewoRetreat: 0.2,
   },
@@ -159,6 +166,11 @@ export const DEFAULT_TREND_SETTINGS: TrendSettings = {
   ...TRD_PARAMS.trend,
   /** Chart-Standard (Halil 2026-11-12): EWO + Fibo 382; `TRD_PARAMS.trend.rule` bleibt die Rechenbasis der Bibliothek */
   rule: 'welle382',
+  /**
+   * Chart-Standard (Halil 2026-11-25, 1125-A1.4): EWO aus dem Schluss. Mit (high + low) / 2 setzte der Zug am 2026-09-10 20:00 (EURUSD H4) ein
+   * Hoch, wo Halils EWO-Fenster (Quelle Schluss) den EWO schon rot zeigte.
+   */
+  ewoSource: 'close',
   changeCloses: TRD_PARAMS.changeCloses,
 };
 

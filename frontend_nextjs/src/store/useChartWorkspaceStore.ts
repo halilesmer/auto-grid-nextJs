@@ -11,7 +11,7 @@ import { SYSTEM_RSI_ID, systemRsiIndicator, type Indicator } from '@/lib/chart-w
 import { defaultsOf } from '@/lib/chart-workspace/indicatorStyle';
 import { parseIndicatorDefaults, parseIndicators } from '@/lib/chart-workspace/indicatorStorage';
 import { parsePaneOrder, parseSystemPanes, type SystemPaneStates } from '@/lib/chart-workspace/paneOrder';
-import { FIB_KIND, templateStyleOf, parseDrawingDefaults, parseDrawingTemplates, type DrawingDefaults, type DrawingTemplates } from '@/lib/chart-workspace/fibStyle';
+import { FIB_KIND, PRESET_ID, isReservedName, templateStyleOf, parseDrawingDefaults, parseDrawingTemplates, type DrawingDefaults, type DrawingTemplates } from '@/lib/chart-workspace/fibStyle';
 import { encodeOscStandard, parseOscScope, parseOscStandard, type OscScope, type OscStandard } from '@/lib/chart-workspace/oscStandard';
 import { randomId } from '@/lib/randomId';
 import { encodeAppearance, encodeDrawingDefaults, encodeFibTemplates, encodeSimpleTemplates, encodeTemplates, writeChartPref } from '@/lib/chart-workspace/chartPrefs';
@@ -228,7 +228,7 @@ export const useChartWorkspaceStore = create<State>((set, get) => {
     },
     saveTemplate: (name, appearance) => { if (!name.trim()) return; const templates = { ...get().templates, [name.trim()]: parseAppearance(appearance) }; writeChartPref('chart_appearance_templates', encodeTemplates(templates), () => get().applyPrefs({ templates })); },
     saveIndicatorDefault: indicator => { const indicatorDefaults = { ...get().indicatorDefaults, [indicator.kind]: defaultsOf(indicator) }; writeChartPref('chart_indicator_defaults', { defaults: indicatorDefaults }, () => get().applyPrefs({ indicatorDefaults })); },
-    saveDrawingTemplate: (name, style, kind = FIB_KIND) => { const n = name.trim(); if (!n) return; const t = get().drawingTemplates; commitTemplates({ ...t, [kind]: { ...t[kind], [n]: templateStyleOf(kind, style) } }, kind); },
+    saveDrawingTemplate: (name, style, kind = FIB_KIND) => { const trimmed = name.trim(); if (!trimmed) return; const n = kind === FIB_KIND && isReservedName(trimmed) ? PRESET_ID : trimmed; const t = get().drawingTemplates; commitTemplates({ ...t, [kind]: { ...t[kind], [n]: templateStyleOf(kind, style) } }, kind); },
     deleteDrawingTemplate: (name, kind = FIB_KIND) => { const t = get().drawingTemplates; const next = { ...t[kind] }; delete next[name]; commitTemplates({ ...t, [kind]: next }, kind); },
     saveDrawingDefault: (style, kind = FIB_KIND) => commitDefaults({ ...get().drawingDefaults, [kind]: templateStyleOf(kind, style) }),
     clearDrawingDefault: kind => { const next = { ...get().drawingDefaults }; delete next[kind]; commitDefaults(next); },

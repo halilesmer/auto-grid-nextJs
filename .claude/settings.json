@@ -22,6 +22,21 @@
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/hooks/claude/pre-bash-kill.sh",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/hooks/claude/pre-bash-shared-git.sh",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/hooks/claude/pre-edit-main.sh",
+            "timeout": 10
           }
         ]
       }
