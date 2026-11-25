@@ -108,9 +108,12 @@ test.describe('Harmonik: laufender Handel bleibt, wenn der letzte Wendepunkt wan
       b: { time: at('2026-01-29T01:00'), price: 5597.53 },
       c: { time: at('2026-01-29T17:00'), price: 5105.51 },
     });
-    expect(own.trade?.entry).toBeCloseTo(5310.8, 1);
-    expect(own.trade!.status).toMatchObject({ kind: 'tp1' });
-    expect(own.trade!.status!.endIdx).toBeUndefined();
+    // 1125-A1: die Basis ist ungültig (BUT-01, BUT-03) und ihr D-Level 4671.75 liegt schon vor C (5105.51) überschritten; der frühere Scheinhandel
+    // (Einstieg 5310.80 am Docht der ersten Kerze nach C, dann TP1) entsteht nicht mehr. Die Fälle unten sind damit erst recht nie gezeigt
+    expect(own.verdict).toBe('invalid');
+    expect(own.invalidBy).toEqual(expect.arrayContaining(['BUT-01', 'BUT-03']));
+    expect(own.trade?.entry, 'kein Scheinhandel auf überschrittenem Level').toBeNull();
+    expect(own.trade?.status).toBeUndefined();
     // … aber zum Schluss der Einstiegskerze war eine Kauf-Basis gezeigt
     expect(shown('2026-01-29T19:00').side).toBe('buy');
     for (const iso of ['2026-01-29T20:00', '2026-01-30T12:00', '2026-01-30T16:00']) {

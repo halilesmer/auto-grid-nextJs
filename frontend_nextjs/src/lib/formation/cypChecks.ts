@@ -169,7 +169,9 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number, li
   // Ende der Ziel-Fib höchstens am Stop: ein Docht jenseits des Stops ohne Schluss zieht die Ziele nicht weiter (1121-A14.1)
   const stop = fibPrice(c.price, entry, -P.targets.stop);
   const end = d ? targetEnd(c.price, d.price, stop) : null;
-  const trade: TradeInput = reached && d && end !== null
+  // Vorab: das Level muss auf der D-Seite von C liegen, sonst kein Handel (1125-A1, `harmonicFreeze`)
+  const freeze = reached ? harmonicFreeze(bars, s, entry, HARMONIC_PARAMS.touchPips * pip, true) : null;
+  const trade: TradeInput = reached && d && end !== null && freeze
     ? {
         entry,
         stop,
@@ -178,7 +180,6 @@ function evaluate(env: Env, tf: ContextTimeframe, s: XabcdShape, pip: number, li
         reason: {},
       }
     : { entry: null, stop: null, tp1: null, reason: { entry: 'CYP-07', stop: 'CYP-07', tp1: 'CYP-07' } };
-  const freeze = reached ? harmonicFreeze(bars, s, entry, HARMONIC_PARAMS.touchPips * pip, true) : null;
   return withTrade(candidate, env, tf, trade, false, freeze ? { entryIdx: freeze.idx, from: c.price, targets: P.targets } : undefined);
 }
 

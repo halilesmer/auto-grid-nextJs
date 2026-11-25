@@ -2560,7 +2560,7 @@ kategorien:
         tiers: [e2e]
         pruefung:
           - Playwright-Logiktest e2e/mocked/formation-cyp-lib.spec.ts ausführen (je messbarer Bedingung ein Fall mit ☑ und einer mit ☐ auf von Hand gerechneten Kerzenreihen, dazu Abdeckungstest, Spiegelfall Kauf/Verkauf, Abgrenzung zu Gartley, Bat und AB=CD, Urteil, Ablauf ohne Blick in die Zukunft, Zeichnungen, CYP-10 und LIB-09 und echte Kerzenreihen).
-        erwartet: Jeder Fall stimmt mit der Handrechnung überein; eine Kauf-Cypher und ihr Spiegelbild haben dieselben Zustände; bei den echten Reihen stimmen Punkte, Urteil und der Befund ohne die späteren Kerzen, auch bei den Negativfällen (keine Divergenz, RSI am C zu niedrig, B zu flach, C-Schluss jenseits 1.414, B-Schluss jenseits 0.618).
+        erwartet: Jeder Fall stimmt mit der Handrechnung überein; eine Kauf-Cypher und ihr Spiegelbild haben dieselben Zustände; bei den echten Reihen stimmen Punkte, Urteil und der Befund ohne die späteren Kerzen, auch bei den Negativfällen (keine Divergenz, RSI am C zu niedrig, B zu flach, C-Schluss jenseits 1.414, B-Schluss jenseits 0.618); liegt das Einstiegslevel (0.786 der Fib X → C) nicht auf der D-Seite von C (C auf der falschen Seite von X), gibt es keinen Handel (kein Einstieg, kein Stand; 1125-A1).
 
       - id: FRM-13
         titel: "Butterfly"
