@@ -23,13 +23,14 @@ The trend model and the EWO pane used two different EWOs.
 Data: EURUSD H4 from the DEMO account, read only. Pivots from `buildTrend` with `DEFAULT_TREND_SETTINGS`.
 
 ## Decision
-Halil chose (1125-A1.3, 1125-A1.4) a new setting in the trend panel ("Grafikteki çizgi"): "EWO kaynağı" with "Orta fiyat (Y+D)/2" and "Kapanış". The default is "Kapanış", the source of the EWO pane in Halil's chart. Note: the default source of a new EWO pane is `hl2` (`indicators.ts` in chart-workspace). With that pane source, the line and the pane can show different colors again. Halil chose the default after he saw the design of the field on an Artifact.
+Halil chose (1125-A1.3, 1125-A1.4) a new setting in the trend panel ("Grafikteki çizgi"): "EWO kaynağı" with "Orta fiyat (Y+D)/2" and "Kapanış". The default is "Kapanış", the source of the EWO pane in Halil's chart.  Halil chose the default after he saw the design of the field on an Artifact.
 
 ## Change
 - `TrendOptions.ewoSource` (`'hl2' | 'close'`, `EWO_SOURCES`, `params.ts`). `TRD_PARAMS.trend.ewoSource` stays `hl2` (library base, SIG-10). `DEFAULT_TREND_SETTINGS.ewoSource` is `close`.
 - `wave(bars, fast, slow, source)` (`indicators.ts`); the trend rules use `o.ewoSource` (`trdZug.ts`). The formation context EWO (`context.ts`) is not changed.
 - `sanitizeTrendSettings`: a stored setting without a source, or with an unknown source, becomes `close`. `trendFingerprint` includes the source, so a change starts a new formation scan.
 - Trend panel: segmented field "EWO kaynağı" below "Renk değişimi". It is disabled for the rule "Yalnız asgari boyut" (no EWO). i18n and hints in tr/en/de.
+- A new EWO pane takes the source of the trend line, `DEFAULT_TREND_SETTINGS.ewoSource` (Halil, 1125-A1.5: "Evet, kapanış"). The other values stay from the rulebook (5/35, price difference). The menu entry "Kural kitabı ayarları" still sets `hl2` (SIG-10). Existing panes do not change.
 - `FIXTURE_TREND` sets `ewoSource: 'hl2'`: the formation fixtures were verified with that source.
 
 ## Result
@@ -44,5 +45,4 @@ With the close EWO, the trend from the high 2026-09-09 12:00 goes to the low 202
 - `analysis-trend-lib.spec.ts`: the expected default and the sanitized setting now contain `ewoSource: 'close'`.
 
 ## Open
-- 1125-A1.5: a new EWO pane starts with `hl2`, the trend line now with the close. Halil decides if the pane default changes too.
 - Stored user settings change to `close` at the next load. The formations of all products can change.
