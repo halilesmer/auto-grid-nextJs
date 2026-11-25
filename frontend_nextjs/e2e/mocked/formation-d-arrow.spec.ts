@@ -103,6 +103,8 @@ test.describe('FRM-49 D-Pfeil auf der Seite', () => {
           expect(((await page.getByTestId('formation-d-reason').textContent()) ?? '').split(word).length - 1).toBe(1);
         }
         await expect(page.getByTestId('formation-d-pill')).toHaveAttribute('data-main', e.pill!);
+        // 1124-F11.1: der Grund nennt B mit drei Stellen („B 0,948 > 0,786“, Dezimalzeichen der Sprache)
+        if (e.reason) await expect(page.getByTestId('formation-d-pill')).toContainText(/B \d,\d{3} [<>] \d,\d{3}/);
         await page.mouse.move(5, 5);
         await page.screenshot({ path: test.info().outputPath(`formation-d-arrow-${c.state}.png`) });
         // Hover: der Hinweis nennt Titel und Rest
@@ -118,5 +120,72 @@ test.describe('FRM-49 D-Pfeil auf der Seite', () => {
     await open(page, worker, CASES[1]);
     const name = await page.getByTestId('formation-d-ring-near').evaluate((el) => getComputedStyle(el).animationName);
     expect(name).toBe('none');
+  });
+  // 1124-F11.1: die Etiketten am D (Abzeichen, „D?“, Niveau-Schrift, Grund, Ring) dürfen sich nicht überdecken
+  for (const c of CASES.filter((k) => k.expect.state !== 'none')) {
+    test(`Etiketten überdecken sich nicht: ${c.state}`, { tag: '@FRM-49' }, async ({ page, worker }) => {
+      await open(page, worker, c);
+      await expect(page.getByTestId('formation-d-pill')).toBeVisible();
+      const boxes = await page.evaluate(() => {
+        const pick = (sel: string, name: string) =>
+          [...document.querySelectorAll(sel)].map((el) => {
+            const r = el.getBoundingClientRect();
+            return { name, x: r.left, y: r.top, w: r.width, h: r.height };
+          });
+        return [
+          ...pick('[data-testid="formation-d-pill"]', 'pill'),
+          ...pick('[data-testid="formation-d-badge"]', 'badge'),
+          ...pick('[data-testid="formation-d-level"] text', 'levelLabel'),
+          ...pick('[data-testid="formation-d-reason"] text', 'reasonText'),
+          ...pick('[data-testid="formation-d-band"] text', 'bandLabel'),
+          ...pick('[data-testid="formation-d-ring-near"]', 'ring'),
+        ].filter((b) => b.w > 0 && b.h > 0);
+      });
+      const hits: string[] = [];
+      for (let i = 0; i < boxes.length; i++) {
+        for (let j = i + 1; j < boxes.length; j++) {
+          const a = boxes[i], b = boxes[j];
+          // Der Ring umkreist das D; das Abzeichen „D?“ steht bewusst am D, nicht am Ring
+          if (a.name === 'ring' || b.name === 'ring') continue;
+          if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h) hits.push(`${a.name} × ${b.name}`);
+        }
+      }
+      expect(hits, JSON.stringify(boxes.map((b) => ({ ...b, x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h) })))).toEqual([]);
+    });
+  }
+
+  // 1124-F11.1: der gestrichelte Pfeil fließt zum Ziel; ungültig und reduzierte Bewegung: kein Fluss
+  for (const c of [CASES[0], CASES[2]]) {
+    test(`Pfeil fließt zum Ziel: ${c.state}`, { tag: '@FRM-49' }, async ({ page, worker }) => {
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+      await open(page, worker, c);
+      const line = page.getByTestId('formation-d-arrow-line').locator('line');
+      const name = await line.evaluate((el) => getComputedStyle(el).animationName);
+      expect(name).not.toBe('none');
+      // Der Versatz wird negativ: die Striche wandern in Richtung der Linie, also zum Ziel (die Linie läuft vom Schluss zum D)
+      const keyframes = await page.evaluate((n) => {
+        for (const sheet of [...document.styleSheets]) {
+          for (const rule of [...sheet.cssRules]) {
+            const r = rule as CSSKeyframesRule;
+            if (r.type === CSSRule.KEYFRAMES_RULE && r.name === n) return r.cssText;
+          }
+        }
+        return '';
+      }, name);
+      expect(keyframes).toMatch(/stroke-dashoffset:\s*-11/);
+    });
+  }
+
+  test('reduzierte Bewegung: der Pfeil fließt nicht', { tag: '@FRM-49' }, async ({ page, worker }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await open(page, worker, CASES[0]);
+    const name = await page.getByTestId('formation-d-arrow-line').locator('line').evaluate((el) => getComputedStyle(el).animationName);
+    expect(name).toBe('none');
+  });
+
+  test('ungültig: kein Pfeil, also kein Fluss', { tag: '@FRM-49' }, async ({ page, worker }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await open(page, worker, CASES[4]);
+    await expect(page.getByTestId('formation-d-arrow-line')).toHaveCount(0);
   });
 });

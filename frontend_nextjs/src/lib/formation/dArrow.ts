@@ -73,6 +73,8 @@ export interface DArrowInput {
   y: (price: number) => number | null;
   text: (key: string, params?: Record<string, string | number>) => string;
   fmt: (n: number) => string;
+  /** Verhältnis einer Fib-Stufe mit genau drei Nachkommastellen (z. B. „0,786“; Dezimalzeichen der Sprache) */
+  ratio: (n: number) => string;
   /** Preis-Pips mit einer Nachkommastelle */
   pips: (n: number) => string;
   /** Kurztext der Regel (nie die ID) */
@@ -83,7 +85,7 @@ export interface DArrowModel {
   state: DArrowState;
   side: Side;
   /** D-Niveau: Linie über den Chart, Beschriftung links */
-  level: { y: number; x1: number; x2: number; label: string; strength: 'strong' | 'faint' } | null;
+  level: { y: number; x1: number; x2: number; label: string; strength: 'strong' | 'faint'; /** Senkrechte Verschiebung der Schrift, wenn sie sonst eine andere überdeckt (`separateLabels`) */ labelDy?: number } | null;
   /** Pfeil vom letzten Schluss zum Ziel (D-Ring oder B) */
   arrow: { x1: number; y1: number; x2: number; y2: number; color: string } | null;
   /** Ring des D (nur `near`: blinkt) */
@@ -134,7 +136,7 @@ function dLevelOf(c: Candidate, form: ScanFormation): { price: number; ratio: nu
 const COLOR = { buy: 'var(--success)', sell: 'var(--danger)', warn: 'var(--warning)', bad: 'var(--danger)', target: 'var(--info)', muted: 'var(--muted-foreground)' } as const;
 
 export function layoutDArrow(input: DArrowInput): DArrowModel | null {
-  const { candidate: c, form, width, lastBar, barSec, pip, x, y, text, fmt, pips, ruleName } = input;
+  const { candidate: c, form, width, lastBar, barSec, pip, x, y, text, fmt, ratio: fmtRatio, pips, ruleName } = input;
   if (FINAL_POINT[form] !== 'D' || pip <= 0) return null;
   const rules = RULES[form];
   const side = c.side;
@@ -172,7 +174,7 @@ export function layoutDArrow(input: DArrowInput): DArrowModel | null {
     const pillY = ly + 22;
     const missing = need && B ? Math.abs(B.price - need.price) / pip : null;
     const rB = depth ? c.checks.find((k) => k.id === depth.rule)?.value : undefined;
-    const depthBadge = need && rB !== undefined && depth ? `B ${fmt(rB)} ${deep ? '>' : '<'} ${fmt(need.ratio)}` : null;
+    const depthBadge = need && rB !== undefined && depth ? `B ${fmtRatio(rB)} ${deep ? '>' : '<'} ${fmtRatio(need.ratio)}` : null;
     const shortName = name.length > 30 ? `${name.slice(0, 29)}…` : name;
     const base = {
       state: 'invalid' as const,
@@ -201,7 +203,7 @@ export function layoutDArrow(input: DArrowInput): DArrowModel | null {
           arrow: long ? { x: bx + 14, y1: by + dir * 2, y2: ny - dir } : null,
           arrowLabel: long ? { x: bx + 6, y: (by + ny) / 2 + 4, text: missingText } : null,
           dir,
-          b: { x: bx, y: by, label: text('formation.dArrow.bAt', { ratio: rB === undefined ? '' : fmt(rB) }).trim() },
+          b: { x: bx, y: by, label: text('formation.dArrow.bAt', { ratio: rB === undefined ? '' : fmtRatio(rB) }).trim() },
         },
         hit: { x: x1, y: Math.min(by, ny) - 24, w: Math.max(40, right - x1), h: Math.abs(ny - by) + 48 },
         tip: {
