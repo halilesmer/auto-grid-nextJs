@@ -4,7 +4,7 @@
 > Aktualisieren: `scripts/features/run.sh` (oder in Claude Code `/feature-test`).
 > Manuelles Ergebnis eintragen: `scripts/features/run.sh sign ENG-13 bestanden`.
 
-**Stand:** 2026-11-25 · **253/287** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
+**Stand:** 2026-11-25 · **253/288** abgehakt · ❌ 0 mit Fehlern · 🐞 0 bekannte Fehler
 
 Legende: 🧪 unit · 🔌 api · 🖥️ e2e (gemockt) · 🌐 live (DEMO-Konto) · 👤 manuell — ✅ bestanden · ❌ fehlgeschlagen · 🐞 bekannter Fehler (xfail) · ⏭️ übersprungen · ⏳ noch kein Ergebnis
 
@@ -29,7 +29,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
 | 13 | **UI** – Oberfläche | 31/31 |
 | 14 | **ANA** – Analyse (Chart, Statistik, Backtest) | 25/28 |
 | 15 | **BKT** – Backtest (Musterlösungen, Nachbau, Rechner) | 20/31 |
-| 16 | **FRM** – Formationserkennung | 45/45 |
+| 16 | **FRM** – Formationserkennung | 45/46 |
 | 17 | **NWS** – Nachrichten (Wirtschaftskalender) | 1/3 |
 | 18 | **TLS** – Werkzeuge (Rechner) | 1/1 |
 
@@ -928,7 +928,7 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - **Prüfung:** Gruppenauswahl und Favoriten; Messung und Zoom; Magnet und Sperren; Sichtbarkeit; bestätigtes Löschen und Rückgängig; Fib-Ebenen außerhalb 0–1 anklicken → mit Entf/Rücktaste löschen (1110-A4.8); Preisachse bleibt stehen → solange ein Zeichenwerkzeug aktiv oder ein Zeiger gedrückt ist; die Ausweitung auf die Formationsebenen kommt danach (1116-B1); Zusammenführen und Trennen in Ansichten und Tabs; Bilder und Neuladen; Desktop und 375px in beiden Designs und Vollbild.
   - **Erwartet:** Zeichenaktionen und Objektbearbeitung funktionieren und werden lokal gespeichert.
 - [x] **ANA-18** Standardindikatoren einschließlich RSI und EWO — 🖥️ e2e ✅ 2026-11-16
-  - SMA, EMA, RSI mit Wilder-Glättung, EWO 5/35, MACD, Bollinger und ATR laufen getrennt von Handelslogik und Formationserkennung. Neue RSI und EWO starten mit den Einstellungen des Regelbuchs (1119-B1.4): RSI Länge 7, Schlusskurs, Bänder 80/20, ohne Glättung (SIG-01); EWO SMA 5 − SMA 35 des Medianpreises (Hoch + Tief) / 2 als Preisdifferenz, nicht in Prozent (SIG-10, wie die Formationserkennung). Im Einstellungsfenster setzt der Eintrag „Kural kitabı ayarları“ im Menü Varsayılanlar diese Rechenwerte bei einem vorhandenen RSI oder EWO; Darstellung und Platz bleiben. Datenlücken starten die Anlaufphase neu; Replay veröffentlicht keine Zukunftswerte.
+  - SMA, EMA, RSI mit Wilder-Glättung, EWO 5/35, MACD, Bollinger und ATR laufen getrennt von Handelslogik und Formationserkennung. Neue RSI und EWO starten mit den Einstellungen des Regelbuchs (1119-B1.4): RSI Länge 7, Schlusskurs, Bänder 80/20, ohne Glättung (SIG-01); EWO SMA 5 − SMA 35 als Preisdifferenz, nicht in Prozent (SIG-10); als Quelle nimmt ein neuer EWO die der Trendlinie (Schluss seit 2026-11-25, 1125-A1.5), damit Fenster und Linie dieselbe Farbe zeigen, der Eintrag „Kural kitabı ayarları“ setzt den Medianpreis (Hoch + Tief) / 2 wie die Formationserkennung. Im Einstellungsfenster setzt der Eintrag „Kural kitabı ayarları“ im Menü Varsayılanlar diese Rechenwerte bei einem vorhandenen RSI oder EWO; Darstellung und Platz bleiben. Datenlücken starten die Anlaufphase neu; Replay veröffentlicht keine Zukunftswerte.
   - **Prüfung:** Referenzwerte und Datenlücken prüfen; mehrere Instanzen anlegen; Parameter nach Neuladen prüfen.
   - **Erwartet:** Berechnungen stimmen mit unabhängigen Referenzen überein; Instanzen bleiben je Konto und Symbol getrennt.
 - [x] **ANA-19** Gemeinsame Chart-Einstellungen mit Vorschau und Vorlagen — 🖥️ e2e ✅ 2026-11-16
@@ -1293,6 +1293,10 @@ Häkchen = kein Fehler, mindestens ein bestandener Test bzw. manuelle Freigabe, 
   - Eine Formation im Aufbau zeigt einen gestrichelten Weg von C zum erwarteten D in der Zukunft (Preis = Zielniveau Level 1 bzw. Mitte der D-Zone, Zeit = C plus Dauer von AB, am Rand abgeschnitten), einen Ring „D?“ und den Preis am rechten Rand (Z-ABCD-02). Neben dem Ring steht ein Abzeichen „ABCD · oluşuyor“ (Rahmen Warnung) oder „Gartley ✓“ (gültig, Rahmen Erfolg); der Stand ist als Text lesbar. Mehrere Formationen im Zeitrahmen: Abzeichen in einem Stapel (nächstes D oben), nur die gewählte voll gezeichnet, die übrigen als blasser Ring und blasses Abzeichen; Klick auf ein Abzeichen wählt die Formation; D-Niveaus näher als 1,5 ATR bilden ein Band „D? bölgesi“ mit beiden Preisen (Plan 1105-A5, A5.5/A5.6/A5.6.1).
   - **Prüfung:** Playwright-Test e2e/mocked/formation-expected-d-lib.spec.ts (@FRM-44) ausführen (D-Zeit und -Preis, Weg in die Zukunft und am Rand, Abzeichen im Aufbau und gültig, Stapel, blasse Ringe, Band bei 1,5 ATR; abgelaufene D-Zeit rückt hinter die letzte Kerze, Rozet-Zahl = Ring-Zahl in der Marktlücke, Stapel im Zeichenbereich, Preisschrift weicht dem Stapel aus). → Playwright-Test e2e/mocked/formation-page.spec.ts (@FRM-44) ausführen (ABCD im Aufbau mit Abzeichen, hell und dunkel, 375 px ohne Querscroll).
   - **Erwartet:** Der gestrichelte Weg endet am erwarteten D rechts der letzten Kerze, nicht an deren Schluss; das Abzeichen nennt Name und Stand als Text; nahe D-Niveaus erscheinen als ein Band.
+- [ ] **FRM-49** Formation: D-Pfeil vor dem D — 🖥️ e2e ⏳
+  - Vor dem D zeigt der Chart, was der Kurs tun muss (Plan 1124-F2). D wartet: das D-Niveau der Formation (Butterfly: XA 1,272) ist kräftig und heißt „D hedefi · XA 1,272“, ein gestrichelter Pfeil geht vom letzten Schluss zum D-Ring, daneben das Abzeichen „AL/SAT Preis · n pip · D bekleniyor“; der Hover nennt Handel, fehlende Pflichtregeln, letzten Schluss und Rest in Pips. D nah (höchstens 5 Pips): der Ring blinkt, nur ohne reduzierte Bewegung. B-Bruch fehlt (Pflicht „eine Kerze schließt jenseits von B“ bei Butterfly, Crab, Cypher): der Pfeil geht zu B, das D-Niveau ist blass, Abzeichen „B Preis · kırılma bekleniyor“. Ungültig: kein D-Pfeil, kein D-Ring; das D-Niveau ist blass und heißt „D aranmıyor · formasyon geçersiz“; bei B zu flach (Butterfly BUT-02, Gartley GAR-03, Bat BAT-05, Crab CRB-06, Cypher CYP-03) oder B zu tief (Gartley GAR-15, Bat BAT-14) zeigt die Zeichnung den Grund: rote Linie am nötigen Niveau, roter Pfeil von B, „n pip eksik“ oder „n pip fazla“, B rot umringt; bei den übrigen Formationen und Gründen nur das Abzeichen „Geçersiz · Regel“. D gebildet: kein Pfeil. Die Schriften am D (Abzeichen, „D?“, Niveau, Grund) überdecken sich nicht (labelFit.ts); das Verhältnis im Grund hat drei Stellen („B 0,948 > 0,786“); der gestrichelte Pfeil fließt zum Ziel (nur ohne reduzierte Bewegung, ungültig ohne Pfeil). Alle Texte tr/en/de.
+  - **Prüfung:** Playwright-Test e2e/mocked/formation-d-arrow.spec.ts (@FRM-49) ausführen (die fünf Zustände auf der Seite mit echten Kerzen: Pfeil, Ring, Grund, Abzeichen, Hover; reduzierte Bewegung ohne Blinken und ohne Fluss des Pfeils; keine überdeckten Schriften). → Playwright-Test e2e/mocked/formation-d-arrow-lib.spec.ts (@FRM-49) ausführen (fünf Zustände auf echten Kerzen der Butterfly-Fixtures: D wartet, D nah, B-Bruch fehlt, ungültig mit Grund, D gebildet ohne Pfeil; Grund am B bei Gartley und Bat, zu flach und zu tief; Texte in tr, en und de).
+  - **Erwartet:** Je Zustand ein anderer Pfeil oder Grund; ein ungültiges Muster hat nie einen D-Pfeil; der Grund steht am B.
 
 ## 17. NWS – Nachrichten (Wirtschaftskalender)
 
