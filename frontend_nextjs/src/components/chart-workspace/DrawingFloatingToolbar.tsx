@@ -6,9 +6,10 @@ import { factoryStyleFor, type Drawing, type DrawingManager, type DrawingStyle }
 import { Button } from '@/components/ui/button';
 import { useT, type MessageKey } from '@/i18n';
 import { barButtons, barFamily, firstPlace, keepAlpha, LOCK_DISABLED, nudge, PHONE_BAR_PX, placeSaved, savedRatio, type BarButton, type Rect } from '@/lib/chart-workspace/floatingBar';
-import { FIB_KIND, factoryFibStyle, pickSimpleStyle, presetFibStyle, templateStyleOf } from '@/lib/chart-workspace/fibStyle';
+import { FIB_KIND, PRESET_ID, factoryFibStyle, pickSimpleStyle, presetStyleOf, templateStyleOf, userTemplateNames } from '@/lib/chart-workspace/fibStyle';
 import { cn } from '@/lib/utils';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
+import { PresetReset } from './FibSettingsDialog';
 import { OHLC_LINE_PX } from './IndicatorLegend';
 import type { ChartBinding } from './runtime';
 
@@ -60,7 +61,7 @@ export function DrawingFloatingToolbar({ drawings, manager, binding, root: rootR
   const [drag, setDrag] = useState<{ x: number; y: number } | null>(null);
   const [open, setOpen] = useState<{ id: BarButton; left: number } | null>(null);
   const [place, setPlace] = useState<{ left: number; top: number; width: number; phone: boolean } | null>(null);
-  const templates = useMemo(() => Object.keys(userTemplates ?? {}).sort((a, b) => a.localeCompare(b, 'tr')), [userTemplates]);
+  const templates = useMemo(() => userTemplateNames(userTemplates).sort((a, b) => a.localeCompare(b, 'tr')), [userTemplates]);
   const family = barFamily(drawings.map(d => d.kind));
   const buttons = barButtons(family);
   const first = drawings[0];
@@ -195,7 +196,10 @@ export function DrawingFloatingToolbar({ drawings, manager, binding, root: rootR
     if (open.id === 'style') return pop(list(LINES.map(s => item(s, t(k(`style.${s}`)), t(k(`style.${s}.hint`)), first?.style.lineStyle === s, `fbar-style-${s}`, () => patch(d => ({ ...d, style: { ...d.style, lineStyle: s } }))))));
     if (open.id === 'size') return pop(list(SIZES.map(n => item(n, t(k('size.option'), { n }), t(k('size.option.hint'), { n }), n === (first?.style.fontSize ?? 14), `fbar-size-${n}`, () => patch(d => ({ ...d, style: { ...d.style, fontSize: n } }))))));
     if (open.id === 'template') return pop(list(<>
-      {isFib && item('preset', t('fib.presetName'), t(k('template.preset.hint')), undefined, 'fbar-template-preset', () => applyTemplate(presetFibStyle()))}
+      {isFib && <div className="flex items-center gap-1" data-testid="fbar-template-preset-row">
+        <div className="min-w-0 flex-1">{item('preset', userTemplates?.[PRESET_ID] ? `${t('fib.presetName')} (${t('fib.changed')})` : t('fib.presetName'), t(k('template.preset.hint')), undefined, 'fbar-template-preset', () => applyTemplate(presetStyleOf(userTemplates)))}</div>
+        {userTemplates?.[PRESET_ID] && <PresetReset testId="fbar-template-preset-reset" onReset={() => { useChartWorkspaceStore.getState().deleteDrawingTemplate(PRESET_ID, kind); setOpen(null); }} />}
+      </div>}
       {templates.map(n => <div key={n} className="group flex items-center" data-testid="fbar-template-row">
         <div className="min-w-0 flex-1">{item(n, n, t(k('template.user.hint')), activeName(userTemplates?.[n] ?? {}) || undefined, 'fbar-template-user', () => applyTemplate(templateStyleOf(kind, userTemplates?.[n])))}</div>
         <Button size="icon-xs" variant="ghost" className="shrink-0 text-muted-foreground hover:text-danger" data-testid="fbar-template-delete" aria-label={t('fib.deleteTemplate', { name: n })} hint={t('fib.deleteTemplate.hint')} onClick={() => { onDeleteTemplate(n, kind); setOpen(null); }}><X size={14} /></Button>

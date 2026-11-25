@@ -106,8 +106,9 @@ test('UI-27: die feste Vorlage setzt 24 Plätze; Vorlage speichern, anwenden, ü
   await page.getByTestId('fib-save-as').click();
   const name = page.getByTestId('fib-template-name');
   await name.fill(msg('fib.presetName'));
-  await expect(page.getByTestId('fib-save-warning')).toHaveText(msg('fib.reserved'));
-  await expect(page.getByTestId('fib-save-confirm')).toBeDisabled();
+  await expect(page.getByTestId('fib-save-info')).toHaveText(msg('fib.overwriteBuiltin', { name: msg('fib.presetName') }));
+  await expect(page.getByTestId('fib-save-warning')).toHaveCount(0);
+  await expect(page.getByTestId('fib-save-confirm')).toBeEnabled();
   await name.fill('Meine');
   await page.getByTestId('fib-save-confirm').click();
   await expect.poll(() => page.evaluate((key) => Object.keys(JSON.parse(localStorage.getItem(key) || '{}').drawingTemplates?.['fib-retracement'] ?? {}), KEY)).toEqual(['Meine']);
@@ -123,7 +124,8 @@ test('UI-27: die feste Vorlage setzt 24 Plätze; Vorlage speichern, anwenden, ü
   await menu().click();
   await page.getByTestId('fib-save-as').click();
   await page.getByTestId('fib-template-name').fill('Meine');
-  await expect(page.getByTestId('fib-save-warning')).toHaveText(msg('fib.exists', { name: 'Meine' }));
+  await expect(page.getByTestId('fib-save-info')).toHaveText(msg('fib.overwriteUser', { name: 'Meine' }));
+  await expect(page.getByTestId('fib-save-warning')).toHaveCount(0);
   await expect(page.getByTestId('fib-save-confirm')).toHaveText(msg('fib.overwrite'));
   await page.getByTestId('fib-save-confirm').click();
   // Löschen mit Rückfrage
@@ -216,3 +218,52 @@ for (const [tf, unit, other] of [['D1', 'days', 'weeks'], ['W1', 'weeks', 'days'
     expect(saved?.[unit as 'days']?.on).toBe(false);
   });
 }
+
+test('UI-27: hazır şablonun üzerine yaz, uygula yeni stili verir, Orijinal ayarlara dön hazır seti geri getirir (1124-A7)', { tag: '@UI-27' }, async ({ page, worker }) => {
+  void worker;
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.goto(URL);
+  const at = await drawFib(page);
+  await openByDoubleClick(page, at);
+  const menu = () => dialog(page).getByTestId('fib-template-menu');
+  const copy = () => page.evaluate((key) => JSON.parse(localStorage.getItem(key) || '{}').drawingTemplates?.['fib-retracement']?.__preset__ ?? null, KEY) as Promise<{ levels: Level[] } | null>;
+  const first = () => levelBoxes(page).first().getByRole('checkbox');
+  const presetFirstVisible = presetFibStyle().levels[0].visible;
+  await menu().click();
+  await expect(page.getByTestId('fib-template-preset')).toContainText(msg('fib.builtin'));
+  await expect(page.getByTestId('fib-template-preset-reset')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  // İlk satırı kapat, hazır adın üzerine kaydet: kırmızı uyarı yok, düğme "Üzerine yaz"
+  await first().setChecked(!presetFirstVisible);
+  await menu().click();
+  await page.getByTestId('fib-save-as').click();
+  await page.getByTestId('fib-template-name').fill(msg('fib.presetName'));
+  await expect(page.getByTestId('fib-save-warning')).toHaveCount(0);
+  await expect(page.getByTestId('fib-save-info')).toHaveText(msg('fib.overwriteBuiltin', { name: msg('fib.presetName') }));
+  await expect(page.getByTestId('fib-save-confirm')).toHaveText(msg('fib.overwrite'));
+  await page.getByTestId('fib-template-name').press('Enter');
+  await expect.poll(async () => (await copy())?.levels[0].visible).toBe(!presetFirstVisible);
+  await expect(page.getByTestId('fib-save-dialog')).toHaveCount(0);
+  // Kopya ayrı satır olmaz; hazır satır "değiştirildi" etiketi ve geri dönüş düğmesi taşır
+  await menu().click();
+  await expect(page.getByTestId('fib-template-row')).toHaveCount(0);
+  await expect(page.getByTestId('fib-template-preset')).toContainText(msg('fib.changed'));
+  await expect(page.getByTestId('fib-template-preset-reset')).toBeVisible();
+  await expect(page.getByTestId('fib-template-preset').locator('svg').first()).not.toHaveClass(/opacity-0/); // 1124-A7.1.4: Haken steht auf der festen Zeile
+  // Fabrikwerte, sonra hazır şablonu uygula: kullanıcının kopyası gelir
+  await page.getByTestId('fib-apply-defaults').click();
+  await menu().click();
+  await page.getByTestId('fib-template-preset').click();
+  await expect(levelBoxes(page)).toHaveCount(24);
+  if (presetFirstVisible) await expect(first()).not.toBeChecked(); else await expect(first()).toBeChecked();
+  // Orijinal ayarlara dön: kopya silinir, hazır set geri
+  await menu().click();
+  await page.getByTestId('fib-template-preset-reset').click();
+  await expect.poll(copy).toBeNull();
+  await expect(first()).toBeChecked({ checked: presetFirstVisible });
+  await menu().click();
+  await expect(page.getByTestId('fib-template-preset')).toContainText(msg('fib.builtin'));
+  await expect(page.getByTestId('fib-template-preset-reset')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await dialog(page).getByTestId('fib-cancel').click();
+});

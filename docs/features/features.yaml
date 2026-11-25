@@ -1769,8 +1769,9 @@ kategorien:
           - "Ein Level ändern und X drücken: Rückfrage; Pencerede kal lässt das Fenster offen, Kaydetme verwirft, Kaydet speichert; im Farbpanel „+“ eine Farbe wählen: sie steht nach dem Neuladen neben „+“. Playwright-Test e2e/mocked/chart-fib-unsaved.spec.ts (@UI-27)."
           - "/chart öffnen, eine Fibonacci-Zeichnung ziehen, doppelt darauf klicken: Fenster mit Tab Stil; ein Level abwählen und İptal drücken: Zeichnung unverändert; Şablon → Geniş Fib seti und Tamam: 18 Level an, 6 aus."
           - "Level-Text eintragen und Deckkraft auf 50 stellen, Tamam: der Text steht auf der Linie, die Linie ist halb durchsichtig; Zeile Text abwählen: der Text verschwindet. Playwright-Test e2e/mocked/chart-fib-text-opacity.spec.ts (@UI-27)."
+          - "Şablon → Farklı kaydet…, Namen „Geniş Fib seti“ eingeben: graue Infozeile statt roter Warnung, Knopf „Üzerine yaz“ (1124-A7); danach zeigt die feste Vorlage „değiştirildi“ und den Knopf „Orijinal ayarlara dön“, Anwenden gibt die eigenen Einstellungen, der Knopf stellt die feste Vorlage wieder her. Playwright-Test e2e/mocked/chart-fib-settings.spec.ts (@UI-27)."
           - "Tab Koordinatlar: Preis ändern, İptal verwirft, Tamam speichert; Tab Görünürlük: auf D1 die Zeile Günler abwählen, die Zeichnung verschwindet; auf W1 nur Haftalar, auf MN nur Aylar."
-        erwartet: "Das Fenster öffnet per Doppelklick; Änderungen wirken sofort, İptal verwirft sie, Tamam speichert; die feste Vorlage setzt alle 24 Plätze; Vorlagen lassen sich speichern, überschreiben und löschen; bei 375 px kein Überlauf; Schließen mit ungespeicherten Änderungen fragt nach."
+        erwartet: "Das Fenster öffnet per Doppelklick; Änderungen wirken sofort, İptal verwirft sie, Tamam speichert; die feste Vorlage setzt alle 24 Plätze; Vorlagen lassen sich speichern, überschreiben (auch die feste Vorlage: ihre Kopie ersetzt sie bis „Orijinal ayarlara dön“) und löschen; bei 375 px kein Überlauf; Schließen mit ungespeicherten Änderungen fragt nach."
 
       - id: UI-28
         titel: "Rechtsklick-Menü auf Zeichnungen und Kürzel Alt+F"
@@ -1791,6 +1792,7 @@ kategorien:
           - "Playwright-Tests e2e/mocked/chart-floating-bar.spec.ts und chart-floating-bar-lib.spec.ts (@UI-29) ausführen."
           - "/chart öffnen, eine Fibonacci-Zeichnung ziehen und anklicken: Leiste oben in der Mitte; Farbe wählen: alle Level haben die Farbe; Löschen und ⌘Z: Zeichnung ist zurück; Esc schließt die Leiste."
           - "Playwright-Test e2e/mocked/chart-floating-bar-templates.spec.ts (@UI-29): Trendlinie auf Stärke 4 stellen, Vorlage speichern, auf eine neue Linie anwenden, nach dem Neuladen steht die Liste noch, Löschen entfernt sie; alte Fibonacci-Vorlagen bleiben."
+          - "Geänderte feste Fibonacci-Vorlage in der Leiste: Zeile mit „değiştirildi“ und Knopf „Orijinal ayarlara dön“, die Kopie erscheint nicht als eigene Zeile. Playwright-Test e2e/mocked/chart-floating-bar-templates.spec.ts (@UI-29)."
           - "Griff ziehen, Seite neu laden, Zeichnung wählen: Leiste am gleichen Platz; Doppelklick auf den Griff: wieder oben in der Mitte. Bei 375 px: Leiste unten, kein Griff, kein seitliches Scrollen."
         erwartet: "Die Leiste folgt der Auswahl, die Knöpfe passen zur Art, Sperre schaltet die richtigen Knöpfe ab, der gezogene Platz bleibt nach dem Neuladen, bei 375 px sitzt sie unten ohne Überlauf."
 

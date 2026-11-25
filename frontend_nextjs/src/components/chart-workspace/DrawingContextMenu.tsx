@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowDownToLine, ArrowUpToLine, Check, ChevronDown, ChevronRight, ChevronUp, Copy, Eye, EyeOff, Layers, ListTree, Lock, LockOpen, Settings2, Trash2 } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpToLine, Check, ChevronDown, ChevronRight, ChevronUp, Copy, Eye, EyeOff, Layers, ListTree, Lock, LockOpen, RotateCcw, Settings2, Trash2 } from 'lucide-react';
 import type { Drawing, DrawingManager } from 'lightweight-charts-drawing';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useT, type MessageKey } from '@/i18n';
-import { FIB_KIND, normalizeFibStyle, presetFibStyle, fibStyleEqual } from '@/lib/chart-workspace/fibStyle';
+import { FIB_KIND, PRESET_ID, normalizeFibStyle, presetStyleOf, userTemplateNames, fibStyleEqual } from '@/lib/chart-workspace/fibStyle';
 import { randomId } from '@/lib/randomId';
 import { cn } from '@/lib/utils';
 import { useChartWorkspaceStore } from '@/store/useChartWorkspaceStore';
@@ -66,8 +66,9 @@ export function DrawingContextMenu({ drawing, position, manager, allLocked, onCl
   const active = (s: ReturnType<typeof normalizeFibStyle>) => !!currentStyle && fibStyleEqual(currentStyle, s);
   const apply = (s: ReturnType<typeof normalizeFibStyle>) => done(() => manager.update({ ...fresh(), style: { ...fresh().style, ...s } } as Drawing));
   const templateEntries: Entry[] = isFib ? [
-    { id: 'tpl-preset', testId: 'ctx-template-preset', label: t('fib.presetName'), hint: t(k('applyTemplate.hint')), icon: <Check size={14} className={active(presetFibStyle()) ? '' : 'opacity-0'} />, disabled: frozen, onSelect: apply(presetFibStyle()) },
-    ...Object.keys(user).sort((a, b) => a.localeCompare(b, 'tr')).map(n => ({ id: `tpl-${n}`, testId: 'ctx-template-user', label: n, hint: t(k('applyTemplate.hint')), icon: <Check size={14} className={active(normalizeFibStyle(user[n])) ? '' : 'opacity-0'} />, disabled: frozen, onSelect: apply(normalizeFibStyle(user[n])) })),
+    { id: 'tpl-preset', testId: 'ctx-template-preset', label: user[PRESET_ID] ? `${t('fib.presetName')} (${t('fib.changed')})` : t('fib.presetName'), hint: t(k('applyTemplate.hint')), icon: <Check size={14} className={active(presetStyleOf(user)) ? '' : 'opacity-0'} />, disabled: frozen, onSelect: apply(presetStyleOf(user)) },
+    ...(user[PRESET_ID] ? [{ id: 'tpl-preset-reset', testId: 'ctx-template-preset-reset', label: t('fib.presetReset'), hint: t('fib.presetReset.hint'), icon: <RotateCcw size={14} />, disabled: frozen, onSelect: () => { store().deleteDrawingTemplate(PRESET_ID); onClose(); } }] : []),
+    ...userTemplateNames(user).sort((a, b) => a.localeCompare(b, 'tr')).map(n => ({ id: `tpl-${n}`, testId: 'ctx-template-user', label: n, hint: t(k('applyTemplate.hint')), icon: <Check size={14} className={active(normalizeFibStyle(user[n])) ? '' : 'opacity-0'} />, disabled: frozen, onSelect: apply(normalizeFibStyle(user[n])) })),
     { id: 'tpl-save', testId: 'ctx-template-save', label: t(k('saveTemplate')), hint: t(k('saveTemplate.hint')), icon: <Copy size={14} />, onSelect: () => setSaving(true) },
   ] : [];
 
@@ -112,7 +113,7 @@ export function DrawingContextMenu({ drawing, position, manager, allLocked, onCl
     return () => { document.removeEventListener('pointerdown', down, true); window.removeEventListener('keydown', key, true); window.removeEventListener('blur', blur); window.removeEventListener('resize', blur); };
   }, [saving, onClose]);
 
-  if (saving) return <SaveTemplateModal id={id} names={Object.keys(user)} onClose={onClose} onSave={n => { store().saveDrawingTemplate(n, normalizeFibStyle(fresh().style)); onClose(); }} />;
+  if (saving) return <SaveTemplateModal id={id} names={userTemplateNames(user)} preset onClose={onClose} onSave={n => { store().saveDrawingTemplate(n, normalizeFibStyle(fresh().style)); onClose(); }} />;
 
   const row = (e: Entry, nested = false): ReactNode => <div key={e.id}>
     <Tooltip content={e.hint} className="w-full">
