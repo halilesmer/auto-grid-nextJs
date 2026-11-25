@@ -1,6 +1,6 @@
 import type { Bar, MissingRange } from '@/lib/analysis/candles';
 import { randomId } from '@/lib/randomId';
-import { RSI_PARAMS, WAVE_PARAMS } from '@/lib/formation/params';
+import { DEFAULT_TREND_SETTINGS, RSI_PARAMS, WAVE_PARAMS } from '@/lib/formation/params';
 
 /** The gray swatch of the line menu: stays a CSS variable in the document, so the line follows the theme (runtime resolves it) */
 export const INDICATOR_GRAY = 'var(--muted-foreground)';
@@ -83,6 +83,7 @@ export interface IndicatorResult { main: Value[]; extra: Value[][]; divergences:
  * the rulebook settings (1119-B1.4): RSI = SIG-01 (length 7, close, bands 80/20, no smoothing); EWO = SIG-10 (SMA 5 − SMA 35 of the
  * median price (high + low) / 2, a price difference, not a percent). The formation rules compute with the same numbers.
  * New RSI and EWO indicators start with them; the dialog's defaults menu applies them to an existing one.
+ * Exception: a new EWO uses the source of the trend line (close since 2026-11-25, Halil 1125-A1.5), so the pane and the line show the same colour.
  */
 export const RULEBOOK_SETTINGS: Partial<Record<IndicatorKind, Partial<Indicator>>> = {
   RSI: { period: RSI_PARAMS.period, source: 'close', smoothing: 'none', upper: RSI_PARAMS.overbought, middle: 50, lower: RSI_PARAMS.oversold },
@@ -107,7 +108,8 @@ export function newIndicator(kind: IndicatorKind, color = ''): Indicator {
     percent: true, divergence: false, labels: true, values: true, timeframe: 0, waitClose: true,
     plotType: 'line', precision: -1, statusInputs: false, visibility: structuredClone(DEFAULT_VISIBILITY), rowStyles: {},
   };
-  return withRulebookSettings(indicator);
+  const ruled = withRulebookSettings(indicator);
+  return kind === 'EWO' ? { ...ruled, source: DEFAULT_TREND_SETTINGS.ewoSource } : ruled;
 }
 
 /** Readable text of the built-in calculation. It is shown only and never evaluated. */

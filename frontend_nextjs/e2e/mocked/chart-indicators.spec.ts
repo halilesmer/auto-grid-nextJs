@@ -20,7 +20,7 @@ test('EWO, MACD, Bollinger und ATR: unabhängige lineare Referenzen', { tag: '@A
   const data = bars(Array.from({ length: 40 }, (_, i) => i + 1));
   const ewo = newIndicator('EWO');
   expect(calculateIndicator(data, ewo).main.slice(0,34)).toEqual(Array(34).fill(null));
-  // Default = rulebook (1119-B1.4): median price, price difference; the test bars are symmetric, so hl2 = close
+  // Default = rulebook (1119-B1.4) with the source of the trend line (close, 1125-A1.5), price difference; the test bars are symmetric, so hl2 = close
   expect(calculateIndicator(data, ewo).main.at(-1)).toBe(15);
   expect(calculateIndicator(data, { ...ewo, source: 'close', percent: true }).main.at(-1)).toBeCloseTo(37.5, 10);
   const macd = calculateIndicator(data, newIndicator('MACD'));
@@ -101,10 +101,10 @@ test('Replay-Maske bewahrt die gespeicherte Sichtbarkeit zukünftiger Zeichnunge
   expect(mask.snapshot(manager).map(r => !!r.hidden)).toEqual([false,false,true]);
 });
 
-test('1119-B1.4: new RSI and EWO start with the rulebook settings; the menu entry sets only the calculation values', { tag: '@ANA-18' }, () => {
+test('1119-B1.4: new RSI and EWO start with the rulebook settings (EWO source: close like the trend line, 1125-A1.5); the menu entry sets only the calculation values', { tag: '@ANA-18' }, () => {
   const rsi = newIndicator('RSI'), ewo = newIndicator('EWO');
   expect({ period: rsi.period, source: rsi.source, smoothing: rsi.smoothing, upper: rsi.upper, lower: rsi.lower }).toEqual({ period: 7, source: 'close', smoothing: 'none', upper: 80, lower: 20 });
-  expect({ period: ewo.period, slow: ewo.slow, source: ewo.source, percent: ewo.percent }).toEqual({ period: 5, slow: 35, source: 'hl2', percent: false });
+  expect({ period: ewo.period, slow: ewo.slow, source: ewo.source, percent: ewo.percent }).toEqual({ period: 5, slow: 35, source: 'close', percent: false });
   // A user EWO with the old values and its own colour: the entry sets the rulebook values and keeps the look and the place
   const old = { ...ewo, source: 'close' as const, percent: true, period: 8, color: '#123456', width: 3 as const, paneId: 'p1' };
   const rb = withRulebookSettings(old);
