@@ -176,7 +176,7 @@ function filterRule(ewo: Series, minLeg: Size, limit: number): ZugRule {
 
 export function zugRule(o: TrendOptions, bars: readonly FormationBar[], minLeg: Size): ZugRule {
   if (o.rule === 'groesse') return sizeRule(minLeg);
-  const ewo = wave(bars, o.ewoFast, o.ewoSlow);
+  const ewo = wave(bars, o.ewoFast, o.ewoSlow, o.ewoSource);
   if (o.rule === 'welle') return waveRule(ewo);
   if (o.rule === 'welle382') return wave382Rule(ewo);
   if (o.rule === 'geruest') return scaffoldRule(ewo, minLeg);

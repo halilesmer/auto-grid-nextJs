@@ -10,7 +10,9 @@ import { expect, test } from '@playwright/test';
 import { FormationContext, type ContextInput } from '../../src/lib/formation/context';
 import { buildTrend, lineAnchorPositions, trendLines } from '../../src/lib/formation/trd';
 import { wave } from '../../src/lib/formation/indicators';
-import { DEFAULT_TREND_SETTINGS, type TrendOptions } from '../../src/lib/formation/params';
+import { DEFAULT_TREND_SETTINGS, TRD_PARAMS, type TrendOptions } from '../../src/lib/formation/params';
+import { sanitizeTrendSettings, trendFingerprint } from '../../src/lib/formation/trdPath';
+import { EWO_SOURCE_EURUSD_H4 } from '../fixtures/trd-ewo-source-eurusd-rows';
 import { analyzeCrb } from '../../src/lib/formation/crbChecks';
 import { closesInRowBeyond } from '../../src/lib/formation/obo';
 import { buildEnv } from '../../src/lib/formation/reasons';
@@ -966,5 +968,38 @@ test.describe('TRD: Trend der Formationen', () => {
     expect([formationCloses({ ...DEFAULT_TREND_SETTINGS, changeCloses: 2 }), formationCloses(DEFAULT_TREND_SETTINGS)]).toEqual([2, 1]);
     expect(closesInRowBeyond(rows, 'support', 99, { from: 0, to: 3, closes: 1 })).toBe(true);
     expect(closesInRowBeyond(rows, 'support', 99, { from: 0, to: 3, closes: 2 })).toBe(false);
+  });
+});
+
+// ---- EWO-Quelle des Trendzugs (1125-A1, Halil 2026-11-25) ---------------------------------------------------------
+
+test.describe('TRD: EWO-Quelle', () => {
+  const ana = (name: string, fn: () => void) => test(name, { tag: '@ANA-21' }, fn);
+  const bars: FormationBar[] = EWO_SOURCE_EURUSD_H4.map(([time, open, high, low, close]) => ({ time, open, high, low, close }));
+  const at = (iso: string) => bars.findIndex((b) => b.time === Date.parse(iso) / 1000);
+  const pivotsOf = (ewoSource: 'hl2' | 'close') =>
+    buildTrend('H4', bars, [], { ...DEFAULT_TREND_SETTINGS, ewoSource }).pivots.filter((p) => p.idx >= at('2026-09-01T00:00Z')).map((p) => [p.idx, p.side]);
+
+  ana('EURUSD H4 2026-09-10 20:00: der EWO aus (Hoch + Tief) / 2 ist grün, aus dem Schluss rot', () => {
+    const top = at('2026-09-10T20:00Z');
+    expect(wave(bars, 5, 35, 'hl2')[top]! > 0).toBe(true);
+    expect(wave(bars, 5, 35, 'close')[top]! < 0).toBe(true);
+  });
+
+  ana('EWO + Fibo 382 mit dem Schluss setzt kein Hoch, wo der EWO des Fensters rot ist; mit (Hoch + Tief) / 2 schon', () => {
+    const low = at('2026-09-10T16:00Z');
+    const top = at('2026-09-10T20:00Z');
+    expect(pivotsOf('hl2')).toEqual(expect.arrayContaining([[low, 'support'], [top, 'resistance']]));
+    // Schluss: der Zug läuft vom Hoch 2026-09-09 12:00 ohne Zwischenpunkt zum Tief 2026-09-24 16:00
+    expect(pivotsOf('close')).toEqual([[at('2026-09-02T08:00Z'), 'support'], [at('2026-09-09T12:00Z'), 'resistance'], [at('2026-09-24T16:00Z'), 'support']]);
+  });
+
+  ana('Standard ist der Schluss; gespeicherte Einstellungen ohne Quelle oder mit unbekannter Quelle fallen darauf, (Hoch + Tief) / 2 bleibt', () => {
+    expect(DEFAULT_TREND_SETTINGS.ewoSource).toBe('close');
+    expect(TRD_PARAMS.trend.ewoSource).toBe('hl2');
+    expect(sanitizeTrendSettings({ rule: 'welle382' }).ewoSource).toBe('close');
+    expect(sanitizeTrendSettings({ ewoSource: 'open' }).ewoSource).toBe('close');
+    expect(sanitizeTrendSettings({ ewoSource: 'hl2' }).ewoSource).toBe('hl2');
+    expect(trendFingerprint({ ...DEFAULT_TREND_SETTINGS, ewoSource: 'hl2' })).not.toBe(trendFingerprint(DEFAULT_TREND_SETTINGS));
   });
 });

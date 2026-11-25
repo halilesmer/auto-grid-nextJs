@@ -5,7 +5,7 @@ import { InputField } from '@/components/ui/InputField';
 import { NumberInput } from '@/components/ui/NumberInput';
 import { FieldLabel } from '@/components/ui/tooltip';
 import { useFormat, useT, type MessageKey } from '@/i18n';
-import { DEFAULT_TREND_SETTINGS, TREND_LIMITS, TREND_RULES, ruleHasNoSize, type TrendRule, type TrendSettings } from '@/lib/formation/params';
+import { DEFAULT_TREND_SETTINGS, EWO_SOURCES, TREND_LIMITS, TREND_RULES, ruleHasNoSize, type EwoSource, type TrendRule, type TrendSettings } from '@/lib/formation/params';
 import { useTrendConfirm } from '@/hooks/useTrendConfirm';
 import { ewoPairValid, trendFingerprint } from '@/lib/formation/trdPath';
 import { cn } from '@/lib/utils';
@@ -13,15 +13,15 @@ import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 
 const fieldClass = 'w-full min-w-0 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground';
 
-function Segmented<T extends string | number>({ label, hint, value, options, onChange }: {
-  label: string; hint: string; value: T; options: { value: T; label: string; hint: string }[]; onChange: (v: T) => void;
+function Segmented<T extends string | number>({ label, hint, value, options, onChange, disabled = false, testId }: {
+  label: string; hint: string; value: T; options: { value: T; label: string; hint: string }[]; onChange: (v: T) => void; disabled?: boolean; testId?: string;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1.5">
+    <div className={cn('flex min-w-0 flex-col gap-1.5', disabled && 'opacity-50')} data-testid={testId}>
       <FieldLabel label={label} hint={hint} className="text-xs font-medium text-muted-foreground" />
       <div role="group" aria-label={label} className="grid auto-cols-fr grid-flow-col gap-1">
         {options.map((o) => (
-          <Button key={o.value} size="sm" variant={o.value === value ? 'secondary' : 'ghost'} aria-pressed={o.value === value} hint={o.hint} onClick={() => onChange(o.value)}>{o.label}</Button>
+          <Button key={o.value} size="sm" variant={o.value === value ? 'secondary' : 'ghost'} aria-pressed={o.value === value} hint={o.hint} disabled={disabled} onClick={() => onChange(o.value)}>{o.label}</Button>
         ))}
       </div>
     </div>
@@ -99,6 +99,10 @@ export function TrendSettingsPanel() {
         <Segmented<number>
           label={t('cw.trend.closes')} hint={t('cw.trend.closes.hint')} value={s.changeCloses} onChange={(v) => set('changeCloses', v)}
           options={[1, 2].map((n) => ({ value: n, label: t(`cw.trend.closes.${n}` as MessageKey), hint: t(`cw.trend.closes.${n}.hint` as MessageKey) }))}
+        />
+        <Segmented<EwoSource>
+          label={t('cw.trend.ewoSource')} hint={t('cw.trend.ewoSource.hint')} value={s.ewoSource} onChange={(v) => set('ewoSource', v)} disabled={s.rule === 'groesse'} testId="trend-ewoSource"
+          options={EWO_SOURCES.map((x) => ({ value: x, label: t(`cw.trend.ewoSource.${x}` as MessageKey), hint: t(`cw.trend.ewoSource.${x}.hint` as MessageKey) }))}
         />
         <div className="grid grid-cols-3 gap-2">
           <IntField name="ewoFast" value={s.ewoFast} limit={TREND_LIMITS.ewoFast} onCommit={(n) => set('ewoFast', n)} />

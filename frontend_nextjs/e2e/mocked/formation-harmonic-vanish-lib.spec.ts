@@ -2,7 +2,7 @@
  * Harmoniken: ein eingegangener, noch laufender Handel verschwindet nicht aus der Suche, wenn neue Kerzen kommen
  * (Entscheidung 1120-A42.1: nur ein beendeter Handel darf wegfallen). Live-Befund `candidateVanished` (FRM-39, EURUSD H4-Scan, 2026-11-20).
  *
- * Echte EURUSD-Kerzen, nur die Formations-Zeiteinheit geladen, Chart-Standard-Trendzug (DEFAULT_TREND_SETTINGS).
+ * Echte EURUSD-Kerzen, nur die Formations-Zeiteinheit geladen, Chart-Standard-Trendzug bis 2026-11-24 (CHART_TREND_HL2, EWO aus (Hoch + Tief) / 2).
  *
  * 1. H1 Bat (Kauf): X 08-18 09:00, A 1.17109, B 1.16507, C 1.16792; Einstieg 1.15827, Stop 1.15337, Einstieg 08-29, Stand offen.
  *    Mit der Kerze 08-31 19:00 wird D (08-31 00:00) ein Wendepunkt und 08-31 17:00 ein neuer C. Früher suchte `selectBases` C nur unter den
@@ -16,7 +16,6 @@
  */
 import { expect, test } from '@playwright/test';
 import { FormationContext } from '../../src/lib/formation/context';
-import { DEFAULT_TREND_SETTINGS } from '../../src/lib/formation/params';
 import { analyzeBat, checkBatCandidate } from '../../src/lib/formation/batChecks';
 import { analyzeGar, checkGarCandidate } from '../../src/lib/formation/garChecks';
 import { analyzeBut, checkButCandidate } from '../../src/lib/formation/butChecks';
@@ -26,6 +25,7 @@ import { buildEnv } from '../../src/lib/formation/reasons';
 import { shiftC } from '../../src/lib/formation/xabcd';
 import type { Anchor, Candidate, FormationBar } from '../../src/lib/formation/types';
 import { EURUSD_H1_0817_0831, EURUSD_H4_0720_0914, type VanishRow } from '../fixtures/formation-vanish-rows';
+import { CHART_TREND_HL2 } from '../fixtures/formation-trend';
 
 const frm = (title: string, fn: () => void) => test(title, { tag: '@FRM-07' }, fn);
 
@@ -34,7 +34,7 @@ const at = (iso: string) => Date.parse(`${iso}:00Z`) / 1000;
 
 type Analyze = (ctx: FormationContext, t: number) => { tf: string; candidate: Candidate }[];
 const candidateAt = (analyze: Analyze, tf: 'H1' | 'H4', rows: VanishRow[], iso: string): Candidate => {
-  const ctx = new FormationContext('EURUSD', { [tf]: { bars: barsOf(rows), missing: [] } }, { trend: DEFAULT_TREND_SETTINGS });
+  const ctx = new FormationContext('EURUSD', { [tf]: { bars: barsOf(rows), missing: [] } }, { trend: CHART_TREND_HL2 });
   return analyze(ctx, at(iso)).find((a) => a.tf === tf)!.candidate;
 };
 /** Punkte und Handel, wie die Suche sie zeigt */
@@ -107,7 +107,7 @@ test.describe('Harmonik: laufender Handel bleibt in der Suche', () => {
     let checked = 0;
     for (const [tf, rows] of WINDOWS) {
       const bars = barsOf(rows);
-      const ctx = new FormationContext('EURUSD', { [tf]: { bars, missing: [] } }, { trend: DEFAULT_TREND_SETTINGS });
+      const ctx = new FormationContext('EURUSD', { [tf]: { bars, missing: [] } }, { trend: CHART_TREND_HL2 });
       const pivotsAt = (t: number) => {
         const env = buildEnv(ctx, t, tf)!;
         const view = env.views.get(tf)!.bars;
@@ -143,10 +143,10 @@ test.describe('Harmonik: laufender Handel bleibt in der Suche', () => {
   frm('Schutz: kein Blick nach vorn — das Ergebnis zur Zeit t ist mit und ohne spätere Kerzen gleich', () => {
     for (const [tf, rows] of WINDOWS) {
       const bars = barsOf(rows);
-      const full = new FormationContext('EURUSD', { [tf]: { bars, missing: [] } }, { trend: DEFAULT_TREND_SETTINGS });
+      const full = new FormationContext('EURUSD', { [tf]: { bars, missing: [] } }, { trend: CHART_TREND_HL2 });
       for (let i = 80; i < bars.length; i += 15) {
         const t = bars[i].time + DUR[tf];
-        const cut = new FormationContext('EURUSD', { [tf]: { bars: bars.slice(0, i + 1), missing: [] } }, { trend: DEFAULT_TREND_SETTINGS });
+        const cut = new FormationContext('EURUSD', { [tf]: { bars: bars.slice(0, i + 1), missing: [] } }, { trend: CHART_TREND_HL2 });
         for (const [form, analyze] of FORMS) {
           const a = analyze(full, t).find((x) => x.tf === tf)!.candidate;
           const b = analyze(cut, t).find((x) => x.tf === tf)!.candidate;
@@ -158,7 +158,7 @@ test.describe('Harmonik: laufender Handel bleibt in der Suche', () => {
 
   frm('eine leere Zeiteinheit neben der Formations-Zeiteinheit bricht die Suche nicht ab', () => {
     const bars = barsOf(EURUSD_H4_0720_0914);
-    const ctx = new FormationContext('EURUSD', { D1: { bars: [], missing: [] }, H4: { bars, missing: [] }, H1: { bars: [], missing: [] } }, { trend: DEFAULT_TREND_SETTINGS });
+    const ctx = new FormationContext('EURUSD', { D1: { bars: [], missing: [] }, H4: { bars, missing: [] }, H1: { bars: [], missing: [] } }, { trend: CHART_TREND_HL2 });
     const t = bars[bars.length - 1].time + DUR.H4;
     for (const [form, analyze] of FORMS) {
       const res = analyze(ctx, t);

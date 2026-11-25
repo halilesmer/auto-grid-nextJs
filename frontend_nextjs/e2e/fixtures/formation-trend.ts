@@ -9,7 +9,14 @@ import { type Page } from '@playwright/test';
 import { DEFAULT_TREND_SETTINGS, TREND_LIMITS, type TrendSettings } from '../../src/lib/formation/params';
 import { sanitizeTrendSettings, usableTrendSettings } from '../../src/lib/formation/trdPath';
 
-export const FIXTURE_TREND: TrendSettings = { ...DEFAULT_TREND_SETTINGS, rule: 'groesse', minSize: TREND_LIMITS.minSize.min, changeCloses: 2 };
+/**
+ * Chart-Standard bis 2026-11-24: EWO + Fibo 382 mit dem EWO aus (Hoch + Tief) / 2. Die Fälle aus echten Charts (Suche, Ziele, Fensteranfang) wurden
+ * damit aufgenommen; seit 2026-11-25 rechnet der Chart-Standard den EWO aus dem Schluss (1125-A1.4).
+ */
+export const CHART_TREND_HL2: TrendSettings = { ...DEFAULT_TREND_SETTINGS, ewoSource: 'hl2' };
+
+// EWO aus (Hoch + Tief) / 2: mit dieser Quelle wurden die Fixtures geprüft; der Chart-Standard ist seit 2026-11-25 der Schluss (1125-A1.4)
+export const FIXTURE_TREND: TrendSettings = { ...DEFAULT_TREND_SETTINGS, rule: 'groesse', minSize: TREND_LIMITS.minSize.min, changeCloses: 2, ewoSource: 'hl2' };
 
 /**
  * Seiten-Tests: der Browser rechnet mit der Einstellung der Fixture (Standard FIXTURE_TREND). Ohne `force` bleibt eine
