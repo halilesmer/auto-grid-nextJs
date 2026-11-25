@@ -18,7 +18,7 @@ Halil compared `/chart` with TradingView (2026-11-24). The box under the last pr
 - Format: under 1 hour `52:47`, under 1 day `02:50:53`, from 1 day `3g 02:50`. Seconds are cut off, not rounded. Day letter from i18n: tr `g`, en `d`, de `T` (`cw.priceClock.day`).
 - The box is hidden when the close time is past and no newer candle came (weekend, market closed). A new candle brings it back through `update()`. The attribute `data-price-clock` is removed while the box is hidden.
 - `PriceClockState` has three new fields: `lastBarTime`, `timeframe`, `dayUnit`. `ChartWorkspace` passes the open time of the last bar of the chart.
-- Setting: the stored key `priceClock` is unchanged. Name and hint are now "Mum kapanışına kalan süre" and "Fiyat etiketinin altında, son mumun kapanmasına kalan süreyi gösterir." (tr; en and de equivalents). The older `cw.countdown` (seconds at the bottom left) has the same Turkish name; the dialog now holds two rows with it when both are available. Not changed here.
+- Setting: the stored key `priceClock` is unchanged. Name and hint: tr "Fiyat etiketinde geri sayım" ("Fiyat etiketinin altında, son mumun kapanmasına kalan süreyi gösterir."), en "Countdown on price label", de "Countdown am Preisschild". First the name was "Mum kapanışına kalan süre", the same as the older `cw.countdown` (seconds at the bottom left); decision 1124-A12.1 (2026-11-25) renamed it to avoid two equal rows. `cw.countdown` is unchanged.
 - Unchanged: hide rules (past view, backtest, unknown offset, `priceLabel` off, under 1024 px), the one-second tick and the rule that asks for a redraw only when the text changed.
 
 ## Check
