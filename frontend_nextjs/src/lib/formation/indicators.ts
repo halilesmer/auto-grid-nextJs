@@ -29,13 +29,14 @@ function sma(values: readonly number[], period: number): Series {
   return out;
 }
 
-/** Wave (SIG-10): SMA(fast) − SMA(slow) des Medianpreises; Histogramm im Unterfenster */
+/** Wave (SIG-10): SMA(fast) − SMA(slow) des Medianpreises (`source` = 'close': des Schlusses); Histogramm im Unterfenster */
 export function wave(
   bars: readonly FormationBar[],
   fast: number = WAVE_PARAMS.fast,
   slow: number = WAVE_PARAMS.slow,
+  source: 'hl2' | 'close' = 'hl2',
 ): Series {
-  const median = bars.map((b) => (b.high + b.low) / 2);
+  const median = bars.map((b) => (source === 'close' ? b.close : (b.high + b.low) / 2));
   const f = sma(median, fast);
   const s = sma(median, slow);
   return median.map((_, i) => {

@@ -16,6 +16,7 @@ import { countTests, type ZoneSide } from '../../src/lib/formation/frz';
 import { FRZ_PARAMS } from '../../src/lib/formation/params';
 import { formationTrend } from '../../src/lib/formation/trdFormation';
 import type { FormationBar } from '../../src/lib/formation/types';
+import { CHART_TREND_HL2 } from '../fixtures/formation-trend';
 
 const frm = (name: string, fn: () => void) => test(name, { tag: '@FRM-18' }, fn);
 const N = FRZ_PARAMS.neighbors;
@@ -86,7 +87,7 @@ function trendDigests(): Record<string, string> {
   const out: Record<string, string> = {};
   for (const file of readdirSync(FX).filter((f) => f.endsWith('.json')).sort()) {
     const fx = parseFixture(JSON.parse(readFileSync(`${FX}/${file}`, 'utf-8')));
-    const ctx = new FormationContext(fx.symbol, { [fx.timeframe]: fx.bars });
+    const ctx = new FormationContext(fx.symbol, { [fx.timeframe]: fx.bars }, { trend: CHART_TREND_HL2 });
     const t = fx.bars[fx.bars.length - 1].time + TIMEFRAME_SEC[fx.timeframe];
     for (const tf of ctx.timeframes()) {
       const view = ctx.view(tf, t)!;

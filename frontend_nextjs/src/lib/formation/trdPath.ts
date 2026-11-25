@@ -9,6 +9,7 @@ import {
   TREND_LIMITS,
   type ContextTimeframe,
   TREND_RULES,
+  EWO_SOURCES,
   type TrendSettings,
 } from './params';
 import type { FormationBar } from './types';
@@ -125,7 +126,7 @@ export function usableTrendSettings(s: TrendSettings): TrendSettings {
 /** Kurzer Schlüssel der wirksamen Einstellungen: ändert er sich, ändern sich Linie und Formationen (neue Suche) */
 export const trendFingerprint = (s: TrendSettings): string => {
   const u = usableTrendSettings(s);
-  return [u.rule, u.minSize, u.ewoRetreat, u.changeCloses, u.ewoFast, u.ewoSlow, u.atrPeriod].join('/');
+  return [u.rule, u.minSize, u.ewoRetreat, u.changeCloses, u.ewoFast, u.ewoSlow, u.ewoSource, u.atrPeriod].join('/');
 };
 
 /** Gespeicherte Einstellungen vom Browser-Speicher: unbekannte oder kaputte Werte fallen auf den Standard */
@@ -139,6 +140,7 @@ export function sanitizeTrendSettings(raw: unknown): TrendSettings {
     changeCloses: p.changeCloses === 1 || p.changeCloses === 2 ? p.changeCloses : d.changeCloses,
     ewoFast: clamped(p.ewoFast, TREND_LIMITS.ewoFast, d.ewoFast, true),
     ewoSlow: clamped(p.ewoSlow, TREND_LIMITS.ewoSlow, d.ewoSlow, true),
+    ewoSource: EWO_SOURCES.find((x) => x === p.ewoSource) ?? d.ewoSource,
     atrPeriod: clamped(p.atrPeriod, TREND_LIMITS.atrPeriod, d.atrPeriod, true),
   };
 }

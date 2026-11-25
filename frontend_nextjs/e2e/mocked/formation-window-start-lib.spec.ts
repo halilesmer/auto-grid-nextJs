@@ -12,11 +12,12 @@ import { ratesWindow, TIMEFRAME_SEC } from '../../src/lib/analysis/candles';
 import { pastRequestEnd } from '../../src/lib/formation/asOf';
 import { analyzeAbcd } from '../../src/lib/formation/abcdChecks';
 import { FormationContext } from '../../src/lib/formation/context';
-import { DEFAULT_TREND_SETTINGS, HISTORY_DAYS } from '../../src/lib/formation/params';
+import { HISTORY_DAYS } from '../../src/lib/formation/params';
 import { buildEnvWithoutZones } from '../../src/lib/formation/reasons';
 import { formationRequests } from '../../src/lib/formation/requests';
 import type { Candidate, FormationBar } from '../../src/lib/formation/types';
 import { XAUUSD_M15_0907_0928 } from '../fixtures/formation-window-start-xau-rows';
+import { CHART_TREND_HL2 } from '../fixtures/formation-trend';
 
 const frm = (title: string, fn: () => void) => test(title, { tag: ['@FRM-38', '@FRM-05'] }, fn);
 
@@ -25,7 +26,7 @@ const DAY = 86400;
 const at = (iso: string) => Date.parse(`${iso}:00Z`) / 1000;
 const iso = (s: number) => new Date(s * 1000).toISOString().slice(0, 16);
 const bars: FormationBar[] = XAUUSD_M15_0907_0928.map(([time, open, high, low, close]) => ({ time, open, high, low, close }));
-const opts = { trend: DEFAULT_TREND_SETTINGS };
+const opts = { trend: CHART_TREND_HL2 };
 
 /** Kontext wie die Suche ihn zu `t` lädt: M15-Anfrage aus `formationRequests`, hizalt mit `ratesWindow` (wie `useMarketRates`) */
 const chartCtx = (t: number) => {
