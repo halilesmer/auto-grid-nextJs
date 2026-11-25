@@ -282,11 +282,17 @@ function frozenFactsOf(
  * dieselben Werte wie `evaluateFull`. Einstieg und Stand hängen nicht am Urteil, an Zonen, Signalen oder Zeichnungen, nur an der Form, der
  * Einstiegsumgebung (`frozenFactsOf`) und der ATR. Prüfliste, Zeichnungen und Urteil fehlen: nie anzeigen, für die Anzeige `evaluate` rechnen.
  */
-export function tradeOnlyOf(env: Env, p: AbcdPoints, pip: number, atEntry: AtEntry): Candidate {
+export function tradeOnlyOf(env: Env, p: AbcdPoints, pip: number, atEntry: AtEntry, limit?: number): Candidate {
   const { tf } = env;
   const view = env.views.get(tf)!;
   const { bars } = view;
-  const s = shapeOf(bars, p);
+  // D friert am Ende des Handels ein (1124-A2.1): zweite Messung mit D bis zur Endkerze
+  if (limit === undefined) {
+    const first = tradeOnlyOf(env, p, pip, atEntry, bars.length - 1);
+    const endIdx = first.trade?.status?.endIdx;
+    return endIdx !== undefined && endIdx < bars.length - 1 ? tradeOnlyOf(env, p, pip, atEntry, endIdx) : first;
+  }
+  const s = shapeOf(bars, p, undefined, limit);
   const { d } = s;
   const points: Candidate['points'] = {
     A: { time: bars[s.a.idx].time, price: s.a.price },
@@ -323,14 +329,22 @@ function evaluateFull(
   dInput: AbcdPoint | undefined,
   pip: number,
   atEntry?: AtEntry,
+  limit?: number,
 ): { candidate: Candidate; big: BigTarget | null; frozenFrom: AbcdPoint | null } {
+  // D friert am Ende des Handels ein (1124-A2.1): zweite Messung mit D bis zur Endkerze; eigene Punkte mit D bleiben unberührt
+  if (limit === undefined && dInput === undefined) {
+    const nBars = env.views.get(env.tf)!.bars.length;
+    const first = evaluateFull(env, p, dInput, pip, atEntry, nBars - 1);
+    const endIdx = first.candidate.trade?.status?.endIdx;
+    return endIdx !== undefined && endIdx < nBars - 1 ? evaluateFull(env, p, dInput, pip, atEntry, endIdx) : first;
+  }
   abcdWork.full++;
   const { tf } = env;
   const view = env.views.get(tf)!;
   const trend = env.trends.get(tf)!;
   const { bars } = view;
   const last = bars.length - 1;
-  const s = shapeOf(bars, p, dInput);
+  const s = shapeOf(bars, p, dInput, limit);
   const { es, cs, side, d } = s;
   const checks: Check[] = [];
   const add = (id: string, state: CheckState, value?: number, kind?: RuleKind) => checks.push(mk(id, state, value, kind));
@@ -580,7 +594,7 @@ function evaluateFull(
     });
     if (cLeg) input.cLeg = cLeg;
   }
-  const drawings = drawingsOf(env, s, reached, divState === 'met', targetFrom, secondLevels.find(isNear), input.stop, freezeIdx, status, early, input.tpBig ?? null);
+  const drawings = drawingsOf(env, s, reached, divState === 'met', targetFrom, secondLevels.find(isNear), input.stop, freezeIdx, status, early, input.tpBig ?? null, early ? null : input.entry);
   const withDrawings = checks.map((c) => ({
     ...c,
     drawings: [...new Set(drawings.filter((x) => x.rules.includes(c.id)).map((x) => x.id))],
@@ -604,7 +618,7 @@ function evaluateFull(
   return { candidate: traded, big, frozenFrom };
 }
 
-function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolean, from: AbcdPoint, second: number | undefined, stop: number | null, freezeIdx: number, status: TradeStatus | null, early: EarlyReversal | null, bigTarget: number | null): Drawing[] {
+function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolean, from: AbcdPoint, second: number | undefined, stop: number | null, freezeIdx: number, status: TradeStatus | null, early: EarlyReversal | null, bigTarget: number | null, entry: number | null): Drawing[] {
   const bars = env.views.get(env.tf)!.bars;
   const at = (idx: number, price: number): Anchor => ({ time: bars[idx].time, price });
   const lastTime = bars[bars.length - 1].time;
@@ -647,6 +661,11 @@ function drawingsOf(env: Env, s: AbcdShape, reached: boolean, divergence: boolea
       out.push({ id: 'Z-ABCD-07', tool: 'hline', anchors: [at(moved ?? freezeIdx, shown)], rules: TRADE_RULES, side });
       out.push({ id: 'Z-ABCD-08', tool: 'label', anchors: [{ time: lastTime, price: shown }], label: 'stop', rules: TRADE_RULES, side });
     }
+  }
+  // 1124-F2.6: Einstiegslinie ab der Einstiegskerze mit Beschriftung (blau); der Einstieg liegt an Level 1
+  if (s.d && reached && entry !== null) {
+    out.push({ id: 'Z-ABCD-11', tool: 'hline', anchors: [at(freezeIdx, entry)], label: 'entry', rules: TRADE_RULES, side });
+    out.push({ id: 'Z-ABCD-12', tool: 'label', anchors: [{ time: lastTime, price: entry }], label: 'entry', rules: TRADE_RULES, side });
   }
   // 1114-A4.3: großes AB=CD-Ziel als eine Linie mit Beschriftung (läuft mit dem äußersten Docht wie die Ziel-Fib)
   if (s.d && reached && bigTarget !== null) {
@@ -711,12 +730,15 @@ function earlierCs(bars: readonly FormationBar[], p: AbcdPoints): AbcdPoints[] {
  * Proportion verloren; das AB=CD wird nicht mehr gewählt. Gemessen erst nach der Endkerze (das Ende zeigt sich einmal, 1120-A42.1); ein
  * laufender Handel ist nie betroffen (Vorrang 1122-A1.3). Vor dem Einstieg kann D nicht über Level 1 hinaus sein (Einstieg an Level 1).
  */
-function proportionLost(c: Candidate, last: number): boolean {
+function proportionLost(c: Candidate, last: number, bars: readonly FormationBar[], p: AbcdPoints | undefined): boolean {
   const endIdx = c.trade?.status?.endIdx;
-  const { A, B, C, D } = c.points;
-  if (endIdx === undefined || endIdx >= last || !A || !B || !C || !D) return false;
+  const { A, B } = c.points;
+  if (endIdx === undefined || endIdx >= last || !A || !B || !p) return false;
+  // Gemessen am äußersten Docht bis zur letzten Kerze, nicht am eingefrorenen D des Handels (1124-A2.1): die Regel misst, wie weit das D-Bein weiterlief
+  const d = shapeOf(bars, p).d;
+  if (!d) return false;
   const ab = Math.abs(B.price - A.price);
-  return ab > 0 && Math.abs(D.price - C.price) > ABCD_PARAMS.maxCdAb * ab;
+  return ab > 0 && Math.abs(d.price - p.c.price) > ABCD_PARAMS.maxCdAb * ab;
 }
 
 /**
@@ -793,7 +815,7 @@ export function analyzeAbcd(ctx: FormationContext, t: number): AbcdAnalysis[] {
     let picked: Candidate | null = null;
     for (const p of order) {
       const c = candidateFor(p);
-      if (!hidden(c) && !proportionLost(c, last)) {
+      if (!hidden(c) && !proportionLost(c, last, bars, pointsOf.get(c))) {
         picked = c;
         break;
       }
@@ -846,7 +868,7 @@ export function analyzeAbcd(ctx: FormationContext, t: number): AbcdAnalysis[] {
       picked = null;
       for (const p of order) {
         const c = candidateFor(p);
-        if (!hidden(c) && !ghost(c) && !proportionLost(c, last)) {
+        if (!hidden(c) && !ghost(c) && !proportionLost(c, last, bars, pointsOf.get(c))) {
           picked = c;
           break;
         }

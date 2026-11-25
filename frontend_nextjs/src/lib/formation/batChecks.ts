@@ -14,7 +14,7 @@ import { nearEdge } from './cdt';
 import { rsiExtreme } from './sig';
 import { exemptFor, settle } from './settle';
 import { ABCD_PARAMS, BAT_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
-import { frozenStopDrawings, harmonicFreeze, harmonicStop, harmonicTargetEnd, harmonicTrade, withTrade, type HarmonicFreeze } from './tradeApply';
+import { frozenEntryDrawings, frozenStopDrawings, harmonicFreeze, harmonicStop, harmonicTargetEnd, harmonicTrade, withTrade, type HarmonicFreeze } from './tradeApply';
 import type { Env } from './reasons';
 import {
   analyzeXabcd,
@@ -201,6 +201,7 @@ function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, dLevel: numbe
     });
     // Der Stop ist eingefroren und steht als eigene Linie, nicht als Level der mitlaufenden Ziel-Fib
     if (freeze) out.push(...frozenStopDrawings(['Z-BAT-07', 'Z-BAT-08'], bars, freeze, harmonicStop(a, freeze, t.stop), side));
+    if (freeze) out.push(...frozenEntryDrawings(['Z-BAT-09', 'Z-BAT-10'], bars, freeze, side));
   }
   return out;
 }

@@ -7,7 +7,7 @@ import { FINAL_POINT, type ScanFormation } from './scan';
 import type { Anchor, Candidate, Drawing } from './types';
 import type { FormationLineRole } from './lineStyle';
 
-export type Tone = 'side' | 'ratio' | 'target' | 'zone' | 'mark' | 'text';
+export type Tone = 'side' | 'ratio' | 'target' | 'entry' | 'zone' | 'mark' | 'text';
 
 export type Prim =
   | { kind: 'line'; x1: number; y1: number; x2: number; y2: number; tone: Tone; role: FormationLineRole; dashed?: boolean; width?: number; dotted?: boolean }
@@ -188,7 +188,7 @@ export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
       case 'hline': {
         const p = pts[0];
         if (!p || p.px === null || p.py === null) return prims;
-        prims.push({ kind: 'line', x1: right(p.px), y1: p.py, x2: width - 6, y2: p.py, tone: 'target', role: 'target', dotted: true });
+        prims.push({ kind: 'line', x1: right(p.px), y1: p.py, x2: width - 6, y2: p.py, tone: d.label === 'entry' ? 'entry' : 'target', role: 'target', dotted: true });
         return prims;
       }
       case 'zone': {
@@ -220,7 +220,7 @@ export function layoutDrawings(input: LayoutInput): DrawingGroup[] {
         if (!p0 || p0.py === null) return prims;
         const single = d.label ? (`formation.draw.${d.label}` as const) : 'formation.draw.levelOne';
         const key = p1 ? 'formation.draw.stop' : single;
-        prims.push({ kind: 'text', x: width - 6, y: p0.py - 4, text: text(key), tone: 'target', anchor: 'end' });
+        prims.push({ kind: 'text', x: width - 6, y: p0.py - 4, text: text(key), tone: d.label === 'entry' ? 'entry' : 'target', anchor: 'end' });
         if (p1 && p1.py !== null) prims.push({ kind: 'text', x: width - 6, y: p1.py - 4, text: text('formation.draw.target'), tone: 'target', anchor: 'end' });
         return prims;
       }

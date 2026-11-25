@@ -466,7 +466,7 @@ test.describe('GAR und BAT: Abgrenzung, Urteil und Zeichnungen', () => {
 
   frm('Zeichnungen: Z-GAR 01 bis Z-GAR 05 immer, Z-GAR 06 nur mit erreichtem D, auch bei ☐', () => {
     const ok = run('GAR', { H4: GAR_BASE });
-    expect(ok.drawings.map((d) => d.id)).toEqual(['Z-GAR-01', 'Z-GAR-02', 'Z-GAR-03', 'Z-GAR-04', 'Z-GAR-05', 'Z-GAR-06', 'Z-GAR-07', 'Z-GAR-08']);
+    expect(ok.drawings.map((d) => d.id)).toEqual(['Z-GAR-01', 'Z-GAR-02', 'Z-GAR-03', 'Z-GAR-04', 'Z-GAR-05', 'Z-GAR-06', 'Z-GAR-07', 'Z-GAR-08', 'Z-GAR-09', 'Z-GAR-10']);
     const short = run('GAR', { H4: GAR_D_SHORT });
     expect(short.drawings.map((d) => d.id)).toEqual(['Z-GAR-01', 'Z-GAR-02', 'Z-GAR-03', 'Z-GAR-04', 'Z-GAR-05']);
     expect(ok.drawings.find((d) => d.id === 'Z-GAR-02')!.levels).toEqual([0.5, 0.618, 0.786, 0.886]);
@@ -478,7 +478,7 @@ test.describe('GAR und BAT: Abgrenzung, Urteil und Zeichnungen', () => {
 
   frm('Zeichnungen: Z-BAT 01 bis Z-BAT 05 immer, Z-BAT 06 nur mit erreichtem D', () => {
     const ok = run('BAT', { H4: BAT_BASE });
-    expect(ok.drawings.map((d) => d.id)).toEqual(['Z-BAT-01', 'Z-BAT-02', 'Z-BAT-03', 'Z-BAT-04', 'Z-BAT-05', 'Z-BAT-06', 'Z-BAT-07', 'Z-BAT-08']);
+    expect(ok.drawings.map((d) => d.id)).toEqual(['Z-BAT-01', 'Z-BAT-02', 'Z-BAT-03', 'Z-BAT-04', 'Z-BAT-05', 'Z-BAT-06', 'Z-BAT-07', 'Z-BAT-08', 'Z-BAT-09', 'Z-BAT-10']);
     const short = run('BAT', { H4: BAT_D_SHORT });
     expect(short.drawings.map((d) => d.id)).toEqual(['Z-BAT-01', 'Z-BAT-02', 'Z-BAT-03', 'Z-BAT-04', 'Z-BAT-05']);
     expect(ok.drawings.find((d) => d.id === 'Z-BAT-02')!.levels).toEqual([0.5, 0.618, 0.886]);

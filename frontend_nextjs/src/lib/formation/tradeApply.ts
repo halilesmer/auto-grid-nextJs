@@ -110,9 +110,18 @@ export function harmonicFreeze(
 export const harmonicStop = (from: { price: number }, freeze: HarmonicFreeze, stopLevel: number): number =>
   fibPrice(from.price, freeze.entryLevel ?? freeze.touchEnd, -stopLevel);
 
-/** Ende der Ziel-Fib `from → D` in der Zeichnung: höchstens am eingefrorenen Stop wie TP1/TP2 im Handel (1121-A14.1); der Punkt D bleibt am Docht */
+/** Ende der Ziel-Fib `from → D` in der Zeichnung: höchstens am eingefrorenen Stop wie TP1/TP2 im Handel (1121-A14.1); D selbst bleibt bis zum Ende des Handels am äußersten Docht und friert danach ein (1124-A2.1, `evaluateFrozenD`) */
 export const harmonicTargetEnd = (from: { price: number }, d: { price: number }, freeze: HarmonicFreeze | null, stopLevel: number): number =>
   freeze ? targetEnd(from.price, d.price, harmonicStop(from, freeze, stopLevel)) : d.price;
+
+/** Einstiegslinie ab der Berührungskerze (blau, wie Stop-Linie gleicher Beginn) und ihre Beschriftung (1124-F2.6); der Preis ist der „Giriş“ des Handelsblocks */
+export function frozenEntryDrawings(ids: [string, string], bars: readonly FormationBar[], freeze: HarmonicFreeze, side: Side): Drawing[] {
+  const price = freeze.entryLevel ?? freeze.touchEnd;
+  return [
+    { id: ids[0], tool: 'hline', anchors: [{ time: bars[freeze.idx].time, price }], label: 'entry', rules: TRADE_RULES, side },
+    { id: ids[1], tool: 'label', anchors: [{ time: bars[bars.length - 1].time, price }], label: 'entry', rules: TRADE_RULES, side },
+  ];
+}
 
 /** Stop-Linie ab der Berührungskerze und ihre Beschriftung (wie Z-ABCD-07 und Z-ABCD-08); der Stop läuft nicht mit der Ziel-Fib */
 export function frozenStopDrawings(ids: [string, string], bars: readonly FormationBar[], freeze: HarmonicFreeze, stop: number, side: Side): Drawing[] {

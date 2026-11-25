@@ -181,7 +181,7 @@ test.describe('BUT: Abgrenzung, Urteil und Zeichnungen', () => {
 
   frm('Zeichnungen: Z-BUT 01, 02, 03, 04, 06 immer, Z-BUT 05 nur mit erreichtem D', () => {
     const ok = run({ H4: BASE });
-    expect(ok.drawings.map((d) => d.id)).toEqual(['Z-BUT-01', 'Z-BUT-02', 'Z-BUT-03', 'Z-BUT-04', 'Z-BUT-06', 'Z-BUT-05', 'Z-BUT-07', 'Z-BUT-08']);
+    expect(ok.drawings.map((d) => d.id)).toEqual(['Z-BUT-01', 'Z-BUT-02', 'Z-BUT-03', 'Z-BUT-04', 'Z-BUT-06', 'Z-BUT-05', 'Z-BUT-07', 'Z-BUT-08', 'Z-BUT-09', 'Z-BUT-10']);
     const short = run({ H4: D_SHORT });
     expect(short.drawings.map((d) => d.id)).toEqual(['Z-BUT-01', 'Z-BUT-02', 'Z-BUT-03', 'Z-BUT-04', 'Z-BUT-06']);
     expect(ok.drawings.find((d) => d.id === 'Z-BUT-01')!.levels).toEqual([0.786, 0.886, 1.272]);

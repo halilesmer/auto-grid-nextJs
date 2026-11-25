@@ -2935,6 +2935,15 @@ kategorien:
           - "Playwright-Test e2e/mocked/formation-d-arrow-lib.spec.ts (@FRM-49) ausführen (fünf Zustände auf echten Kerzen der Butterfly-Fixtures: D wartet, D nah, B-Bruch fehlt, ungültig mit Grund, D gebildet ohne Pfeil; Grund am B bei Gartley und Bat, zu flach und zu tief; Texte in tr, en und de)."
         erwartet: Je Zustand ein anderer Pfeil oder Grund; ein ungültiges Muster hat nie einen D-Pfeil; der Grund steht am B.
 
+      - id: FRM-50
+        titel: "Formation: D am Ende des Handels eingefroren, Einstiegslinie"
+        beschreibung: "Plan 1124-A2.1 und 1124-F2.6. Endet der Handel einer Harmonik (Gartley, Bat, Butterfly, Crab, Cypher) oder von AB=CD vor der letzten Kerze (Stop, Rest am Einstieg, TP2), friert D an der Endkerze ein: D ist der äußerste Docht von C bis einschließlich der Endkerze (`evaluateFrozenD` in xabcd.ts, zweite Messung in abcdChecks.ts). Spätere Kerzen ändern D und alles, was an D hängt (D-Wert der Fib-Bedingung, ATR-Abstände, Zone, RSI, Divergenz, Umkehr in der tieferen Zeiteinheit), nicht mehr. Läuft der Handel, folgt D weiter dem äußersten Docht. Gartley, Bat, Butterfly, Crab und AB=CD zeichnen eine blaue gepunktete Einstiegslinie am „Giriş“-Preis des Handelsblocks (Butterfly und Crab: Docht der Berührungskerze, Gartley und Bat: Einstiegslevel, AB=CD: Level 1) von der Einstiegskerze bis zum rechten Rand, mit der Beschriftung „Giriş“ (tr), „Entry“ (en), „Einstieg“ (de) am rechten Rand. Cypher zeichnet keine eigene Einstiegslinie."
+        code: [frontend_nextjs/src/lib/formation/xabcd.ts, frontend_nextjs/src/lib/formation/abcd.ts, frontend_nextjs/src/lib/formation/abcdChecks.ts, frontend_nextjs/src/lib/formation/tradeApply.ts, frontend_nextjs/src/lib/formation/drawingLayout.ts, frontend_nextjs/src/i18n/messages/formation.ts]
+        tiers: [e2e]
+        pruefung:
+          - "Playwright-Test e2e/mocked/formation-d-freeze.spec.ts (@FRM-50) ausführen (je Formation, Kauf und Verkauf: nach dem Stop bleiben D, Punkte und alle Prüfungen an D stehen, auch wenn spätere Kerzen einen tieferen Docht haben; läuft der Handel, wandert D mit; Einstiegslinie und Beschriftung am Einstiegspreis, gleicher Beginn wie die Stop-Linie)."
+        erwartet: Nach dem Ende des Handels ändert sich D nicht mehr; die Einstiegslinie steht am Einstiegspreis des Handelsblocks.
+
   # ---------------------------------------------------------------------------
   - id: NWS
     titel: Nachrichten (Wirtschaftskalender)

@@ -139,9 +139,10 @@ test.describe('AB=CD: Ziel-Fib-Start nach dem Einstieg (XAUUSD H1, Kauf 2026-05-
       expect(c.trade!.status).toMatchObject({ kind: 'breakeven', endIdx: 67, stopMovedIdx: 67 });
       expect(BARS[67].time).toBe(at('2026-05-14T17:00'));
     }
-    // Die Divergenz gilt beim Einstieg, nicht mehr, wenn D weiterläuft: daran hängt der Sprung von `from`
+    // 1124-A2.1: D friert am Ende des Handels ein (05-14 17:00); die Divergenz am D bleibt danach gleich, auch wenn der Kurs weiterläuft
+    // (vorher lief D mit und ABCD-19 fiel auf ☐: daran hing der Sprung von `from`; das friert jetzt `frozenFrom` ein)
     expect(state(candidateAt('2026-05-14T18:00'), 'ABCD-19')).toBe('met');
-    expect(state(candidateAt('2026-05-14T23:00'), 'ABCD-19')).toBe('unmet');
+    expect(state(candidateAt('2026-05-14T23:00'), 'ABCD-19')).toBe('met');
   });
 
   frm('TP1 eines Kaufs zählt nie unter dem Einstieg (fillOnLossSide), auch nachdem D weiterläuft', () => {

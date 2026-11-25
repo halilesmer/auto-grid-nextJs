@@ -369,6 +369,7 @@ export default defineArea(
     'formation.trade.status.tp123.sub': 'tüm hedefler alındı',
     'formation.trade.status.breakeven12': 'TP1 ve TP2 alındı, kalan girişte kapandı',
     'formation.draw.bigTarget': 'Büyük AB=CD hedefi',
+    'formation.draw.entry': 'Giriş',
   },
   {
     'formation.conditions': 'Conditions',
@@ -736,6 +737,7 @@ export default defineArea(
     'formation.trade.status.tp123.sub': 'all targets hit',
     'formation.trade.status.breakeven12': 'TP1 and TP2 hit, rest closed at the entry',
     'formation.draw.bigTarget': 'Large AB=CD target',
+    'formation.draw.entry': 'Entry',
   },
   {
     'formation.conditions': 'Bedingungen',
@@ -1103,5 +1105,6 @@ export default defineArea(
     'formation.trade.status.tp123.sub': 'alle Ziele erreicht',
     'formation.trade.status.breakeven12': 'TP1 und TP2 erreicht, Rest am Einstieg geschlossen',
     'formation.draw.bigTarget': 'Großes AB=CD-Ziel',
+    'formation.draw.entry': 'Einstieg',
   },
 );

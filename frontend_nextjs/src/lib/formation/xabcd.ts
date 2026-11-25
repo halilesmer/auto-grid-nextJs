@@ -54,11 +54,11 @@ export interface XabcdShape extends XabcdBase {
 
 const N = FRZ_PARAMS.neighbors;
 
-/** Formen und Verhältnisse; `d` überschreibt den gemessenen äußersten Docht (eigene Punkte) */
-export function shapeOfX(bars: Bars, p: XabcdBase, d?: XPoint): XabcdShape {
-  const base = shapeOf(bars, { a: p.a, b: p.b, c: p.c }, d);
+/** Formen und Verhältnisse; `d` überschreibt den gemessenen äußersten Docht (eigene Punkte); `limit`: D nur bis zu dieser Kerze (Ende des Handels) */
+export function shapeOfX(bars: Bars, p: XabcdBase, d?: XPoint, limit?: number): XabcdShape {
+  const base = shapeOf(bars, { a: p.a, b: p.b, c: p.c }, d, limit);
   // D sucht ab dem Trend-Pivot von C, nicht ab einer davor liegenden Dochtspitze von C
-  const abcd = d || p.c.pivotIdx === undefined ? base : { ...base, d: extremeAfter(bars, Math.max(p.c.idx, p.c.pivotIdx), base.es) };
+  const abcd = d || p.c.pivotIdx === undefined ? base : { ...base, d: extremeAfter(bars, Math.max(p.c.idx, p.c.pivotIdx), base.es, limit) };
   return {
     ...p,
     es: abcd.es,
@@ -318,6 +318,29 @@ export function unmeasurable(code: string, tf: ContextTimeframe, checkIds: reado
 export const xabcdWork = { evaluated: 0, keys: 0, bases: 0, entered: 0, running: 0, keyBuilds: 0 };
 
 /**
+ * D friert am Ende des Handels ein (1124-A2.1, Halil: „Stop'un olduğu yerde donsa daha mantıklı olur“): Endet der Handel vor der letzten Kerze
+ * (`status.endIdx`), gilt als D der äußerste Docht bis einschließlich der Endkerze; spätere Kerzen ändern D und alles, was an D hängt, nicht mehr.
+ * Der Stand hängt nicht an D (Einstieg = erste Berührung des Levels, Stop und Ziele laufen im Stand selbst), also bleibt die Endkerze gleich.
+ * Bei laufendem Handel bleibt D am äußersten Docht. Eigene Punkte mit D (`ownD`) bleiben unberührt.
+ */
+export function evaluateFrozenD(env: Env, tf: ContextTimeframe, bars: Bars, s: XabcdShape, pip: number, evaluate: Evaluate, ownD = false): Candidate {
+  const candidate = evaluate(env, tf, s, pip);
+  const endIdx = candidate.trade?.status?.endIdx;
+  if (ownD || endIdx === undefined || endIdx >= bars.length - 1) return candidate;
+  const frozen = evaluate(env, tf, shapeOfX(bars, s, undefined, endIdx), pip);
+  // Die Wahl der Basis (`misses`) misst weiter am laufenden D: sonst bliebe die Basis eines beendeten Handels mit eingefrorenem D die beste und verdrängte neue Basen
+  // Hängt der Handel am späteren D (die Berührung des Levels lag vor der Endkerze, `reached` kam erst von einem späteren Docht), bliebe er mit eingefrorenem D nicht
+  // gleich: dann läuft D weiter. Einstieg, Stop und Ende ändern sich durch das Einfrieren nie.
+  const [a, b] = [candidate.trade, frozen.trade];
+  if (!a || !b || a.entry !== b.entry || a.stop !== b.stop || a.entryIdx !== b.entryIdx || b.status?.endIdx !== endIdx) return candidate;
+  rankSource.set(frozen, candidate);
+  return frozen;
+}
+
+/** Eingefrorener Kandidat → derselbe Kandidat mit laufendem D; nur für die Wahl der Basis (`misses`) */
+const rankSource = new WeakMap<Candidate, Candidate>();
+
+/**
  * Beendete Handel je Kontext und Prüfer: Basis → Kerze, in der der Handel endete (`status.endIdx`). Aus allen Suchen, mit und ohne Zonen: Handel,
  * Punkte, Stop, Einstiegs- und Endkerze lesen keine Zone (nur Form-Bedingungen, Einstieg und Stand).
  * Nach dem Einstieg ist der Handel eingefroren (C und X, 1121-A2.1, 1122-A28.1) und sein Ende ändert sich mit späteren Kerzen nicht; eine spätere Suche
@@ -356,13 +379,13 @@ function candidateOfBase(env: Env, tf: ContextTimeframe, bars: Bars, h: Omit<His
   const { base, prev, xSide, aSide } = h;
   const picked = shiftBase(bars, base, xSide, aSide, prev);
   xabcdWork.evaluated++;
-  const candidate = evaluate(env, tf, shapeOfX(bars, picked), pip);
+  const candidate = evaluateFrozenD(env, tf, bars, shapeOfX(bars, picked), pip, evaluate);
   if (picked.c === base.c) return candidate;
   const entryIdx = candidate.trade?.entryIdx;
   const cut = closeBeyondBIdx(bars, base.c, picked.b, xSide);
   if (entryIdx === undefined || cut <= entryIdx) return candidate;
   xabcdWork.evaluated++;
-  return evaluate(env, tf, shapeOfX(bars, shiftBase(bars, base, xSide, aSide, prev, entryIdx)), pip);
+  return evaluateFrozenD(env, tf, bars, shapeOfX(bars, shiftBase(bars, base, xSide, aSide, prev, entryIdx)), pip, evaluate);
 }
 
 /**
@@ -383,9 +406,10 @@ export function analyzeXabcd(
   ctx: FormationContext,
   t: number,
   evaluate: Evaluate,
-  misses: (c: Candidate) => number,
+  missesOf: (c: Candidate) => number,
   empty: (tf: ContextTimeframe) => Candidate,
 ): XabcdAnalysis[] {
+  const misses = (c: Candidate) => missesOf(rankSource.get(c) ?? c);
   const tfs = ctx.timeframes();
   const base = tfs.length > 0 ? buildEnv(ctx, t, tfs[0]) : null;
   if (!base) return [];
@@ -755,7 +779,7 @@ export function checkXabcd(ctx: FormationContext, t: number, input: XabcdInput, 
   const d = input.d ? at(input.d) : undefined;
   if (Object.values(base).some((p) => p.idx < 0) || (d && d.idx < 0)) return empty(input.tf);
   const s = shapeOfX(bars, base, d);
-  return ordered(s) ? evaluate(env, input.tf, s, pipOf(ctx.symbol)) : empty(input.tf);
+  return ordered(s) ? evaluateFrozenD(env, input.tf, bars, s, pipOf(ctx.symbol), evaluate, d !== undefined) : empty(input.tf);
 }
 
 /** Verlauf eines Kandidaten für die Zeichnungen: X, A, B, C und, wenn D fertig ist, D */

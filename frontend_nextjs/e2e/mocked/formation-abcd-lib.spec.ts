@@ -544,7 +544,7 @@ test.describe('ABCD: Abdeckung und Eigenschaften', () => {
   frm('Zeichnungen: Zickzack, Level 1, Fib A → B, Zone, Ziel-Fib und Label auch bei ☐', () => {
     const c = run({ H4: S1 }, ABC);
     const ids = c.drawings.map((d) => d.id);
-    expect(ids).toEqual(['Z-ABCD-01', 'Z-ABCD-02', 'Z-ABCD-03', 'Z-ABCD-04', 'Z-ABCD-06', 'Z-ABCD-05', 'Z-ABCD-07', 'Z-ABCD-08']);
+    expect(ids).toEqual(['Z-ABCD-01', 'Z-ABCD-02', 'Z-ABCD-03', 'Z-ABCD-04', 'Z-ABCD-06', 'Z-ABCD-05', 'Z-ABCD-07', 'Z-ABCD-08', 'Z-ABCD-11', 'Z-ABCD-12']);
     const zigzag = c.drawings.find((d) => d.id === 'Z-ABCD-01')!;
     expect(zigzag.anchors.map((a) => a.price)).toEqual([S1[2][2], S1[10][1], S1[18][2], S1[26][1]]);
     expect(c.drawings.find((d) => d.id === 'Z-ABCD-02')!.anchors[0].price).toBe(144);
@@ -628,8 +628,11 @@ test.describe('ABCD: echte Kerzen', () => {
       c: { time: 1762387200, price: 47.678 },
     });
     expect(c.side).toBe('sell');
-    expect(states(c, ['ABCD-04', 'ABCD-06', 'ABCD-08', 'ABCD-09', 'ABCD-10', 'ABCD-17', 'ABCD-22'])).toEqual([M, M, M, M, M, M, M]);
-    expect(find(c, 'ABCD-17').value!).toBeGreaterThanOrEqual(80);
+    expect(states(c, ['ABCD-04', 'ABCD-06', 'ABCD-08', 'ABCD-09', 'ABCD-10', 'ABCD-17', 'ABCD-22'])).toEqual([M, M, M, M, M, N, M]);
+    // 1124-A2.1: D friert am Stop ein (11-10 08:00, endIdx 152); der RSI dort ist 78,9 (vorher am späteren Docht über 80): ABCD-17 ☐, ABCD-18 (nahe am Extrem) ☑
+    expect(find(c, 'ABCD-17').value!).toBeGreaterThan(78);
+    expect(find(c, 'ABCD-17').value!).toBeLessThan(80);
+    expect(state(c, 'ABCD-18')).toBe(M);
     expect(c.verdict).toBe('invalid');
   });
 
@@ -662,8 +665,10 @@ test.describe('ABCD: echte Kerzen', () => {
       c: { time: 1764345600, price: 206.884 },
     });
     expect(c.side).toBe('buy');
-    expect(states(c, ['ABCD-08', 'ABCD-17', 'ABCD-18', 'ABCD-20', 'ABCD-22'])).toEqual([M, N, N, N, M]);
-    expect(find(c, 'ABCD-20').kind).toBe('required');
+    expect(states(c, ['ABCD-08', 'ABCD-17', 'ABCD-18', 'ABCD-20', 'ABCD-22'])).toEqual([M, N, M, N, M]);
+    // 1124-A2.1: D friert am Stop ein; dort steht der RSI bei 23,7: nahe am Extrem (ABCD-18 ☑), aber nicht darunter (ABCD-17 ☐)
+    // ABCD-18 ☑ (D eingefroren): ABCD-20 ist nur Bonus; vorher ohne RSI-Nähe Pflicht
+    expect(find(c, 'ABCD-20').kind).toBe('bonus');
     // der Kurs hat die Zone nahe Level 1 schon durchbrochen (Schluss jenseits): ausgeschlossen
     expect(c.verdict).toBe('invalid');
   });
