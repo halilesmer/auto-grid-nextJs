@@ -3,7 +3,7 @@ date: 2026-11-24
 author: Claude
 type: diagnosis
 status: done
-pr: [678, PRNR]
+pr: [678, 684]
 features: [SYS-17, SYS-16]
 areas: [tooling]
 ---
@@ -40,7 +40,7 @@ All sessions use one repository. Two parts are shared by all worktrees or by all
 | `hooks/lib/cmdsplit.sh` | `split_cmd` moved here from `pre-bash-kill.sh`. Both hooks use it. |
 | `.claude/settings.json` | Registers the hook for `Bash` as the third hook. |
 | `hooks/RULES.md` §4.18, `hooks/README.md`, `docs/features/features.yaml` | Rule, hook table, catalog entry SYS-17. |
-| `hooks/claude/pre-edit-main.sh`, `hooks/lib/gitscope.sh` | Second change (PR PRNR, SYS-18): PreToolUse hook for `Edit`/`Write`/`NotebookEdit`. It stops each change to a file in the main checkout that Git does not ignore. Worktrees, paths outside the repository, ignored paths, and `.claude/artifacts/` run. |
+| `hooks/claude/pre-edit-main.sh`, `hooks/lib/gitscope.sh` | Second change (PR 684, SYS-18): PreToolUse hook for `Edit`/`Write`/`NotebookEdit`. It stops each change to a file in the main checkout that Git does not ignore. Worktrees, paths outside the repository, ignored paths, and `.claude/artifacts/` run. |
 | `hooks/claude/pre-bash-shared-git.sh` | Second change: aligned with PR 677. In the main checkout every `checkout`/`switch` and every `pull` is stopped (before: `pull --ff-only` and `checkout main` ran). `is_main_checkout` moved to `hooks/lib/gitscope.sh`. |
 | `e2e/mocked/main-edit-hook-lib.spec.ts` | Tests for SYS-18 on a throw-away repository. |
 | `e2e/mocked/shared-git-hook-lib.spec.ts` | Tests on a throw-away repository with a main checkout and a worktree (paths with spaces). |
