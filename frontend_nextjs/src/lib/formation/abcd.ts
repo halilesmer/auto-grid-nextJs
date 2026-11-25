@@ -76,18 +76,18 @@ export function selectOrder(pivots: readonly Pivot[]): AbcdPoints[] {
   return out;
 }
 
-/** Äußerster Docht auf der Seite `es` nach Kerze `from` (ohne `from`); null ohne spätere Kerze */
-export function extremeAfter(bars: Bars, from: number, es: ZoneSide): AbcdPoint | null {
+/** Äußerster Docht auf der Seite `es` nach Kerze `from` (ohne `from`) bis Kerze `to` (einschließlich; Standard: letzte Kerze); null ohne spätere Kerze */
+export function extremeAfter(bars: Bars, from: number, es: ZoneSide, to: number = bars.length - 1): AbcdPoint | null {
   let best: AbcdPoint | null = null;
-  for (let k = from + 1; k < bars.length; k++) {
+  for (let k = from + 1; k <= Math.min(to, bars.length - 1); k++) {
     const price = wickEnd(bars[k], es);
     if (best === null || outward(es, price) > outward(es, best.price)) best = { idx: k, price };
   }
   return best;
 }
 
-/** Formen und Verhältnisse; `d` überschreibt den gemessenen äußersten Docht (eigene Punkte) */
-export function shapeOf(bars: Bars, p: AbcdPoints, d?: AbcdPoint): AbcdShape {
+/** Formen und Verhältnisse; `d` überschreibt den gemessenen äußersten Docht (eigene Punkte); `limit`: D wird nur bis zu dieser Kerze gemessen (Ende des Handels, 1124-A2.1) */
+export function shapeOf(bars: Bars, p: AbcdPoints, d?: AbcdPoint, limit?: number): AbcdShape {
   const es: ZoneSide = p.b.price > p.a.price ? 'resistance' : 'support';
   const len = Math.abs(p.b.price - p.a.price);
   return {
@@ -98,7 +98,7 @@ export function shapeOf(bars: Bars, p: AbcdPoints, d?: AbcdPoint): AbcdShape {
     len,
     depth: len > 0 ? (outward(es, p.b.price) - outward(es, p.c.price)) / len : null,
     level1: p.c.price + (p.b.price - p.a.price),
-    d: d ?? extremeAfter(bars, p.c.idx, es),
+    d: d ?? extremeAfter(bars, p.c.idx, es, limit),
   };
 }
 

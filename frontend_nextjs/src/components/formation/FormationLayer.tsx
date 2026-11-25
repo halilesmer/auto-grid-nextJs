@@ -26,6 +26,7 @@ type OpenLineMenu = (kind: 'context' | 'double', event: React.MouseEvent, role: 
 const TONE_COLOR: Record<Exclude<Tone, 'side'>, string> = {
   ratio: 'var(--secondary)',
   target: 'var(--warning)',
+  entry: 'var(--info)',
   zone: 'var(--info)',
   mark: 'var(--primary)',
   text: 'var(--foreground)',

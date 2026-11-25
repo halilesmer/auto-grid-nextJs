@@ -44,7 +44,7 @@ export interface Drawing {
   /** Trendrichtung der Zeichnung (TRD-14): buy = Aufwärtstrend (grün), sell = Abwärtstrend (rot) */
   side?: Side;
   /** Beschriftung eines Labels mit einem Anker; fehlt das Feld, heißt es „Level 1“ (mit zwei Ankern: Stop und Ziel) */
-  label?: 'stop' | 'target' | 'bigTarget';
+  label?: 'stop' | 'target' | 'bigTarget' | 'entry';
 }
 
 /**

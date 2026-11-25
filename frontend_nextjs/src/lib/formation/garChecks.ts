@@ -13,7 +13,7 @@ import { nearEdge } from './cdt';
 import { divergenceOf, rsiExtreme } from './sig';
 import { exemptFor, settle } from './settle';
 import { ABCD_PARAMS, FIB_PARAMS, GAR_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
-import { frozenStopDrawings, harmonicFreeze, harmonicStop, harmonicTargetEnd, harmonicTrade, withTrade, type HarmonicFreeze } from './tradeApply';
+import { frozenEntryDrawings, frozenStopDrawings, harmonicFreeze, harmonicStop, harmonicTargetEnd, harmonicTrade, withTrade, type HarmonicFreeze } from './tradeApply';
 import type { Env } from './reasons';
 import {
   analyzeXabcd,
@@ -216,6 +216,7 @@ function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, dTarget: numb
     });
     // Der Stop ist eingefroren und steht als eigene Linie, nicht als Level der mitlaufenden Ziel-Fib
     if (freeze) out.push(...frozenStopDrawings(['Z-GAR-07', 'Z-GAR-08'], bars, freeze, harmonicStop(a, freeze, t.stop), side));
+    if (freeze) out.push(...frozenEntryDrawings(['Z-GAR-09', 'Z-GAR-10'], bars, freeze, side));
   }
   return out;
 }

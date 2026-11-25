@@ -13,7 +13,7 @@ import { outward } from './frz';
 import { abExtensionPrice, dTargetOfButterfly } from './but';
 import { levelBC } from './cyp';
 import { BUT_PARAMS, FIB_PARAMS, HARMONIC_PARAMS, type ContextTimeframe } from './params';
-import { frozenStopDrawings, harmonicFreeze, harmonicStop, harmonicTargetEnd, harmonicTrade, withTrade, type HarmonicFreeze } from './tradeApply';
+import { frozenEntryDrawings, frozenStopDrawings, harmonicFreeze, harmonicStop, harmonicTargetEnd, harmonicTrade, withTrade, type HarmonicFreeze } from './tradeApply';
 import type { Env } from './reasons';
 import { divergenceOf, rsiExtreme } from './sig';
 import { exemptFor, settle } from './settle';
@@ -164,6 +164,7 @@ function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, reached: bool
     const t = P.targets;
     out.push({ id: 'Z-BUT-05', tool: 'fib', anchors: [anchorAt(bars, a.idx, a.price), anchorAt(bars, d.idx, harmonicTargetEnd(a, d, freeze, t.stop))], levels: [t.tp1, t.tp2], rules: TRADE_RULES, side });
     if (freeze) out.push(...frozenStopDrawings(['Z-BUT-07', 'Z-BUT-08'], bars, freeze, harmonicStop(a, freeze, t.stop), side));
+    if (freeze) out.push(...frozenEntryDrawings(['Z-BUT-09', 'Z-BUT-10'], bars, freeze, side));
   }
   return out;
 }

@@ -15,7 +15,7 @@ import { outward } from './frz';
 import { levelBC } from './cyp';
 import { dTargetOfCrab, zonesNearOutsideX } from './crb';
 import { CRB_PARAMS, FIB_PARAMS, type ContextTimeframe } from './params';
-import { frozenStopDrawings, harmonicFreeze, harmonicStop, harmonicTargetEnd, harmonicTrade, withTrade, type HarmonicFreeze } from './tradeApply';
+import { frozenEntryDrawings, frozenStopDrawings, harmonicFreeze, harmonicStop, harmonicTargetEnd, harmonicTrade, withTrade, type HarmonicFreeze } from './tradeApply';
 import type { Env } from './reasons';
 import { divergenceOf, rsiExtreme } from './sig';
 import { exemptFor, settle } from './settle';
@@ -206,6 +206,7 @@ function drawingsOf(env: Env, tf: ContextTimeframe, s: XabcdShape, reached: bool
     const t = P.targets;
     out.push({ id: 'Z-CRB-04', tool: 'fib', anchors: [anchorAt(bars, a.idx, a.price), anchorAt(bars, d.idx, harmonicTargetEnd(a, d, freeze, t.stop))], levels: [t.tp1, t.tp2], rules: TRADE_RULES, side });
     if (freeze) out.push(...frozenStopDrawings(['Z-CRB-06', 'Z-CRB-07'], bars, freeze, harmonicStop(a, freeze, t.stop), side));
+    if (freeze) out.push(...frozenEntryDrawings(['Z-CRB-08', 'Z-CRB-09'], bars, freeze, side));
   }
   return out;
 }
