@@ -8,12 +8,13 @@
  * 2. Läuft noch (Verstoß bleibt): XAUUSD H1 Kauf aus formation-abcd-vanish-lib.spec.ts. Ohne den Vorrang laufender Handel (1122-A1.3)
  *    fehlte er um 06-12 04:00 mit TP1; die Neumessung zur selben Zeit zeigt TP1 ohne Ende.
  */
+import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { FormationContext } from '../../src/lib/formation/context';
 import { DEFAULT_TREND_SETTINGS } from '../../src/lib/formation/params';
 import type { FormationBar } from '../../src/lib/formation/types';
 import { remeasureAtVanish, vanishVerdict } from '../fixtures/formation-vanish';
-import { XAUUSD_H1_0527_0612, XAUUSD_M15_1111_1112, type AbcdVanishRow } from '../fixtures/formation-abcd-vanish-rows';
+import { XAUUSD_H1_0527_0612, type AbcdVanishRow } from '../fixtures/formation-abcd-vanish-rows';
 
 const frm = (title: string, fn: () => void) => test(title, { tag: '@FRM-39' }, fn);
 
@@ -22,17 +23,19 @@ const at = (iso: string) => Date.parse(`${iso}:00Z`) / 1000;
 const ctxOf = (tf: 'H1' | 'M15', rows: AbcdVanishRow[]) => new FormationContext('XAUUSD', { [tf]: { bars: barsOf(rows), missing: [] } }, { trend: DEFAULT_TREND_SETTINGS });
 
 test.describe('Verlaufsscan: Stand beim Verschwinden neu gemessen', () => {
-  frm('Zwischen zwei Scans beendet (M15, Rest am Einstieg): kein Verstoß', () => {
-    const ctx = ctxOf('M15', XAUUSD_M15_1111_1112);
+  frm('Zwischen zwei Scans beendet (H1, Rest am Einstieg): kein Verstoß', () => {
+    // Echte H1-Kerzen (long-leg-Fixture); das Tripel hat gültige Tiefe (0,58), die Form trägt den Handel (1126-A20.2)
+    const bars = (JSON.parse(readFileSync('e2e/fixtures/long-leg-xauusd-h1.json', 'utf-8')) as number[][]).map(([time, open, high, low, close]) => ({ time, open, high, low, close }));
+    const ctx = new FormationContext('XAUUSD', { H1: { bars, missing: [] } }, { trend: DEFAULT_TREND_SETTINGS });
     const trade = {
-      tf: 'M15' as const,
+      tf: 'H1' as const,
       form: 'ABCD' as const,
-      points: { A: { time: at('2025-11-11T09:45'), price: 4125.01 }, B: { time: at('2025-11-11T15:30'), price: 4146.68 }, C: { time: at('2025-11-11T17:15'), price: 4097.05 } },
+      points: { A: { time: 1773162000, price: 5238.65 }, B: { time: 1773280800, price: 5125.82 }, C: { time: 1773320400, price: 5191.72 } },
     };
-    // Vorbedingung: beim letzten Scan (21:00) mit TP1 und ohne Ende gesehen
-    expect(remeasureAtVanish(ctx, at('2025-11-11T21:00'), trade)).toEqual({ state: 'tp1', finished: false, endTime: null });
-    const r = remeasureAtVanish(ctx, at('2025-11-12T02:00'), trade);
-    expect(r).toEqual({ state: 'breakeven', finished: true, endTime: at('2025-11-11T21:30') });
+    // Vorbedingung: beim letzten Scan (04:00) mit TP1 und ohne Ende gesehen
+    expect(remeasureAtVanish(ctx, at('2026-03-13T04:00'), trade)).toEqual({ state: 'tp1', finished: false, endTime: null });
+    const r = remeasureAtVanish(ctx, at('2026-03-13T19:00'), trade);
+    expect(r).toEqual({ state: 'breakeven', finished: true, endTime: 1773421200 });
     expect(vanishVerdict(false, r)).toBe('finished');
   });
 
