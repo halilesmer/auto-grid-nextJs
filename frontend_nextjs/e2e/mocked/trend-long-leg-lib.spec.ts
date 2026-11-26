@@ -30,7 +30,7 @@ function tail(bars: FormationBar[], iso: string, n: number): number[] {
 test.describe('ANA-29 Langer Schenkel (Zahlen auf H1-Kerzen)', () => {
   ana('Standard: XAUUSD und EURUSD, Punkte und Trendwechsel mit und ohne Teilung', () => {
     const cases: [FormationBar[], Partial<TrendSettings>, number, number][] = [
-      [XAU, {}, 221, 43], [EUR, {}, 256, 44], [XAU, { legMeasure: 'off' }, 203, 43], [EUR, { legMeasure: 'off' }, 181, 33],
+      [XAU, {}, 219, 43], [EUR, {}, 254, 43], [XAU, { legMeasure: 'off' }, 203, 43], [EUR, { legMeasure: 'off' }, 181, 33],
     ];
     for (const [bars, patch, pivots, changes] of cases) {
       const m = build(bars, patch);
@@ -70,6 +70,60 @@ test.describe('ANA-29 Langer Schenkel (Zahlen auf H1-Kerzen)', () => {
     }
   });
 
+  ana('1126-A13.1: die erste Gegenbewegung nach C zählt ab Fibo 382 von AB (XAUUSD)', () => {
+    const prices = (m: ReturnType<typeof build>) => m.pivots.map((p) => p.price);
+    const all = prices(build(XAU));
+    // 29. Dez 04:00 und 05:00 sind kein Punkt der Linie mehr
+    expect(all).not.toContain(4496.77);
+    expect(all).not.toContain(4520.4);
+    const r = new TrendRun('H1', XAU, wave(XAU), settings());
+    r.advanceTo(at(XAU, '2026-01-05T12:00Z') + 1);
+    const t = r.model.pivots.map((p) => p.price);
+    const i = t.indexOf(4549.88);
+    expect(t.slice(i - 2, i + 4)).toEqual([4525.94, 4448.49, 4549.88, 4274.05, 4402.3, 4310.11]);
+    // Trendwechsel nach unten mit Bezug 4448,49: 29. Dez 13:00 statt 08:00
+    const ch = build(XAU).changes.find((c) => c.refPrice === 4448.49);
+    expect(ch?.to).toBe('down');
+    expect(XAU[ch?.k ?? 0].time).toBe(Date.parse('2025-12-29T13:00Z') / 1000);
+    // Kerze 24. Nov 18:00: die Linie endet auf 3886,69 · 3502,81 · 3689,66 (vorher kam 3607,51 dazu)
+    expect(tail(XAU, '2026-11-24T18:00Z', 3)).toEqual([3886.69, 3502.81, 3689.66]);
+  });
+
+  ana('1126-A13.1: EURUSD, 1,09798 und 1,09308 sind kein Punkt, der Wechsel nach oben am 25. Nov 19:00 fehlt', () => {
+    const m = build(EUR);
+    const prices = m.pivots.map((p) => p.price);
+    expect(prices.some((v) => Math.abs(v - 1.09798) < 1e-9)).toBe(false);
+    expect(prices.some((v) => Math.abs(v - 1.09308) < 1e-9)).toBe(false);
+    expect(m.changes.some((c) => EUR[c.k].time === Date.parse('2026-11-25T19:00Z') / 1000)).toBe(false);
+  });
+
+  ana('1126-A13.1: Positivkontrolle, die erste Gegenbewegung nach C, die als Punkt in die Linie kommt, reicht an 382 % von AB', () => {
+    const cases: [FormationBar[], string, number][] = [
+      [XAU, '2025-12-02T05:00Z', 4], [XAU, '2026-03-03T09:00Z', 4], [XAU, '2026-08-13T13:00Z', 4], [EUR, '2026-02-06T09:00Z', 3], [EUR, '2026-06-25T20:00Z', 3], [EUR, '2026-09-21T17:00Z', 3],
+    ];
+    let accepted = 0;
+    for (const [bars, iso, n] of cases) {
+      const run = new TrendRun('H1', bars, wave(bars), settings());
+      const k0 = at(bars, iso) + 1;
+      run.advanceTo(k0);
+      const t = run.model.pivots.slice(-n);
+      const [A, B, C] = n === 4 ? [t[1], t[2], t[3]] : [t[0], t[1], t[2]];
+      // Kerze für Kerze weiter, bis der Punkt nach C kommt (oder C durch eine Verlängerung ersetzt wird)
+      for (let k = k0 + 1; k < bars.length; k++) {
+        run.advanceTo(k);
+        const piv = run.model.pivots;
+        const i = piv.findIndex((p) => p.idx === C.idx && p.side === C.side);
+        if (i < 0) break;
+        if (i < piv.length - 1) {
+          accepted++;
+          expect(Math.abs(piv[i + 1].price - C.price) + 1e-9, iso).toBeGreaterThanOrEqual(0.382 * Math.abs(B.price - A.price));
+          break;
+        }
+      }
+    }
+    expect(accepted).toBeGreaterThan(0);
+  });
+
   ana('Die Teilung schaut nicht voraus: der Stand an Kerze k gleicht dem Lauf über die ersten k + 1 Kerzen', () => {
     const k = at(XAU, '2026-08-13T13:00Z') + 1;
     const whole = new TrendRun('H1', XAU, wave(XAU), settings());
@@ -89,8 +143,8 @@ test.describe('ANA-29 Langer Schenkel (Zahlen auf H1-Kerzen)', () => {
   ana('Andere Maße: ein größeres Vielfaches teilt seltener, ATR-Vielfaches und Kerzenzahl teilen', () => {
     const at4 = build(XAU, { legMult: 4.236 }).pivots.length;
     const at1 = build(XAU, { legMult: 1.618 }).pivots.length;
-    expect(at4).toBeLessThanOrEqual(221);
-    expect(at1).toBeGreaterThanOrEqual(221);
+    expect(at4).toBeLessThanOrEqual(219);
+    expect(at1).toBeGreaterThanOrEqual(219);
     // ATR-Vielfaches und Kerzenzahl: nicht gegen eine Referenz bestätigt (siehe PR), geprüft wird nur, dass sie rechnen und Punkte liefern
     expect(build(XAU, { legMeasure: 'atr', legAtr: 15 }).pivots.length).toBeGreaterThan(0);
     expect(build(XAU, { legMeasure: 'bars', legBars: 80 }).pivots.length).toBeGreaterThan(0);
