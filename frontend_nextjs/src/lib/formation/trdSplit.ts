@@ -6,7 +6,7 @@
  */
 import { outward, type ZoneSide } from './frz';
 import { wave } from './indicators';
-import type { LegMeasure, TrendOptions } from './params';
+import { TRD_PARAMS, type LegMeasure, type TrendOptions } from './params';
 import type { Pivot } from './trd';
 import type { ZugEdit, ZugPoint } from './trdZug';
 
@@ -63,6 +63,9 @@ export function legSplitRule(opt: TrendOptions, bars: Parameters<typeof wave>[0]
   const within = (list: readonly P[], side: ZoneSide, from: number, to: number): P[] => list.filter((x) => x.side === side && x.idx > from && x.idx < to);
   const most = (side: ZoneSide, list: readonly P[]): P | null => (list.length ? list.reduce((b, x) => (beyond(side, x, b) ? x : b)) : null);
 
+  // 1126-A13.1: C der letzten Teilung (Auslöser 1) und die Länge von AB. Solange C der letzte Punkt ist, misst die erste Gegenbewegung an AB statt an BC
+  let splitC: { idx: number; side: ZoneSide; ab: number } | null = null;
+
   return (zug, f) => {
     const edit = base(zug, f);
     const n = zug.length;
@@ -71,6 +74,12 @@ export function legSplitRule(opt: TrendOptions, bars: Parameters<typeof wave>[0]
     const p = zug[n - 3];
     if (!last || !s) return edit;
     const ref = p ? Math.abs(s.price - p.price) : null;
+
+    // 1126-A13.1: die erste Gegenbewegung nach C zählt erst ab Fibo 382 von AB (bei kurzem BC wäre die Basisschwelle viel zu klein)
+    // (null zurückgeben, nicht weiterrechnen: Auslöser 1 würde dasselbe Fraktal sonst als neuen Punkt anhängen)
+    if (edit && edit.cut === 0 && splitC && last.idx === splitC.idx && last.side === splitC.side && f.side !== last.side) {
+      if (Math.abs(f.price - last.price) + 1e-9 < TRD_PARAMS.fiboMinCorrection * splitC.ab) return null;
+    }
 
     // Auslöser 1: C kommt. Die Basisregel lehnt das Gegenfraktal ab, der Schenkel S → B (B = letzter Punkt) ist zu lang
     if (!edit && f.side !== last.side && f.idx > last.idx && sideColor(ewo, f)) {
@@ -85,6 +94,7 @@ export function legSplitRule(opt: TrendOptions, bars: Parameters<typeof wave>[0]
           if (!beyond(s.side, A, f)) continue;
           const depth = Math.abs(f.price - last.price) / Math.abs(A.price - last.price);
           if (depth < DEPTH_MIN || depth > DEPTH_MAX) continue;
+          splitC = { idx: f.idx, side: f.side, ab: Math.abs(last.price - A.price) };
           return A === s ? { cut: 0, add: [f] } : { cut: 1, add: [L0 as P, A, last, f] };
         }
       }
