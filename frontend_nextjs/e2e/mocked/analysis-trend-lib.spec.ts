@@ -143,7 +143,7 @@ test.describe('ANA-21 Trendzug im Chart', () => {
     expect(sanitizeTrendSettings({ rule: 'welle382' }).rule).toBe('welle382');
     expect(sanitizeTrendSettings({ minSize: 99, ewoRetreat: -1, atrPeriod: 500 })).toEqual({ ...DEFAULT_TREND_SETTINGS, minSize: 3.5, ewoRetreat: 0.1, atrPeriod: 100 });
     expect(sanitizeTrendSettings({ rule: 'geruest', minSize: 1.75, changeCloses: 2, ewoFast: 4, ewoSlow: 30, atrPeriod: 10, ewoRetreat: 0.4, formationZug: 'fein' })).toEqual({
-      rule: 'geruest', minSize: 1.75, changeCloses: 2, ewoFast: 4, ewoSlow: 30, atrPeriod: 10, ewoRetreat: 0.4, ewoSource: 'close',
+      rule: 'geruest', minSize: 1.75, changeCloses: 2, ewoFast: 4, ewoSlow: 30, atrPeriod: 10, ewoRetreat: 0.4, ewoSource: 'close', legMeasure: 'mult', legMult: 2.618, legAtr: 15, legBars: 80,
     });
   });
 
@@ -156,6 +156,6 @@ test.describe('ANA-21 Trendzug im Chart', () => {
   });
 
   ana('Der Standard ist EWO + Fibo 382 (Mindestgröße 2,5 ATR bleibt gespeichert), ein Schluss, EWO aus dem Schluss', () => {
-    expect(DEFAULT_TREND_SETTINGS).toEqual({ rule: 'welle382', minSize: 2.5, ewoRetreat: 0.2, changeCloses: 1, ewoFast: 5, ewoSlow: 35, ewoSource: 'close', atrPeriod: 14 });
+    expect(DEFAULT_TREND_SETTINGS).toEqual({ rule: 'welle382', minSize: 2.5, ewoRetreat: 0.2, changeCloses: 1, ewoFast: 5, ewoSlow: 35, ewoSource: 'close', atrPeriod: 14, legMeasure: 'mult', legMult: 2.618, legAtr: 15, legBars: 80 });
   });
 });

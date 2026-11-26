@@ -95,6 +95,11 @@ export type EwoSource = (typeof EWO_SOURCES)[number];
 /** Regeln ohne Mindestgröße in ATR: `welle` und `welle382` (EWO + Fibo 382) messen die Korrekturen nicht gegen ein ATR-Maß */
 export const ruleHasNoSize = (rule: TrendRule): boolean => rule === 'welle' || rule === 'welle382';
 
+/** Maß für „Schenkel zu lang“ (Halil 2026-11-26, 1125-A2.1): Vielfaches des vorigen Schenkels, ATR-Vielfaches, Kerzenzahl oder aus */
+export const LEG_MEASURES = ['mult', 'atr', 'bars', 'off'] as const;
+export type LegMeasure = (typeof LEG_MEASURES)[number];
+export const LEG_MULTS = [1.618, 2.618, 4.236] as const;
+
 /** Einstellungen des Trendzugs (`buildTrend`); Standard in TRD_PARAMS */
 export interface TrendOptions {
   rule: TrendRule;
@@ -105,6 +110,11 @@ export interface TrendOptions {
   ewoSource: EwoSource;
   ewoRetreat: number;
   changeCloses: number;
+  /** Langer Schenkel (nur Regel `welle382`): Maß, Vielfaches des vorigen Schenkels, ATR-Vielfaches, Kerzenzahl */
+  legMeasure: LegMeasure;
+  legMult: number;
+  legAtr: number;
+  legBars: number;
 }
 
 /** Tage Verlauf je Zeiteinheit: genug Wendepunkte für die Suche, wenig genug für eine schnelle Antwort (Annahme) */
@@ -136,6 +146,11 @@ export const TRD_PARAMS = {
     ewoSource: 'hl2' as EwoSource,
     /** Regel `filter`: Eine Korrektur fällt weg, wenn der EWO in ihr weniger als diesen Anteil zurückkam */
     ewoRetreat: 0.2,
+    /** Bibliothek ohne Teilung; der Chart-Standard (`DEFAULT_TREND_SETTINGS`) teilt */
+    legMeasure: 'off' as LegMeasure,
+    legMult: 2.618,
+    legAtr: 15,
+    legBars: 80,
   },
   /** Regel `welle382` (EWO + Fibo 382, Halil 2026-11-10): eine Gegenbewegung unter diesem Anteil des vorigen Schenkels (Docht zu Docht) wird nicht gezeichnet; Zahl aus FIB_PARAMS */
   fiboMinCorrection: FIB_PARAMS.retrace[0],
@@ -172,6 +187,8 @@ export const DEFAULT_TREND_SETTINGS: TrendSettings = {
    */
   ewoSource: 'close',
   changeCloses: TRD_PARAMS.changeCloses,
+  /** Halil 2026-11-26, 1125-A2.1: Schenkel über dem 2,618-fachen des vorigen wird geteilt */
+  legMeasure: 'mult',
 };
 
 /** Grenzen der Regler im Chart (Annahme, gewählt damit die Rechnung stabil bleibt) */
@@ -181,6 +198,8 @@ export const TREND_LIMITS = {
   ewoFast: { min: 2, max: 50 },
   ewoSlow: { min: 3, max: 200 },
   atrPeriod: { min: 2, max: 100 },
+  legAtr: { min: 6, max: 30, step: 1 },
+  legBars: { min: 20, max: 500, step: 1 },
 } as const;
 
 /** AB=CD (ABCD). Mit „Annahme“ markierte Zahlen sind gewählt, nicht gemessen. Ausdehnungen als Anteil von AB. */

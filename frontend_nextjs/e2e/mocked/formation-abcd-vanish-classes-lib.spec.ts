@@ -26,7 +26,7 @@ const frm = (title: string, fn: () => void) => test(title, { tag: '@FRM-05' }, f
 type Tf = 'H1' | 'M15';
 const barsOf = (rows: AbcdVanishRow[]): FormationBar[] => rows.map(([time, open, high, low, close]) => ({ time, open, high, low, close }));
 const at = (iso: string) => Date.parse(`${iso}:00Z`) / 1000;
-const ctxOf = (tf: Tf, rows: AbcdVanishRow[]) => new FormationContext('XAUUSD', { [tf]: { bars: barsOf(rows), missing: [] } }, { trend: DEFAULT_TREND_SETTINGS });
+const ctxOf = (tf: Tf, rows: AbcdVanishRow[]) => new FormationContext('XAUUSD', { [tf]: { bars: barsOf(rows), missing: [] } }, { trend: { ...DEFAULT_TREND_SETTINGS, legMeasure: 'off' } });
 const candidateAt = (ctx: FormationContext, tf: Tf, iso: string): Candidate => analyzeAbcd(ctx, at(iso)).find((a) => a.tf === tf)!.candidate;
 /** A, B, C (Zeiten) und Stand, wie die Suche sie zeigt */
 const view = (c: Candidate) => ({

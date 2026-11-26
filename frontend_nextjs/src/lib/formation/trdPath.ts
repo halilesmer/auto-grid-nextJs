@@ -10,6 +10,8 @@ import {
   type ContextTimeframe,
   TREND_RULES,
   EWO_SOURCES,
+  LEG_MEASURES,
+  LEG_MULTS,
   type TrendSettings,
 } from './params';
 import type { FormationBar } from './types';
@@ -123,10 +125,15 @@ export function usableTrendSettings(s: TrendSettings): TrendSettings {
   return ewoPairValid(s) ? s : { ...s, ewoFast: DEFAULT_TREND_SETTINGS.ewoFast, ewoSlow: DEFAULT_TREND_SETTINGS.ewoSlow };
 }
 
+/** Teil des Schlüssels für den langen Schenkel: nur das Feld des gewählten Maßes zählt; nur die Regel `welle382` teilt */
+const LEG_FIELD = { mult: 'legMult', atr: 'legAtr', bars: 'legBars' } as const;
+const legKey = (u: TrendSettings): (string | number)[] =>
+  u.rule !== 'welle382' || u.legMeasure === 'off' ? ['leg-off'] : [u.legMeasure, u[LEG_FIELD[u.legMeasure]]];
+
 /** Kurzer Schlüssel der wirksamen Einstellungen: ändert er sich, ändern sich Linie und Formationen (neue Suche) */
 export const trendFingerprint = (s: TrendSettings): string => {
   const u = usableTrendSettings(s);
-  return [u.rule, u.minSize, u.ewoRetreat, u.changeCloses, u.ewoFast, u.ewoSlow, u.ewoSource, u.atrPeriod].join('/');
+  return [u.rule, u.minSize, u.ewoRetreat, u.changeCloses, u.ewoFast, u.ewoSlow, u.ewoSource, u.atrPeriod, ...legKey(u)].join('/');
 };
 
 /** Gespeicherte Einstellungen vom Browser-Speicher: unbekannte oder kaputte Werte fallen auf den Standard */
@@ -142,5 +149,16 @@ export function sanitizeTrendSettings(raw: unknown): TrendSettings {
     ewoSlow: clamped(p.ewoSlow, TREND_LIMITS.ewoSlow, d.ewoSlow, true),
     ewoSource: EWO_SOURCES.find((x) => x === p.ewoSource) ?? d.ewoSource,
     atrPeriod: clamped(p.atrPeriod, TREND_LIMITS.atrPeriod, d.atrPeriod, true),
+    legMeasure: LEG_MEASURES.find((x) => x === p.legMeasure) ?? d.legMeasure,
+    legMult: LEG_MULTS.find((x) => x === p.legMult) ?? d.legMult,
+    legAtr: clamped(p.legAtr, TREND_LIMITS.legAtr, d.legAtr, true),
+    legBars: clamped(p.legBars, TREND_LIMITS.legBars, d.legBars, true),
   };
+}
+
+/** Kurztext des Maßes für den langen Schenkel (Alarmmenü, Bestätigung): null, wenn die Regel nicht teilt; `kind` wählt den Übersetzungsschlüssel */
+export function legSummary(s: TrendSettings): { kind: 'mult' | 'atr' | 'bars' | 'off'; value: number } | null {
+  if (s.rule !== 'welle382') return null;
+  if (s.legMeasure === 'off') return { kind: 'off', value: 0 };
+  return { kind: s.legMeasure, value: s[LEG_FIELD[s.legMeasure]] };
 }

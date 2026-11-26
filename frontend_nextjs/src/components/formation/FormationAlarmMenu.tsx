@@ -15,6 +15,7 @@ import { ruleHasNoSize } from '@/lib/formation/params';
 import { SCAN_FORMATIONS } from '@/lib/formation/scan';
 import { TrendSettingsPanel } from '@/components/chart-workspace/TrendSettingsPanel';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
+import { legSummary } from '@/lib/formation/trdPath';
 import { cn } from '@/lib/utils';
 
 type Alarm = ReturnType<typeof useFormationAlarm>;
@@ -31,12 +32,14 @@ function TrendRow() {
   const [open, setOpen] = useState(false);
   const rule = trend.rule === 'groesse' ? t('cw.trend.minSize') : t(RULE_LABEL[trend.rule]);
   const size = ruleHasNoSize(trend.rule) ? '' : ` · ${fmt.number(trend.minSize, { maximumFractionDigits: 2 })} ATR`;
+  const leg = legSummary(trend);
   return (
     <div className="flex flex-col gap-1" data-testid="formation-alarm-trend">
       <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
         <span className="min-w-0" data-testid="formation-alarm-trend-text">
           {t('formation.alarm.trend')}: {rule}
           {size} · {t('formation.alarm.trend.closes', { count: trend.changeCloses })}
+          {leg && ` · ${t(`cw.trend.leg.summary.${leg.kind}` as MessageKey, { value: fmt.number(leg.value, { maximumFractionDigits: 3 }) })}`}
         </span>
         <Button variant="ghost" size="sm" aria-expanded={open} onClick={() => setOpen(!open)} hint={t('formation.alarm.trend.settings.hint')} data-testid="formation-alarm-trend-settings">
           {t('formation.alarm.trend.settings')}

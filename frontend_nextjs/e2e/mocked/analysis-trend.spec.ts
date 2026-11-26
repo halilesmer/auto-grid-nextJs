@@ -231,3 +231,69 @@ test.describe('ANA-21 Trendzug im Chart', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 });
+
+test.describe('ANA-29 Langer Schenkel im Trend-Panel', () => {
+  test('Gruppe „Langer Schenkel“: Standard Vielfaches 2,618, nur das Feld des gewählten Maßes ist sichtbar, Texte aus i18n, jeder Knopf hat einen Hinweis', { tag: '@ANA-29' }, async ({ page, worker }) => {
+    await open(page, worker, 'D1', false);
+    const panel = await openSettings(page);
+    const group = panel.getByTestId('trend-leg-group');
+    await expect(group.getByRole('heading', { name: msg('cw.trend.group.leg') })).toBeVisible();
+    const measure = group.getByTestId('trend-legMeasure');
+    await expect(measure).toHaveValue('mult');
+    expect(await measure.locator('option').allTextContents()).toEqual(
+      (['mult', 'atr', 'bars', 'off'] as const).map((m) => msg(`cw.trend.legMeasure.${m}` as 'cw.trend.legMeasure.mult')),
+    );
+    // Vielfaches: drei Knöpfe, 2,618 gewählt
+    const mult = group.getByTestId('trend-legMult');
+    await expect(mult.getByRole('button', { name: '2,618' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(group.getByTestId('trend-legAtr')).toHaveCount(0);
+    await expect(group.getByTestId('trend-legBars')).toHaveCount(0);
+    await mult.getByRole('button', { name: '4,236' }).click();
+    await expect(mult.getByRole('button', { name: '4,236' })).toHaveAttribute('aria-pressed', 'true');
+    // ATR-Vielfaches: Regler 6 bis 30, Standard 15
+    await measure.selectOption('atr');
+    const atr = group.getByTestId('trend-legAtr');
+    await expect(atr).toHaveAttribute('min', '6');
+    await expect(atr).toHaveAttribute('max', '30');
+    await expect(atr).toHaveValue('15');
+    await expect(mult).toHaveCount(0);
+    // Kerzenzahl: ganze Zahl 20 bis 500, Standard 80
+    await measure.selectOption('bars');
+    await expect(group.getByTestId('trend-legBars')).toHaveValue('80');
+    await expect(group.getByTestId('trend-legBars')).toHaveAttribute('min', '20');
+    await expect(group.getByTestId('trend-legBars')).toHaveAttribute('max', '500');
+    // Aus: kein Feld, nur die Erklärung
+    await measure.selectOption('off');
+    await expect(group.getByTestId('trend-leg-off-note')).toHaveText(msg('cw.trend.legMeasure.off.note'));
+    await expect(group.getByTestId('trend-legBars')).toHaveCount(0);
+  });
+
+  test('Speichern und Zurücksetzen: das Maß bleibt nach „Anwenden“ im Browser, Zusammenfassung im Bestätigungsfeld, Zurücksetzen stellt 2,618 her', { tag: '@ANA-29' }, async ({ page, worker }) => {
+    await open(page, worker, 'D1', false);
+    const panel = await openSettings(page);
+    await panel.getByTestId('trend-legMeasure').selectOption('bars');
+    await panel.getByTestId('trend-legBars').fill('120');
+    await expect(page.getByTestId('trend-confirm')).toContainText(msg('cw.trend.leg.summary.mult', { value: '2,618' }));
+    await page.getByTestId('trend-confirm-apply').click();
+    expect(await stored(page)).toMatchObject({ trend: { legMeasure: 'bars', legBars: 120 } });
+    await page.reload();
+    await trend(page).waitFor();
+    const again = await openSettings(page);
+    await expect(again.getByTestId('trend-legMeasure')).toHaveValue('bars');
+    await expect(again.getByTestId('trend-legBars')).toHaveValue('120');
+    await again.getByTestId('trend-reset').click();
+    await expect(again.getByTestId('trend-legMeasure')).toHaveValue('mult');
+    await expect(again.getByTestId('trend-legMult').getByRole('button', { name: '2,618' })).toHaveAttribute('aria-pressed', 'true');
+    await page.getByTestId('trend-confirm-apply').click();
+    expect(await stored(page)).toMatchObject({ trend: { legMeasure: 'mult', legMult: 2.618 } });
+  });
+
+  test('Aus: die Linie ist dieselbe wie ohne Teilung (bei dieser D1-Reihe teilt auch das Standardmaß nichts)', { tag: '@ANA-29' }, async ({ page, worker }) => {
+    await open(page, worker, 'D1', false);
+    await trend(page).click();
+    const base = await chart(page).getAttribute('data-trend');
+    const panel = await openSettings(page);
+    await panel.getByTestId('trend-legMeasure').selectOption('off');
+    await expect(chart(page)).toHaveAttribute('data-trend', base ?? '');
+  });
+});
