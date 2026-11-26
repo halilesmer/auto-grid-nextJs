@@ -13,10 +13,10 @@ import { sanitizeTrendSettings, usableTrendSettings } from '../../src/lib/format
  * Chart-Standard bis 2026-11-24: EWO + Fibo 382 mit dem EWO aus (Hoch + Tief) / 2. Die Fälle aus echten Charts (Suche, Ziele, Fensteranfang) wurden
  * damit aufgenommen; seit 2026-11-25 rechnet der Chart-Standard den EWO aus dem Schluss (1125-A1.4).
  */
-export const CHART_TREND_HL2: TrendSettings = { ...DEFAULT_TREND_SETTINGS, ewoSource: 'hl2' };
+export const CHART_TREND_HL2: TrendSettings = { ...DEFAULT_TREND_SETTINGS, ewoSource: 'hl2', legMeasure: 'off' };
 
-// EWO aus (Hoch + Tief) / 2: mit dieser Quelle wurden die Fixtures geprüft; der Chart-Standard ist seit 2026-11-25 der Schluss (1125-A1.4)
-export const FIXTURE_TREND: TrendSettings = { ...DEFAULT_TREND_SETTINGS, rule: 'groesse', minSize: TREND_LIMITS.minSize.min, changeCloses: 2, ewoSource: 'hl2' };
+// Ohne Teilung des langen Schenkels (legMeasure off, ANA-29): die Aufnahmen entstanden davor. EWO aus (Hoch + Tief) / 2: mit dieser Quelle wurden die Fixtures geprüft; der Chart-Standard ist seit 2026-11-25 der Schluss (1125-A1.4)
+export const FIXTURE_TREND: TrendSettings = { ...DEFAULT_TREND_SETTINGS, rule: 'groesse', minSize: TREND_LIMITS.minSize.min, changeCloses: 2, ewoSource: 'hl2', legMeasure: 'off' };
 
 /**
  * Seiten-Tests: der Browser rechnet mit der Einstellung der Fixture (Standard FIXTURE_TREND). Ohne `force` bleibt eine
@@ -74,7 +74,7 @@ export const FIXTURE_TRENDS: Record<string, Partial<TrendSettings>> = {
   'enc-bad-h4-01': { rule: 'filter', atrPeriod: 28, minSize: 1.75, changeCloses: 1, ewoFast: 8, ewoSlow: 50, ewoRetreat: 0.6 },
   'fib-counter-d1-01': { rule: 'filter', minSize: 0.5, changeCloses: 2, ewoFast: 8, ewoSlow: 50, ewoRetreat: 0.7 },
   // ABCD-26 (2026-11-14): Chart-Standard EWO + Fibo 382 mit 2,5 ATR und einem Schluss, wie im Chart des Falls
-  'abcd-breakc-h4-01': { rule: 'welle382', minSize: 2.5, changeCloses: 1 },
+  'abcd-breakc-h4-01': { rule: 'welle382', minSize: 2.5, changeCloses: 1, legMeasure: 'off' },
 };
 
 /**

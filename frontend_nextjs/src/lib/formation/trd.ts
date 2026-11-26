@@ -7,6 +7,7 @@
 import { closesBeyond, fractalIndices, otherSide, outward, wickEnd, zoneGeometry, type ZoneSide } from './frz';
 import { wilderAtr } from './indicators';
 import { FRZ_PARAMS, TRD_PARAMS, ruleHasNoSize, type ContextTimeframe, type TrendOptions } from './params';
+import { legSplitRule } from './trdSplit';
 import { zugRule, type ZugEdit, type ZugPoint } from './trdZug';
 import type { FormationBar } from './types';
 
@@ -211,7 +212,22 @@ export class TrendRun {
     this.byDone = prep.byDone;
     const { atr } = prep;
     this.minLeg = (idx: number) => opt.minSize * atr[idx];
-    this.nextEdit = zugRule(opt, bars, this.minLeg);
+    const base = zugRule(opt, bars, this.minLeg);
+    // langer Schenkel: nur die Regel `welle382` teilt; der zweite Lauf (EWO-Wellen) teilt nie
+    this.nextEdit =
+      opt.rule === 'welle382' && opt.legMeasure !== 'off'
+        ? legSplitRule(opt, bars, base, {
+            measure: opt.legMeasure,
+            mult: opt.legMult,
+            atrMult: opt.legAtr,
+            bars: opt.legBars,
+            atr,
+            inner: () => {
+              const run = new TrendRun(tf, bars, wave, { ...opt, rule: 'welle', legMeasure: 'off' }, shared);
+              return { advanceTo: (n) => run.advanceTo(n), pivots: run.model.pivots };
+            },
+          })
+        : base;
     this.model = emptyTrend(tf, bars, wave);
   }
 

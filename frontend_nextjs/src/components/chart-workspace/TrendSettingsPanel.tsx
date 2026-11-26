@@ -5,9 +5,9 @@ import { InputField } from '@/components/ui/InputField';
 import { NumberInput } from '@/components/ui/NumberInput';
 import { FieldLabel } from '@/components/ui/tooltip';
 import { useFormat, useT, type MessageKey } from '@/i18n';
-import { DEFAULT_TREND_SETTINGS, EWO_SOURCES, TREND_LIMITS, TREND_RULES, ruleHasNoSize, type EwoSource, type TrendRule, type TrendSettings } from '@/lib/formation/params';
+import { DEFAULT_TREND_SETTINGS, EWO_SOURCES, LEG_MEASURES, LEG_MULTS, TREND_LIMITS, TREND_RULES, ruleHasNoSize, type EwoSource, type LegMeasure, type TrendRule, type TrendSettings } from '@/lib/formation/params';
 import { useTrendConfirm } from '@/hooks/useTrendConfirm';
-import { ewoPairValid, trendFingerprint } from '@/lib/formation/trdPath';
+import { ewoPairValid, legSummary, trendFingerprint } from '@/lib/formation/trdPath';
 import { cn } from '@/lib/utils';
 import { useAnalysisPrefsStore } from '@/store/useAnalysisPrefsStore';
 
@@ -29,7 +29,7 @@ function Segmented<T extends string | number>({ label, hint, value, options, onC
 }
 
 /** Ganze Zahl: Wert wird erst übernommen, wenn die Eingabe in den Grenzen liegt (tippen bleibt möglich). */
-function IntField({ name, value, limit, onCommit }: { name: 'ewoFast' | 'ewoSlow' | 'atrPeriod'; value: number; limit: { min: number; max: number }; onCommit: (n: number) => void }) {
+function IntField({ name, value, limit, onCommit }: { name: 'ewoFast' | 'ewoSlow' | 'atrPeriod' | 'legBars'; value: number; limit: { min: number; max: number }; onCommit: (n: number) => void }) {
   const t = useT();
   const key = `cw.trend.${name}` as MessageKey;
   return (
@@ -65,7 +65,13 @@ export function TrendSettingsPanel() {
   const s = confirm ? draft : applied;
   const set = <K extends keyof TrendSettings>(key: K, value: TrendSettings[K]) => (confirm ? setTrend : setAppliedTrend)({ [key]: value });
   const dirty = confirm && trendFingerprint(s) !== trendFingerprint(applied);
-  const appliedText = [t(`cw.trend.rule.${applied.rule}` as MessageKey), ruleHasNoSize(applied.rule) ? null : `${fmt.number(applied.minSize)} ATR`, t(`cw.trend.closes.${applied.changeCloses}` as MessageKey)].filter(Boolean).join(' · ');
+  const legApplied = legSummary(applied);
+  const appliedText = [
+    t(`cw.trend.rule.${applied.rule}` as MessageKey),
+    ruleHasNoSize(applied.rule) ? null : `${fmt.number(applied.minSize)} ATR`,
+    t(`cw.trend.closes.${applied.changeCloses}` as MessageKey),
+    legApplied && t(`cw.trend.leg.summary.${legApplied.kind}` as MessageKey, { value: fmt.number(legApplied.value, { maximumFractionDigits: 3 }) }),
+  ].filter(Boolean).join(' · ');
   return (
     <div className="grid min-w-0 gap-4 p-3 text-sm" data-testid="trend-settings-panel">
     {dirty && (
@@ -110,6 +116,32 @@ export function TrendSettingsPanel() {
           <IntField name="atrPeriod" value={s.atrPeriod} limit={TREND_LIMITS.atrPeriod} onCommit={(n) => set('atrPeriod', n)} />
         </div>
         {!ewoPairValid(s) && <p role="alert" className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs" data-testid="trend-ewo-invalid">{t('cw.trend.ewoInvalid')}</p>}
+      </div>
+      <div className="grid gap-3" data-testid="trend-leg-group">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t('cw.trend.group.leg')}</h3>
+        <InputField label={t('cw.trend.legMeasure')} hint={t('cw.trend.legMeasure.hint')}>
+          <select aria-label={t('cw.trend.legMeasure')} data-testid="trend-legMeasure" className={fieldClass} value={s.legMeasure} onChange={(e) => set('legMeasure', e.target.value as LegMeasure)}>
+            {LEG_MEASURES.map((m) => <option key={m} value={m}>{t(`cw.trend.legMeasure.${m}` as MessageKey)}</option>)}
+          </select>
+        </InputField>
+        {s.legMeasure === 'mult' && (
+          <Segmented<number>
+            label={t('cw.trend.legMult')} hint={t('cw.trend.legMult.hint')} value={s.legMult} onChange={(v) => set('legMult', v)} testId="trend-legMult"
+            options={LEG_MULTS.map((x) => ({ value: x, label: t(`cw.trend.legMult.${x}` as MessageKey), hint: t(`cw.trend.legMult.${x}.hint` as MessageKey) }))}
+          />
+        )}
+        {s.legMeasure === 'atr' && (
+          <InputField label={t('cw.trend.legAtr')} hint={t('cw.trend.legAtr.hint')}>
+            <div className="flex items-center gap-3">
+              <input type="range" aria-label={t('cw.trend.legAtr')} data-testid="trend-legAtr" className="h-6 min-w-0 flex-1 accent-foreground" {...TREND_LIMITS.legAtr} value={s.legAtr} onChange={(e) => set('legAtr', Number(e.target.value))} />
+              <span className="w-16 shrink-0 text-right font-mono text-xs tabular-nums">{fmt.number(s.legAtr)} ATR</span>
+            </div>
+          </InputField>
+        )}
+        {s.legMeasure === 'bars' && (
+          <IntField name="legBars" value={s.legBars} limit={TREND_LIMITS.legBars} onCommit={(n) => set('legBars', n)} />
+        )}
+        {s.legMeasure === 'off' && <p className="text-xs text-muted-foreground" data-testid="trend-leg-off-note">{t('cw.trend.legMeasure.off.note')}</p>}
       </div>
       <div><Button size="sm" variant="outline" hint={t('cw.trend.reset.hint')} data-testid="trend-reset" onClick={() => { if (confirm) reset(); else setAppliedTrend(DEFAULT_TREND_SETTINGS); }}>{t('cw.trend.reset')}</Button></div>
     </div>
