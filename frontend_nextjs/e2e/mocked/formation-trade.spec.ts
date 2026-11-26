@@ -53,7 +53,7 @@ test.describe('FRM-39 Handelsblock', () => {
   });
 
   test('Fehlende Werte stehen als „—“ mit Grund; CRV ist dann nicht messbar', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    await openPage(page, worker, 'gar-buy-h4-01', 1761192000, 'ABCD');
+    await openPage(page, worker, 'gar-buy-h4-01', 1761580800, 'ABCD');
     const block = page.getByTestId('trade-block');
     await expect(block).toBeVisible();
     await expect(block.getByTestId('trade-entry')).toContainText('—');
@@ -115,7 +115,7 @@ test.describe('FRM-39 Handelsblock', () => {
   });
 
   test('ABCD im Aufbau: der Grund nennt keine Regelkennung', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    await openPage(page, worker, 'gar-buy-h4-01', 1761192000, 'ABCD');
+    await openPage(page, worker, 'gar-buy-h4-01', 1761580800, 'ABCD');
     await expect(page.getByTestId('trade-entry-reason')).not.toContainText(/[A-Z]{2,4}-\d/);
   });
 });
@@ -134,11 +134,10 @@ test.describe('FRM-39 Handelsblock AB=CD (TP2, Ergebnisse in R)', () => {
     await expect(block.getByTestId('trade-outcome-tp12')).toContainText('+1,31');
   });
 
-  // TP1 und TP2 alındı: Kauf, Einstieg 0.82389, Stop 0.82235054, endet in der letzten Kerze (2025-06-12 16:00). Bis 1122-A1.4 stand hier
-  // 2025-07-16 00:00 mit dem Verkauf A 07-10 16:00 / C 07-11 00:00; dieser war beim Einstieg nicht gezeigt und wird nach Regel B nie gezeigt
-  // (formation-abcd-vanish-classes-lib.spec.ts hält das für 07-16 00:00 fest).
+  // TP1 und TP2 alındı: Verkauf (A 0.82427, B 0.82836, C 0.82652, Tiefe 0,45), Einstieg 0.83061, Stop 0.83303188, endet in der letzten Kerze (2025-06-30 00:00).
+  // Bis 1126-A20.2 stand hier abcd-buy-h4-02 am 2025-06-12 (Tiefe 1,53, Form verfehlt): ein Tripel mit verfehlter Form trägt keinen Handel mehr.
   test('Status TP1 und TP2 alındı: Stop auf dem Einstieg, beide Ziele erreicht, Ergebnis-Kasten hervorgehoben', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    await openPage(page, worker, 'abcd-buy-h4-02', 1749744000, 'ABCD');
+    await openPage(page, worker, 'abcd-buy-h4-02', 1751256000, 'ABCD');
     const block = page.getByTestId('trade-block');
     await expect(block.getByTestId('trade-status')).toHaveAttribute('data-status', 'tp12');
     await expect(block.getByTestId('trade-status')).toContainText(msg('formation.trade.status.tp12'));
@@ -152,13 +151,12 @@ test.describe('FRM-39 Handelsblock AB=CD (TP2, Ergebnisse in R)', () => {
   });
 
   test('Status TP1 und TP2 alındı: der hervorgehobene Kasten zeigt das tatsächliche Ergebnis, die blassen bleiben beim Einstiegswert', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    await openPage(page, worker, 'abcd-buy-h4-02', 1749744000, 'ABCD');
+    await openPage(page, worker, 'abcd-buy-h4-02', 1751256000, 'ABCD');
     const block = page.getByTestId('trade-block');
     await expect(block.getByTestId('trade-outcome-tp12')).toHaveAttribute('data-active', 'true');
-    // Das mitlaufende Ziel lag beim Erreichen näher am Einstieg als am Einstieg selbst: 0,81 statt 1,31 (bis 1122-A1.4: 1,08 mit dem alten Zeitpunkt).
-    // Handrechnung: Risiko 0.82389 − 0.82235054 = 0.00153946; am Einstieg TP1 0.82542946 (1,000 R), TP2 0.82638054 (1,618 R): ½ · 1 + ½ · 1,618 = 1,31;
-    // gefüllt TP1 0.82447807 (0,382 R), TP2 0.82579247 (1,236 R): ½ · 0,382 + ½ · 1,236 = 0,81
-    await expect(block.getByTestId('trade-outcome-tp12')).toContainText('+0,81');
+    // Das tatsächliche Ergebnis weicht vom Einstiegswert ab (1,31). Handrechnung: Risiko 0.83303188 − 0.83061 = 0.00242188;
+    // gefüllt TP1 0.82870106 (0,788 R), TP2 0.82700894 (1,487 R): ½ · 0,788 + ½ · 1,487 = 1,14
+    await expect(block.getByTestId('trade-outcome-tp12')).toContainText('+1,14');
     await expect(block.getByTestId('trade-outcome-stop')).toContainText('-1,00');
     await expect(block.getByTestId('trade-outcome-tp1')).toContainText('+0,50');
   });
@@ -379,11 +377,11 @@ test.describe('FRM-39 Handelsblock AB=CD (Yeniden giriş, 1114-A4.4)', () => {
     await expect(re).not.toContainText(/ABCD-\d|HDL-\d|SIG-\d|TP\d/);
   });
 
-  // abcd-breakc-h4-01: Verkauf, nur TP1 erreicht (Rest am Einstieg, Handel läuft), der Kurs kehrt in die Engulf-Zone am D zurück; CD = 1,51 × AB.
-  // Bis 1123-A15.1 war es gar-buy-h4-01: dort wandert D nach dem Ende auf 2,36 × AB, die Proportion ist verloren und das AB=CD verlassen
-  // (formation-abcd-overshoot-lib.spec.ts)
+  // abcd-neg-h4-01 (A 145.946, B 143.747, C 144.941, Tiefe 0,54): nur TP1 erreicht, der Kurs kehrt in die Engulf-Zone am D zurück.
+  // Bis 1126-A20.2 war es abcd-breakc-h4-01 (Tiefe 0,97, Form verfehlt, kein Handel mehr); davor gar-buy-h4-01 (1123-A15.1: D wandert auf 2,36 × AB,
+  // formation-abcd-overshoot-lib.spec.ts)
   test('Nur TP1 erreicht und Kurs zurück in der Zone: keine Werte, eine Warnzeile', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    await openPage(page, worker, 'abcd-breakc-h4-01', 1783699200, 'ABCD');
+    await openPage(page, worker, 'abcd-neg-h4-01', 1751428800, 'ABCD');
     const block = page.getByTestId('trade-block');
     await expect(block.getByTestId('trade-reentry')).toHaveCount(0);
     await expect(block.getByTestId('trade-reentry-warning')).toContainText(msg('formation.trade.reentry.warning'));

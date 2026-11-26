@@ -277,6 +277,32 @@ function frozenFactsOf(
   return { freezeIdx, frozenFrom, entryBig };
 }
 
+/** Form-Bedingungen: hält eine nicht, trägt das Tripel keinen Handel (1126-A20.2, Regelbuch-Abnahmefall abcd-neg-h4-01) */
+const FORM_IDS = ['ABCD-01', 'ABCD-02', 'ABCD-04', 'ABCD-05', 'ABCD-06'];
+
+/** ABCD-01, -02, -04, -05, -06 des Tripels `s` (dieselbe Messung wie in `evaluateFull`): wahr, wenn alle halten */
+function formHolds(bars: readonly FormationBar[], s: AbcdShape): boolean {
+  const { es, cs } = s;
+  const fractalDone = (idx: number, sideOf: typeof es) => {
+    const probe = probeFractal(bars, idx, sideOf);
+    return probe.leftBars === N && probe.rightBars === N && probe.beyond === 0;
+  };
+  const depth = s.depth ?? undefined;
+  return (
+    s.a.idx < s.b.idx &&
+    s.b.idx < s.c.idx &&
+    s.a.price === wickEnd(bars[s.a.idx], cs) &&
+    s.b.price === wickEnd(bars[s.b.idx], es) &&
+    s.c.price === wickEnd(bars[s.c.idx], cs) &&
+    fractalDone(s.b.idx, es) &&
+    fractalDone(s.c.idx, cs) &&
+    depth !== undefined &&
+    depth >= ABCD_PARAMS.minCorrection &&
+    depth <= 1 &&
+    depth <= ABCD_PARAMS.maxCorrection
+  );
+}
+
 /**
  * Nur der Handel eines Tripels für die Wahl in `analyzeAbcd` (ohne D-Eingabe): Seite, Punkte A bis D, Einstieg, Stop, Stand und Einstiegskerze,
  * dieselben Werte wie `evaluateFull`. Einstieg und Stand hängen nicht am Urteil, an Zonen, Signalen oder Zeichnungen, nur an der Form, der
@@ -301,7 +327,7 @@ export function tradeOnlyOf(env: Env, p: AbcdPoints, pip: number, atEntry: AtEnt
   };
   if (d) points.D = { time: bars[d.idx].time, price: d.price };
   const bare: Candidate = { code: 'ABCD', side: s.side, tf, points, checks: [], drawings: [], verdict: 'forming' };
-  if (!dReached(s) || !d) return bare;
+  if (!dReached(s) || !d || !formHolds(bars, s)) return bare;
   let level: ReturnType<typeof levelContextOf> | undefined;
   const current = () => (level ??= levelContextOf(env, p, s, undefined, pip));
   const { freezeIdx, frozenFrom, entryBig } = frozenFactsOf(env, p, s, undefined, pip, atEntry, current);
@@ -612,6 +638,11 @@ function evaluateFull(
   };
   if (d) points.D = { time: bars[d.idx].time, price: d.price };
   const candidate: Candidate = { code: 'ABCD', side, tf, points, checks: withDrawings, drawings, verdict, invalidBy };
+  // 1126-A20.2: hält eine Form-Bedingung nicht, gibt es keinen Handel; Prüfliste, Urteil und die Zeichnungen der Form bleiben
+  if (checks.some((c) => FORM_IDS.includes(c.id) && c.state === 'unmet')) {
+    candidate.drawings = candidate.drawings.filter((x) => x.rules !== TRADE_RULES);
+    return { candidate, big, frozenFrom };
+  }
   const traded = withTrade(candidate, env, tf, input, false);
   // Einstiegskerze für den Vorrang laufender Handel in `analyzeAbcd` (1122-A1.3)
   if (status && traded.trade) traded.trade = { ...traded.trade, entryIdx: freezeIdx };
@@ -733,7 +764,9 @@ function earlierCs(bars: readonly FormationBar[], p: AbcdPoints): AbcdPoints[] {
 function proportionLost(c: Candidate, last: number, bars: readonly FormationBar[], p: AbcdPoints | undefined): boolean {
   const endIdx = c.trade?.status?.endIdx;
   const { A, B } = c.points;
-  if (endIdx === undefined || endIdx >= last || !A || !B || !p) return false;
+  // 1123-A und 1126-A20.2: ohne Handel (Form verfehlt) gilt die Oberlinie sofort. Ein Tripel mit gültiger Form und ohne Einstieg hat D höchstens an Level 1 (CD ≤ AB), die Regel löst dort nie aus
+  if (endIdx === undefined ? c.trade !== undefined : endIdx >= last) return false;
+  if (!A || !B || !p) return false;
   // Gemessen am äußersten Docht bis zur letzten Kerze, nicht am eingefrorenen D des Handels (1124-A2.1): die Regel misst, wie weit das D-Bein weiterlief
   const d = shapeOf(bars, p).d;
   if (!d) return false;
