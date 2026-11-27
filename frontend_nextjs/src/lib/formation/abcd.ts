@@ -43,7 +43,7 @@ export interface AbcdShape extends AbcdPoints {
 
 /**
  * Wählt A, B, C aus den Wendepunkten: C ist einer der letzten `lookbackPivots` Wendepunkte, B und A die zwei davor.
- * Genommen wird das jüngste C, dessen Korrekturtiefe die Formbedingungen ABCD-04 bis ABCD-06 erfüllt; gibt es keines,
+ * Genommen wird das jüngste C, dessen AB ein Impuls des Trendzugs und dessen Korrekturtiefe die Formbedingungen ABCD-04 bis ABCD-06 erfüllt; gibt es keines,
  * der letzte Wendepunkt. Liegt ein späterer Wendepunkt schon jenseits von B, ist er das D (es zählt der äußerste Docht seit C).
  * Weniger als drei Wendepunkte: null.
  */
@@ -61,8 +61,8 @@ export function depthOk(p: AbcdPoints): boolean {
 }
 
 /**
- * Reihenfolge der Wahl: unter den letzten `lookbackPivots` Wendepunkten jedes C mit gültiger Korrekturtiefe, jüngstes zuerst; danach die
- * letzten drei Wendepunkte, wenn ihre Tiefe nicht gültig ist (ohne gültiges Tripel sind sie die Wahl). `selectPoints` ist das erste; die folgenden gelten, wenn das erste einen beim Einstieg nicht gezeigten Handel trägt (1122-A1.4 b).
+ * Reihenfolge der Wahl: unter den letzten `lookbackPivots` Wendepunkten jedes C mit Impuls-AB und gültiger Korrekturtiefe, jüngstes zuerst; danach die
+ * letzten drei Wendepunkte, wenn sie kein gültiges Tripel sind (ohne gültiges Tripel sind sie die Wahl). `selectPoints` ist das erste; die folgenden gelten, wenn das erste einen beim Einstieg nicht gezeigten Handel trägt (1122-A1.4 b).
  */
 export function selectOrder(pivots: readonly Pivot[]): AbcdPoints[] {
   const n = pivots.length;
@@ -70,9 +70,11 @@ export function selectOrder(pivots: readonly Pivot[]): AbcdPoints[] {
   const pt = (p: Pivot): AbcdPoint => ({ idx: p.idx, price: p.price });
   const at = (j: number): AbcdPoints => ({ a: pt(pivots[j - 2]), b: pt(pivots[j - 1]), c: pt(pivots[j]) });
   const out: AbcdPoints[] = [];
-  for (let j = n - 1; j >= Math.max(2, n - ABCD_PARAMS.lookbackPivots); j--) if (depthOk(at(j))) out.push(at(j));
-  // ohne gültige Tiefe an n − 1: die letzten drei Wendepunkte zuletzt (ohne gültiges Tripel die Wahl selbst)
-  if (!depthOk(at(n - 1))) out.push(at(n - 1));
+  // AB ist ein Impuls des Trendzugs (ABCD-01, 1126-A13.2); die Art von C ändert sich später durch Ereignisse im D-Bein, die ABCD-05 und ABCD-26 messen, nicht die Wahl
+  const valid = (j: number) => pivots[j - 1].kind === 'impulse' && depthOk(at(j));
+  for (let j = n - 1; j >= Math.max(2, n - ABCD_PARAMS.lookbackPivots); j--) if (valid(j)) out.push(at(j));
+  // kein gültiges Tripel an n − 1 (Tiefe oder AB kein Impuls): die letzten drei Wendepunkte zuletzt (ohne gültiges Tripel die Wahl selbst, ABCD-01 hält dann nicht)
+  if (!valid(n - 1)) out.push(at(n - 1));
   return out;
 }
 

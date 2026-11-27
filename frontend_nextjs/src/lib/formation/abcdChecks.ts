@@ -31,6 +31,7 @@ import { emergencyStopOf, fibPrice, strongZoneAt, targetEnd } from './trade';
 import { tradeStatusOf } from './tradeStatus';
 import { abcdTrade, withTrade } from './tradeApply';
 import type { TradeStatus } from './tradeStatus';
+import { legDir, type TrendModel } from './trd';
 import { abcdIsCdt } from './cdt';
 import { evaluate as evaluateBat } from './batChecks';
 import { evaluate as evaluateGar } from './garChecks';
@@ -280,8 +281,18 @@ function frozenFactsOf(
 /** Form-Bedingungen: hält eine nicht, trägt das Tripel keinen Handel (1126-A20.2, Regelbuch-Abnahmefall abcd-neg-h4-01) */
 const FORM_IDS = ['ABCD-01', 'ABCD-02', 'ABCD-04', 'ABCD-05', 'ABCD-06'];
 
+/**
+ * ABCD-01, Trendbezug (1126-A13.2): AB ist ein Impuls im Trend der Zeiteinheit. Ist B ein Wendepunkt des Trendzugs (gleicher Index und Seite),
+ * zählt dessen Art; sonst die Richtung von AB gegen die Trendrichtung.
+ */
+export function abIsImpulse(trend: TrendModel, s: AbcdShape): boolean {
+  const pivot = trend.pivots.find((q) => q.idx === s.b.idx && q.side === s.es);
+  if (pivot) return pivot.kind === 'impulse';
+  return trend.dir !== null && legDir(s.es) === trend.dir;
+}
+
 /** ABCD-01, -02, -04, -05, -06 des Tripels `s` (dieselbe Messung wie in `evaluateFull`): wahr, wenn alle halten */
-function formHolds(bars: readonly FormationBar[], s: AbcdShape): boolean {
+function formHolds(bars: readonly FormationBar[], s: AbcdShape, trend: TrendModel): boolean {
   const { es, cs } = s;
   const fractalDone = (idx: number, sideOf: typeof es) => {
     const probe = probeFractal(bars, idx, sideOf);
@@ -291,6 +302,7 @@ function formHolds(bars: readonly FormationBar[], s: AbcdShape): boolean {
   return (
     s.a.idx < s.b.idx &&
     s.b.idx < s.c.idx &&
+    abIsImpulse(trend, s) &&
     s.a.price === wickEnd(bars[s.a.idx], cs) &&
     s.b.price === wickEnd(bars[s.b.idx], es) &&
     s.c.price === wickEnd(bars[s.c.idx], cs) &&
@@ -327,7 +339,7 @@ export function tradeOnlyOf(env: Env, p: AbcdPoints, pip: number, atEntry: AtEnt
   };
   if (d) points.D = { time: bars[d.idx].time, price: d.price };
   const bare: Candidate = { code: 'ABCD', side: s.side, tf, points, checks: [], drawings: [], verdict: 'forming' };
-  if (!dReached(s) || !d || !formHolds(bars, s)) return bare;
+  if (!dReached(s) || !d || !formHolds(bars, s, env.trends.get(tf)!)) return bare;
   let level: ReturnType<typeof levelContextOf> | undefined;
   const current = () => (level ??= levelContextOf(env, p, s, undefined, pip));
   const { freezeIdx, frozenFrom, entryBig } = frozenFactsOf(env, p, s, undefined, pip, atEntry, current);
@@ -385,6 +397,7 @@ function evaluateFull(
     flag(
       s.a.idx < s.b.idx &&
         s.b.idx < s.c.idx &&
+        abIsImpulse(trend, s) &&
         s.a.price === wickEnd(bars[s.a.idx], cs) &&
         s.b.price === wickEnd(bars[s.b.idx], es) &&
         s.c.price === wickEnd(bars[s.c.idx], cs),

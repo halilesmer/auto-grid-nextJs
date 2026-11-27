@@ -122,7 +122,7 @@ test.describe('FRM-39 Handelsblock', () => {
 
 test.describe('FRM-39 Handelsblock AB=CD (TP2, Ergebnisse in R)', () => {
   test('AB=CD zeigt TP2 mit Anteil und Abstand, drei Ergebnisse in R; ohne Divergenz kein TP3', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    await openPage(page, worker, 'abcd-buy-h4-02', 1752624000 - 30 * 14400, 'ABCD');
+    await openPage(page, worker, 'abcd-buy-h4-02', 1752206400, 'ABCD');
     const block = page.getByTestId('trade-block');
     await expect(block.getByTestId('trade-tp2')).not.toHaveText(/^\s*—\s*$/);
     await expect(block.getByTestId('trade-tp2-distance')).toHaveText(/^\+[\d.,]+ pip$/);
@@ -162,7 +162,7 @@ test.describe('FRM-39 Handelsblock AB=CD (TP2, Ergebnisse in R)', () => {
   });
 
   test('Status TP1 alındı: „bisher“ zeigt das tatsächliche TP1, „TP2 gelirse“ das tatsächliche TP1 plus das aktuelle TP2', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    await openPage(page, worker, 'abcd-double-h4-01', 1763452800, 'ABCD');
+    await openPage(page, worker, 'abcd-buy-h4-02', 1752235200, 'ABCD');
     const block = page.getByTestId('trade-block');
     await expect(block.getByTestId('trade-status')).toHaveAttribute('data-status', 'tp1');
     await expect(block.getByTestId('trade-outcome-tp1')).toHaveAttribute('data-active', 'true');
@@ -170,21 +170,22 @@ test.describe('FRM-39 Handelsblock AB=CD (TP2, Ergebnisse in R)', () => {
     await expect(block.getByTestId('trade-outcome-tp12')).toContainText(msg('formation.trade.outcome.ifTp2'));
     // Gleiche Werte wie am Einstieg (+0,50 / +1,31) wären das Fehlerbild: das mitlaufende Ziel liegt bei Erreichen anders als am Einstieg
     // Die Plan-Zeile trägt die Einstiegswerte (+0,50 / +1,31); die große Zahl ist der tatsächliche Wert
-    await expect(block.getByTestId('trade-outcome-tp1')).toHaveText(`${msg('formation.trade.outcome.sofar')}+0,43${msg('formation.trade.outcome.plan', { value: '+0,50' })}`);
-    await expect(block.getByTestId('trade-outcome-tp12')).toHaveText(`${msg('formation.trade.outcome.ifTp2')}+1,19${msg('formation.trade.outcome.plan', { value: '+1,31' })}`);
-    // Von Hand: Werte aus dem Zählpreis von TP1 und dem aktuellen TP2
-    await expect(block.getByTestId('trade-outcome-tp1')).toContainText('+0,43');
-    await expect(block.getByTestId('trade-outcome-tp12')).toContainText('+1,19');
+    await expect(block.getByTestId('trade-outcome-tp1')).toHaveText(`${msg('formation.trade.outcome.sofar')}+0,39${msg('formation.trade.outcome.plan', { value: '+0,50' })}`);
+    await expect(block.getByTestId('trade-outcome-tp12')).toHaveText(`${msg('formation.trade.outcome.ifTp2')}+1,13${msg('formation.trade.outcome.plan', { value: '+1,31' })}`);
+    // Von Hand (1127-A1.1, abcd-buy-h4-02 um 1752235200: Verkauf, Einstieg 0.82528, Stop 0.82675834, Zählpreis TP1 0.8241292, aktuelles TP2 0.8230908):
+    // Risiko 0.00147834; bisher ½ · 0.0011508 / 0.00147834 = 0,389; TP2 gelirse ½ · (0.0011508 + 0.0021892) / 0.00147834 = 1,130
+    await expect(block.getByTestId('trade-outcome-tp1')).toContainText('+0,39');
+    await expect(block.getByTestId('trade-outcome-tp12')).toContainText('+1,13');
     await expect(block.getByTestId('trade-outcome-stop')).toContainText('-1,00');
   });
 
   test('Status TP1 alındı: unter dem tatsächlichen Wert steht der Plan-Wert, der Hinweis nennt beide', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    await openPage(page, worker, 'abcd-double-h4-01', 1763452800, 'ABCD');
+    await openPage(page, worker, 'abcd-buy-h4-02', 1752235200, 'ABCD');
     const block = page.getByTestId('trade-block');
     const sofar = block.getByTestId('trade-outcome-tp1');
     const ifTp2 = block.getByTestId('trade-outcome-tp12');
     // Groß der tatsächliche Wert, klein darunter der Wert vom Einstieg
-    await expect(sofar).toContainText('+0,43');
+    await expect(sofar).toContainText('+0,39');
     await expect(block.getByTestId('trade-outcome-plan-tp1')).toHaveText(msg('formation.trade.outcome.plan', { value: '+0,50' }));
     await expect(block.getByTestId('trade-outcome-plan-tp12')).toHaveText(msg('formation.trade.outcome.plan', { value: '+1,31' }));
     // Hiza: die drei Kästen (auch der ungewrappte Stop-Kasten) haben gleiche obere und untere Kante
@@ -199,7 +200,7 @@ test.describe('FRM-39 Handelsblock AB=CD (TP2, Ergebnisse in R)', () => {
     // Hover: beide Werte im Hinweis
     await sofar.hover();
     const tip = page.getByRole('tooltip');
-    await expect(tip).toContainText(msg('formation.trade.outcome.diff.actual', { value: '+0,43' }));
+    await expect(tip).toContainText(msg('formation.trade.outcome.diff.actual', { value: '+0,39' }));
     await expect(tip).toContainText(msg('formation.trade.outcome.diff.plan', { value: '+0,50' }));
     await expect(tip).toContainText(msg('formation.trade.outcome.diff.drift'));
     await page.mouse.move(0, 0);
@@ -208,17 +209,17 @@ test.describe('FRM-39 Handelsblock AB=CD (TP2, Ergebnisse in R)', () => {
     await page.keyboard.press('Tab');
     await ifTp2.focus();
     await expect(ifTp2).toBeFocused();
-    await expect(page.getByRole('tooltip')).toContainText(msg('formation.trade.outcome.diff.ifTp2', { value: '+1,19' }));
+    await expect(page.getByRole('tooltip')).toContainText(msg('formation.trade.outcome.diff.ifTp2', { value: '+1,13' }));
     await expect(page.getByRole('tooltip')).toContainText(msg('formation.trade.outcome.diff.plan', { value: '+1,31' }));
   });
 
   test('Status açık: keine Plan-Zeile, solange noch kein Ziel erreicht ist', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    await openPage(page, worker, 'abcd-buy-h4-02', 1752624000 - 30 * 14400, 'ABCD');
+    await openPage(page, worker, 'abcd-buy-h4-02', 1752206400, 'ABCD');
     await expect(page.getByTestId('trade-block').locator('[data-testid^="trade-outcome-plan-"]')).toHaveCount(0);
   });
 
   test('Status açık: kein Treffer, Stop bleibt, kein Ergebnis-Kasten hervorgehoben', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    await openPage(page, worker, 'abcd-buy-h4-02', 1752624000 - 30 * 14400, 'ABCD');
+    await openPage(page, worker, 'abcd-buy-h4-02', 1752206400, 'ABCD');
     const block = page.getByTestId('trade-block');
     await expect(block.getByTestId('trade-status')).toHaveAttribute('data-status', 'open');
     await expect(block.getByTestId('trade-status')).toContainText(msg('formation.trade.status.open'));
@@ -254,7 +255,7 @@ test.describe('FRM-39 Handelsblock AB=CD (TP2, Ergebnisse in R)', () => {
 test.describe('FRM-39 Handelsblock AB=CD (großes Ziel bei harmonischem D, 1114-A4.3)', () => {
   // gar-buy-h4-03: Kauf-AB=CD mit Gartley-D; 1765569600 Einstieg erreicht und offen, 1765584000 TP1 erreicht
   test('Harmonisches D: Drittel bei TP1, TP2 und großem Ziel, Aktivierungstext unter dem Wert, vier Ergebnisse, kein 0,786-Ziel', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    await openPage(page, worker, 'gar-buy-h4-03', 1765569600, 'ABCD');
+    await openPage(page, worker, 'crb-buy-h4-01', 1763395200, 'ABCD');
     const block = page.getByTestId('trade-block');
     await expect(block.getByTestId('trade-tpBig')).not.toHaveText(/^\s*—\s*$/);
     await expect(block.getByTestId('trade-tpBig-distance')).toHaveText(/^\+[\d.,]+ pip$/);
@@ -267,7 +268,15 @@ test.describe('FRM-39 Handelsblock AB=CD (großes Ziel bei harmonischem D, 1114-
   });
 
   test('TP1 erreicht: Statuszeile nennt den Stop des Rests am Einstieg, „bisher“ steht beim TP1-Weg', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    await openPage(page, worker, 'gar-buy-h4-03', 1765584000, 'ABCD');
+    // Sentetik (1127-A1.1): crb-buy-h4-01 (EURUSD H4), Kerze 1763438400 (Index 190): open 1.15903 → 1.1591, low 1.15877 → 1.1591, high 1.16033 → 1.1612.
+    // Der Kauf-AB=CD mit harmonischem D (Einstieg 1.15908, Kerze 1763380800) erreicht TP1 (1.16097) vor dem Stop, ohne den Einstieg zu berühren (sonst „breakeven“).
+    // Vorher (bis 1126-A13.2) stand hier gar-buy-h4-03 um 1765584000 mit TP1 und großem Ziel; dieses Tripel hat kein Impuls-AB mehr.
+    await openPage(page, worker, 'crb-buy-h4-01', 1763452800, 'ABCD', (bars) => {
+      const b = bars.find((x) => x.time === 1763438400)!;
+      b.open = 1.1591;
+      b.low = 1.1591;
+      b.high = 1.1612;
+    });
     const block = page.getByTestId('trade-block');
     await expect(block.getByTestId('trade-status')).toHaveAttribute('data-status', 'tp1');
     await expect(block.getByTestId('trade-status')).toContainText(msg('formation.trade.status.tp1.big.sub'));
@@ -277,7 +286,7 @@ test.describe('FRM-39 Handelsblock AB=CD (großes Ziel bei harmonischem D, 1114-
 
   test('375 px: der Block mit großem Ziel läuft nicht über', { tag: '@FRM-39' }, async ({ page, worker }) => {
     await page.setViewportSize({ width: 375, height: 812 });
-    await openPage(page, worker, 'gar-buy-h4-03', 1765569600, 'ABCD');
+    await openPage(page, worker, 'crb-buy-h4-01', 1763395200, 'ABCD');
     const block = page.getByTestId('trade-block');
     await expect(block.getByTestId('trade-tpBig')).toBeVisible();
     expect(await block.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
@@ -285,7 +294,7 @@ test.describe('FRM-39 Handelsblock AB=CD (großes Ziel bei harmonischem D, 1114-
   });
 
   test('Ohne harmonisches D: weiter zwei Anteile, drei Ergebnisse, kein großes Ziel', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    await openPage(page, worker, 'abcd-buy-h4-02', 1752624000 - 30 * 14400, 'ABCD');
+    await openPage(page, worker, 'abcd-buy-h4-02', 1752206400, 'ABCD');
     const block = page.getByTestId('trade-block');
     await expect(block.getByTestId('trade-tpBig')).toHaveCount(0);
     await expect(block.getByTestId('trade-outcomes').locator('[data-testid^="trade-outcome-"]')).toHaveCount(3);
@@ -293,10 +302,34 @@ test.describe('FRM-39 Handelsblock AB=CD (großes Ziel bei harmonischem D, 1114-
   });
 });
 
+// Sentetik (1127-A1.1): frz-support-h4-01 (H4), Kerzen 1759507200 (Index 118): close 24399.79 → 24392 und 1759521600 (Index 119): close 24398.19 → 24390.
+// Zwei Schlüsse unter dem Gegenpunkt 24395.47 drehen den Trendzug abwärts (TRD-15); damit ist das Kauf-Tripel A 24550.19, B 24345.79, C 24458.17 ein Impuls-AB
+// (1126-A13.2). Einstieg, Stop, Ziel 1 und D bleiben unverändert (D und die Engulf-Kerze liegen nach Index 119).
+const erTrend = (bars: ReturnType<typeof load>) => {
+  bars.find((x) => x.time === 1759507200)!.close = 24392;
+  bars.find((x) => x.time === 1759521600)!.close = 24390;
+};
+
+/**
+ * Sentetik (1127-A1.2): frz-support-h4-01 als Preisspiegel (mit den Änderungen von `erTrend`, 1127-A1.1): p → 48800 − p, Hoch und Tief tauschen.
+ * Aus dem Kauf wird ein Verkauf mit Erken dönüş. Gespiegelt wird jede Kerze der Reihe.
+ */
+const MIRROR_K = 48800;
+const mirror = (bars: ReturnType<typeof load>, prepare: (bars: ReturnType<typeof load>) => void) => {
+  prepare(bars);
+  for (const b of bars) {
+    const { open, high, low, close } = b;
+    b.open = MIRROR_K - open;
+    b.close = MIRROR_K - close;
+    b.high = MIRROR_K - low;
+    b.low = MIRROR_K - high;
+  }
+};
+
 test.describe('FRM-39 Handelsblock AB=CD (Erken dönüş, 1114-A4.5)', () => {
   // frz-support-h4-01: Kauf-AB=CD, D dreht in einer Stütze vor Level 1 mit einer Engulf-Kerze; Ziel 1 aus einer Gegenzone, an C keine Zone
   test('Kauf: Status Erken dönüş, Hinweiskasten, Einstieg/Stop/Ziel 1, kein Ziel 2, keine Ergebnisse', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    await openPage(page, worker, 'frz-support-h4-01', 1759766400, 'ABCD');
+    await openPage(page, worker, 'frz-support-h4-01', 1759766400, 'ABCD', erTrend);
     const block = page.getByTestId('trade-block');
     await expect(block.getByTestId('trade-status')).toHaveAttribute('data-status', 'early');
     await expect(block.getByTestId('trade-status')).toContainText(msg('formation.trade.early'));
@@ -316,23 +349,23 @@ test.describe('FRM-39 Handelsblock AB=CD (Erken dönüş, 1114-A4.5)', () => {
     await expect(page.getByTestId('candidate-item').first()).toBeVisible();
   });
 
-  // kei-sell-h4-01: Verkauf; in Handelsrichtung liegt keine Zone: Ziel 1 „—“ mit Grund, kein Verhältnis
-  test('Verkauf ohne Gegenzone: Ziel 1 „—“ mit Grund, Verhältnis nicht messbar', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    await openPage(page, worker, 'kei-sell-h4-01', 1763668800, 'ABCD');
+  // Verkauf mit Erken dönüş auf dem Preisspiegel von frz-support-h4-01 (1127-A1.2/A1.3, Spiegel p → K − p mit K = 48800, Hoch und Tief getauscht, samt `erTrend`).
+  // Bis 1126-A13.2 stand hier kei-sell-h4-01 um 1763668800 mit „Ziel 1 — mit Grund noZone, Verhältnis nicht messbar“; dort ist das Verkaufs-AB jetzt eine Korrektur.
+  // Von Hand: Ziel 1 des Kaufs 24450.97 (Fraktalzone Kerze 112) → 48800 − 24450.97 = 24349.03.
+  test('Verkauf: Status Erken dönüş, Stop über der Zone, Ziel 1 aus der Gegenzone, kein Ziel 2, keine Ergebnisse', { tag: '@FRM-39' }, async ({ page, worker }) => {
+    await openPage(page, worker, 'frz-support-h4-01', 1759766400, 'ABCD', (bars) => mirror(bars, erTrend));
     const block = page.getByTestId('trade-block');
     await expect(block).toHaveAttribute('data-side', 'sell');
     await expect(block.getByTestId('trade-status')).toHaveAttribute('data-status', 'early');
     await expect(block.getByTestId('trade-stop-zone')).toContainText(msg('formation.trade.early.stop.above'));
-    await expect(block.getByTestId('trade-tp1')).toHaveText('—');
-    await expect(block.getByTestId('trade-tp1-reason')).toHaveText(msg('formation.trade.reason.noZone'));
-    await expect(block.getByTestId('trade-crv')).toHaveText('—');
+    await expect(block.getByTestId('trade-tp1')).toHaveText('24.349,030');
     await expect(block.getByTestId('trade-tp2')).toHaveCount(0);
     await expect(block.getByTestId('trade-outcomes')).toHaveCount(0);
   });
 
   test('375 px: der Erken-dönüş-Block läuft nicht über', { tag: '@FRM-39' }, async ({ page, worker }) => {
     await page.setViewportSize({ width: 375, height: 812 });
-    await openPage(page, worker, 'frz-support-h4-01', 1759766400, 'ABCD');
+    await openPage(page, worker, 'frz-support-h4-01', 1759766400, 'ABCD', erTrend);
     const block = page.getByTestId('trade-block');
     await expect(block.getByTestId('trade-early-note')).toBeVisible();
     expect(await block.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
@@ -758,14 +791,14 @@ test.describe('FRM-39 Handelsblock: Hinweis „harmonisches D gebrochen“ (1120
   };
 
   test('Ohne Bruch kein Hinweis', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    await openPage(page, worker, 'gar-buy-h4-03', 1765569600, 'ABCD');
+    await openPage(page, worker, 'crb-buy-h4-01', 1763395200, 'ABCD');
     await expect(page.getByTestId('trade-block').getByTestId('trade-tpBig')).toBeVisible();
     await expect(page.getByTestId('trade-tpBig-broken-note')).toHaveCount(0);
   });
 
   test('Harmonisches D nach dem Einstieg gebrochen: großes Ziel bleibt, Hinweis steht darunter', { tag: '@FRM-39' }, async ({ page, worker }) => {
-    const now = 1765569600 + 14400;
-    await openPage(page, worker, 'gar-buy-h4-03', now, 'ABCD', (bars) => breakX(bars, now));
+    const now = 1763395200 + 14400;
+    await openPage(page, worker, 'crb-buy-h4-01', now, 'ABCD', (bars) => breakX(bars, now));
     const block = page.getByTestId('trade-block');
     await expect(block.getByTestId('trade-tpBig')).not.toHaveText(/^\s*—\s*$/);
     await expect(block.getByTestId('trade-tpBig-broken-note')).toHaveText(msg('formation.trade.big.harmonicBroken'));

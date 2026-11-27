@@ -597,7 +597,9 @@ const states = (c: Candidate, ids: string[]) => ids.map((id) => state(c, id));
 
 test.describe('ABCD: invalidBy', () => {
   test('Ungültig mit wartendem D: invalidBy nennt die verursachenden Regeln, nicht ABCD-03', { tag: '@FRM-19' }, () => {
-    const c = run({ H4: S_BEYOND_A }, ABC);
+    // 1126-A13.2: C ragt nur mit dem Docht über A hinaus (Schluss davor): der Trendzug dreht nicht, AB bleibt ein Impuls (ABCD-01 ☑)
+    const c = run({ H4: zig([100, 130, 99.9, 125], 8, 0) }, ABC);
+    expect(state(c, 'ABCD-01')).toBe(M);
     expect([c.verdict, state(c, 'ABCD-03'), c.invalidBy]).toEqual(['invalid', N, ['ABCD-05', 'ABCD-06']]);
   });
 
@@ -655,10 +657,9 @@ test.describe('ABCD: echte Kerzen', () => {
   });
 
   frm('sig-diverg-h4-01: Kauf am D ohne RSI-Extrem, der Engulf umschließt nur eine kleine Kerze (SIG-24), Zone durchbrochen', () => {
-    // Suche (1122-A1.4 c): um 12-02 12:00 zeigt sie den beim Einstieg (12-02 04:00) gezeigten Verkauf, der in der letzten Kerze endet, nicht diesen Kauf
+    // 1126-A13.2: das Verkaufs-Tripel hat ein AB als Korrektur (B 205.626 Gegenbewegung im Abwärtstrend); gezeigt wird dieser Kauf, dessen AB ein Impuls ist
     const shown = analyzeAt('sig-diverg-h4-01', '2025-12-02T12:00');
-    expect([shown.side, shown.points.A?.time, shown.points.C?.time, shown.trade?.status?.kind]).toEqual(['sell', 1764590400, 1764619200, 'stopped']);
-    expect(shown.trade!.entry).toBeCloseTo(205.758, 3);
+    expect([shown.side, shown.points.A?.time, shown.points.C?.time, shown.trade?.status?.kind]).toEqual(['buy', 1764288000, 1764345600, 'stopped']);
     const c = measureAt('sig-diverg-h4-01', '2025-12-02T12:00', {
       a: { time: 1764288000, price: 207.193 },
       b: { time: 1764331200, price: 206.139 },
@@ -707,8 +708,14 @@ test.describe('ABCD: echte Kerzen', () => {
 
   // FRM-41 (2026-11-05, Formationen auf dem Trendzug des Nutzers): vorher schloss das volumenstarke D-Bein aus (ABCD-23 ☑, ABCD-10 ☐)
   frm('abcd-double-h4-01: Negativ – Verkauf mit Zone am D, ohne Umkehrkerze ungültig (ABCD-20 ☐)', () => {
-    const c = analyzeAt('abcd-double-h4-01', '2025-11-18T12:00');
+    // 1126-A13.2: die Suche zeigt um 12:00 den laufenden Kauf (AB abwärts, Impuls); das Tripel dieses Falls wird direkt gemessen (AB aufwärts, B ein Impuls des Trendzugs)
+    const c = measureAt('abcd-double-h4-01', '2025-11-18T12:00', {
+      a: { time: 1763121600, price: 178.962 },
+      b: { time: 1763150400, price: 179.635 },
+      c: { time: 1763337600, price: 179.256 },
+    });
     expect(c.side).toBe('sell');
+    expect(state(c, 'ABCD-01')).toBe(M);
     expect(states(c, ['ABCD-23', 'ABCD-10', 'ABCD-20'])).toEqual([N, M, N]);
     expect(c.invalidBy).toEqual(['ABCD-20']);
     expect(c.verdict).toBe('invalid');
@@ -1229,8 +1236,9 @@ frm('Büyük hedef: ohne harmonisches D fehlt es; Divergenz allein behält 0.786
 
 frm('Büyük hedef: ohne erreichtes Level 1 gibt es kein großes Ziel und keine Linie', () => {
   // Kurs hat Level 1 noch nicht erreicht: Reihe endet kurz nach C
-  const forming = zig([100, 130, 111.46, 124.94], [18, 4, 4], 3);
-  const c = run({ H4: forming }, { a: 20, b: 24, c: 28 }, { sell: false });
+  // 1126-A13.2: AB (130 → 111.46) ist ein Impuls, wenn der Trendzug abwärts läuft: zwei Vorlaufpunkte (140 → 100) legen die Richtung fest
+  const forming = zig([140, 100, 130, 111.46, 124.94], [8, 18, 4, 4], 3);
+  const c = run({ H4: forming }, { a: 28, b: 32, c: 36 }, { sell: false });
   expect(c.trade!.entry).toBeNull();
   expect(c.trade!.tpBig).toBeUndefined();
   expect(c.drawings.map((d) => d.id)).not.toContain('Z-ABCD-09');
@@ -1310,8 +1318,9 @@ test('Büyük hedef dondurulur: girişte harmonik D yoksa sonradan da doğmaz', 
 });
 
 test('Büyük hedef: giriş henüz olmadıysa karar son muma göre verilir (davranış aynen)', { tag: ['@FRM-05', '@FRM-39'] }, () => {
-  const forming = zig([100, 130, 111.46, 124.94], [18, 4, 4], 3);
-  expect(run({ H4: forming }, { a: 20, b: 24, c: 28 }, { sell: false }).trade!.tpBig).toBeUndefined();
+  // 1126-A13.2: AB (130 → 111.46) ist ein Impuls, wenn der Trendzug abwärts läuft: zwei Vorlaufpunkte (140 → 100) legen die Richtung fest
+  const forming = zig([140, 100, 130, 111.46, 124.94], [8, 18, 4, 4], 3);
+  expect(run({ H4: forming }, { a: 28, b: 32, c: 36 }, { sell: false }).trade!.tpBig).toBeUndefined();
   // Giriş mumu eklenince (D 32: Level 1'e ulaşır) aynı aday hedefi kazanır: karar giriş anına bağlı, önceden değil
   const entered = run({ H4: GARTLEY }, GARTLEY_AT, { sell: false }).trade!;
   expect(entered.entry).not.toBeNull();
@@ -1558,12 +1567,13 @@ for (const side of ['sell', 'buy'] as const) {
 // ---- Erken dönüş auf echten Kerzen: Fraktalzone im Band, Engulf bei der D-Kerze ----
 /** Widerstand 140 (Index 2), A 100, B 130, C 114 → Level 1 144; Stütze bei 120 und 114; D 140,5 berührt die Zone, danach Engulf (Schluss 134) */
 const ER_ROWS: Row[] = (() => {
-  const rows = zig([140, 100, 130, 114, 126, 120, 140.5], [8, 8, 8, 8, 8, 24], 0);
+  // 1126-A13.2: der Vorlauf 60 → 140 legt den Trendzug aufwärts fest, damit AB (100 → 130) ein Impuls ist (Kauf gespiegelt: abwärts)
+  const rows = zig([60, 140, 100, 130, 114, 126, 120, 140.5], [8, 8, 8, 8, 8, 8, 24], 0);
   rows[rows.length - 1] = [136, 140.5, 135.8, 139];
   rows.push([139, 139.2, 133.9, 134]);
   return rows;
 })();
-const ER_ABC = { a: 10, b: 18, c: 26 };
+const ER_ABC = { a: 18, b: 26, c: 34 };
 
 for (const side of ['sell', 'buy'] as const) {
   const tag = side === 'sell' ? 'Satış' : 'Alış';
