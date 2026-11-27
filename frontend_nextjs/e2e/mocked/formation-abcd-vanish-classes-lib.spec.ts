@@ -19,7 +19,7 @@ import { DEFAULT_TREND_SETTINGS } from '../../src/lib/formation/params';
 import { analyzeAbcd } from '../../src/lib/formation/abcdChecks';
 import type { Candidate, FormationBar } from '../../src/lib/formation/types';
 import type { AbcdVanishRow } from '../fixtures/formation-abcd-vanish-rows';
-import { XAUUSD_H1_1201_1211, XAUUSD_M15_0316_0330, XAUUSD_M15_0701_0708 } from '../fixtures/formation-abcd-vanish-classes-rows';
+import { XAUUSD_H1_1201_1211, XAUUSD_M15_0316_0330 } from '../fixtures/formation-abcd-vanish-classes-rows';
 
 const frm = (title: string, fn: () => void) => test(title, { tag: '@FRM-05' }, fn);
 
@@ -46,17 +46,6 @@ test.describe('AB=CD: verschwundene laufende Handel, Klassen a bis c (1122-A1.4)
     expect(view(candidateAt(ctx, 'M15', '2026-03-28T00:00'))).toMatchObject({ ...trade, state: 'tp1' });
     for (const iso of ['2026-03-30T01:00', '2026-03-30T05:00']) {
       expect(view(candidateAt(ctx, 'M15', iso)), `laufender Handel fehlt zur Zeit ${iso}`).toMatchObject({ ...trade, state: 'tp1' });
-    }
-  });
-
-  frm('b) Beim Einstieg nicht gezeigt: der M15-Handel (A 07-06 04:45) erscheint nie, auch nicht nach dem Einstieg', () => {
-    const ctx = ctxOf('M15', XAUUSD_M15_0701_0708);
-    const tradeA = at('2026-07-06T04:45');
-    // Vorbedingung: zum Schluss der Einstiegskerze (22:30) ist ein anderer Kandidat gezeigt
-    expect(view(candidateAt(ctx, 'M15', '2026-07-07T22:30')).A).not.toBe(tradeA);
-    for (let t = at('2026-07-07T22:30'); t <= at('2026-07-08T07:00'); t += 900) {
-      const iso = new Date(t * 1000).toISOString().slice(0, 16);
-      expect(view(candidateAt(ctx, 'M15', iso)).A, `nicht gezeigter Handel erscheint zur Zeit ${iso}`).not.toBe(tradeA);
     }
   });
 
@@ -114,13 +103,24 @@ test.describe('AB=CD: nächstbester Kandidat nach Regel B (1122-A1.4 b)', () => 
       expect([c.points.A?.time, c.points.C?.time], cut ? 'gekürzt' : 'ganz').not.toEqual([at('2025-07-10T16:00'), at('2025-07-11T00:00')]);
     }
   });
-  frm('b) Beim Einstieg zeigte die Suche einen älteren laufenden Handel: der neue Handel (A 07-10 00:00) erscheint auch nach dessen Ende nie', () => {
-    // Einstiegskerze 07-11 00:00; zu ihrem Schluss zeigte die Suche den laufenden Verkauf A 07-09 00:00 (Vorrang), nicht diesen Handel
-    expect(shownAt('2025-07-11T04:00', false).points.A?.time).toBe(at('2025-07-09T00:00'));
-    for (let t = at('2025-07-11T04:00'); t <= at('2025-07-14T12:00'); t += H4) {
+  // 1126-A13.2: die Suche wählt nur noch Tripel mit Impuls-AB; die Fälle der Regel B stehen auf anderen Tripeln derselben Reihe (abcd-buy-h4-02). Ohne die Regel
+  // zeigte die Suche hier Handel, die beim Schluss ihrer Einstiegskerze nicht gezeigt waren.
+  frm('b) Beim Einstieg nicht gezeigt (EURUSD, A 06-10 08:00, C 06-11 00:00): der Handel erscheint nie, solange ein anderes Tripel gezeigt wird', () => {
+    expect(shownAt('2025-06-11T12:00', false).points.A?.time).toBe(at('2025-06-09T00:00'));
+    for (let t = at('2025-06-11T12:00'); t <= at('2025-06-12T04:00'); t += H4) {
       const iso = new Date(t * 1000).toISOString().slice(0, 16);
       const c = shownAt(iso, false);
-      expect(c.points.A?.time === at('2025-07-10T00:00') && c.points.C?.time === at('2025-07-10T16:00') && c.trade?.entry != null, `nicht gezeigter Handel erscheint zur Zeit ${iso}`).toBe(false);
+      expect(c.points.A?.time === at('2025-06-10T08:00') && c.points.C?.time === at('2025-06-11T00:00') && c.trade?.entry != null, `nicht gezeigter Handel erscheint zur Zeit ${iso}`).toBe(false);
+    }
+  });
+  frm('b) Beim Einstieg nicht gezeigt (EURUSD, A 06-17 20:00, C 06-18 12:00): der Handel erscheint nie, auch nicht aus Kerzen bis zur Zeit', () => {
+    expect(shownAt('2025-06-19T00:00', false).points.A?.time).toBe(at('2025-06-16T00:00'));
+    for (let t = at('2025-06-19T00:00'); t <= at('2025-06-19T16:00'); t += H4) {
+      const iso = new Date(t * 1000).toISOString().slice(0, 16);
+      for (const cut of [false, true]) {
+        const c = shownAt(iso, cut);
+        expect(c.points.A?.time === at('2025-06-17T20:00') && c.points.C?.time === at('2025-06-18T12:00') && c.trade?.entry != null, `nicht gezeigter Handel erscheint zur Zeit ${iso}`).toBe(false);
+      }
     }
   });
 });

@@ -52,11 +52,12 @@ test.describe('AB=CD: Form verfehlt → kein Handel (1126-A20.2)', () => {
 
   frm('1123-A bleibt: ein Tripel mit gültiger Form und ohne Einstieg (gar-buy-h4-01, im Aufbau) wird weiter gezeigt', () => {
     const fx = named('e2e/fixtures/formation/gar-buy-h4-01.json', parseFixture(JSON.parse(readFileSync('e2e/fixtures/formation/gar-buy-h4-01.json', 'utf-8'))));
-    const now = 1761580800;
+    // 1126-A13.2: das frühere Tripel (A 1.17279, B 1.15764) hat ein AB als Korrektur im Aufwärtstrend; derselbe Fall an einem Tripel mit Impuls-AB (Kauf nach dem Anstieg 1.15419 → 1.17279, vor dem ersten Einstieg)
+    const now = 1761105600;
     const bars = fx.bars.filter((b) => b.time + 14400 <= now);
     const ctx = new FormationContext(fx.symbol, { H4: { bars, missing: [] } }, { trend: DEFAULT_TREND_SETTINGS });
     const c = analyzeAbcd(ctx, now).find((a) => a.tf === 'H4')!.candidate;
-    expect(abc(c)).toEqual([1.17279, 1.15764, 1.16472]);
+    expect(abc(c)).toEqual([1.15419, 1.17279, 1.15973]);
     expect(c.verdict).toBe('forming');
   });
 

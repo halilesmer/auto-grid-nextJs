@@ -18,7 +18,7 @@ const PRZ: Text = ['PRZ seviyesi D’ye yakın', 'The PRZ level is near D', 'PRZ
 const CLOSE_X: Text = ['H4 kapanışı X’in ötesinde', 'An H4 close beyond X', 'H4-Schluss jenseits von X'];
 
 export const RULE_TEXTS: Record<string, Text> = {
-  'ABCD-01': ['A, B, C sırayla fitil uçlarında', 'A, B, C follow in order on wick ends', 'A, B, C folgen der Reihe nach an Dochtspitzen'],
+  'ABCD-01': ['A, B, C sırayla fitil uçlarında; AB trend yönünde bir itki', 'A, B, C follow in order on wick ends; AB is an impulse in the trend direction', 'A, B, C folgen der Reihe nach an Dochtspitzen; AB ist ein Impuls in Trendrichtung'],
   'ABCD-02': ['B ve C tamamlanmış fraktal', 'B and C are finished fractals', 'B und C sind fertige Fraktale'],
   'ABCD-03': ['C’den sonra bir mum B’nin ötesinde kapanır', 'A candle after C closes beyond B', 'Eine Kerze nach C schließt jenseits von B'],
   'ABCD-04': ['BC düzeltmesi en az Fib 0,382', 'The BC correction is at least Fib 0.382', 'Korrektur BC mindestens Fib 0,382'],
