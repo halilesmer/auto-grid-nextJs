@@ -509,11 +509,14 @@ function evaluateFull(
   } else {
     const flags = view.wide.slice(s.c.idx + 1, d.idx + 1);
     let strong = 0;
+    let nNarrow = 0;
     for (let k = s.c.idx + 1; k <= d.idx; k++) {
       const toward = es === 'resistance' ? bars[k].close > bars[k].open : bars[k].close < bars[k].open;
       if (view.wide[k] === true && toward) strong++;
+      if (view.narrow[k] === true) nNarrow++;
     }
-    add('ABCD-23', flags.every((w) => w === null) ? U : flag(strong >= ABCD_PARAMS.wideBars), strong);
+    // Decision 1126-A20.2.1.1 (Halil, 2026-11-27, Option C): das D-Bein ist impulsiv wie in SIG-37 (mehr volumenstarke als schmale Kerzen), mit Untergrenze wideBars
+    add('ABCD-23', flags.every((w) => w === null) ? U : flag(strong >= ABCD_PARAMS.wideBars && strong > nNarrow), strong);
   }
   add('ABCD-24', abcdIsCdt(env, tf, es, s.b, s.d));
   add('ABCD-25', flag(timeframeExcluded(tf)));

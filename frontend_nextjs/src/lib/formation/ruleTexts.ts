@@ -40,7 +40,7 @@ export const RULE_TEXTS: Record<string, Text> = {
   'ABCD-20': ['D’de dönüş mumu', 'Reversal candle at D', 'Umkehrkerze bei D'],
   'ABCD-21': ['Trende karşı ve sapma yok', 'Against the trend without divergence', 'Gegen den Trend ohne Divergenz'],
   'ABCD-22': ['Kapanış bölgenin ötesine geçti', 'A close went beyond the zone', 'Schluss jenseits der Zone'],
-  'ABCD-23': ['D bacağında iki güçlü mum', 'Two strong candles in the D leg', 'Zwei volumenstarke Kerzen im D-Bein'],
+  'ABCD-23': ['D bacağı itki gibi: en az iki güçlü mum, güçlü mum küçük mumdan fazla', 'The D leg is impulsive: at least two strong candles, more strong than narrow candles', 'Das D-Bein ist impulsiv: mindestens zwei volumenstarke Kerzen, mehr volumenstarke als schmale Kerzen'],
   'ABCD-24': ['Yapı bir çift tepe/dip’e benziyor', 'The shape is a double top or bottom', 'Form ist ein Doppeltop/-boden'],
   'ABCD-25': ['Zaman dilimi M1 veya M5', 'Timeframe is M1 or M5', 'Zeiteinheit M1 oder M5'],
   'ABCD-26': ['Trend D’den önce döndü, C kırıldı', 'The trend turned before D and broke C', 'Trend dreht vor D und bricht C'],

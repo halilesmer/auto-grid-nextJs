@@ -224,7 +224,7 @@ export const ABCD_PARAMS = {
   nearAtr: 0.5,
   /** ABCD-18 (Annahme): RSI(7) kurz vor dem Extrem */
   rsiNear: { sell: 75, buy: 25 },
-  /** ABCD-23 (Annahme): so viele volumenstarke Kerzen in Richtung C → D schließen aus */
+  /** ABCD-23 (Annahme): Untergrenze, so viele volumenstarke Kerzen in Richtung C → D schließen aus; zusätzlich müssen sie die schmalen Kerzen im D-Bein übertreffen (Impuls-Vergleich wie SIG-37, 1126-A20.2.1.1) */
   wideBars: 2,
   /** ABCD-25: Zeiteinheiten, in denen AB=CD nicht gilt */
   excludedTimeframes: ['M1', 'M5'] as readonly string[],
