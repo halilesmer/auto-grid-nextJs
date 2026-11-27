@@ -20,6 +20,7 @@ import type { FormationBar } from '../../src/lib/formation/types';
 import { abcdWork } from '../../src/lib/formation/abcdChecks';
 import { trendWork } from '../../src/lib/formation/trd';
 import { xabcdWork } from '../../src/lib/formation/xabcd';
+import { DEFAULT_TREND_SETTINGS } from '../../src/lib/formation/params';
 import { fixtureTrend, named, trendOf } from '../fixtures/formation-trend';
 
 const DIR = 'e2e/fixtures/formation';
@@ -46,7 +47,7 @@ function hashOf(key: string, hits: unknown): string {
 function scansOf(name: string) {
   const fx = named(`${DIR}/${name}.json`, parseFixture(JSON.parse(readFileSync(`${DIR}/${name}.json`, 'utf-8'))));
   const tf = fx.timeframe as keyof typeof TIMEFRAME_SEC;
-  const out: { key: string; hash: string; work: typeof xabcdWork; blocks: number }[] = [];
+  const out: { key: string; hash: string; work: typeof xabcdWork; blocks: number; abcdFull: number; trendSteps: number }[] = [];
   for (const share of [1, 0.8, 0.6, 0.4]) {
     const i = Math.floor((fx.bars.length - 1) * share);
     if (i < 60) continue;
@@ -55,7 +56,13 @@ function scansOf(name: string) {
     const ctx = new FormationContext(fx.symbol, { [fx.timeframe]: bars } as ContextInput, { trend: trendOf(fx.bars) });
     resetWork();
     const hits = scanFormations(ctx, t);
-    out.push({ key: `${name}@${share}`, hash: hashOf(`${name}@${share}`, hits), work: { ...xabcdWork }, blocks: blocksOf(hits) });
+    out.push({ key: `${name}@${share}`, hash: hashOf(`${name}@${share}`, hits), work: { ...xabcdWork }, blocks: blocksOf(hits), abcdFull: abcdWork.full, trendSteps: trendWork.steps });
+    // Zweiter Lauf mit dem Chart-Standard (`DEFAULT_TREND_SETTINGS`: welle382, EWO aus dem Schluss, Teilung des langen Schenkels): die Fixtures
+    // oben laufen mit eigener Einstellung ohne Teilung, der Standard des Charts wäre sonst nirgends in der Aufzeichnung (1126-A20.4). Der Hash zeigt Stabilität, nicht Richtigkeit.
+    const dctx = new FormationContext(fx.symbol, { [fx.timeframe]: bars } as ContextInput, { trend: DEFAULT_TREND_SETTINGS });
+    resetWork();
+    const dhits = scanFormations(dctx, t);
+    out.push({ key: `${name}@${share}#default`, hash: hashOf(`${name}@${share}#default`, dhits), work: { ...xabcdWork }, blocks: blocksOf(dhits), abcdFull: abcdWork.full, trendSteps: trendWork.steps });
   }
   return out;
 }
@@ -64,6 +71,7 @@ for (const name of names) {
   test(`Suche auf ${name} liefert denselben Treffer-Hash wie die Aufzeichnung`, { tag: '@FRM-08' }, () => {
     for (const s of scansOf(name)) {
       written[s.key] = s.hash;
+      if (process.env.GOLDEN_WORK) console.log(`WORK ${s.key} evaluated=${s.work.evaluated} keyBuilds=${s.work.keyBuilds} abcdFull=${s.abcdFull} trendSteps=${s.trendSteps}`);
       if (!UPDATE) expect(s.hash, s.key).toBe(golden[s.key]);
     }
   });

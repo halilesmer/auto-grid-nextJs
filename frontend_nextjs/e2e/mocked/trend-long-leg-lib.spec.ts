@@ -21,8 +21,8 @@ const settings = (patch: Partial<TrendSettings> = {}) => usableTrendSettings({ .
 const build = (bars: FormationBar[], patch: Partial<TrendSettings> = {}) => buildTrend('H1', bars, wave(bars), settings(patch));
 const at = (bars: FormationBar[], iso: string) => bars.findIndex((b) => b.time === Date.parse(iso) / 1000);
 /** Die letzten `n` Punkte des Zugs an der Kerze `iso` (das ist die Kerze, an der geteilt wurde) */
-function tail(bars: FormationBar[], iso: string, n: number): number[] {
-  const run = new TrendRun('H1', bars, wave(bars), settings());
+function tail(bars: FormationBar[], iso: string, n: number, patch: Partial<TrendSettings> = {}): number[] {
+  const run = new TrendRun('H1', bars, wave(bars), settings(patch));
   run.advanceTo(at(bars, iso) + 1);
   return run.model.pivots.slice(-n).map((p) => p.price);
 }
@@ -52,6 +52,17 @@ test.describe('ANA-29 Langer Schenkel (Zahlen auf H1-Kerzen)', () => {
   ana('XAUUSD Ende November: die Linie ist das ABCD, das von Hand gezeichnet wurde', () => {
     expect(build(XAU).pivots.slice(-6).map((p) => p.price)).toEqual([4148.52, 3832.42, 3886.69, 3502.81, 3689.66, 3426.69]);
   });
+
+  // 1126-A20.4 (Halil 2026-11-26, 1126-A20.3): die Standardwerte der beiden anderen Maße (ATR-Vielfaches 15, 80 Kerzen) finden dasselbe ABCD
+  // wie das Vielfache 2,618; der Auslöser liegt bei allen drei Maßen an derselben Kerze (gemessen: 2026-11-23 18:00).
+  for (const [label, patch] of [['ATR-Vielfaches 15', { legMeasure: 'atr', legAtr: 15 }], ['80 Kerzen', { legMeasure: 'bars', legBars: 80 }]] as [string, Partial<TrendSettings>][]) {
+    ana(`XAUUSD, Maß ${label}: das von Hand gezeichnete ABCD steht an der Kerze des Auslösers und am Ende`, () => {
+      expect(tail(XAU, '2026-11-23T18:00Z', 4, patch)).toEqual([3832.42, 3886.69, 3502.81, 3689.66]);
+      // eine Kerze davor ist die Teilung noch nicht da
+      expect(tail(XAU, '2026-11-23T17:00Z', 3, patch)).not.toEqual([3886.69, 3502.81, 3689.66]);
+      expect(build(XAU, patch).pivots.slice(-6).map((p) => p.price)).toEqual([4148.52, 3832.42, 3886.69, 3502.81, 3689.66, 3426.69]);
+    });
+  }
 
   ana('EURUSD: sieben Teilungen mit A, B und C an der Kerze des Auslösers', () => {
     const splits: [string, number[]][] = [
