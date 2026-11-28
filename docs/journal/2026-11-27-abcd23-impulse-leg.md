@@ -29,12 +29,20 @@ SIG-38 is not added to ABCD.
 
 ## Measurement
 
-H1 only, valid trades: XAUUSD 1 → 6, EURUSD 1 → 5.
-H1 + H4 + D1: 1 → 2 and 1 → 3.
-These numbers come from a copy made before PR 695. The coordinator gives the numbers on current `main` in the PR.
+Earlier copy, before PR 695, H1 only, valid trades: XAUUSD 1 → 6, EURUSD 1 → 5.
+Earlier copy, before PR 695, H1 + H4 + D1: 1 → 2 and 1 → 3.
+
+Current main (PR 694, PR 695), H1 formations with H4 and D1 built from the same H1 candles, 2025-11-20 to 2026-11-26.
+The app opens a trade on each triple with a valid shape, also when the verdict is invalid: XAUUSD 26, EURUSD 23.
+Valid at the entry candle: old rule 1 and 0, new rule 2 and 2.
+Three more triples on each symbol miss only the ABCD-20 reversal candle.
+A walk on the PR head gives the same result as the measurement copy, row by row (0 differences in 6000 and 6326 closes).
 
 ## Tests
 
 `@FRM-05` (`formation-abcd-lib.spec.ts`): WIDE2 stays met (2 strong, 0 narrow), WIDE1 stays unmet.
 New cases, counted by hand: 2 strong + 2 narrow → unmet; 2 strong + 1 narrow → met; mirror (buy) of the tie case → unmet.
-No golden expectation changed.
+The scan golden (`formation-scan-golden.json`) changed: 77 hashes.
+Only ABCD-23 changed (met → unmet in 100 candidates, 53 fixtures).
+50 verdicts changed from invalid to forming, because ABCD-23 was their only cause.
+Example: `abcd-breakc-h4-01@0.8`.
