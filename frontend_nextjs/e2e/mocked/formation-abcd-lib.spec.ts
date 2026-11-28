@@ -157,6 +157,12 @@ const rise24 = Array.from({ length: 24 }, (_, i): Row => plain(76 + i, 77 + i));
 const WIDE2 = [...rise24, [100, 106, 99.9, 105.5] as Row, [105.5, 111.6, 105.4, 111] as Row];
 const WIDE1 = [...rise24, [100, 106, 99.9, 105.5] as Row, plain(105.5, 106.5)];
 const WIDE_AT = { a: 20, b: 22, c: 23, d: 25 };
+/** WIDE2 plus zwei schmale Kerzen (Spanne 0,5 ≤ 0,5 × Mittel): 2 volumenstarke, 2 schmale im D-Bein (C 23 → D 27): nicht mehr volumenstarke als schmale */
+const WIDE2_TIE = [...WIDE2, [111, 111.4, 110.9, 111.2] as Row, [111.2, 111.65, 111.15, 111.5] as Row];
+const WIDE_TIE_AT = { a: 20, b: 22, c: 23, d: 27 };
+/** WIDE2 plus eine schmale Kerze (D 26): 2 volumenstarke > 1 schmale */
+const WIDE2_ONE = [...WIDE2, [111, 111.65, 111.15, 111.5] as Row];
+const WIDE_ONE_AT = { a: 20, b: 22, c: 23, d: 26 };
 /** D 138 am Ende, danach eine Abwärtskerze, die unter dem Tief der Vorkerze schließt (Engulf nach dem D) */
 /** A 100, B 130, C 112, D 129,85 = Doppeltop: D berührt die Zone von B (128,875 bis 130), kein Schluss über B, RSI(7) an B über 80 */
 const S_DOUBLE_TOP = zig([120, 100, 130, 112, 129.85], 8, 3);
@@ -394,6 +400,16 @@ const CASES: Case[] = [
     expect: { 'ABCD-23': M },
   },
   {
+    name: 'Zwei volumenstarke und zwei schmale Kerzen im D-Bein: nicht impulsiv, kein Ausschluss',
+    candidate: () => run({ H4: WIDE2_TIE }, WIDE_TIE_AT),
+    expect: { 'ABCD-23': N },
+  },
+  {
+    name: 'Zwei volumenstarke und eine schmale Kerze im D-Bein: impulsiv, schließt aus',
+    candidate: () => run({ H4: WIDE2_ONE }, WIDE_ONE_AT),
+    expect: { 'ABCD-23': M },
+  },
+  {
     name: 'Nur eine volumenstarke Kerze im D-Bein',
     candidate: () => run({ H4: WIDE1 }, WIDE_AT),
     expect: { 'ABCD-23': N },
@@ -461,6 +477,7 @@ test.describe('ABCD: Abdeckung und Eigenschaften', () => {
       [Z_THROUGH, ZABC, ['ABCD-10', 'ABCD-22']],
       [S_ENGULF, ABC, ['ABCD-20', 'ABCD-07']],
       [WIDE2, WIDE_AT, ['ABCD-23']],
+      [WIDE2_TIE, WIDE_TIE_AT, ['ABCD-23']],
     ];
     for (const [rows, idx, ids] of pairs) {
       const sell = run({ H4: rows }, idx);
@@ -468,6 +485,7 @@ test.describe('ABCD: Abdeckung und Eigenschaften', () => {
       expect(ids.map((id) => state(buy, id))).toEqual(ids.map((id) => state(sell, id)));
     }
     expect(state(run({ H4: mirror(WIDE2) }, WIDE_AT, { sell: false }), 'ABCD-23')).toBe(M);
+    expect(state(run({ H4: mirror(WIDE2_TIE) }, WIDE_TIE_AT, { sell: false }), 'ABCD-23')).toBe(N);
     expect(state(run({ H4: mirror(S_ENGULF) }, ABC, { sell: false }), 'ABCD-20')).toBe(M);
   });
 
